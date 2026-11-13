@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js test test-live test-e2e test-js check manual mutate trivia
+.PHONY: lint jscpd lint-js pytest-offline test test-live test-e2e test-js check manual mutate
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -12,15 +12,20 @@ lint:
 	$(VENV)/python scripts/gates/testing/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_test_clocks.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
-	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
-	$(VENV)/triviajudge-archaeology $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/')
+	$(VENV)/python scripts/gates/check_spelling.py $$(git ls-files)
+	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.sh' '*.json' '*.css' '*.html' '*.txt' '*.webmanifest' | grep -v 'static/vendor/')
+	$(VENV)/python scripts/gates/check_docs.py .
 	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
 	$(VENV)/python scripts/gates/check_gates_wired.py
+	$(VENV)/python scripts/gates/check_config_copies.py
 	$(VENV)/python scripts/gates/testing/check_e2e_isolation.py
 	$(VENV)/python scripts/gates/check_openapi.py
 	$(VENV)/python scripts/gates/check_container_env.py
 	$(VENV)/python scripts/gates/check_metadata.py
+	$(VENV)/python scripts/gates/check_lifecycle_names.py $$(git ls-files 'hqptuner/*.py' 'tests/*.py')
+	$(VENV)/python scripts/gates/check_field_structure.py $$(git ls-files 'hqptuner/*.py')
+	$(VENV)/python scripts/gates/check_store_flags.py $$(git ls-files 'hqptuner/static/*.js')
 	$(VENV)/filepawl check
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
@@ -38,49 +43,82 @@ lint:
 # vendor/ is upstream and exempt from every gate.
 #
 # jscpd is the one gate here that is not frontend-only: it reads Python, JS and
-# CSS in a single pass. It lives in this target rather than `lint` because it is
-# an npx tool, and `lint` is the venv-only half that has to stay runnable with
-# no node_modules installed. Its whole configuration — paths, formats, vendor
-# exclusion, threshold — is in .jscpd.json, so the recipe is a bare invocation.
-lint-js:
+# CSS. It lives under this target rather than `lint` because it is an npx tool,
+# and `lint` is the venv-only half that has to stay runnable with no
+# node_modules installed. Its whole configuration (paths, formats, vendor
+# exclusion, threshold) is in .jscpd.json. The `jscpd` target runs it once per
+# format in that file's list, each run judged against the threshold alone, so a
+# format with little duplication cannot dilute one with a lot. Every run goes
+# ahead even after one fails, so each format's result is printed, and the
+# target fails when any run did. The jscpd pre-commit hook runs this target.
+JSCPD_FORMATS = $(shell node -p "require('./.jscpd.json').format.join(' ')")
+
+jscpd:
+	status=0; for format in $(JSCPD_FORMATS); do npx jscpd --format $$format || status=1; done; exit $$status
+
+lint-js: jscpd
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/**/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx tsc -p tsconfig.node.json
 	npx knip
-	npx jscpd
 	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_classes.py
 	$(VENV)/python scripts/gates/css/check_css_dead.py
 	$(VENV)/python scripts/gates/css/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
+	$(VENV)/python scripts/gates/check_static_clocks.py $$(git ls-files 'hqptuner/static/*.js')
 
-# The coverage floor is per file and lives in the gate below, not in
-# --cov-fail-under. Second recipe line, so a failing suite reports first.
+# The marker selection of each pytest suite, every marker name spelled once:
+# test-e2e runs the e2e tests alone, test-live runs everything else, and the
+# offline suite is that less the live-marked tests.
+E2E_MARKERS := e2e
+LIVE_MARKERS := not $(E2E_MARKERS)
+OFFLINE_MARKERS := not live and $(LIVE_MARKERS)
+
+# The offline suite. Its command is written here and copied into the check job
+# of .github/workflows/check.yml. `test` runs it before the gates that read its
+# reports. The pytest-offline pre-commit hook runs this target alone, since
+# pre-commit runs each of those gates as a hook of its own.
+pytest-offline:
+	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "$(OFFLINE_MARKERS)" -q --cov=hqptuner --cov-branch --cov-report=json:.coverage.json -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov-report=term-missing --junitxml=.pytest-junit.xml
+
+# The run stamp records when the run started, and the first recipe line of
+# `test` refuses any report older than it or missing
+# (scripts/gates/testing/check_fresh_reports.py): a run that was aborted or
+# crashed leaves the previous run's reports behind, and the gates after it
+# would pass on those. The coverage floor is per file and lives in the gate on
+# the second line, not in --cov-fail-under, so a failing suite reports first.
 # The junit report carries the suite's wall time; the third line holds it to
-# the last green run's (scripts/gates/testing/check_suite_time.py). The idle probe
-# measures each test's wall time against its CPU time and writes a second
-# report, which the fourth line holds per test (scripts/gates/check_idle.py).
+# a bar a green run never raises (scripts/gates/testing/check_suite_time.py),
+# one per branch; a branch with none is judged against the bar of the recorded
+# branch nearest it in history, and the bars of deleted branches are removed
+# on every run. The idle probe measures each test's wall time less its CPU time
+# less the time every thread of the process waited for a CPU, sampled at the
+# test's start, either side of its call and at its end, and writes a second
+# report; the fourth line fails any test whose reading rises more than 40 ms
+# over its previous one on the branch, or exceeds 40 ms with none, and records
+# only the readings that passed (scripts/gates/testing/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
 # a reading the same on any machine, and the fifth line refuses any test with
-# one (scripts/gates/check_clock_waits.py). The suite deadline aborts a run
+# one (scripts/gates/testing/check_clock_waits.py). The suite deadline aborts a run
 # still going at the third line's bar, so a hung suite fails instead of hanging.
 IDLE_GATE ?= on
 
-test:
-	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+test: pytest-offline
+	$(VENV)/python scripts/gates/testing/check_fresh_reports.py
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py
-	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/check_idle.py)
-	$(VENV)/python scripts/gates/check_clock_waits.py
+	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/testing/check_idle.py)
+	$(VENV)/python scripts/gates/testing/check_clock_waits.py
 
 test-live:
-	PYTHONPATH=scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not e2e" -q -p tested_release
+	$(VENV)/pytest -m "$(LIVE_MARKERS)" -q
 
 test-e2e:
-	$(VENV)/pytest -m e2e --no-cov -q
+	$(VENV)/pytest -m $(E2E_MARKERS) --no-cov -q
 
 # --import installs tests/js/vendor-resolve.js, which reads the importmap out of
 # hqptuner/static/index.html and resolves the bare specifiers (preact, htm,
@@ -100,18 +138,9 @@ test-js:
 	  --test-coverage-lines=95 \
 	  --test-coverage-branches=90 \
 	  --test-coverage-functions=85 \
-	  --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js
+	  --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js
 
 check: lint lint-js test test-js
-
-# Asks a model whether the markdown HEAD added narrates history instead of
-# stating what holds now. Needs a logged-in `claude` CLI and the network, so it
-# stays out of `check`, which is offline by contract; pre-commit runs it on
-# every markdown commit.
-trivia:
-	$(VENV)/triviajudge-md --head
-	$(VENV)/triviajudge-comments --head
-	$(VENV)/triviajudge-changelog --head
 
 # Pre-parse the vendored Signalyst docs into docs/official/manual/ — one file per
 # manual subsection plus an index, so an agent reads the section it needs

@@ -6,7 +6,7 @@ writes ``derived/<stamp>.npy`` — per-frame per-bin dB per channel, float16 —
 the header constants, the status and the arrival times. A burst whose two derived files exist is skipped, so no burst
 is unpacked twice.
 
-Stage 2 (``report``) reads only the derived files. Every block is labelled cliff or full from the per-frame contrast
+Stage 2 (``report``) reads only the derived files. Every block is labeled cliff or full from the per-frame contrast
 test over its own frames, and three block candidates plus ``junkadvisor.classify`` on the block's per-bin minimum are
 scored against those per-block labels over a sweep of block lengths.
 
@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "junkburst" / "f
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "junkburst" / "views"))
 
 from jbconfig import DER
-from jblabelled import report_labelled
+from jblabeled import report_labeled
 from jbprobe import probe
 from jbscore import report
 from jbtracks import tracks
@@ -65,7 +65,7 @@ def main() -> None:
     elif args.stage == "probe":
         probe(args.stamps or sorted(p.stem for p in DER.glob("*.npy")))
     elif args.labels:
-        report_labelled()
+        report_labeled()
     else:
         report()
 

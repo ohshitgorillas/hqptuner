@@ -1,0 +1,319 @@
+// Rendered suite for the row half of the stage drawer's grammar (hqptuner/static/components/faceplate/drawer/): a row's
+// sublabel, band tag and hint, the option list it draws under itself with every option's line, the picked option's line
+// a select prints full width, a row's own options, the widgets drawn as a select, a
+// number box or a text box, and the restart mark a row whose setting restarts the engine carries from the moment the
+// drawer is drawn, before any edit.
+//
+// Renders through preact-render-to-string; a handler is fired through the vnode seam (tests/js/support/vnodeseam.js)
+// and the store is driven at the wire by the staging fake. Rows are found by their schema key (`data-k`), options by
+// their value (`data-v`), the restart mark by its `data-testid`; every string asserted is one the
+// test put on the wire or into the schema. The restart mark's keys are catalog keys chosen for their lane:
+// volume_max and quick_pause are http fields the engine restarts for,
+// adaptive_volume has a live setter, and output_mode is an http field the write path routes live through SetMode.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawer-rows.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
+import { config, generation } from "../../../../hqptuner/static/store/signals.js";
+import { edit } from "../../../../hqptuner/static/store/actions.js";
+import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
+import { renderTree } from "../../support/vnodeseam.js";
+import { elements, attr, classes, text } from "../../support/markup.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").RowSpec} RowSpec */
+
+/** The /config form fields' metadata: type and options. */
+const FIELDS = [
+  { name: "volume_max", type: "number" },
+  { name: "fixed_volume_enabled", type: "checkbox" },
+  { name: "quick_pause", type: "checkbox" },
+  { name: "gain_comp", type: "number" },
+  { name: "matrix_pipelines", type: "text" },
+  {
+    name: "idle_time",
+    type: "select",
+    options: [
+      { value: "30", label: "30" },
+      { value: "60", label: "60" },
+    ],
+  },
+  {
+    name: "fft_size",
+    type: "select",
+    options: [
+      { value: "16384", label: "16384" },
+      { value: "32768", label: "32768" },
+    ],
+  },
+  { name: "mode", type: "select" },
+];
+
+/** The values the File holds for the form fields above, by field name. */
+const VALUES = {
+  volume_max: -3,
+  fixed_volume_enabled: false,
+  quick_pause: false,
+  gain_comp: 0,
+  matrix_pipelines: "1",
+  idle_time: "30",
+  fft_size: "16384",
+};
+
+/** The daemon's limits of each numeric field here. */
+const BOUNDS = { volume_max: { min: -60, max: 0, step: 1 }, gain_comp: { min: -20, max: 20, step: 0.1 } };
+
+/** The Engine's list index of the output mode the File holds. */
+const PCM_INDEX = 1;
+
+/**
+ * The served field readings: every form field here from the File on the restore lane, restarting the engine, the
+ * output mode from the Engine on the live lane with no restart of its own, and adaptive volume on its live setter;
+ * each carrying what the staging wire holds for it.
+ *
+ * @param {import("../../support/wire/wire.js").StagingWire} w
+ */
+function served(w) {
+  const staged = w.staged.http;
+  const held = (/** @type {string} */ name, /** @type {unknown} */ value) =>
+    name in staged && staged[name] !== value ? staged[name] : null;
+  /** @type {Record<string, unknown>} */
+  const fields = {};
+  for (const [name, value] of Object.entries(VALUES)) {
+    const bounds = BOUNDS[/** @type {keyof typeof BOUNDS} */ (name)] ?? null;
+    fields[name] = fieldReading(value, {
+      show: "file",
+      lane: "restore",
+      restarts: true,
+      bounds,
+      staged: held(name, value),
+    });
+  }
+  fields.mode = fieldReading(PCM_INDEX, {
+    name: "pcm",
+    lane: "live",
+    file: { value: "pcm", generation: generation.value },
+    staged: held("mode", "pcm"),
+  });
+  fields.adaptive_volume = fieldReading(0, { lane: "live", staged: held("adaptive_volume", 0) });
+  return fields;
+}
+
+/** The restart mark's test id, shared by every surface that carries it. */
+const MARK = "restart-mark";
+
+/** @param {MarkupElement} e */
+const isMark = (e) => attr(e, "data-testid") === MARK;
+
+/** Restart-lane keys. */
+const RANGE_MAX = "volume_max";
+const QUICK_PAUSE = "quick_pause";
+
+/** Live-lane keys: one with its own live setter, one an http field routed live. */
+const ADAPTIVE = "adaptive_volume";
+const OUTPUT_MODE = "output_mode";
+
+/** @type {import("../../support/wire/wire.js").StagingWire} */
+let wire;
+
+beforeEach(async () => {
+  wire = stagingWire({
+    routes: (path, opts, w) =>
+      path === "/api/config" && (opts.method ?? "GET") === "GET"
+        ? ok({ generation: generation.value, fields: served(w) })
+        : undefined,
+  });
+  config.value = { fields: FIELDS };
+  await seedReadings(served(wire));
+  await resetDrawerStore();
+});
+
+/** The per-option lines two schemas below write for idle_time. */
+const LINED = [
+  { value: "30", label: "30", man: "line30" },
+  { value: "60", label: "60", man: "line60" },
+];
+
+/**
+ * A drawer of one tab holding the given rows.
+ *
+ * @param {...RowSpec} rows
+ * @returns {DrawerSchema}
+ */
+const rowsOf = (...rows) => ({
+  id: "rows",
+  title: "rows",
+  aria: "rows",
+  tabs: [{ id: "only", label: "only", body: rows.map((row) => ({ row })) }],
+});
+
+/**
+ * The elements inside the row drawn for `key`, or none when it is not drawn.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} key
+ * @returns {MarkupElement[]}
+ */
+function inRow(schema, key) {
+  const all = elements(render(html`<${Drawer} schema=${schema} />`));
+  const row = all.find((e) => attr(e, "data-k") === key);
+  return row ? elements(row.html) : [];
+}
+
+/**
+ * Whether the row drawn for `key` carries the restart mark, or null when the row is not drawn at all.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} key
+ * @returns {boolean | null}
+ */
+function marked(schema, key) {
+  const row = inRow(schema, key);
+  return row.length > 0 ? row.some(isMark) : null;
+}
+
+/**
+ * The text of the first element in a row carrying class `cls`.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} key
+ * @param {string} cls
+ * @returns {string | undefined}
+ */
+function textIn(schema, key, cls) {
+  const el = inRow(schema, key).find((e) => classes(e).includes(cls));
+  return el ? text(el) : undefined;
+}
+
+/**
+ * The value attribute of a row's input, or undefined when it draws none of that type.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} key
+ * @param {string} type
+ */
+function inputValue(schema, key, type) {
+  const input = inRow(schema, key).find((e) => e.name === "input" && attr(e, "type") === type);
+  return input ? attr(input, "value") : undefined;
+}
+
+/**
+ * Fire a handler on the first vnode matching `pred`.
+ *
+ * @param {DrawerSchema} schema
+ * @param {(props: Record<string, unknown>, type: unknown) => boolean} pred
+ * @param {string} handler
+ * @param {unknown} [event]
+ */
+async function fire(schema, pred, handler, event) {
+  const { seen } = renderTree(html`<${Drawer} schema=${schema} />`);
+  const hit = seen.find((v) => typeof v.type === "string" && pred(v.props ?? {}, v.type));
+  const fn = /** @type {((e: unknown) => unknown) | undefined} */ (hit?.props[handler]);
+  if (fn) await fn(event);
+}
+
+test("test_a_rows_sublabel_prints_in_its_head", () => {
+  assert.equal(textIn(rowsOf({ key: "volume_max", sub: "subfixture" }), "volume_max", "s"), "subfixture");
+});
+
+test("test_a_rows_band_tag_prints_in_its_head", () => {
+  assert.equal(textIn(rowsOf({ key: "volume_max", band: "LF" }), "volume_max", "band"), "LF");
+});
+
+test("test_a_number_rows_hint_prints_after_its_box", () => {
+  assert.equal(textIn(rowsOf({ key: "volume_max", hint: "hintfixture" }), "volume_max", "h"), "hintfixture");
+});
+
+/** Whether idle_time's listed option `v` is lit, or null when it is not listed. */
+const cur = (/** @type {string} */ v) => {
+  const b = inRow(rowsOf({ key: "idle_time", optMan: true }), "idle_time").find(
+    (e) => attr(e, "role") === "listitem" && attr(e, "data-v") === v,
+  );
+  return b ? classes(b).includes("cur") : null;
+};
+
+test("test_an_option_list_lights_the_effective_option", async () => {
+  await edit("idle_time", "60");
+  assert.equal(cur("60"), true);
+});
+
+test("test_an_option_list_prints_every_options_line", () => {
+  const listed = inRow(rowsOf({ key: "idle_time", optMan: true, options: LINED }), "idle_time")
+    .filter((e) => attr(e, "role") === "listitem")
+    .map((li) => elements(li.html).find((e) => e.name === "span"))
+    .map((span) => (span ? text(span) : undefined));
+  assert.deepEqual(listed, ["line30", "line60"]);
+});
+
+test("test_tapping_a_listed_option_stages_it", async () => {
+  await fire(
+    rowsOf({ key: "idle_time", optMan: true }),
+    (p) => p.role === "listitem" && p["data-v"] === "60",
+    "onClick",
+  );
+  assert.equal(wire.staged.http.idle_time, "60");
+});
+
+test("test_a_select_with_option_lines_prints_the_picked_ones_under_the_row", async () => {
+  await edit("idle_time", "60");
+  const shown = textIn(rowsOf({ key: "idle_time", options: LINED }), "idle_time", "optfull") ?? "";
+  assert.equal(shown.includes("line60"), true);
+});
+
+test("test_a_rows_own_options_replace_the_catalogs", () => {
+  const own = [
+    { value: "a", label: "a" },
+    { value: "b", label: "b" },
+  ];
+  const values = inRow(rowsOf({ key: "fixed_volume_enabled", options: own }), "fixed_volume_enabled")
+    .filter((e) => e.name === "button")
+    .map((e) => attr(e, "data-v"));
+  assert.deepEqual(values, ["a", "b"]);
+});
+
+test("test_a_steps_row_draws_a_select_over_its_options", () => {
+  const values = inRow(rowsOf({ key: "fft_size" }), "fft_size")
+    .filter((e) => e.name === "option")
+    .map((e) => attr(e, "value"));
+  assert.deepEqual(values, ["16384", "32768"]);
+});
+
+test("test_a_slidernum_row_draws_a_number_box_holding_its_value", async () => {
+  await edit("gain_comp", "-3");
+  assert.equal(inputValue(rowsOf({ key: "gain_comp" }), "gain_comp", "number"), "-3");
+});
+
+test("test_a_knob_row_draws_a_number_box_holding_its_value", async () => {
+  await edit("loudness_low_level", "12");
+  assert.equal(inputValue(rowsOf({ key: "loudness_low_level" }), "loudness_low_level", "number"), "12");
+});
+
+test("test_a_text_row_draws_a_text_box_holding_its_value", async () => {
+  await edit("matrix_pipelines", "4");
+  assert.equal(inputValue(rowsOf({ key: "matrix_pipelines" }), "matrix_pipelines", "text"), "4");
+});
+
+test("test_changing_a_text_row_stages_the_typed_value", async () => {
+  await fire(rowsOf({ key: "matrix_pipelines" }), (p, type) => type === "input", "onChange", {
+    currentTarget: { value: "8" },
+  });
+  assert.equal(wire.staged.http.matrix_pipelines, "8");
+});
+
+test("test_an_unedited_restart_number_row_carries_the_mark", () => {
+  const schema = rowsOf({ key: RANGE_MAX }, { key: ADAPTIVE });
+  assert.equal(marked(schema, RANGE_MAX), true);
+});
+
+test("test_an_unedited_restart_checkbox_row_carries_the_mark", () => {
+  const schema = rowsOf({ key: QUICK_PAUSE }, { key: OUTPUT_MODE });
+  assert.equal(marked(schema, QUICK_PAUSE), true);
+});

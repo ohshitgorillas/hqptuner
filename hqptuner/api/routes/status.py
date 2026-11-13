@@ -1,6 +1,7 @@
-"""Read-only status surface — daemon health, State/Status frames, enumerations, static metadata, and the log tail.
+"""Status surface — daemon health, State/Status frames, enumerations, static metadata, and the log tail.
 
-Every route here answers from the poll loop's cached view or from files, so none of them writes to the daemon.
+Every route here answers from the poll loop's cached view or from files, except ``/log``, which reads the daemon over
+8088 on demand. None of them writes to the daemon or changes anything.
 """
 
 import contextlib
@@ -9,15 +10,15 @@ from dataclasses import dataclass, replace
 import httpx
 from fastapi import APIRouter, Request
 
-from hqptuner import __version__
 from hqptuner.api import deps
-from hqptuner.api.deps import Mgr, Static
+from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, NotLoadedError, refuse
 from hqptuner.core import engineread
 from hqptuner.core.engineread import LogTail
+from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.engine.logtail import NoLogError
-from hqptuner.lanes.live import chain
+from hqptuner.engine.view import EngineView
 from hqptuner.metadata import MergedEnums, ModeInfo, StaticDb, StaticMetadata, merge_enumerations
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -26,86 +27,68 @@ router = APIRouter(prefix="/api")
 
 @dataclass(frozen=True)
 class HealthReport:
-    """``GET /api/health``: daemon reachability, connection age, info/license, versions, credential verdict."""
+    """``GET /api/health``: the connection's phase, generation, age and recorded verdicts."""
 
-    reachable: bool
-    # `reachable` is the 4321 handshake alone and turns true before the rest of the
-    # connect has run. `ready` is that whole load having finished with the 8088
-    # configuration lane answering inside it.
-    ready: bool
-    # The control connection the connect body completed on, still standing. An
-    # install whose configuration lane is down can still apply a live setting the
-    # control lane takes.
-    connected: bool
-    unreachable_since: float | None
-    # When the CURRENT control connection was established. A brief drop can be
-    # shorter than a health poll, so `reachable` never visibly goes false and an
-    # edge on it cannot be seen; this changes on every reconnect.
+    phase: str
+    generation: int
+    # Seconds on mgr.clock's monotonic clock since the standing control connection
+    # became Reachable; null while none stands.
     connected_at: float | None
-    info: dict[str, str] | None
-    # installed release ("6.0.2") off the daemon's /about page — GetInfo's
-    # `engine` is the separately-numbered DSP engine, not this.
-    release: str
-    # Whether `release` is one a green live run recorded in data/tested-releases.json.
-    release_tested: bool
-    license: dict[str, str] | None
-    # HQPTuner's own version, not the engine's, read from the package.
-    app_version: str
-    # The 4321 handshake that decides `reachable` carries no authentication, so
-    # `reachable` cannot speak for the 8088 configuration lane; this is that
-    # lane's own verdict on the configured management credentials.
+    # The 4321 handshake carries no authentication, so the phase cannot speak for
+    # the 8088 configuration lane's credentials; this is that lane's own verdict on
+    # the configured management credentials.
     credentials_ok: bool | None
+    address_found: bool | None
 
 
 @dataclass(frozen=True)
 class StatusReport:
-    """``GET /api/status`` data: the Status frame, its track metadata, the advisor's note, bands, and auto-pilot."""
+    """``GET /api/status`` data: the Status frame, its track metadata, the advisor's note, and auto-pilot."""
 
     status: dict[str, str]
     metadata: dict[str, str] | None
     junk: JunkVerdict | None
-    bands: list[float]
     autopilot: bool
     metering: bool
     advisor: bool
 
 
 @router.get("/health")
-def health(manager: Mgr, static: Static) -> HealthReport:
-    """Return daemon reachability, connection age, info/license, HQPTuner's version, and the credential verdict.
+def health(manager: Mgr) -> HealthReport:
+    """Return the connection's phase, generation, age, and recorded credential and address verdicts.
 
     Answers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.
     """
     readings = manager.readings
+    standing = manager.phase.standing
     return HealthReport(
-        reachable=manager.reachable,
-        ready=manager.ready,
-        connected=manager.connected.is_set(),
-        unreachable_since=manager.unreachable_since,
-        connected_at=readings.loaded_at,
-        info=readings.info,
-        release=readings.release,
-        release_tested=static.release_tested(readings.release),
-        license=readings.license,
-        app_version=__version__,
+        phase=standing.phase.value.capitalize(),
+        generation=standing.generation,
+        connected_at=_age(standing.connected_since, now=manager.clock.monotonic()),
         credentials_ok=readings.credentials_ok,
+        address_found=readings.address_found,
     )
+
+
+def _age(since: float | None, *, now: float) -> float | None:
+    """Return the seconds from the monotonic reading ``since`` to ``now``, or ``None`` when there is no ``since``."""
+    return None if since is None else now - since
 
 
 @router.get("/state")
 def state(manager: Mgr) -> deps.Snapshot[dict[str, str | None]]:
     """Return the daemon's last State frame with the engine's active filter/shaper chain folded in.
 
-    Stale-flagged from the last-loaded copy while the daemon is unreachable; 503 until the first frame has landed.
+    Served from the last-loaded copy, reachable daemon or not; 503 until the first frame has landed.
     """
     # `active_chain` is not a State attribute: it is which filter/shaper chain the
-    # engine currently has loaded (chain.active_chain — the configured mode when
+    # engine currently has loaded (EngineView.loaded_chain — the configured mode when
     # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
     # here so the frontend knows which chain's controls are live-adjustable
     # without duplicating that State/Status fallback in JS.
     live = manager.readings.state
-    data = None if live is None else {**live, "active_chain": chain.active_chain(manager)}
-    return deps.snapshot(manager, data)
+    data = None if live is None else {**live, "active_chain": EngineView.of(manager.readings).loaded_chain()}
+    return deps.snapshot(data)
 
 
 @router.get("/status")
@@ -117,17 +100,15 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
     only asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;
     a corrupt one refuses with ``store_corrupt``. ``metering``
     says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays
-    against: a null recommendation cannot tell "nothing to report" from "nothing is reading". ``bands`` carries the
-    header readout's three levels, empty while the reader has nothing in front of it. ``advisor`` says whether the
-    advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, auto-pilot reads as
-    off whatever its store holds.
+    against: a null recommendation cannot tell "nothing to report" from "nothing is reading". ``advisor`` says whether
+    the advisor and auto-pilot are offered at all (``Config.advisor_enabled``); off, the recommendation
+    is null and auto-pilot reads as off whatever its store holds.
     """
     frame = manager.readings.status
     if frame is None:
         raise refuse(NotLoadedError())
-    junk = manager.metering.recommendation() if manager.metering is not None else None
-    bands = manager.metering.bands() if manager.metering is not None else []
     advisor = manager.cfg.advisor_enabled
+    junk = manager.metering.recommendation() if advisor and manager.metering is not None else None
     autopilot = False
     if advisor:
         with contextlib.suppress(AutopilotError):
@@ -136,12 +117,11 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
         status=frame,
         metadata=manager.readings.status_metadata,
         junk=junk,
-        bands=bands,
         autopilot=autopilot,
         metering=manager.metering is not None,
         advisor=advisor,
     )
-    return deps.snapshot(manager, report)
+    return deps.snapshot(report)
 
 
 @router.get("/enumerations")
@@ -150,12 +130,18 @@ def enumerations(request: Request, manager: Mgr) -> deps.Snapshot[MergedEnums]:
 
     The running engine owns the names, IDs, and ordering; the merge only annotates them. 503 until they have loaded.
     """
-    if manager.readings.enums is None:
+    return merged_enumerations(manager, deps.static_of(request))
+
+
+def merged_enumerations(manager: ConnectionManager, static: StaticMetadata) -> deps.Snapshot[MergedEnums]:
+    """Answer ``GET /api/enumerations``'s body off the manager and the static overlay, refusing until they loaded."""
+    view = EngineView.of(manager.readings)
+    if view.enums is None:
         raise refuse(NotLoadedError())
-    mode_name = engineread.current_mode_name(manager)
-    merged = merge_enumerations(manager.readings.enums, request.app.state.static, mode_name)
-    mode = ModeInfo(index=(manager.readings.state or {}).get("mode"), name=mode_name)
-    return deps.snapshot(manager, replace(merged, mode=mode))
+    mode_name = engineread.current_mode_name(view)
+    merged = merge_enumerations(view, static, mode_name)
+    mode = ModeInfo(index=engineread.current_mode_index(view), name=mode_name)
+    return deps.snapshot(replace(merged, mode=mode))
 
 
 @router.get("/metadata")
@@ -164,12 +150,11 @@ def metadata(request: Request) -> StaticDb:
 
     Loaded once at startup and never daemon-dependent, so this answers the same whether or not hqplayerd is up.
     """
-    static: StaticMetadata = request.app.state.static
-    return static.raw
+    return deps.static_of(request).raw
 
 
 class DaemonHasNoLogError(ErrorBody):
-    """HQPlayer answered its log page 404: it has no log to serve, a case the page words on its own."""
+    """The daemon has no log to serve (its log page is 404); the page words this case itself."""
 
     code = "daemon_log_absent"
 
@@ -180,9 +165,9 @@ class DaemonHasNoLogError(ErrorBody):
 
 @router.get("/log", response_model_exclude_none=True)
 async def log_tail(manager: Mgr, lines: int = 50) -> LogTail:
-    """Return a static tail of the daemon's log file (System-tab live view).
+    """Return a static tail of the daemon's log file (the Logging drawer's tail).
 
-    Read-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused;
+    Read-only, no 4321 socket. A daemon that cannot be reached, or answers the read with an error, is refused;
     one with no log to serve is refused under a code of its own.
     """
     n = max(1, min(lines, 500))

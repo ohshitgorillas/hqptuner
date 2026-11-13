@@ -19,12 +19,12 @@
 //
 // The state is driven by assigning the exported `engineStatus` signal the shape
 // /api/status serves — `metadata` present when a track is loaded, its
-// `samplerate` a string attribute (docs/protocol.md §Status). A fresh object
+// `samplerate` a string attribute. A fresh object
 // every time: writing the same reference to a signal does not notify.
 //
 // NOTHING PLAYING IS TWO SHAPES, and both are read. The daemon sends the
-// `<metadata>` child of Status ONLY when a track is loaded (docs/protocol.md
-// §Status), so an idle engine's status frame carries no `metadata` key at all —
+// `<metadata>` child of Status ONLY when a track is loaded,
+// so an idle engine's status frame carries no `metadata` key at all —
 // never an empty one, which is a shape the wire does not produce. The second
 // shape is the signal before any frame has arrived, which the app holds as
 // null. Both are the 1x side, and an implementation that reached into either
@@ -33,10 +33,6 @@
 // The module is imported under a BUILT specifier so a checkout that predates
 // the change fails per-case rather than at module link — the convention
 // tests/js/store/narrow/plainnames-truename.test.js settled.
-//
-// Policy (docs/testing.md): public API only, one assertion per test, state
-// driven through exported signals. No store function of HQPTuner's is stubbed
-// and no copy is read.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/live-source-nx.test.js
 

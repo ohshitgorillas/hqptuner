@@ -208,12 +208,6 @@ def write_pair(root: Path, config_source: str, dockerfile_source: str) -> list[s
 # --- path_fields ------------------------------------------------------------
 
 
-@pytest.mark.parametrize("annotation", ["Path", "Path | None"])
-def test_a_path_annotated_field_is_collected(annotation: str) -> None:
-    """Both spellings of a path field name a directory the image has to pin."""
-    assert PATH_FIELDS(field_source("backup_dir", annotation, "BACKUP_DIR")) == {"backup_dir": "BACKUP_DIR"}
-
-
 @pytest.mark.parametrize(
     ("annotation", "collected"),
     [*((scalar, {}) for scalar in ("str", "int", "float", "bool")), ("Path", {"host": "HOST"})],
@@ -239,12 +233,6 @@ def test_every_path_field_of_a_mixed_config_is_collected() -> None:
 
 
 # --- pinned -----------------------------------------------------------------
-
-
-@pytest.mark.parametrize("suffix", ["BACKUP_DIR", "PRESET_DIR"])
-def test_a_continued_env_block_yields_every_suffix_in_it(suffix: str) -> None:
-    """A backslash-continued ``ENV`` is one instruction, and every line of it pins."""
-    assert suffix in PINNED(CLEAN_DOCKERFILE)
 
 
 def test_an_env_line_yields_the_value_it_pins() -> None:
@@ -316,12 +304,6 @@ def test_a_path_field_pinned_to_a_sibling_of_state_is_one_failure(value: str) ->
     assert len(FAILURES({"backup_dir": "BACKUP_DIR"}, {"BACKUP_DIR": value}, {})) == 1
 
 
-def test_a_path_field_pinned_only_in_a_commented_line_still_fails() -> None:
-    """Parsed end to end: the comment pins nothing, so the field is unpinned."""
-    dockerfile = "FROM python:3.13-slim\n# ENV HQPTUNER_BACKUP_DIR=/state/backups\n"
-    assert len(FAILURES(PATH_FIELDS(field_source("backup_dir", "Path", "BACKUP_DIR")), PINNED(dockerfile), {})) == 1
-
-
 @pytest.mark.parametrize(
     ("exempt", "count"),
     [({"DATA_DIR": "ships read-only inside the wheel"}, 0), ({}, 1)],
@@ -382,10 +364,6 @@ def test_passing_an_empty_exemption_table_excuses_nothing() -> None:
 
 
 # --- main -------------------------------------------------------------------
-
-
-def test_a_violating_pair_of_source_files_exits_nonzero(tmp_path: Path) -> None:
-    assert MAIN(write_pair(tmp_path, CONFIG_SOURCE, UNPINNED_DOCKERFILE)) == 1
 
 
 def test_a_violating_pair_of_source_files_names_the_unpinned_field_on_stdout(

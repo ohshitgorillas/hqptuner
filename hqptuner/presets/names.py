@@ -5,10 +5,9 @@ A preset name is three things at once: a filename in HQPTuner's own store
 (``data/cfgs/<name>.xml``), and a profile name the daemon lists back over the
 Control API. None of the three constrain it to ASCII. hqplayerd round-trips em
 dashes, accented Latin, CJK, non-BMP emoji, XML metacharacters and decomposed
-Unicode byte-identically, and normalizes nothing (probed against 6.0.4,
-``scripts/probes/probe_profile_name_charset.py``); no HQPlayer document states a
-charset rule at all, and ``docs/protocol.md:66`` types the parameter as plain
-text.
+Unicode byte-identically, and normalizes nothing
+(``scripts/probes/probe_profile_name_charset.py``); no HQPlayer document states a
+charset rule at all.
 
 So the shared rule is a denylist of what breaks a filename, a zip member name or
 the store: path escapes, control characters, the filesystem's byte limit, an

@@ -1,0 +1,13 @@
+task-check, Plan 4-3 Task 5
+
+Command: nice -n 19 bash .claude/task-check.sh
+Directory: /home/atom/dev/hqptuner2, branch v2
+v2 commit: 4a41bee97fdf7cf93a272c07fbbae630bb507055
+Exit code: 0
+Last status line: PASS — gate green, hqptuner:dev rebuilt from the working tree and serving.
+Stages: [1/3] make check green, [2/3] rebuild result status=0 (/srv/hqptuner/rebuild/result), [3/3] health check on http://127.0.0.1:8090/ returned 200
+Health check after the run: curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/ printed 200
+Hand-back URL: http://10.0.0.238:8090 (LAN), local http://127.0.0.1:8090
+Output log: /tmp/task-check-4-3.out
+
+The owner's look at the URL is the final say; this task does not call the phase done.

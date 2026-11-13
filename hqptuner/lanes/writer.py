@@ -1,39 +1,38 @@
-"""Write-path orchestration (Phase 3).
+"""Write-path orchestration.
 
 Applies a staged change set to the live daemon:
 
 - **live lane** — Control API (4321) setters, each confirmed by a `State`
-  readback (`result="OK"` is not proof of application, protocol.md §6);
+  readback (`result="OK"` is not proof of application);
 - **http lane** — NOT a form POST despite the name: the persistent lane edits
   the running config XML and pushes it with `POST /restore` (`scope=system`),
-  on which the daemon self-restarts in ~5.6 s (`lanes/http/restore.py`,
-  settings-classification.md). The connection manager's outage path handles
-  the restart/resync. There is no `POST /config` route in this codebase.
+  on which the daemon self-restarts in ~5.6 s (`lanes/http/restore.py`). The
+  connection manager's outage path handles the restart/resync. There is no `POST /config` route in this codebase.
 
 Live edits apply in a fixed safe order: mode first (it resets rate to auto and
 swaps the enumeration lists the other indices are relative to), then filter,
-shaper, junk filter, adaptive volume, volume. No idle gate — live
+shaper, the pinned rate, junk filter, adaptive volume, volume. The pinned rate
+(`SetRate`) is sent only by the LIVE lane, alone in its batch
+(`lanes/live/rate`), never from the pending buffer. No idle gate — live
 settings apply immediately even during playback: the engine reorients and audio
 pauses briefly before resuming. Nothing here restarts the daemon or drops the
 client; that is the http lane's `POST /restore`, above.
 """
 
-import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Literal, NamedTuple
+from typing import Literal
 
 from hqptuner.audit import AuditLog
-from hqptuner.engine.control import ControlClient, Reply
-from hqptuner.engine.controlerrors import CommandError, readback_mismatch
+from hqptuner.engine.control import ControlClient, state_mismatch_of
+from hqptuner.engine.controlerrors import CommandError, ControlError, readback_mismatch
+from hqptuner.engine.view import out_of_domain, says
+from hqptuner.fields import query
+from hqptuner.fields.model import Setter
 
-_VOLUME_TOLERANCE = 0.05
-# a decimal level as the volume control sends it: sign, digits, optional fraction and exponent
-_NUMBER = re.compile(r"\s*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\s*")
-
-# A setter answers with the daemon's refusal, or None when its readback verified.
-Handler = Callable[[ControlClient, dict[str, str]], Awaitable[CommandError | None]]
+# Told the setting whose write a dropped connection interrupted, before the ``ControlError`` propagates.
+Interrupted = Callable[[str], None]
 
 
 class LiveWriteOutcome(Enum):
@@ -75,137 +74,116 @@ class LiveWriteFailed:
 LiveWriteResult = LiveWriteOk | LiveWriteFailed
 
 
-class VolumeMismatchError(CommandError):
-    """A post-apply volume readback landed outside ``_VOLUME_TOLERANCE`` of what was set."""
+class ToleranceMismatchError(CommandError):
+    """A post-apply numeric readback landed outside its setter's ``tolerance`` of what was set."""
 
-    def __init__(self, *, want: str, got: str | None) -> None:
-        """Render the ``readback_mismatch`` sentence for ``volume``, naming the wanted and the read-back value."""
-        super().__init__(readback_mismatch("volume", want, got))
+    def __init__(self, *, setting: str, want: str, got: str | None) -> None:
+        """Render the ``readback_mismatch`` sentence for ``setting``, naming the wanted and the read-back value."""
+        super().__init__(readback_mismatch(setting, want, got))
 
 
-class LiveSetting(NamedTuple):
-    """A setting the Control API sets with one ``value`` attribute and reports back under one ``State`` attribute.
+def _sent_args(setter: Setter, params: dict[str, str]) -> dict[str, str]:
+    """Return each of ``setter``'s readback arguments the edit gives, as the command carries them."""
+    return {arg: params[arg] for arg in query.readback(setter) if arg in params}
 
-    Set it, read State, done.
+
+def _expected(setter: Setter, params: dict[str, str]) -> dict[str, str]:
+    """Return each State attribute ``setter``'s readback reads with the value the edit wants it to hold.
+
+    An argument the edit omits reads back as the edit's ``value`` when the setter's ``value_fills``.
     """
-
-    command: str  # Control API element name
-    state: str  # State attribute carrying it back
-
-
-async def _verified(client: ControlClient, reply: Reply, expected: dict[str, str]) -> CommandError | None:
-    """Return the daemon's refusal of ``reply``, else the State readback's mismatch against ``expected``."""
-    refused = reply.refusal()
-    if refused is not None:
-        return refused
-    return await client.state_mismatch(expected)
+    return {
+        state: params.get(arg, params[query.PRIMARY]) if setter.value_fills else params[arg]
+        for arg, state in query.readback(setter).items()
+    }
 
 
-async def _apply_filter(client: ControlClient, params: dict[str, str]) -> CommandError | None:
-    nx = params["value"]
-    x1 = params.get("value1x")
-    # value alone sets both 1x and Nx; value1x splits them (protocol.md §6)
-    reply = await client.send_filter(nx, x1)
-    return await _verified(client, reply, {"filterNx": nx, "filter1x": x1 if x1 is not None else nx})
+def _mismatch(setter: Setter, expected: dict[str, str], state: dict[str, str]) -> CommandError | None:
+    """Return how ``state`` misses what ``expected`` wants, or None when it holds it.
 
-
-def _volume_mismatch(want: str, state: dict[str, str]) -> VolumeMismatchError | None:
-    """Return the mismatch of the ``state`` read back against volume ``want``, or None within ``_VOLUME_TOLERANCE``.
-
-    Volume is a float, so it is verified with a tolerance rather than compared for equality.
+    A setter with a ``tolerance`` reads back a number, matched within it; every other setter matches State exactly.
     """
-    got = state.get("volume")
-    if got is None or abs(float(got) - float(want)) > _VOLUME_TOLERANCE:
-        return VolumeMismatchError(want=want, got=got)
+    if setter.tolerance is None:
+        return state_mismatch_of(expected, state)
+    for attr, want in expected.items():
+        got = state.get(attr)
+        if got is None or abs(float(got) - float(want)) > setter.tolerance:
+            return ToleranceMismatchError(setting=setter.key, want=want, got=got)
     return None
 
 
-async def _apply_volume(client: ControlClient, params: dict[str, str]) -> CommandError | None:
-    want = params["value"]
-    refused = (await client.send_volume(want)).refusal()
+async def _written(client: ControlClient, setter: Setter, params: dict[str, str]) -> CommandError | None:
+    """Send ``setter``'s command and return the daemon's refusal, else the readback's mismatch, else None."""
+    refused = (await client.send(setter.command, **_sent_args(setter, params))).refusal()
     if refused is not None:
         return refused
     state, refused = await client.state_readback()
     if refused is not None:
         return refused
-    return _volume_mismatch(want, state)
-
-
-# The live lane, one row per setting — and INSERTION ORDER IS APPLY ORDER, so a
-# new live setting is one row here rather than an entry in an order tuple, an
-# entry in a handler map and a setter wrapper that can drift from either.
-#
-# `filter` and `volume` carry their own handler because they are genuinely not
-# the uniform shape: SetFilter takes two arguments (1x and Nx), and volume is a
-# float that must be verified with a tolerance rather than compared for equality.
-SETTINGS: dict[str, LiveSetting | Handler] = {
-    "mode": LiveSetting("SetMode", "mode"),
-    "filter": _apply_filter,
-    "shaper": LiveSetting("SetShaping", "shaper"),
-    "junk_filter": LiveSetting("SetJunkFilter", "filter_junk"),
-    "adaptive_volume": LiveSetting("SetAdaptiveVolume", "adaptive"),
-    "volume": _apply_volume,
-}
-
-
-def known_live_settings() -> tuple[str, ...]:
-    """Return the live-lane setting keys the write path understands, in apply order."""
-    return tuple(SETTINGS)
+    return _mismatch(setter, _expected(setter, params), state)
 
 
 async def apply_live(
-    client: ControlClient, edits: dict[str, dict[str, str]], audit: AuditLog | None = None
+    client: ControlClient,
+    edits: dict[str, dict[str, str]],
+    audit: AuditLog | None = None,
+    *,
+    on_interrupted: Interrupted | None = None,
 ) -> list[LiveWriteResult]:
-    """Apply each live edit in the safe order, verifying by readback.
+    """Apply each live edit in the register's setter order, verifying by readback.
 
     One refused edit does not abort the rest — each reports its own outcome. A ``ControlError``
-    (a dead transport is not an answer) propagates and aborts the batch.
+    (a dead transport is not an answer) propagates and aborts the batch, after the edit it
+    interrupted is audited as unverified and named to ``on_interrupted``, so a caller can tell
+    the setting in flight from the ones never sent.
 
     ``audit`` arrives from the caller rather than a module-level handle so this
     stays a pure function of its arguments; omitting it logs nothing.
     """
     log = audit if audit is not None else AuditLog(None)
     report: list[LiveWriteResult] = []
-    for setting in SETTINGS:
-        if setting not in edits:
+    for setter in query.setters():
+        if setter.key not in edits:
             continue
-        report.append(await _apply_one(client, setting, edits[setting], log))
+        try:
+            report.append(await _apply_one(client, setter, edits[setter.key], log))
+        except ControlError:
+            if on_interrupted is not None:
+                on_interrupted(setter.key)
+            raise
     return report
 
 
-async def _apply_uniform(client: ControlClient, spec: LiveSetting, params: dict[str, str]) -> CommandError | None:
-    value = params["value"]
-    reply = await client.send(spec.command, value=value)
-    return await _verified(client, reply, {spec.state: value})
-
-
-def _malformed(setting: str, params: dict[str, str]) -> str | None:
+def _malformed(setter: Setter, params: dict[str, str]) -> str | None:
     """Return why an edit cannot be sent at all, or None when it is well formed.
 
-    Checked before the wire is touched: every setter reads ``value``, and volume parses it as a number.
+    Checked before the wire is touched: every setter reads ``value``, and each field the setter writes whose
+    argument the edit carries must hold a value of its domain.
     """
-    if "value" not in params:
-        return str(KeyError("value"))
-    if setting == "volume" and _NUMBER.fullmatch(params["value"]) is None:
-        return f"could not convert string to float: {params['value']!r}"
+    if query.PRIMARY not in params:
+        return str(KeyError(query.PRIMARY))
+    for row in query.written_by(setter):
+        value = None if row.live is None else params.get(row.live.arg)
+        refused = None if value is None else out_of_domain(row, value)
+        if refused is not None:
+            return says(refused)
     return None
 
 
-async def _send(client: ControlClient, setting: str, params: dict[str, str]) -> CommandError | None:
-    spec = SETTINGS[setting]
-    if isinstance(spec, LiveSetting):
-        return await _apply_uniform(client, spec, params)
-    return await spec(client, params)
-
-
-async def _apply_one(client: ControlClient, setting: str, params: dict[str, str], audit: AuditLog) -> LiveWriteResult:
-    value = params.get("value", "")
-    malformed = _malformed(setting, params)
+async def _apply_one(client: ControlClient, setter: Setter, params: dict[str, str], audit: AuditLog) -> LiveWriteResult:
+    setting = setter.key
+    value = params.get(query.PRIMARY, "")
+    malformed = _malformed(setter, params)
     if malformed is not None:
         audit.live_write(setting, value, None, ok=False)
         return LiveWriteFailed(setting=setting, error=malformed, code="invalid_input")
     # daemon_refused for a refusal or a readback mismatch: the refusal's own code is the verdict
-    refused = await _send(client, setting, params)
+    try:
+        refused = await _written(client, setter, params)
+    except ControlError:
+        # the write may have reached the engine, so it is on the record, unverified, before it propagates
+        audit.live_write(setting, value, None, ok=False)
+        raise
     if refused is not None:
         audit.live_write(setting, value, None, ok=False)
         return LiveWriteFailed(setting=setting, error=str(refused), code=refused.code)

@@ -99,7 +99,7 @@ def owner_label(
     """Return the owner's verdict for one burst, or ``None`` when nothing labels it.
 
     The burst's artist and album from ``tracks.tsv`` index ``labels.tsv``, and a ``BY_TRACK`` album is resolved once
-    more by the burst's track title. A burst absent from ``tracks.tsv``, or whose row reaches no label, is unlabelled.
+    more by the burst's track title. A burst absent from ``tracks.tsv``, or whose row reaches no label, is unlabeled.
     Artist is matched on the primary artist on both sides, so a per-track credit reaches the album's own row.
     """
     row = tracks.get(stamp)

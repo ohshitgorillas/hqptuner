@@ -9,8 +9,7 @@ problem) and the exit status ``main`` derives from it.
 Every case runs against a copy of the invented fixture under
 ``tests/support/fixtures/metadata_min`` (never the shipped ``data/``, never the
 fixture in place), mutated in ``tmp_path``. Assertions pin only names the test
-itself wrote into that copy and the exit codes; the gate's wording is never
-asserted (docs/testing.md rule 9).
+itself wrote into that copy and the exit codes.
 
 The seams are ``check`` and ``main``.
 """
@@ -43,11 +42,14 @@ TWO_STAGE_FILTER = f"{BASE_FILTER}-2s"
 #: A filter name nothing in the fixture covers.
 ABSENT_FILTER = "fixture-ghost-filter"
 
+#: The one SDM modulator the fixture's shapers.json and engine-enums.json carry.
+SDM_MODULATOR = "fixture-sdm-mod"
+
+#: The one PCM dither the fixture's shapers.json and engine-enums.json carry.
+PCM_DITHER = "fixture-pcm-dither"
+
 #: A modulator name nothing in the fixture's shapers.json covers.
 ABSENT_MODULATOR = "fixture-ghost-modulator"
-
-#: The data file the third case breaks.
-PLAIN_NAMES_FILE = "filter-plain-names.json"
 
 
 def _load_gate_module() -> ModuleType:
@@ -104,12 +106,6 @@ def test_a_2s_filter_name_counts_as_covered_while_an_unknown_filter_is_reported(
     assert [name in line for line in GATE.check(copy)] == [reported]
 
 
-def test_a_plain_names_file_without_its_key_is_reported_by_filename_not_raised(tmp_path: Path) -> None:
-    copy = copy_fixture(tmp_path)
-    (copy / PLAIN_NAMES_FILE).write_text("{}", encoding="utf-8")
-    assert [line for line in GATE.check(copy) if PLAIN_NAMES_FILE in line]
-
-
 # --- main ----------------------------------------------------------------------
 
 
@@ -120,3 +116,40 @@ def test_main_exits_nonzero_on_a_problem_and_zero_on_the_clean_fixture(
     copy = copy_fixture(tmp_path)
     add_enum_names(copy, "shapers_sdm", added)
     assert GATE.main([str(copy)]) == code
+
+
+# --- recorded factory defaults ---------------------------------------------------
+
+#: An option name no list in the fixture's ``engine-enums.json`` carries.
+GHOST_DEFAULT = "fixture-ghost-default"
+
+#: Each setting whose options ``engine-enums.json`` enumerates, with an option
+#: the fixture's snapshot lists for it.
+LISTED_DEFAULTS = {
+    "filter_1x": BASE_FILTER,
+    "filter_nx": BASE_FILTER,
+    "pcm_dither": PCM_DITHER,
+    "sdm_modulator": SDM_MODULATOR,
+}
+
+
+def defaults_copy(tmp_path: Path, unlisted: str) -> Path:
+    """A copy whose settings record a listed default on every setting but ``unlisted``."""
+    copy = copy_fixture(tmp_path)
+    dsp = {
+        key: {
+            "label": f"invented label for {key}",
+            "tooltip": f"invented prose for {key}",
+            "source": "hqptuner",
+            "default": GHOST_DEFAULT if key == unlisted else listed,
+        }
+        for key, listed in LISTED_DEFAULTS.items()
+    }
+    (copy / "settings.json").write_text(json.dumps({"dsp": dsp}), encoding="utf-8")
+    return copy
+
+
+@pytest.mark.parametrize("unlisted", sorted(LISTED_DEFAULTS))
+def test_only_a_recorded_default_the_engine_snapshot_does_not_list_is_reported(tmp_path: Path, unlisted: str) -> None:
+    """A default naming an enumerated option passes; one naming no enumerated option is the one line."""
+    assert [GHOST_DEFAULT in line for line in GATE.check(defaults_copy(tmp_path, unlisted))] == [True]

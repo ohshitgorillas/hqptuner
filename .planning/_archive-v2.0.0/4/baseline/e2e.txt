@@ -1,0 +1,72 @@
+Phase 4 plan 2: local e2e on rebuild/integrate (D-04)
+
+Environment for every run (in /home/atom/dev/hqptuner2/.claude/worktrees/integrate):
+  PYTHONPATH=$(pwd) HQPTUNER_CHROMIUM=/usr/lib64/chromium-browser/headless_shell
+  No hqpcreds sourced; the app runs against loopback fakes. Chromium launched; no host launch error.
+Footprint named before each run: one serial pytest process, one app subprocess plus in-process socket fakes per session, one headless chromium per test module.
+Process check after every run: only the pre-existing `python -m hqptuner` PID 3388 (ppid 3003, up 1 day, not started by this plan) is alive; no `headless_shell`, no app or pytest process of the runs survives. Nothing was killed.
+
+Run 1 (Task 1): `scripts/gate.sh make test-e2e` at fe97fb16e367ba7b5b211053bf20aceb6617c46c
+  Log: /tmp/gate-make-nvC28daO.log
+  Result: "3672 deselected, 1 warning, 143 errors in 63.38s (0:01:03)" / "make: *** [Makefile:122: test-e2e] Error 1"
+  The `exit=` line is not quoted: this run's output was piped into `tail -40` by mistake (repo rule: a gate is never piped), so the wrapper's `exit=` line was cut. The complete log is intact and ends in the make error above. Passed 0, failed 0, errors 143.
+  Shortest decisive lines:
+    tests/e2e/support/stack.py: "RuntimeError: e2e stack failed to start: http://127.0.0.1:43133/api/health never answered within 30s" (142 session-stack setups)
+    tests/e2e/test_stop_and_restart.py: "e2e.test_stop_and_restart.AppDidNotStartError: app never came up within 30s"
+  Cause: the readiness probes compare the health phase to "ready" (Phase.READY.value) while the API serves "Ready".
+
+Fixes on rebuild/integrate (Task 2), one cause per commit:
+  631afbda test(e2e): readiness waits on the wire form of the Ready phase (tests/e2e/support/stack.py, tests/e2e/test_stop_and_restart.py)
+    red: tests/e2e/test_ordinary_apply.py "1 warning, 4 errors in 30.65s", log /tmp/gate-pytest-2LG5xf9T.log (exit=1)
+    green: tests/e2e/test_stop_and_restart.py "1 passed"; the stack then comes up
+  55d5a0d0 test(e2e): the e2e helpers read the config reading as the API serves it (tests/e2e/conftest.py, tests/e2e/test_preset_lifecycle.py)
+    red: "KeyError: 'data'" in session_start, log /tmp/gate-pytest-IRxtA8wd.log ("1 passed, 1 warning, 4 errors in 9.54s")
+  528dd9d0 fix(store): the page fetches its readings when the connection first comes Ready (hqptuner/static/store/core/readings.js; test tests/js/store/core/readings.test.js, red "# pass 22 / # fail 1", green exit=0)
+    production defect: the page fetched /api/config only when health.generation moved; the generation starts at 0 and moves only on a Down, so a freshly loaded page had no readings and every drawer control rendered unset.
+    e2e: test_ordinary_apply + test_preset_lifecycle "5 failed" -> "1 failed, 4 passed", log /tmp/gate-pytest-4djS8OBf.log
+  a45d2916 fix(store): a pushed engine State is followed by a fresh reading (hqptuner/static/store/sync.js; test tests/js/store/live/polling.test.js, red "# pass 14 / # fail 1", green exit=0; whole JS suite exit=0)
+    production defect: the page took readings once; a setting changed on the engine from outside the page (what test_ordinary_apply simulates) never reached the controls, because the config push event was excised and nothing replaced it. Observed with a 0 s delay: engine filter_junk=1, drawer kept aria-current on option 0.
+    e2e: test_ordinary_apply + test_preset_lifecycle + test_stop_and_restart "6 passed", log /tmp/gate-pytest-SrMtAbSo.log (exit=0)
+  No pre-existing assertion in any e2e or JS test changed (git diff fe97fb16..HEAD over tests/ adds two JS tests and changes only the helper reads above).
+
+Full re-run (Task 3): NOT completed. `scripts/gate.sh make test-e2e` at 55d5a0d0 was started under `timeout 590` and my own timeout killed it ("make: *** [Makefile:122: test-e2e] Terminated") before the end; no verdict was read from it. The suite takes about 10 minutes while failures wait out their 15 s timeouts, which brushes the 600 s command watchdog, so the 22 modules were run in three groups instead. Together they cover all 143 tests:
+  Group A (9 modules: auto_plate, drawer_popover, drawers_fit, live_snapshot, log_view, output_format_fill, output_format_fits, output_pin_glass, output_pin_picker): exit=0 log=/tmp/gate-pytest-Catcluyu.log "29 passed, 1 warning in 199.22s"
+  Group B (9 modules: pipelines_filter, plate_page, plate_top, playing_readings, popovers_fit, see_more, sheet_top, spectrogram, views_fit): exit=1 log=/tmp/gate-pytest-m9YP8JYa.log "96 passed, 1 warning, 5 errors in 387.42s"
+  Group C (ordinary_apply, preset_lifecycle, stop_and_restart): exit=0 "6 passed" (log above)
+  Module test_abuse_bracket.py alone: exit=1 log=/tmp/gate-pytest-mWXDziAW.log "7 failed, 1 warning in 7.45s"
+  Total: 131 passed, 12 not passing (7 failed, 5 errors). AC2 (`make test-e2e` exit=0) is NOT met.
+
+Remaining failures, both outside what this plan may change:
+  1. tests/e2e/test_abuse_bracket.py, 7 tests (test_close_leaves_every_store_as_open_found_it, test_close_refuses_when_the_snapshot_manifest_is_gone, test_a_close_refused_for_a_lost_manifest_leaves_the_stores_as_it_found_them, test_close_puts_the_engine_back_on_the_profile_open_found[Default], [], test_close_refuses_when_the_recorded_profile_is_no_longer_offered, test_a_close_refused_for_a_vanished_profile_leaves_the_run_profile_engaged)
+     Decisive line: "abuse.sh open failed: jq: error (at <stdin>:0): Cannot iterate over null (null) / FAIL: GET /api/config failed"
+     Cause: scripts/abuse.sh:96 `form_of` reads `.data.fields[] | {key: .name, value: .value}` from /api/config; the API now serves `{generation, fields: {key: reading}}` with no `data` (docs/spec/api.md, Field readings). scripts/ is not in this plan's files lease. The test is the reproducer.
+  2. tests/e2e/test_sheet_top_tracks_plate_line.py, 5 tests (all of them, fixture error)
+     Decisive line: "narrow.FixtureError: DELETE /api/health/dropped-settings answered 404"
+     Cause: the integrated backend has no dropped-settings report: GET /api/health serves five fields without `dropped_settings` (docs/spec/api.md, Health) and no route clears it, while hqptuner/static/store/alerts/dropped.js, hqptuner/static/lib/api.js:205 `clearDroppedSettings` and docs/spec/faceplate.md:111 still describe the line, and hqptuner/lanes/live/dropped.py is not wired to any route or reading. Wiring the report to the wire is a product decision, not a test repair.
+
+Fixes continued on rebuild/integrate (Task 2), after the checkpoint:
+  7e26d181 fix(abuse): form_of reads the config reading as the API serves it (scripts/abuse.sh)
+    red: tests/e2e/test_abuse_bracket.py "jq: error (at <stdin>:0): Cannot iterate over null (null) / FAIL: GET /api/config failed", log /tmp/gate-pytest-iEZaVY27.log
+    green: exit=0 log=/tmp/gate-pytest-W0bJAnga.log "7 passed, 1 warning in 7.82s"
+    reading chosen: file.value. The bracket compares the daemon's persisted config before a run with what close's restore puts back, over the applied http keys; engine.value is a live list index in another domain that a reload resets.
+  cd9aa0e3 feat(health): the settings a foreign restart dropped are on the wire (hqptuner/core/dropledger.py, core/loader.py, core/manager.py, api/routes/status.py, docs/spec/api.md, docs/spec/openapi.json; tests tests/core/test_dropped_settings.py, tests/api/test_health_reading.py)
+    lower-lane test first, red: KeyError: 'dropped_settings' (6 cases) and "assert 404 == 204"; green: 10 passed. Bite: removing the FOREIGN_DEPARTURE check reddens the asked-for-restart case; removing the retarget discard reddens the retarget case.
+    e2e: tests/e2e/test_sheet_top_tracks_plate_line.py "2 failed, 3 passed, 1 warning in 11.40s", log /tmp/gate-pytest-7CHasnpN.log (the fixture error is gone)
+    one pre-existing assertion changed: tests/api/test_health_reading.py HEALTH_KEYS gains "dropped_settings", because docs/spec/api.md Health now lists the field.
+  abe984ba fix(faceplate): a sheet follows the body in the render of the line that moved it (hqptuner/static/components/faceplate/Popover.js)
+    the two "dropped-settings line goes away" cases failed one at a time on every run ("assert 169.0 == 109.0 ± 0.5", "assert (0.21875, 61.78125) == approx((0.0 ± 0.5, 2.0 ± 0.5))"): the ResizeObserver places the sheet a frame after the body moves and the module measures right after.
+    green: tests/e2e/test_sheet_top_tracks_plate_line.py "5 passed, 1 warning in 11.3s", 6 runs of 6.
+
+Run 3 (Task 3): `scripts/gate.sh make test-e2e` at abe984ba4d945032b1d1723a80c748db791ecaff, run in the background with no timeout wrapper of mine
+  Footprint named before it: one serial pytest, one app subprocess plus in-process fakes per session, one headless chromium per module, about one core in bursts for about ten minutes.
+  Result: exit=0 log=/tmp/gate-make-Sn8U83H7.log
+  "143 passed, 3682 deselected, 1 warning in 589.64s (0:09:49)". Passed 143, failed 0, errors 0.
+  Process check after the run: only the pre-existing `python -m hqptuner` PID 3388 (ppid 3003, up 1 day, not started by this plan) is alive; no headless_shell, app or pytest process of the run survives. Nothing was killed.
+  Watchdog note: the run ended 10.4 s inside the 600 s command watchdog (a green run is not shorter than the failing one; the time is the suite's own).
+
+Run 4 (/cad-verify 4, item 3): `scripts/gate.sh make test-e2e` at 5c2e3007d8091cdb6733a6ef70e46d34f6c4e95b, the merged second parent, after the excision; run in the background under nice -n 19
+  Environment: PYTHONPATH=$(pwd) HQPTUNER_CHROMIUM=/usr/lib64/chromium-browser/headless_shell, in /home/atom/dev/hqptuner2/.claude/worktrees/integrate
+  Result: exit=0 log=/tmp/gate-make-FqzVfA1u.log
+  "138 passed, 3657 deselected, 1 warning in 605.40s (0:10:05)". The 5 fewer tests are the deleted tests/e2e/test_sheet_top_tracks_plate_line.py.
+  Process check after the run: no headless_shell or pytest process survives; the two live `python -m hqptuner` processes predate the run.
+  Watchdog note: 605.40 s is past the 600 s command watchdog; only the background run, with no watchdog, completes.

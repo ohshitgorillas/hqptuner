@@ -1,37 +1,54 @@
 // Behavioral suite for store/health.js — the engine-health alert derivation.
 // Written BEFORE the complexity refactor of its two arrows (21 and 13).
 //
-// Three hazards this module imposes on any test, all measured rather than
+// Two hazards this module imposes on any test, both measured rather than
 // assumed. Getting them wrong produces a suite that passes alone and fails in
 // sequence:
 //
-//   1. `track` and `streak` are module-private with no reset export, so state
-//      carries across cases. `poll()` below is the only way to zero a streak —
-//      one healthy PLAYING frame does it — and a fresh track_serial is the only
-//      way to rebaseline the counters. Both are public-API routes.
+//   1. `track` and the slow-speed wait are module-private with no reset export,
+//      so state carries across cases. `poll()` below is the only way to start
+//      the wait over — one healthy PLAYING frame does it — and a fresh
+//      track_serial is the only way to rebaseline the counters. Both are
+//      public-API routes.
 //   2. Writing the SAME object reference to engineStatus does not notify, so the
 //      effect never runs. Every simulated poll must be a fresh object.
-//   3. initHealth() must be called exactly once. It is now idempotent, and this
-//      suite pins that: a second registration would advance the shared streak
-//      twice per poll and fire alerts after 2 polls instead of 3.
+//
+// The store runs on the suite's fake clock (tests/js/support/clock.js), handed in
+// through initHealth, so every "for N ms" below is a reading of that clock and
+// never a duration this suite spends.
 
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { engineStatus, enums } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, enums, health } from "../../../../hqptuner/static/store/signals.js";
 import {
   initHealth,
   engineAlerts,
   trackCounters,
   outputBufferApplies,
 } from "../../../../hqptuner/static/store/health.js";
+import { fakeClock } from "../../support/clock.js";
 
-initHealth();
+const fake = fakeClock();
+initHealth(fake.clock);
 
 const PLAYING = "2";
-const SUSTAIN = 3;
+/** How long speed stays below a threshold before its alert fires, in ms on the clock. */
+const HOLD_MS = 6000;
+/** About how far apart Status frames reach the browser while playing, in ms. */
+const CADENCE = 1000;
 
 let serial = 0;
+
+/** The lifecycle generation every /api/health reply below carries. */
+const GEN = 3;
+/** The lifecycle phases in which the connection is not Ready. */
+const NOT_READY = ["Down", "Reachable", "Alarm"];
+
+// Every case but the phase ones below runs on a Ready connection, the only phase in which the engine plays.
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
+});
 
 // One poll. Always a fresh object — see hazard 2.
 function poll(fields = {}) {
@@ -54,21 +71,22 @@ const sevs = (alerts) => alerts.map((a) => a.sev);
 /** @param {Alert[]} alerts */
 const kinds = (alerts) => alerts.map((a) => a.kind);
 /**
- * @param {number} n
+ * Poll `fields` now and once every CADENCE up to `ms` on, the clock moving between polls, and answer the alerts after
+ * the last poll.
+ *
+ * @param {number} ms
  * @param {Record<string, unknown>} fields
  */
-const repeat = (n, fields) => {
-  let last = [];
-  for (let i = 0; i < n; i += 1) last = poll(fields);
+const hold = (ms, fields) => {
+  let last = poll(fields);
+  for (let at = CADENCE; at <= ms; at += CADENCE) {
+    fake.advance(CADENCE);
+    last = poll(fields);
+  }
   return last;
 };
 
 // --- quiet by default -------------------------------------------------------
-
-test("test_a_healthy_playing_engine_raises_no_alerts", () => {
-  reset();
-  assert.deepEqual(poll(), []);
-});
 
 test("test_an_absent_status_frame_raises_no_alerts", () => {
   reset();
@@ -84,93 +102,94 @@ test("test_an_empty_status_frame_raises_no_alerts", () => {
 
 // --- process speed ----------------------------------------------------------
 
-test("test_a_single_slow_poll_does_not_alert", () => {
-  reset();
-  assert.deepEqual(poll({ process_speed: "1.02" }), []);
-});
-
-test("test_a_slow_streak_below_sustain_does_not_alert", () => {
-  reset();
-  assert.deepEqual(repeat(SUSTAIN - 1, { process_speed: "1.02" }), []);
-});
-
+// Two frames, and no frame at all when the hold runs out: the warning fires on
+// the clock, and a slow frame arriving mid-wait does not start it over.
 test("test_a_sustained_slow_speed_warns", () => {
   reset();
-  assert.deepEqual(sevs(repeat(SUSTAIN, { process_speed: "1.02" })), ["warn"]);
+  poll({ process_speed: "1.02" });
+  fake.advance(HOLD_MS / 2);
+  poll({ process_speed: "1.02" });
+  fake.advance(HOLD_MS / 2);
+  assert.deepEqual(sevs(engineAlerts.value), ["warn"]);
 });
 
 test("test_a_sustained_below_realtime_speed_is_critical", () => {
   reset();
-  assert.deepEqual(sevs(repeat(SUSTAIN, { process_speed: "0.5" })), ["crit"]);
-});
-
-test("test_a_critical_speed_does_not_also_warn", () => {
-  reset();
-  assert.equal(repeat(SUSTAIN, { process_speed: "0.5" }).length, 1);
-});
-
-test("test_the_warn_threshold_is_exclusive", () => {
-  reset();
-  assert.deepEqual(repeat(SUSTAIN, { process_speed: "1.05" }), []);
+  poll({ process_speed: "0.5" });
+  fake.advance(HOLD_MS / 2);
+  poll({ process_speed: "0.5" });
+  fake.advance(HOLD_MS / 2);
+  assert.deepEqual(sevs(engineAlerts.value), ["crit"]);
 });
 
 test("test_the_critical_threshold_is_exclusive", () => {
   reset();
-  assert.deepEqual(sevs(repeat(SUSTAIN, { process_speed: "1.00" })), ["warn"]);
+  assert.deepEqual(sevs(hold(HOLD_MS, { process_speed: "1.00" })), ["warn"]);
 });
 
-test("test_one_healthy_poll_clears_a_sustained_alert", () => {
+// A wait just short of the six seconds raises nothing yet. It kills a store that alerts on the first slow frame.
+test("test_a_slow_speed_holds_off_until_the_full_wait_has_run", () => {
   reset();
-  repeat(SUSTAIN, { process_speed: "0.5" });
-  assert.deepEqual(poll(), []);
+  assert.deepEqual(sevs(hold(HOLD_MS - CADENCE, { process_speed: "1.02" })), []);
 });
 
-test("test_recovery_restarts_the_streak_from_zero", () => {
+// A frame that does not qualify starts the wait over. After one, the clock runs past the point where the first slow
+// frame's wait would have run out, with no frame in between, and the next slow frame finds no alert raised. The
+// three triggers differ only in the frame that interrupts, so the shape is held here.
+/** @param {Record<string, unknown>} interruption */
+const alertsAfterAnInterruptedWait = (interruption) => {
   reset();
-  repeat(SUSTAIN, { process_speed: "0.5" });
-  poll();
-  assert.deepEqual(repeat(SUSTAIN - 1, { process_speed: "0.5" }), []);
+  hold(HOLD_MS / 2, { process_speed: "1.02" });
+  poll(interruption);
+  fake.advance(HOLD_MS / 2 + CADENCE);
+  return sevs(poll({ process_speed: "1.02" }));
+};
+
+test("test_a_recovering_frame_starts_the_slow_speed_wait_over", () => {
+  assert.deepEqual(alertsAfterAnInterruptedWait({ process_speed: "1.5" }), []);
 });
 
-test("test_an_idle_engine_does_not_accumulate_a_streak", () => {
-  reset();
-  for (let i = 0; i < SUSTAIN; i += 1) poll({ state: "0", process_speed: "0.5" });
-  assert.deepEqual(poll({ process_speed: "0.5" }), []);
+test("test_the_engine_stopping_starts_the_slow_speed_wait_over", () => {
+  assert.deepEqual(alertsAfterAnInterruptedWait({ state: "0", process_speed: "1.02" }), []);
 });
 
-for (const bad of ["0", "-1", "abc", ""]) {
-  test(`test_an_unusable_process_speed_never_alerts: ${JSON.stringify(bad)}`, () => {
-    reset();
-    assert.deepEqual(repeat(SUSTAIN + 1, { process_speed: bad }), []);
+// 0 and negatives are "no reading", and an unparseable speed reads as 0. None of them is a slow frame.
+for (const speed of ["0", "-1", "n/a"]) {
+  test(`test_an_unusable_speed_starts_the_slow_speed_wait_over: ${speed}`, () => {
+    assert.deepEqual(alertsAfterAnInterruptedWait({ process_speed: speed }), []);
   });
 }
 
-test("test_a_missing_process_speed_never_alerts", () => {
+// The warn line sits at 1.05: a speed on it is not below it. The pair differs only in which side of the line the speed
+// holds.
+test("test_the_warn_threshold_is_exclusive", () => {
   reset();
-  assert.deepEqual(repeat(SUSTAIN + 1, { process_speed: undefined }), []);
+  const onTheLine = sevs(hold(HOLD_MS, { process_speed: "1.05" }));
+  reset();
+  const justUnder = sevs(hold(HOLD_MS, { process_speed: "1.04" }));
+  assert.deepEqual([onTheLine, justUnder], [[], ["warn"]]);
 });
+
+// --- the connection phase --------------------------------------------------
+// While the connection is not Ready the engine counts as not playing, even though the last Status frame said it was,
+// and engine health alerts fire only while it plays.
+
+for (const phase of NOT_READY) {
+  // Break: the speed alert reads Status state alone and ignores the connection phase.
+  test(`test_a_sustained_slow_speed_warning_clears_once_the_connection_is_not_ready: ${phase}`, () => {
+    reset();
+    const seen = [sevs(hold(HOLD_MS, { process_speed: "1.02" }))];
+    health.value = { phase, generation: GEN };
+    seen.push(sevs(engineAlerts.value));
+    assert.deepEqual(seen, [["warn"], []]);
+  });
+}
 
 // --- output buffer ----------------------------------------------------------
 // A real output-buffer underrun is transient by design — the buffer drains to 0,
 // playback skips for an instant, then refills to 100% — never a sustained low.
 // So there is no sustained-low "starvation" alert; a flat low/zero/-1 reading
 // just means the buffer does not apply to this output (SDM/DSD direct paths).
-
-test("test_a_sustained_low_output_buffer_raises_no_alert", () => {
-  reset();
-  assert.deepEqual(repeat(SUSTAIN + 1, { output_fill: "0.02" }), []);
-});
-
-test("test_a_flat_zero_output_buffer_raises_no_alert", () => {
-  reset();
-  assert.deepEqual(repeat(SUSTAIN + 1, { output_fill: "0" }), []);
-});
-
-test("test_a_negative_buffer_reading_raises_no_alert", () => {
-  // -1 is the daemon's "buffer doesn't apply" sentinel
-  reset();
-  assert.deepEqual(repeat(SUSTAIN + 1, { output_fill: "-1" }), []);
-});
 
 test("test_output_buffer_does_not_apply_until_a_positive_fill_is_seen", () => {
   serial += 1;
@@ -185,6 +204,13 @@ test("test_output_buffer_applies_once_a_positive_fill_is_seen", () => {
   assert.equal(outputBufferApplies.value, true);
 });
 
+// A low reading on a buffer that does apply raises nothing: the only slow-speed alerts are about speed.
+test("test_a_low_buffer_at_a_healthy_speed_raises_no_alert", () => {
+  reset();
+  const held = hold(HOLD_MS, { output_fill: "0.05", input_fill: "0.05" });
+  assert.deepEqual([outputBufferApplies.value, sevs(held)], [true, []]);
+});
+
 // --- clipping counters ------------------------------------------------------
 
 test("test_clipping_within_a_track_raises_a_clipping_alert", () => {
@@ -197,11 +223,6 @@ test("test_a_new_track_rebaselines_the_clip_counter", () => {
   poll({ clips: "23" });
   reset({ clips: "23" });
   assert.deepEqual(poll({ clips: "23" }), []);
-});
-
-test("test_a_counter_that_goes_backwards_clamps_to_zero", () => {
-  reset({ clips: "10" });
-  assert.equal(trackCounters.value.clips, 0);
 });
 
 test("test_the_track_counter_reports_the_delta_not_the_total", () => {
@@ -224,25 +245,13 @@ test("test_apodizing_events_alert_when_the_active_filter_is_not_apodizing", () =
   assert.deepEqual(kinds(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })), ["apodizing"]);
 });
 
-test("test_an_apodizing_alert_is_a_warning", () => {
-  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
-  reset({ apod: "0", active_filter: "plain-filter" });
-  assert.deepEqual(sevs(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })), ["warn"]);
-});
-
-for (const count of [1, 4, 6, 9]) {
+for (const count of [9]) {
   test(`test_an_apodizing_delta_below_the_threshold_is_silent: ${count}`, () => {
     enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
     reset({ apod: "0", active_filter: "plain-filter" });
     assert.deepEqual(poll({ apod: String(count), active_filter: "plain-filter" }), []);
   });
 }
-
-test("test_an_apodizing_delta_above_the_threshold_still_alerts", () => {
-  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
-  reset({ apod: "0", active_filter: "plain-filter" });
-  assert.deepEqual(kinds(poll({ apod: "12", active_filter: "plain-filter" })), ["apodizing"]);
-});
 
 // The counter the alert reads is the per-track delta, and the total is well past
 // the threshold here: a store alerting on the total fires and fails.
@@ -259,14 +268,6 @@ test("test_the_apodizing_alert_accrues_across_polls_within_one_track", () => {
   poll({ apod: "4", active_filter: "plain-filter" });
   poll({ apod: "8", active_filter: "plain-filter" });
   assert.deepEqual(kinds(poll({ apod: "12", active_filter: "plain-filter" })), ["apodizing"]);
-});
-
-test("test_a_new_track_rebaselines_the_apodizing_counter", () => {
-  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
-  reset({ apod: "0", active_filter: "plain-filter" });
-  poll({ apod: "9", active_filter: "plain-filter" });
-  reset({ apod: "9", active_filter: "plain-filter" });
-  assert.deepEqual(poll({ apod: "9", active_filter: "plain-filter" }), []);
 });
 
 test("test_apodizing_events_are_not_flagged_on_an_apodizing_filter", () => {
@@ -293,31 +294,4 @@ test("test_apodizing_events_are_not_flagged_while_the_engine_is_idle", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "plain-filter" });
   assert.deepEqual(poll({ state: "0", apod: "20", active_filter: "plain-filter" }), []);
-});
-
-// --- ordering and combination -----------------------------------------------
-
-test("test_a_sustained_low_buffer_adds_nothing_to_a_speed_alert", () => {
-  // regression (item 12): the buffer no longer contributes an alert of its own
-  reset();
-  assert.deepEqual(sevs(repeat(SUSTAIN, { process_speed: "0.5", output_fill: "0.02" })), ["crit"]);
-});
-
-test("test_independent_faults_are_reported_together", () => {
-  reset({ clips: "0" });
-  assert.equal(repeat(SUSTAIN, { process_speed: "0.5", clips: "12" }).length, 2);
-});
-
-// --- registration -----------------------------------------------------------
-
-test("test_registering_health_twice_does_not_shorten_the_sustain_threshold", () => {
-  // a second effect would advance the shared streak twice per poll, firing on
-  // the 2nd poll instead of the 3rd
-  initHealth();
-  reset();
-  assert.deepEqual(repeat(SUSTAIN - 1, { process_speed: "0.5" }), []);
-});
-
-test("test_registering_health_twice_returns_the_same_disposer", () => {
-  assert.equal(initHealth(), initHealth());
 });

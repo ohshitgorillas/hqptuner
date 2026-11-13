@@ -18,10 +18,17 @@ const PROFILES = [
   { model: START, source: "crinacle" },
 ];
 
-test("a match at the start of the model ranks above one after a space, which ranks above one mid-word", () => {
+test("a match at the start of the model ranks first", () => {
   const { hits } = rankProfiles(PROFILES, "hd", 10);
-  assert.deepEqual(
-    hits.map((p) => p.model),
-    [START, BOUNDARY, MID],
-  );
+  assert.equal(hits.map((p) => p.model)[0], START);
+});
+
+test("a match after a space ranks below the start match and above the mid-word match", () => {
+  const { hits } = rankProfiles(PROFILES, "hd", 10);
+  assert.equal(hits.map((p) => p.model)[1], BOUNDARY);
+});
+
+test("a mid-word match ranks last", () => {
+  const { hits } = rankProfiles(PROFILES, "hd", 10);
+  assert.equal(hits.map((p) => p.model)[2], MID);
 });

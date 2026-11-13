@@ -6,7 +6,7 @@
 // they clip in the third-width Rate box (user decision).
 //
 // No "Auto" entry, deliberately. The slot these write (defaults_*) has none on
-// the daemon's own form, and the slot LIVE writes reaches the same outcome by
+// the daemon's own form, and the slot the live lane writes reaches the same outcome by
 // picking the tier: verified live on 6.0.4, an unset rate under a DSD512 limit and
 // a pinned DSD512 both play a 44.1k source at 22579200. A menu entry whose only
 // effect is to stop naming the tier is what made the two views disagree.
@@ -28,8 +28,8 @@ export const DSD_RATES = [
 ];
 // Every tier above has a 44.1k member as well as the 48k one the menus carry
 // (DSD512 is 22579200 or 24576000), and a menu entry means the TIER rather than
-// the frequency beside it. Anything asking "is this tier reachable" — the LIVE
-// rate columns, the device-capability narrowing — has to ask about both members,
+// the frequency beside it. Anything asking "is this tier reachable" — the Output
+// drawer's rate dial, the device-capability narrowing — has to ask about both members,
 // so the pairing lives here with the tables it pairs.
 /** @type {Record<string, string>} */
 export const TWIN_44K = {
@@ -70,9 +70,30 @@ export const ENGAGE_BYPASS = [
   { value: "1", label: "ENGAGE" },
   { value: "0", label: "BYPASS" },
 ];
+// A drawer's gate reads bypass first.
+export const BYPASS_ENGAGE = [
+  { value: "0", label: "Bypass" },
+  { value: "1", label: "Engage" },
+];
 export const ON_OFF = [
   { value: "1", label: "ON" },
   { value: "0", label: "OFF" },
+];
+// The engine's hardware attributes, in the daemon's own spelling (readme §1.2).
+export const MULTICORE = [
+  { value: "auto", label: "Auto" },
+  { value: "1", label: "Enabled" },
+  { value: "0", label: "Disabled" },
+];
+export const ECORES = [
+  { value: "default", label: "Disabled" },
+  { value: "pool", label: "DSP pool" },
+  { value: "filter", label: "Resampling" },
+];
+export const CUDA = [
+  { value: "0", label: "Disabled" },
+  { value: "1", label: "Full offload" },
+  { value: "convolution", label: "Convolution only" },
 ];
 export const DSD_TRANSPORT = [
   { value: "0", label: "Native DSD" },

@@ -16,7 +16,6 @@ from virtual_clock import VirtualClock
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.metadata import StaticMetadata
 
 METADATA_MIN = Path(__file__).parent / "fixtures" / "metadata_min"
 
@@ -25,8 +24,23 @@ METADATA_MIN = Path(__file__).parent / "fixtures" / "metadata_min"
 READY_CEILING = 30.0
 
 
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
+#: The phases health reports while a control connection stands.
+STANDING_PHASES = frozenset({"Reachable", "Ready"})
+
+
+def _phase(client: TestClient) -> str:
+    """The phase ``/api/health`` reports for the app under ``client``."""
+    return str(client.get("/api/health").json()["phase"])
+
+
+def connection_stands(client: TestClient) -> bool:
+    """Whether health reports a control connection standing: Reachable or Ready."""
+    return _phase(client) in STANDING_PHASES
+
+
+def phase_is_ready(client: TestClient) -> bool:
+    """Whether health reports Ready: the configuration lane has answered on the standing connection."""
+    return _phase(client) == "Ready"
 
 
 async def settled(clock: VirtualClock) -> None:
@@ -51,15 +65,6 @@ def app_manager(client: TestClient) -> ConnectionManager:
         raise NotAVirtualAppError
     manager: ConnectionManager = app.state.manager
     return manager
-
-
-def app_static(client: TestClient) -> StaticMetadata:
-    """The static metadata of the app under ``client``."""
-    app = client.app
-    if not isinstance(app, FastAPI):
-        raise NotAVirtualAppError
-    static: StaticMetadata = app.state.static
-    return static
 
 
 def _app_clock(client: TestClient) -> VirtualClock:
@@ -87,15 +92,15 @@ def settle_app(client: TestClient) -> None:
     portal.call(settled, _app_clock(client))
 
 
-def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], polls: int = 20) -> None:
+def wait_for_api(client: TestClient, until: Callable[[TestClient], bool], polls: int = 20) -> None:
     """Let the app under test settle, then advance its clock one poll interval
-    at a time until it reports ready. What it counts is poll passes, never
+    at a time until ``until`` holds. What it counts is poll passes, never
     seconds; the bound turns a condition that no pass ever meets into a loud
     failure."""
     settle_app(client)
     interval = app_manager(client).cfg.poll_interval
     for _ in range(polls):
-        if ready(client):
+        if until(client):
             return
         advance_app(client, interval)
     raise FixtureError(reason="app never became ready against the fake daemons")
@@ -135,14 +140,25 @@ def live_app(
     if poll_interval is not None:
         cfg = replace(cfg, poll_interval=poll_interval)
     with TestClient(create_app(cfg, VirtualClock())) as client:
-        wait_for_api(client, _reachable)
+        wait_for_api(client, connection_stands)
         yield client
 
 
+#: The sockets behind every port ``closed_port`` has handed out to the running test.
+_held: list[socket.socket] = []
+
+
 def closed_port() -> int:
-    """A port nothing listens on: bind one, read the number, hand back the hole."""
+    """A port nothing listens on: bound and never listened on, so a connect to it is refused and no other socket
+    can bind it, until ``release_closed_ports`` closes it at the end of the test."""
     sock = socket.socket()
+    _held.append(sock)
     sock.bind(("127.0.0.1", 0))
     port: int = sock.getsockname()[1]
-    sock.close()
     return port
+
+
+def release_closed_ports() -> None:
+    """Close every socket ``closed_port`` holds, so its port is free again."""
+    while _held:
+        _held.pop().close()

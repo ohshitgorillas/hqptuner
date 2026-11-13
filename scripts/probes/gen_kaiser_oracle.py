@@ -3,13 +3,12 @@
 
 Writes ``tests/support/fixtures/kaiser-oracle.json``: for each (taps, widthHz,
 rate) the depth and transition band the primer's design reaches, computed by an
-implementation of the Kaiser relations that is not ours
-(``docs/plans/filter-primer-math.md`` §1.3, §1.4):
+implementation of the Kaiser relations that is not ours:
 
   - predicted depth: ``scipy.signal.kaiser_atten``
   - floor: 21 dB, where ``scipy.signal.kaiser_beta`` first returns 0, so every
     design under it is the same rectangular window
-  - cap: 120 dB, the primer's design choice (math §1.4)
+  - cap: 120 dB, the primer's design choice
   - band at a clamped depth: the widest band ``scipy.signal.kaiserord`` still
     rounds up to ``taps`` for, found by bisection on forward calls only
 

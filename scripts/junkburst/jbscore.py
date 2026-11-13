@@ -69,7 +69,7 @@ def _read_burst(stamp: str) -> tuple[dict[str, Any], Grid, np.ndarray]:
 def _burst_label(burst: dict[str, Any]) -> str:
     """Label one burst on its own frames; what plays before or after it decides nothing here."""
     if burst["samplerate"] < LABEL_MIN_RATE or not burst["musical_frames"]:
-        return "unlabelled"
+        return "unlabeled"
     return "full" if burst["content24_frames"] else "cliff"
 
 
@@ -152,7 +152,7 @@ def _record(window_sweep: dict[str, Any], stamp: str, labels: list[str], values_
 def _score_burst(
     burst: dict[str, Any], grid: Grid, summed: np.ndarray, sweep: dict[float, dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Score one labelled burst at every window into ``sweep``, returning its advisor and ceiling rows."""
+    """Score one labeled burst at every window into ``sweep``, returning its advisor and ceiling rows."""
     arrays = BurstArrays(grid=grid, summed=summed, lin=np.power(10.0, summed / 10.0))
     advisor_rows: list[dict[str, Any]] = []
     ceiling_rows: list[dict[str, Any]] = []
@@ -177,7 +177,7 @@ def _collect_and_score() -> tuple[list[dict[str, Any]], dict[str, str], Spectrum
         burst, grid, summed = _read_burst(stamp)
         bursts.append(burst)
         burst_labels[stamp] = _burst_label(burst)
-        if burst_labels[stamp] != "unlabelled":
+        if burst_labels[stamp] != "unlabeled":
             advisor, ceiling = _score_burst(burst, grid, summed, sweep)
             advisor_rows += advisor
             ceiling_rows += ceiling
@@ -202,7 +202,7 @@ def _score_window(
     groups = musical_groups(burst["arrived"], burst["musical"], window)
     if not groups:
         return None
-    # Every block is labelled on its own musical frames: full when one of them carries content above
+    # Every block is labeled on its own musical frames: full when one of them carries content above
     # LABEL_HZ, cliff when none does. What the rest of the burst does decides nothing here.
     labels = ["full" if burst["content24"][g].any() else "cliff" for g in groups]
     p90_rows = np.stack([np.percentile(summed[g], 90, axis=0) for g in groups])

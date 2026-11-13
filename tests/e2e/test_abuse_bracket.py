@@ -1,27 +1,31 @@
-"""The abuse bracket's promise about HQPTuner's own state stores.
+"""The abuse bracket's promise about HQPTuner's own stores and the engine's live matrix profile.
 
-`scripts/abuse.sh open` brackets a hostile-input run and `close` ends it. What is
-pinned here is what the bracket leaves behind on disk: a run writes into every
-store HQPTuner owns, and `close` has to leave those stores as `open` found them.
+`scripts/abuse.sh open` brackets a hostile-input run and `close` ends it. A run
+writes into every store HQPTuner owns, and `close` has to leave those stores as
+`open` found them, refusing and touching none of them when the snapshot manifest
+is gone.
 
-The engine's live matrix profile is bracketed the same way: a run is free to
-switch it, and `close` has to put back the profile the daemon was on when `open`
-ran — unless the daemon no longer offers that profile, in which case `close`
-refuses rather than installing a name the engine cannot resolve.
+A run whose apply, live write or preset store write landed has changed the
+daemon's own configuration or its running state, so `close` uploads the baseline
+back; a run in which none of the three landed makes no upload.
 
-Policy notes (docs/testing.md):
+A run is also free to switch the engine's live matrix profile, and `close` has
+to put back the profile the daemon was on when `open` ran — unless the daemon no
+longer offers that profile, in which case `close` refuses rather than installing
+a name the engine cannot resolve.
 
-- One assertion per test.
+Policy notes:
+
 - The subject is a shell script, so it is driven the way an operator drives it:
-  a subprocess, its two environment knobs, and the files it leaves. Nothing
+  a subprocess, its two environment knobs, and what it leaves behind. Nothing
   reaches inside the script.
-- No test waits on the wall clock. The script does its own bounded polling and
-  the assertions read files it has already finished writing.
-- The stores are addressed by their file names, which are wire identity
-  (`Dockerfile`'s `HQPTUNER_*` path knobs), never by anything a user reads.
-- The stack here is function-scoped, not the session one: the point of the first
-  case is what the stores hold at the moment `open` runs, so it needs a server
-  whose state nothing else has touched.
+- The script does its own bounded polling and the assertions read state it has
+  already finished writing.
+- The stores are the ones `abuse.sh status` reports for the state root the
+  test points it at, never a list written out here.
+- The stack here is function-scoped, not the session one: what each case pins is
+  what the stores hold and the profile the engine is on at the moment `open`
+  runs, so it needs a server and a daemon nothing else has touched.
 """
 
 import hashlib
@@ -29,11 +33,12 @@ import json
 import os
 import subprocess
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+from narrow import FixtureError
 
 from e2e.support import stack as stack_support
 
@@ -47,19 +52,6 @@ RUN_TIMEOUT = 300.0
 #: Ceiling on one API call to the app, which is on loopback and already answering.
 CALL_TIMEOUT = 30.0
 
-#: The seven stores HQPTuner owns, as `Dockerfile`'s path knobs name them. The
-#: directory is the config-preset store; the rest are single files.
-STORES = (
-    "presets",
-    "live-presets.json",
-    "favorites.json",
-    "descriptions.json",
-    "narrowing.json",
-    "matrixmodes.json",
-    "autopilot.json",
-)
-
-
 #: A profile the control fake answers MatrixListProfiles with, so it is a switch
 #: target the daemon resolves. Stands for wherever a hostile run leaves the engine.
 RUN_PROFILE = "Mch-to-Stereo mixdown"
@@ -72,50 +64,44 @@ ABSENT_PROFILE = "Profile The Engine Does Not Have"
 #: from a crash, either of which exits otherwise.
 REFUSED = 3
 
+#: The prefix `abuse.sh status` puts before each store it resolved, one per line.
+STORE_LINE = "store: "
+
+#: What the run leaves in every store: a hostile value no store held at open.
+JUNK = b"junk the hostile run left behind"
+
 #: Ceiling on the app noticing a State the fake already reports. Bounded wait on a
 #: condition, not a duration anything is expected to take.
 OBSERVE_TIMEOUT = 30.0
 
 
-def _digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _snapshot(state: Path) -> dict[str, str]:
-    """Every file the seven stores hold right now, relative path to digest.
-
-    A store that does not exist contributes nothing, so "the file the run created
-    is gone again" and "the file the run changed is back" read as the same
-    comparison.
-    """
-    found: dict[str, str] = {}
-    for store in STORES:
-        target = state / store
-        if target.is_dir():
-            found.update({str(p.relative_to(state)): _digest(p) for p in sorted(target.rglob("*")) if p.is_file()})
-        elif target.is_file():
-            found[store] = _digest(target)
-    return found
+def _request(
+    app: stack_support.Stack,
+    method: str,
+    path: str,
+    data: bytes | None,
+    headers: dict[str, str],
+) -> bytes:
+    """The raw body of one request against the app, raising on anything but a 2xx."""
+    request = urllib.request.Request(  # noqa: S310 — literal loopback http URL
+        f"{app.base_url}{path}",
+        data=data,
+        headers=headers,
+        method=method,
+    )
+    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
+        return bytes(response.read())
 
 
 def _call(stack: stack_support.Stack, method: str, path: str, body: dict[str, Any] | None = None) -> None:
     """Drive one of the app's write routes, raising on anything but a 2xx."""
     data = None if body is None else json.dumps(body).encode()
-    request = urllib.request.Request(  # noqa: S310 — literal loopback http URL
-        f"{stack.base_url}{path}",
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method=method,
-    )
-    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
-        response.read()
+    _request(stack, method, path, data, {"Content-Type": "application/json"})
 
 
 def _live_active(app: stack_support.Stack) -> str:
     """The active matrix profile as the app serves it, `.data.live_active` of `GET /api/matrix`."""
-    request = urllib.request.Request(f"{app.base_url}/api/matrix", method="GET")  # noqa: S310 — loopback http URL
-    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
-        payload = json.loads(response.read())
+    payload = json.loads(_request(app, "GET", "/api/matrix", None, {}))
     return str(payload["data"]["live_active"])
 
 
@@ -210,40 +196,77 @@ def app(state: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[stack_support.
         yield running
 
 
-def _write_into_every_store(app: stack_support.Stack) -> None:
-    """One value into each of the seven stores, as a hostile run would leave them."""
-    _call(app, "PUT", "/api/livepresets/junk", {})
-    _call(app, "POST", "/api/profile/save", {"name": "junkpreset"})
-    _call(app, "PUT", "/api/favorites", {"filters": ["junk-filter"]})
-    _call(app, "PUT", "/api/descriptions", {"name": "junkpreset", "text": "junk"})
-    _call(app, "PUT", "/api/narrowing", {"facets": {"odd_rate_only": True}})
-    _call(app, "PUT", "/api/matrixmodes", {"name": "junkpreset", "mode": "speakers"})
-    _call(app, "POST", "/api/autopilot", {"enabled": True})
+def _stores(state: Path) -> tuple[str, ...]:
+    """The stores `abuse.sh status` resolves for `state`, as paths relative to it."""
+    report = _abuse("status", state)
+    stores = tuple(line.removeprefix(STORE_LINE) for line in report.stdout.splitlines() if line.startswith(STORE_LINE))
+    if report.returncode != 0 or not stores:
+        raise FixtureError(reason=f"abuse.sh status resolved no stores:\n{report.stdout}\n{report.stderr}")
+    return stores
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _snapshot(state: Path, stores: tuple[str, ...]) -> dict[str, str]:
+    """Every file the stores hold right now, path relative to `state` to digest.
+
+    A store that does not exist contributes nothing, so "the file the run created
+    is gone again" and "the file the run changed is back" read as the same
+    comparison.
+    """
+    found: dict[str, str] = {}
+    for store in stores:
+        target = state / store
+        if target.is_dir():
+            found.update({str(p.relative_to(state)): _digest(p) for p in target.rglob("*") if p.is_file()})
+        elif target.is_file():
+            found[store] = _digest(target)
+    return found
+
+
+def _write_into_every_store(state: Path, stores: tuple[str, ...]) -> None:
+    """Leave junk in each store, as a hostile run would: a new file in a directory, new contents in a file."""
+    for store in stores:
+        target = state / store
+        if target.is_dir():
+            target = target / "junk"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(JUNK)
+
+
+def _seed_stores(app: stack_support.Stack) -> None:
+    """Give two stores content before `open`, so close has something to put back, not only to delete."""
+    _call(app, "PUT", "/api/livepresets/keep", {})
+    _call(app, "PUT", "/api/descriptions", {"name": "keep", "text": "kept"})
 
 
 def test_close_leaves_every_store_as_open_found_it(app: stack_support.Stack, state: Path) -> None:
-    """A run that writes into all seven stores leaves none of it behind."""
-    _call(app, "PUT", "/api/livepresets/keep", {})
-    _call(app, "PUT", "/api/descriptions", {"name": "keep", "text": "kept"})
-    before = _snapshot(state)
+    """A run that writes into every store leaves none of it behind."""
+    stores = _stores(state)
+    _seed_stores(app)
+    before = _snapshot(state, stores)
     _bracket("open", state)
-    _write_into_every_store(app)
+    _write_into_every_store(state, stores)
     _bracket("close", state)
-    assert _snapshot(state) == before
+    assert _snapshot(state, stores) == before
 
 
 def _close_without_manifest(
     app: stack_support.Stack, state: Path
 ) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
-    """Open the bracket, write a store, lose the snapshot manifest, then close.
+    """Open the bracket, write into every store, lose the snapshot manifest, then close.
 
     Answers the close and the stores as they stood just before it.
     """
+    stores = _stores(state)
+    _seed_stores(app)
     _bracket("open", state)
-    _call(app, "PUT", "/api/livepresets/junk", {})
+    _write_into_every_store(state, stores)
     for manifest in (state / "abuse").rglob("manifest.json"):
         manifest.unlink()
-    left = _snapshot(state)
+    left = _snapshot(state, stores)
     return _abuse("close", state), left
 
 
@@ -258,7 +281,7 @@ def test_a_close_refused_for_a_lost_manifest_leaves_the_stores_as_it_found_them(
 ) -> None:
     """A refusal restores nothing: putting back a snapshot it cannot vouch for could empty a live store."""
     _closed, left = _close_without_manifest(app, state)
-    assert _snapshot(state) == left
+    assert _snapshot(state, _stores(state)) == left
 
 
 @pytest.mark.parametrize("baseline", ["Default", ""])
@@ -292,3 +315,116 @@ def test_a_close_refused_for_a_vanished_profile_leaves_the_run_profile_engaged(
 ) -> None:
     _close_after_the_baseline_vanished(app, state)
     assert app.control_state["matrix_profile"] == RUN_PROFILE
+
+
+#: The control fake's starting junk filter, which a live write moves and the run puts back.
+DEFAULT_JUNK_FILTER = "0"
+
+#: The multipart boundary the state-import upload below is framed with.
+BOUNDARY = "abuse-bracket-boundary"
+
+#: A preset name the store holds before `open`, so a run that re-imports it overwrites it.
+PRESET = "kept preset"
+
+
+def _import_state(app: stack_support.Stack, archive: bytes) -> None:
+    """Upload a state archive to `POST /api/state-import`, the one route that writes a preset with no apply."""
+    head = f'--{BOUNDARY}\r\nContent-Disposition: form-data; name="statefile"; filename="state.zip"\r\n'
+    body = f"{head}Content-Type: application/zip\r\n\r\n".encode() + archive + f"\r\n--{BOUNDARY}--\r\n".encode()
+    _request(app, "POST", "/api/state-import", body, {"Content-Type": f"multipart/form-data; boundary={BOUNDARY}"})
+
+
+def _live_junk_filter(app: stack_support.Stack) -> str:
+    """The junk filter reading as the app serves it, `.data.filter_junk` of `GET /api/state`."""
+    return str(json.loads(_request(app, "GET", "/api/state", None, {}))["data"]["filter_junk"])
+
+
+def _await_junk_filter(app: stack_support.Stack, value: str) -> None:
+    """Wait until the app reports `value` for the junk filter, so close's live readback reads baseline at once."""
+    if app.wait_for_command(lambda: _live_junk_filter(app) == value, OBSERVE_TIMEOUT):
+        return
+    raise _ActiveProfileMismatchError(reported=_live_junk_filter(app), expected=value)
+
+
+def _close_after(app: stack_support.Stack, state: Path, run: Callable[[], None]) -> int:
+    """Open the bracket, let `run` do its writes, close, and answer how many device refreshes close asked for.
+
+    Each refresh is one turn of close's readback loop, counted at the HTTP fake's
+    own refresh hook, never from what the script prints.
+    """
+    refreshes: list[None] = []
+    app.http_state["_on_refresh"] = lambda: refreshes.append(None)
+    _bracket("open", state)
+    run()
+    refreshes.clear()
+    _bracket("close", state)
+    return len(refreshes)
+
+
+def _uploads_after(app: stack_support.Stack, state: Path, run: Callable[[], None]) -> int:
+    """Open the bracket, let `run` do its writes, close, and answer how many baseline uploads reached the daemon.
+
+    Read from the HTTP fake's own restore bookkeeping once `close` has returned,
+    never from what the script prints.
+    """
+    _close_after(app, state, run)
+    return int(app.http_state.get("_restore_attempts", 0))
+
+
+def _run_with_an_apply(app: stack_support.Stack) -> Callable[[], None]:
+    """A run whose apply lands."""
+    return lambda: _call(app, "POST", "/api/config/apply", {"switch_to": ""})
+
+
+def _run_with_a_live_write(app: stack_support.Stack) -> Callable[[], None]:
+    """A run whose live write lands, with the fake's junk filter then back at baseline for close's readback."""
+
+    def write_live() -> None:
+        _call(app, "POST", "/api/config/live", {"fields": {"junk_filter": "1"}})
+        app.control_state["filter_junk"] = DEFAULT_JUNK_FILTER
+        _await_junk_filter(app, DEFAULT_JUNK_FILTER)
+
+    return write_live
+
+
+def _run_with_a_preset_store_write(app: stack_support.Stack) -> Callable[[], None]:
+    """A run whose only write is a preset re-imported with no apply and no live write."""
+    _call(app, "POST", "/api/config/apply", {"switch_to": "", "save": {"name": PRESET}})
+    archive = _request(app, "GET", "/api/state-export", None, {})
+    return lambda: _import_state(app, archive)
+
+
+def _run_with_no_write(_app: stack_support.Stack) -> Callable[[], None]:
+    """A run in which nothing lands."""
+    return lambda: None
+
+
+@pytest.mark.parametrize(
+    ("make_run", "uploads"),
+    [
+        pytest.param(_run_with_an_apply, 1, id="an-apply-landed"),
+        pytest.param(_run_with_a_live_write, 1, id="a-live-write-landed"),
+        pytest.param(_run_with_a_preset_store_write, 1, id="a-preset-store-write-landed"),
+        pytest.param(_run_with_no_write, 0, id="no-write-landed"),
+    ],
+)
+def test_close_uploads_the_baseline_once_when_a_write_landed_and_never_when_none_did(
+    app: stack_support.Stack, state: Path, make_run: Callable[[stack_support.Stack], Callable[[], None]], uploads: int
+) -> None:
+    """A landed write changed the daemon, so close uploads the baseline once; a run that wrote nothing uploads none."""
+    assert _uploads_after(app, state, make_run(app)) == uploads
+
+
+@pytest.mark.parametrize(
+    "make_run",
+    [
+        pytest.param(_run_with_an_apply, id="an-apply-landed"),
+        pytest.param(_run_with_a_live_write, id="a-live-write-landed"),
+        pytest.param(_run_with_a_preset_store_write, id="a-preset-store-write-landed"),
+    ],
+)
+def test_close_reads_state_back_on_its_first_turn_once_a_write_landed(
+    app: stack_support.Stack, state: Path, make_run: Callable[[stack_support.Stack], Callable[[], None]]
+) -> None:
+    """Close waits for the app to be ready after its refresh, so the readback settles without a second turn."""
+    assert _close_after(app, state, make_run(app)) == 1

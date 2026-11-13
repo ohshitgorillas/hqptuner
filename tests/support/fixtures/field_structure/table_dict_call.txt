@@ -1,0 +1,7 @@
+"""A module that builds its own routing table by keyword."""
+
+import logging
+
+LOG = logging.getLogger(__name__)
+
+ROUTES = dict(@A@="live", @B@="restore")

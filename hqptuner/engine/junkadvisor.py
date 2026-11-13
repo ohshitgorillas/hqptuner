@@ -15,8 +15,8 @@ Signatures (manual p.53, "Playback filter"):
 - persistent narrow spurs above the music's natural decay → ``30k`` / ``40k``
   (slow roll-off above the corner). The manual's example cause is analog-tape
   transfers, but clipping harmonics of an authentic hi-res recording look the
-  same to this rule (field report: an authentic 96k recording with clipping
-  fired it), so the cause is unknowable from the spectrum. The verdict states the
+  same to this rule (an authentic 96k recording with clipping
+  fires it), so the cause is unknowable from the spectrum. The verdict states the
   observation only and offers the hires families as an alternative to the corner.
 - HF noise rising with frequency → ``50k`` (very slow roll-off; the manual's
   "excessive noise shaping" case — some ADCs, DSD-to-PCM conversions)
@@ -26,8 +26,8 @@ caller supplies. A master's own limit — a shaping ramp, a bias tone — is pre
 in every frame and survives the minimum; music energy at the same frequency is
 intermittent, and any quiet moment in the window drops its bin to the hiss floor.
 A mean cannot separate the two: loud music raises the local baseline until the
-signature disappears into it (observed live: a 30.3 kHz tone 15 dB proud during a
-quiet intro fell to 6 dB of excess once the music started).
+signature disappears into it (a 30.3 kHz tone 15 dB proud during a quiet intro
+falls to 6 dB of excess once the music starts).
 
 The 20k rule reads neither that curve nor any window: it reads the run over the
 blocks as they closed, which the caller owns with its aggregate. The ramp is a
@@ -41,7 +41,7 @@ Where several rules fire the lowest corner wins: it treats every signature the
 others name. The rate-relative filters (2x/4x/8x) are never recommended. The spur
 and ramp thresholds are read off the junkcal capture corpus with their readings
 recorded beside them; the 20k rule's four are read off the burst corpus under
-``/srv/hqptuner/state/junkburst/`` (docs/junk-filter-autopilot-resource-20k.md §2).
+``/srv/hqptuner/state/junkburst/`` (docs/research/junkfilter/junk-filter-autopilot-resource-20k.md §2).
 """
 
 from dataclasses import dataclass, field
@@ -154,8 +154,7 @@ def classify(  # noqa: PLR0913
     """Return the signature this spectrum carries, or None when there is nothing to say.
 
     ``min_levels_db`` is the windowed per-bin minimum spectrum (dB, one value per bin up to ``bandwidth`` = the source
-    Nyquist), or empty while no frame has been folded at all — the reader has no other readiness gate, so the first
-    frame past the decimator already carries a spectrum the rules can read. The verdict is spectrum-only — the
+    Nyquist), or empty while no frame has been folded at all. The verdict is spectrum-only — the
     metering tap sees the source, so engaging a filter never changes what the detector sees — which is why detection
     says nothing about what the engine has engaged. Whether
     the engaged settings already treat the signature is ``treats``, and the caller applies it: the advisor's note goes

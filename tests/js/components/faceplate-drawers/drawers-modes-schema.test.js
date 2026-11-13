@@ -1,0 +1,211 @@
+// Rendered suite for hqptuner/static/components/faceplate/drawers/modes.js, the DSD Processing, Resampling and Shaping
+// drawers' schemas drawn by the stage drawer: each tab's rows in order, the FFT length row shown only while its tab's
+// filter is FFT-family, the tab each drawer opens on and idle state of the mode not running, the
+// tab dot a staged restart edit puts on its own tab, and Shaping's DAC fields and DAC bits note.
+//
+// Renders `Drawer` through preact-render-to-string; a click is fired through the vnode seam
+// (tests/js/support/vnodeseam.js) and the store is driven at the wire by the staging fake: /api/state into
+// `engineState`, the daemon's /config form into `config`. Rows are found by catalog key (`data-k`), fields by id
+// (`data-field`), tabs by id (`data-tab`), options by value (`data-v`); every string asserted is a wire value or a
+// number the fixture put on the wire.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-modes-schema.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  DSD_DRAWER,
+  RESAMPLING_DRAWER,
+  SHAPING_DRAWER,
+} from "../../../../hqptuner/static/components/faceplate/drawers/modes.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  metadata,
+  pendingPreset,
+} from "../../../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { cancel } from "../../../../hqptuner/static/store/ask.js";
+import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { pickApplyMode, showTab, shownTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { dacChip, dacType, setDacChip, setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { dottedTabs, drawerMarkup, tapFieldOption } from "../../support/rendered/drawer-render.js";
+import { filterFields } from "../../support/rendered/filter-fields.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { stagingWire } from "../../support/wire/wire.js";
+import { elements, attr, classes, text } from "../../support/markup.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
+
+const FILTERS = [
+  { value: "1", label: "sinc-L" },
+  { value: "2", label: "FFT" },
+];
+
+/**
+ * A served reading showing `value` from the config file, a field the engine restarts for.
+ *
+ * @param {unknown} value
+ */
+const restartReading = (value) => fieldReading(value, { show: "file", restarts: true });
+
+/**
+ * Load the /config form: each chain's 1x and Nx filter by value, the backend and its DAC bits.
+ *
+ * @param {{ pcm1x?: string, pcmnx?: string, sdm1x?: string, sdmnx?: string, bits?: number }} [f]
+ */
+async function load({ pcm1x = "1", pcmnx = "1", sdm1x = "1", sdmnx = "1", bits = 0 } = {}) {
+  const filters = filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS);
+  config.value = {
+    fields: [
+      ...filters.fields,
+      { name: "dsd_6db", type: "checkbox" },
+      { name: "sdm_conversion", type: "select", options: [{ value: "0", label: "0" }] },
+      { name: "backend", type: "select" },
+      { name: "alsa_bits", type: "number" },
+    ],
+  };
+  await seedReadings({
+    ...filters.values,
+    dsd_6db: restartReading(false),
+    sdm_conversion: restartReading("0"),
+    backend: "alsa",
+    alsa_bits: bits,
+  });
+}
+
+/** The mode drawers, each opened and closed once so no tab picked by an earlier case holds. */
+const MODE_DRAWERS = [DSD_DRAWER, RESAMPLING_DRAWER, SHAPING_DRAWER];
+
+beforeEach(async () => {
+  stagingWire();
+  await load();
+  engineState.value = { state: "0", active_chain: "sdm" };
+  engineStatus.value = {};
+  enums.value = null;
+  metadata.value = null;
+  pendingPreset.value = null;
+  openPopover.value = null;
+  for (const d of MODE_DRAWERS) {
+    openStage.value = d.id;
+    openStage.value = null;
+  }
+  setDacType("other");
+  setDacChip("other");
+  cancel();
+  await discardAll();
+  pickApplyMode("apply");
+});
+
+/**
+ * Each tab panel's items in order: a row's key, a field's id, or `head` for a section header.
+ *
+ * @param {DrawerSchema} schema
+ * @returns {Record<string, (string | undefined)[]>}
+ */
+function itemsByTab(schema) {
+  const panels = drawerMarkup(schema).filter((e) => classes(e).includes("dpanel"));
+  return Object.fromEntries(
+    panels.map((p) => [
+      attr(p, "data-tab"),
+      elements(p.html)
+        .sort((a, b) => a.start - b.start)
+        .filter((e) => classes(e).includes("drow") || classes(e).includes("msec"))
+        .map((e) => (classes(e).includes("msec") ? "head" : (attr(e, "data-k") ?? attr(e, "data-field")))),
+    ]),
+  );
+}
+
+/**
+ * The elements inside a field, found by its id.
+ *
+ * @param {string} id
+ * @returns {MarkupElement[]}
+ */
+function inField(id) {
+  const row = drawerMarkup(SHAPING_DRAWER).find((e) => attr(e, "data-field") === id);
+  return row ? elements(row.html) : [];
+}
+
+/**
+ * Tap option `value` of Shaping's field `id`.
+ *
+ * @param {string} id
+ * @param {string} value
+ */
+const tapField = (id, value) => tapFieldOption(SHAPING_DRAWER, id, value);
+
+test("test_the_fft_length_row_shows_on_the_tab_whose_filter_is_fft_family", async () => {
+  await load({ sdmnx: "2" });
+  const tabs = itemsByTab(RESAMPLING_DRAWER);
+  const fft = (/** @type {string} */ tab) => (tabs[tab] ?? []).includes("fft_size");
+  assert.equal(fft("sdm"), true);
+});
+
+test("test_the_fft_length_row_follows_a_staged_filter_pick", async () => {
+  await edit("pcm_filter_nx", "2");
+  assert.equal((itemsByTab(RESAMPLING_DRAWER).pcm ?? []).includes("fft_size"), true);
+});
+
+for (const drawer of MODE_DRAWERS) {
+  test(`test_the_${drawer.id}_drawer_opens_on_the_sdm_tab_while_sdm_runs`, () => {
+    assert.equal(shownTab(drawer), "sdm");
+  });
+}
+
+for (const drawer of MODE_DRAWERS) {
+  test(`test_the_${drawer.id}_drawer_opens_on_the_pcm_tab_while_pcm_runs`, () => {
+    engineState.value = { state: "0", active_chain: "pcm" };
+    assert.equal(shownTab(drawer), "pcm");
+  });
+}
+
+/** Whether the Shaping drawer reads idle, or null when it draws no aside. */
+const idle = () => {
+  const aside = drawerMarkup(SHAPING_DRAWER).find((e) => e.name === "aside");
+  return aside ? classes(aside).includes("idle") : null;
+};
+
+test("test_a_mode_drawer_showing_the_mode_not_running_reads_idle", () => {
+  showTab(SHAPING_DRAWER.id, "pcm");
+  assert.equal(idle(), true);
+});
+
+test("test_a_staged_dsd_source_gain_dots_the_pcm_tab_of_dsd_processing", async () => {
+  await edit("dsd_gain_6db", "1");
+  assert.deepEqual(dottedTabs(DSD_DRAWER), ["pcm"]);
+});
+
+test("test_a_staged_rate_conversion_dots_the_sdm_tab_of_resampling", async () => {
+  await edit("sdm_conversion", "1");
+  assert.deepEqual(dottedTabs(RESAMPLING_DRAWER), ["sdm"]);
+});
+
+test("test_tapping_a_dac_type_sets_it_at_once", async () => {
+  await tapField("dactype", "r2r");
+  assert.equal(dacType.value, "r2r");
+});
+
+test("test_tapping_a_dac_chip_sets_it_at_once", async () => {
+  await tapField("dacchip", "ess");
+  assert.equal(dacChip.value, "ess");
+});
+
+test("test_the_dac_type_field_lights_the_type_held", () => {
+  setDacType("r2r");
+  const on = inField("dactype").find((e) => e.name === "button" && classes(e).includes("on"));
+  assert.equal(on ? attr(on, "data-v") : undefined, "r2r");
+});
+
+test("test_shapings_pcm_tab_notes_the_dac_bits_the_output_holds", async () => {
+  await load({ bits: 24 });
+  const panel = drawerMarkup(SHAPING_DRAWER).find(
+    (e) => classes(e).includes("dpanel") && attr(e, "data-tab") === "pcm",
+  );
+  const note = panel ? elements(panel.html).find((e) => classes(e).includes("mnote")) : undefined;
+  assert.equal(note ? text(note).includes("24") : false, true);
+});

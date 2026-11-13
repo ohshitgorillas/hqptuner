@@ -1,22 +1,21 @@
 """Discovery: reading a reply datagram, collapsing the replies, and filling in
 what each daemon says about itself.
 
-The datagram bodies here are the wire's own (docs/protocol.md §2, and the 6.0.2
-reply measured on this host), written by the test rather than read back from the
-app. The reply body carries no address of its own on the wire, so the daemon
-host is the sender address of the datagram (docs/protocol.md:38); the second
-payload below invents an ``address`` attribute purely so a record built from the
-body reads differently from one built from the sender.
+The datagram bodies here are the wire's own (the 6.0.2 reply measured on this
+host), written by the test rather than read back from the app. The reply body
+carries no address of its own on the wire, so the daemon host is the sender
+address of the datagram; the second payload below invents an ``address``
+attribute purely so a record built from the body reads differently from one
+built from the sender.
 
 The identity fields of ``GetInfo`` (``product``, ``platform``) are attribute
-names from docs/protocol.md §6, supplied to ``enrich`` by the test's own
-callable; the ten-second window in which port 4321 refuses connections after a
-restart (docs/protocol.md:21) is why the refusing daemon still has to come back
-as a record.
+names supplied to ``enrich`` by the test's own callable; the ten-second window
+in which port 4321 refuses connections after a restart is why the refusing
+daemon still has to come back as a record.
 
 The search itself runs against a UDP daemon of the suite's own at one loopback
 address and a control daemon at another, with the clock and the wait handed in,
-so a whole search window passes in virtual time (docs/testing.md rule 7).
+so a whole search window passes in virtual time.
 
 uvicorn runs the app on uvloop wherever uvloop is installed, so the same search
 is also run on a uvloop loop and has to list what the standard loop lists. That
@@ -33,7 +32,7 @@ import fake_discovery
 import pytest
 from apps import closed_port
 from conftest import spawn_threaded_daemon
-from virtual_deadline import VirtualDeadline
+from virtual_clock import VirtualClock
 
 from hqptuner.engine.discovery import Daemon, NotAReplyError, Search, dedupe, discover, enrich, parse_reply
 
@@ -59,7 +58,7 @@ def five(record: Daemon) -> tuple[str, str, str, str | None, str | None]:
 
 
 async def answering_daemon(_address: str) -> dict[str, str]:
-    """A daemon that answers GetInfo with the attribute set of docs/protocol.md §6."""
+    """A daemon that answers GetInfo."""
     await asyncio.sleep(0)
     return {
         "engine": "6.0.4",
@@ -136,30 +135,14 @@ async def test_enriching_fills_product_and_platform_and_keeps_a_daemon_that_refu
 SEARCH_HOST = "127.0.0.2"
 ALIAS_HOST = "127.0.0.3"
 
-#: The request the wire specifies, byte for byte (docs/protocol.md:26-29), and a
-#: reply of the documented shape (docs/protocol.md:35), both written here.
+#: The request the wire specifies, byte for byte, and a reply of the documented
+#: shape, both written here.
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 SAPPHIRE_DATAGRAM = b'<discover result="OK" name="Sapphire" version="Signalyst HQPlayer Embedded 6">hqplayer</discover>'
 
 #: The search window, spent in virtual seconds: long enough that the search
 #: reads many times over before it closes, and costing no wall clock at all.
 WAIT = 1.0
-
-
-def virtual_time() -> tuple[Callable[[], float], Callable[[float], Awaitable[None]]]:
-    """A clock the search's own waits advance: a wait adds to the offset the
-    clock reads back, so the window closes after passes rather than seconds."""
-    offset = 0.0
-
-    def clock() -> float:
-        return offset
-
-    async def sleep(seconds: float) -> None:
-        nonlocal offset
-        offset += seconds
-        await asyncio.sleep(0)  # still yield: the replies arrive between passes
-
-    return clock, sleep
 
 
 @pytest.fixture
@@ -192,9 +175,8 @@ async def test_the_host_alias_is_listed_only_where_no_datagram_was_answered(
     expected: list[str],
 ) -> None:
     target = f"{SEARCH_HOST}:{answering_port}" if datagram_answered else f"127.0.0.1:{closed_port()}"
-    clock, sleep = virtual_time()
     search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
-    found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
+    found = await discover(search, wait_seconds=WAIT, clock=VirtualClock())
     assert [daemon.address for daemon in found] == expected
 
 
@@ -203,9 +185,8 @@ async def search_addresses(alias_control_port: int, *, datagram_answered: bool) 
     loop the search itself runs on."""
     async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
         target = f"{SEARCH_HOST}:{answering}" if datagram_answered else f"127.0.0.1:{closed_port()}"
-        clock, sleep = virtual_time()
         search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
-        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
+        found = await discover(search, wait_seconds=WAIT, clock=VirtualClock())
     return [daemon.address for daemon in found]
 
 
@@ -246,7 +227,7 @@ def test_a_search_on_uvloop_lists_what_the_standard_loop_lists(
 
 class TimerLedgerLoop(asyncio.SelectorEventLoop):
     """The standard event loop, keeping the delay of every real-clock timer that
-    ran out on it. A timer cancelled before its time is not a wait on the clock
+    ran out on it. A timer canceled before its time is not a wait on the clock
     and is not kept."""
 
     def __init__(self, ran_out: list[float]) -> None:
@@ -283,12 +264,11 @@ async def silent_search(control_port: int) -> list[str]:
     """The addresses one search lists when its datagram is answered from
     SEARCH_HOST and HQPlayer has fallen silent on the deadline the search is
     handed, paced on a clock of the test's own."""
-    deadline = VirtualDeadline()
-    deadline.fall_silent()
+    clock = VirtualClock()
+    clock.fall_silent()
     async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
-        clock, sleep = virtual_time()
         search = Search(target=f"{SEARCH_HOST}:{answering}", alias=ALIAS_HOST, control_port=control_port)
-        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep, deadline=deadline)
+        found = await discover(search, wait_seconds=WAIT, clock=clock)
     return [daemon.address for daemon in found]
 
 

@@ -47,12 +47,14 @@ class ShaperEntry(TypedDict, total=False):
 
 
 class SettingEntry(TypedDict, total=False):
-    """One ``settings.json`` leaf: a control's tooltip prose, its source citation, and its own option glossary."""
+    """One ``settings.json`` leaf: tooltip prose, ``see more`` prose, citation, option glossary, factory default."""
 
     label: str
     tooltip: str
+    more: str
     source: str
     options: dict[str, str]
+    default: str
 
 
 class FiltersDb(TypedDict, total=False):
@@ -129,7 +131,7 @@ class StaticDb:
 
 
 class EnumFilterItem(TypedDict):
-    """One live filter enumeration item merged with its static prose (protocol.md §6 ``FiltersItem``)."""
+    """One live filter enumeration item merged with its static prose (``FiltersItem``)."""
 
     index: str
     name: str
@@ -141,7 +143,7 @@ class EnumFilterItem(TypedDict):
 
 
 class EnumShaperItem(TypedDict):
-    """One live shaper enumeration item merged with its static prose (protocol.md §6 ``ShapersItem``)."""
+    """One live shaper enumeration item merged with its static prose (``ShapersItem``)."""
 
     index: str
     name: str

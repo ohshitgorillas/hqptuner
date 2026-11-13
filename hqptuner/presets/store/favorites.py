@@ -1,8 +1,8 @@
 """Favorites — the stars the user put on filter and modulator names, kept for the install rather than for one browser.
 
-A favorite is a NAME, never an enum id: the running engine owns ids and ordering, names are the stable join key
-(architecture §3.1), so one list serves all four filter dropdowns (pcm/sdm x 1x/nx) and survives re-enumeration. The
-modulator set is a second list on the same terms, serving the one modulator dropdown wherever it is rendered.
+A favorite is a NAME, never an enum id, so one list serves all four filter dropdowns (pcm/sdm x 1x/nx) and survives
+re-enumeration. The modulator set is a second list on the same terms, serving the one modulator dropdown wherever it
+is rendered.
 
 Stored as one JSON file beside the live snapshots, and for the same reason: the whole store is a couple of hundred short
 strings, so a file per star would be all overhead. Layout follows ``store.live``'s conventions — a schema stamp that
@@ -47,9 +47,8 @@ _MAX_NAME_LEN = 64
 
 
 class FavoritesFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the two independent name lists."""
+    """The on-disk envelope as read: the two independent name lists."""
 
-    schema: int
     filters: list[str]
     modulators: list[str]
 
@@ -103,16 +102,13 @@ class FavoriteNameTooLongError(FavoriteError):
 
 
 def _clean(stored: object) -> FavoritesFile:
-    """Return a read document's envelope, keeping the stamp when it is an int and the strings of each name list.
+    """Return a read document's envelope, keeping the strings of each name list.
 
     A list member that is not a string is dropped here; empty names and duplicates are ``_read_kind``'s to drop.
     """
     out: FavoritesFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     filters = stored.get("filters")
     if isinstance(filters, list):
         out["filters"] = [name for name in filters if isinstance(name, str)]

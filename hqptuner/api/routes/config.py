@@ -1,62 +1,34 @@
-"""Configuration surface — /config form, preset previews, device refresh, backup, state export, engine, restore.
+"""Configuration surface — /config form, preset previews, device refresh, backup, state archive, engine, restore.
 
-Every route but the state export needs the daemon's 8088 management lane, so takes ``HttpMgr``; the state export reads
-only HQPTuner's own files and log, so takes ``Cfg`` and answers without credentials.
+GET /config reads cached stores with ``Mgr``. State export and import touch only HQPTuner's own files and log, so
+take ``Cfg`` and answer without credentials. The other routes need the daemon's 8088 management lane and take
+``HttpMgr``.
 """
 
 import hashlib
-import logging
 from dataclasses import dataclass
 from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, File, Request, Response, UploadFile
 
-from hqptuner import logbuffer
+from hqptuner import __version__, logbuffer
 from hqptuner.api import deps
-from hqptuner.api.deps import Cfg, HttpMgr
+from hqptuner.api.deps import Cfg, HttpMgr, Mgr
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import EngineBody
-from hqptuner.conf import presetzip
 from hqptuner.conf.engineconf import UnreadableArchiveError
-from hqptuner.conf.httpforms import FormField
 from hqptuner.core import engineread
 from hqptuner.core.applyops import EngineApplyResult
+from hqptuner.core.fieldreadings import ConfigReading, MetadataSources, config_reading
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.pending import PendingStore
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.engine.devicecaps import DeviceCaps
-from hqptuner.lanes import rescan, settle
-from hqptuner.lanes.live import overrides
-from hqptuner.presets import fileconfig, presetlane
-from hqptuner.presets.presetlane import PresetOption
-from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
+from hqptuner.presets import archive, fileconfig, presetlane, presetops
+from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.export import state_archive
 
-log = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/api")
-
-
-@dataclass(frozen=True)
-class PresetChoice:
-    """The preset picker as the form renders it: the selected preset and every option, "(no preset)" first."""
-
-    value: str
-    options: list[PresetOption]
-
-
-@dataclass(frozen=True)
-class ConfigView:
-    """``GET /api/config`` data: the /config form's fields beside HQPTuner's presets and the running config."""
-
-    fields: list[FormField]
-    profiles: PresetChoice
-    active: str
-    autosave: bool
-    file: dict[str, str]
-    # What the selected output device announced it can carry, or null when
-    # nothing is known about it. The rate menus gray against this; null grays
-    # nothing.
-    device_caps: DeviceCaps | None
 
 
 @dataclass(frozen=True)
@@ -102,7 +74,7 @@ class DeviceRefreshFailedError(ErrorBody):
         super().__init__(f"Refreshing the device list failed: {error}")
 
 
-class BackupFailedError(ErrorBody):
+class BackupReadFailedError(ErrorBody):
     """A settings-archive backup failed on the wire, naming the underlying error."""
 
     code = "daemon_write_failed"
@@ -172,33 +144,20 @@ class RestoreFailedError(ErrorBody):
         super().__init__(f"Restoring the settings failed: {error}")
 
 
-@router.get("/config")
-def config(manager: HttpMgr) -> deps.Snapshot[ConfigView]:
-    """Return the /config form joined with HQPTuner's preset list, the running config, and the output device's caps.
-
-    Needs credentials — without them the 8088 lane does not exist and the route 503s.
-    """
-    form = deps.ensure_form(manager.readings.config_form, manager.readings.config_error)
-    # `profiles` and `active` come from HQPTuner's own preset store — the source of
-    # truth — not the daemon's (unreliable) profile subsystem, which under our
-    # restore-only model always reports [default].
-    #
-    # `file` is the RUNNING configuration, which is the XML overlaid with whatever
-    # the live lane has changed since it was written (lanes/live/routing.py): a
-    # live-routed filter/dither/mode edit never touches the file, so the file alone
-    # would report a setting the engine stopped using. The frontend grounds the
-    # affected controls here, so a dropdown shows what is actually playing and
-    # selecting the previous value still reads as a change.
-    presets = manager.presetops.presets()
-    view = ConfigView(
-        fields=form["fields"],
-        profiles=PresetChoice(value=presets.value, options=presets.options),
-        active=presets.active,
-        autosave=presets.autosave,
-        file={**(manager.readings.file_config or {}), **overrides.live_overrides(manager)},
-        device_caps=manager.readings.device_caps,
+def current_config(manager: ConnectionManager, pending: PendingStore) -> ConfigReading:
+    """Capture the config response in one event-loop turn for REST and push."""
+    return config_reading(
+        manager.readings,
+        pending.snapshot(),
+        manager.phase.standing.generation,
+        MetadataSources(readings=manager.readings, presets=presetlane.listing(manager), app_version=__version__),
     )
-    return deps.snapshot(manager, view)
+
+
+@router.get("/config")
+async def config(manager: Mgr, request: Request) -> ConfigReading:
+    """Return registered settings and metadata from the current source stores."""
+    return current_config(manager, deps.pending_of(request))
 
 
 # `:path` rather than the default convertor, which is `[^/]+` and so cannot match
@@ -218,25 +177,16 @@ async def preset(name: str, manager: HttpMgr) -> PresetPreview:
         raise refuse(ReadPresetFailedError(error=exc)) from exc
 
 
-@dataclass(frozen=True)
-class RescanAnswer:
-    """A device rescan as the page reads it: ``warning`` says, only when it happened, that live settings were lost."""
-
-    restored: dict[str, str]
-    warning: str | None = None
-
-
-@router.post("/config/refresh", response_model_exclude_none=True)
-async def config_refresh(manager: HttpMgr) -> RescanAnswer:
+@router.post("/config/refresh")
+async def config_refresh(manager: HttpMgr) -> None:
     """Re-scan output devices on the daemon and refetch the config forms.
 
     A device that was absent (a powered-off NAA endpoint) appears in the dropdown afterwards.
     """
     try:
-        report = await engineread.refresh_devices(manager)
+        await engineread.refresh_devices(manager)
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(DeviceRefreshFailedError(error=exc)) from exc
-    return RescanAnswer(report.restored, rescan.WARNINGS.get(report.replay))
 
 
 @router.get("/backup")
@@ -247,16 +197,11 @@ async def backup(manager: HttpMgr, request: Request) -> Response:
     what the user has here, not the daemon's half of it; every daemon member is copied byte-for-byte, so the archive
     still restores anywhere. A store with nothing in it adds no member.
     """
+    store = deps.descriptions_of(request)
     try:
-        data = await manager.presetops.backup()
+        data = await archive.backup(manager, store)
     except (ControlError, httpx.HTTPError) as exc:
-        raise refuse(BackupFailedError(error=exc)) from exc
-    store: DescriptionStore = request.app.state.descriptions
-    try:
-        data = presetzip.embed_descriptions(data, store.export_bytes())
-    except DescriptionError as exc:
-        # An unreadable store is not a reason to withhold the daemon's own backup.
-        log.warning("descriptions not carried in backup: %s", exc)
+        raise refuse(BackupReadFailedError(error=exc)) from exc
     return Response(
         content=data,
         media_type="application/zip",
@@ -277,11 +222,37 @@ def state_export(cfg: Cfg) -> Response:
     )
 
 
+@dataclass(frozen=True)
+class StateImportAnswer:
+    """``POST /api/state-import``: the stores the import replaced, by their names in the archive."""
+
+    replaced: list[str]
+
+
+@router.post("/state-import")
+def state_import(statefile: Annotated[UploadFile, File()], manager: Mgr, cfg: Cfg) -> StateImportAnswer:
+    """Replace each store a state archive carries, recording the upload's name, size, and SHA-256 first.
+
+    The whole archive is checked before anything is written; a refusal (``state_unreadable``, ``state_too_new``)
+    changes nothing. The install's stores are saved to ``backups/pre-import-state.zip`` first, and a backup that
+    cannot be written (``backup_failed``) changes nothing either; then the active preset pointer is cleared. The work
+    is on disk only. A plain ``def``, so it runs on the threadpool.
+    """
+    upload = stateimport.read_upload(statefile.file, cfg.state_max_bytes)
+    manager.audit.state_upload(statefile.filename or "", upload.size, upload.digest)
+    try:
+        carried = stateimport.check(upload, cfg.state_max_bytes)
+        replaced = manager.presetops.import_state(carried)
+    except (stateimport.StateImportError, presetops.BackupFailedError) as exc:
+        raise refuse(exc) from exc
+    return StateImportAnswer(replaced=replaced)
+
+
 @router.get("/engine")
 async def engine_get(manager: HttpMgr) -> EngineReading:
     """Return the hardware-acceleration attributes, read out of a fresh backup, and the active preset snapshot's name.
 
-    They are not on any form, so this costs a backup fetch — read on demand, never per poll.
+    They are on no form, so this costs a backup fetch, read on demand.
     """
     try:
         engine = await fileconfig.read_engine(manager)
@@ -293,11 +264,11 @@ async def engine_get(manager: HttpMgr) -> EngineReading:
 
 
 @router.post("/engine")
-async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[EngineApplyResult]:
-    """Write hardware-acceleration attributes by editing the backup archive and restoring it, then auto-save.
+async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.Reported[EngineApplyResult]:
+    """Write hardware-acceleration attributes by editing the backup archive and restoring it.
 
     400 with no overrides, 422 when one is not a valid engine attribute, 502 when the daemon fails the write. The
-    restore restarts the daemon and interrupts playback — the user's call, never refused for it.
+    restore restarts the daemon and interrupts playback, which is the user's call.
     """
     if not body.overrides:
         raise refuse(NoEngineOverridesError())
@@ -309,43 +280,24 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[
         raise refuse(EngineControlFailedError(error=exc)) from exc
     except httpx.HTTPError as exc:
         raise refuse(EngineApplyFailedError(error=exc)) from exc
-    return await deps.with_autosave(result, manager)
+    return deps.Reported(result)
 
 
 @router.post("/restore")
 async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, request: Request) -> RestoreAnswer:
     """Push a user-uploaded settings archive to the daemon, recording its name, size, and SHA-256 first.
 
-    The daemon self-restarts on it, interrupting playback. The one thing taken out of the archive first is
-    HQPTuner's own descriptions member, which ``GET /api/backup`` put there: it is folded into this install's store
-    and never handed to hqplayerd, which did not write it and has no idea what it is. Everything else — including a
-    bare XML upload, which is not an archive at all — reaches the daemon exactly as the user sent it.
+    The daemon self-restarts on it, interrupting playback. The only member removed first is HQPTuner's descriptions
+    member: it is folded into this install's store. Everything else, including a bare
+    XML upload, reaches the daemon exactly as the user sent it.
     """
     data = await cfgfile.read()
     manager.audit.restore_upload(cfgfile.filename or "", len(data), hashlib.sha256(data).hexdigest())
-    # a bare XML upload is not an archive and carries no descriptions: checked, not caught
-    taken: tuple[bytes, bytes | None] = (data, None)
-    if presetzip.is_archive(data):
-        try:
-            taken = presetzip.take_descriptions(data)
-        except UnreadableArchiveError as exc:
-            raise refuse(ArchiveUnreadableError(error=exc)) from exc
-    data, carried = taken
-    if carried is not None:
-        store: DescriptionStore = request.app.state.descriptions
-        try:
-            store.merge(carried)
-        except DescriptionError as exc:
-            # A restore is about the daemon's config; descriptions we cannot read are a note in the log, not a 4xx
-            # in front of the user's restore.
-            log.warning("carried descriptions not restored: %s", exc)
-    mark = settle.mark_connect(manager)
+    store = deps.descriptions_of(request)
     try:
-        await settle.restore(manager, data, mark=mark)
+        pushed = await archive.restore(manager, store, data)
+    except UnreadableArchiveError as exc:
+        raise refuse(ArchiveUnreadableError(error=exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(RestoreFailedError(error=exc)) from exc
-    # The restore restarted the daemon under us. Answering here would report a restore
-    # done while both lanes are still down, and the page would read Unreachable a moment
-    # after being told it succeeded; the answer waits for the daemon to come back whole.
-    await settle.await_ready(manager, mark)
-    return RestoreAnswer(bytes=len(data))
+    return RestoreAnswer(bytes=pushed)

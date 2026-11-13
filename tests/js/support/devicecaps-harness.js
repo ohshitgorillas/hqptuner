@@ -1,6 +1,5 @@
 // Shared harness for the store/narrow/devicecaps.js suites — devicecaps.test.js
-// (graying the rate menus and the mode segment against the selected device's
-// announced capability) and devicecaps-fallback.test.js (correcting a setting
+// (graying the rate menus against the selected device's announced capability) and devicecaps-fallback.test.js (correcting a setting
 // that already sits on something the device cannot reach).
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
@@ -17,8 +16,8 @@
 // would pin nothing about the join.
 //
 // State is driven through the store's exported source signals plus a faked wire
-// for the staging round-trip (docs/testing.md rule 4 — no store function is
-// ever stubbed). `reset()` reassigns the whole /api/config payload on every
+// for the staging round-trip.
+// `reset()` reassigns the whole /api/config payload on every
 // call rather than only the part a case cares about: module-level signals
 // persist for the life of the process, so a partial reset makes tests pass
 // alone and fail in sequence. `staged` is not exported, so it is cleared via
@@ -28,6 +27,7 @@ import { config } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { stagingWire } from "./wire/wire.js";
+import { seedReadings } from "./readings.js";
 
 // --- the menus ---------------------------------------------------------------
 
@@ -38,10 +38,9 @@ import { stagingWire } from "./wire/wire.js";
  * @typedef {{ value: string | number, label?: string, disabled?: boolean, reason?: string }} MenuOption
  */
 
-// Both entries carry an option list in the catalog; `options` is optional on a
-// schema entry in general, which is what the assertions state past.
+// The entry carries an option list in the catalog; `options` is optional on a
+// schema entry in general, which is what the assertion states past.
 export const PCM_OPTIONS = /** @type {MenuOption[]} */ (schema.pcm_rate.options);
-export const MODE_OPTIONS = /** @type {MenuOption[]} */ (schema.output_mode.options);
 
 // Tier menu members, 48k side — the numbers the options carry, as strings.
 // Every tier has a 44.1k member and a 48k member and the option's value carries
@@ -116,9 +115,8 @@ export const tick = async () => {
 // passes because the field it should have consulted was simply absent. Checkbox
 // fields carry the daemon's own shape — real booleans — except where a case
 // names the staged "1"/"0" strings. The three CONTROL values are seeded only
-// when a case names one, and are mirrored into `file` as well as `fields`: the
-// running-config layer is the truth for controls whose edits go out live, and
-// liverate.test.js seeds the rate pair the same way.
+// when a case names one. Every value is seeded as a served reading; the form
+// signal keeps only field metadata.
 //
 // The buffer is cleared BEFORE the fixture payload lands, never after: the
 // fall-back correction is an effect on the capability and the current values,
@@ -153,28 +151,27 @@ export async function reset({
   mode,
 } = {}) {
   const w = stagingWire();
-  config.value = { fields: [], file: {}, active: "", profiles: null, device_caps: null };
+  config.value = { fields: [] };
   await discardAll();
 
-  const fields = [
-    { name: "backend", value: backend },
-    { name: "net_device", value: netDevice },
-    { name: "alsa_device", value: alsaDevice },
-    { name: "net_dop", value: netDop },
-    { name: "alsa_dop", value: alsaDop },
-  ];
-  /** @type {Record<string, string>} */
-  const file = {};
+  /** @type {Record<string, unknown>} */
+  const values = {
+    backend,
+    net_device: netDevice,
+    alsa_device: alsaDevice,
+    net_dop: netDop,
+    alsa_dop: alsaDop,
+  };
   const control = (/** @type {string} */ name, /** @type {string | undefined} */ value) => {
-    if (value === undefined) return;
-    fields.push({ name, value });
-    file[name] = value;
+    if (value !== undefined) values[name] = value;
   };
   control("defaults_samplerate", pcmRate);
   control("defaults_bitrate", sdmRate);
   control("mode", mode);
 
-  config.value = { fields, file, active: "", profiles: null, device_caps: deviceCaps };
+  const fields = Object.keys(values).map((name) => ({ name }));
+  await seedReadings({ ...values, device_caps: { value: deviceCaps, readonly: true } });
+  config.value = { fields };
   await tick();
   return w;
 }

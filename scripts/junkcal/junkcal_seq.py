@@ -67,7 +67,7 @@ class Score:
     name: str
     labels: str
     ticks: int
-    labelled: int
+    labeled: int
     writes: int
     first_write_wrong: bool
     wrong: int
@@ -169,19 +169,19 @@ def writes(rows: list[Row], ticks: list[Tick]) -> list[Tick]:
 
 def score(name: str, rows: list[Row], ticks: list[Tick]) -> Score:
     """Score one replayed sequence."""
-    labelled = [tick for tick in ticks if tick.label is not None]
-    correct = [tick for tick in labelled if tick.want == tick.label]
+    labeled = [tick for tick in ticks if tick.label is not None]
+    correct = [tick for tick in labeled if tick.want == tick.label]
     made = writes(rows, ticks)
     first = made[0] if made else None
-    names = sorted({tick.label for tick in labelled if tick.label is not None})
+    names = sorted({tick.label for tick in labeled if tick.label is not None})
     return Score(
         name=name,
         labels="+".join(names) if names else "-",
         ticks=len(ticks),
-        labelled=len(labelled),
+        labeled=len(labeled),
         writes=len(made),
         first_write_wrong=first is not None and first.label is not None and first.want != first.label,
-        wrong=len(labelled) - len(correct),
+        wrong=len(labeled) - len(correct),
         first_correct_s=correct[0].seconds if correct else None,
         runs=compress(ticks),
     )
@@ -199,12 +199,12 @@ def print_scores(title: str, scores: list[Score]) -> None:
     for item in sorted(scores, key=lambda s: (-s.wrong, -s.writes, s.name)):
         first = "-" if item.first_correct_s is None else f"{item.first_correct_s:.0f}s"
         print(
-            f"{item.name} label={item.labels} ticks={item.ticks} labelled={item.labelled} "
+            f"{item.name} label={item.labels} ticks={item.ticks} labeled={item.labeled} "
             f"writes={item.writes} first_write_wrong={int(item.first_write_wrong)} "
             f"wrong={item.wrong} first_correct={first} "
             f"seq: {show_runs(item.runs)}"
         )
-    graded = [item for item in scores if item.labelled]
+    graded = [item for item in scores if item.labeled]
     print(
         f"-- totals: writes={sum(item.writes for item in scores)} "
         f"sequences_over_one_write={sum(1 for item in scores if item.writes > 1)} "
@@ -212,7 +212,7 @@ def print_scores(title: str, scores: list[Score]) -> None:
         f"graded={len(graded)} "
         f"ticks={sum(item.ticks for item in scores)} "
         f"wrong_ticks={sum(item.wrong for item in graded)} "
-        f"labelled_ticks={sum(item.labelled for item in scores)}"
+        f"labeled_ticks={sum(item.labeled for item in scores)}"
     )
 
 

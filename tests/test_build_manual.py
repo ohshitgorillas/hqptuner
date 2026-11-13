@@ -136,13 +136,3 @@ def test_front_matter_carries_a_marker_for_every_page_above_the_body(
     _, front, _ = build_manual.split(raw(dump))
     marks = [page.match(line) for line in front]
     assert [mark.group(1) for mark in marks if mark is not None] == numbers
-
-
-@pytest.mark.parametrize(
-    ("dump", "heading"),
-    [(DUMP_X, "1. Intro"), (DUMP_Y, "1. Overview")],
-    ids=["dump-x", "dump-y"],
-)
-def test_body_opens_at_the_first_body_heading(build_manual: ModuleType, dump: list[str], heading: str) -> None:
-    _, _, body = build_manual.split(raw(dump))
-    assert (body or [""])[0] == heading

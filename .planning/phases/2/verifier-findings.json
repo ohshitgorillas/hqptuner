@@ -1,0 +1,113 @@
+{
+  "status": "gaps",
+  "score": "9/10",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "The modulator list marks every modulator whose min_rate_hz floor is above the SDM rate in force (SDM pin, else the running sdm_rate while the SDM chain runs) as disabled; a floor at or below it, no floor, PCM output, a 0 or absent rate, and a staged limit gray nothing; a grayed option stays listed",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "hqptuner/static/store/faceplate/lists/options.js:93-109 (sdmRateInForce: isDsdRate(pinnedRate) else runningChain()==='sdm' ? runningValue('sdm_rate') : 0; floorMark: rate > 0 && floor > rate), wired into listOptions at options.js:124,132 for kind 'modulators'. Floor source metadata.value.shapers.sdm_modulators[name].min_rate_hz, served by /api/metadata (hqptuner/api/routes/status.py:147) from hqptuner/data/shapers.json (AHM7EC8B 40960000, ASDM5EC-fast 512+fs 22579200, DSD7 256+fs 10240000). Behaves: tests/js/store/faceplate-lists/rate-floor.test.js 14/14 pass via scripts/gate.sh node --test (log /tmp/gate-node-Sz3Sq6DW.log), incl. test_a_modulator_whose_floor_equals_the_rate_in_force_is_not_grayed, test_an_sdm_pin_below_the_floor_grays_a_modulator_the_limit_would_allow, test_a_staged_rate_limit_is_not_in_force, test_an_sdm_limit_while_pcm_output_plays_grays_nothing, test_a_grayed_modulator_stays_in_the_list."
+    },
+    {
+      "n": 2,
+      "truth": "A grayed row is aria-disabled, keeps its tier badge, and a tap on it calls no pick and leaves the list open",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "hqptuner/static/components/faceplate/lists/Rows.js:67-76 (aria-disabled when o.disabled, onClick undefined when gray); marks() always renders TierMark for modulators (Rows.js:33); styles sheets.css:62-63. No keyboard pick path exists in components/faceplate/lists (no Enter handler). Behaves: tests/js/components/faceplate-lists/rate-floor-row.test.js pass (test_tapping_a_grayed_row_hands_nothing_to_the_pick, test_tapping_a_grayed_row_leaves_the_list_open, test_a_grayed_modulator_row_still_shows_its_tier_badge)."
+    },
+    {
+      "n": 3,
+      "truth": "The Shaping chain picker, the Switcher slot list, the drawer nameplate and the Snapshot builder picker open the same gated list, and a tap on a grayed row from each writes and stages nothing",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "All four open openOptionList and render narrowedOptions over listOptions. Behaves: tests/js/components/faceplate-lists/rate-floor-surfaces.test.js 12/12 pass, driving each surface's own opener (ChainPick, Switcher, Drawer SHAPING_DRAWER, SnapshotRows) and asserting aria-disabled on ASDM7EC 512+fs under DSD256 12288000 plus no fetch / slot / staged change after the grayed tap (test_a_tap_on_a_grayed_row_from_the_{chain,switcher,drawer,builder}_list_writes_and_stages_nothing)."
+    },
+    {
+      "n": 4,
+      "truth": "A Switcher slot remembering an above-floor modulator is disabled and its tap (or arrow key) sends no write; a slot remembering a supported modulator sends it live; the remembered name survives a rate change",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "hqptuner/static/store/faceplate/bottom/switcher.js:166,177 (disabled read from listOptions, not a second copy of the rule), switcher.js:277 (slotLive returns null when s.disabled); the arrow path calls slotLive (components/faceplate/bottom/Switcher.js:115); face aria-disabled at Switcher.js:123,159, sheets.css:64-65. Behaves: tests/js/store/faceplate/switcher-rate-floor.test.js pass (test_tapping_a_disabled_slot_sends_no_write, test_tapping_a_slot_remembering_a_modulator_the_rate_runs_sends_it_live, test_the_remembered_name_outlives_a_rate_change)."
+    },
+    {
+      "n": 5,
+      "truth": "In the same DSD256 state a modulator at or below the floor is not grayed and picking it applies it live",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "rate-floor.test.js test_a_modulator_whose_floor_is_below_the_rate_limit_is_not_grayed and test_a_modulator_whose_floor_equals_the_rate_in_force_is_not_grayed; rate-floor-row.test.js test_tapping_a_row_at_the_floor_hands_its_name_to_the_pick; the unchanged pick path writes live: tests/js/components/faceplate-page/conversion.test.js test_a_pick_from_the_list_writes_its_enum_id_live and tests/js/components/faceplate/switcher.test.js:320 (POST /api/config/live {modulator:'0'}); all pass (scripts/gate.sh node --test, log /tmp/gate-node-2RodjFkR.log, exit=0)."
+    },
+    {
+      "n": 6,
+      "truth": "The live lane reports playback_stopped when State.state goes 2 to 0 or 3 across a batch, for /api/config/live and live snapshot apply (either batch of a preset), and the routes pass the report through intact",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "hqptuner/lanes/live/lane.py:47 (field), :51 (_STOPPED_STATES {0,3}), :176-184 (before=_playback, refresh_after_live re-read, after=_playback, stopped = before == PLAYING and after in {0,3}), :216-220 (apply_preset ORs both batches). Report returned unchanged by hqptuner/presets/livesnapshots.py:215-219, hqptuner/api/routes/apply.py:196 and hqptuner/api/routes/livepreset.py:160 (Reported(report)); docs/spec/openapi.json:1646 carries playback_stopped. Behaves: PYTHONPATH=$(pwd) scripts/gate.sh .venv/bin/pytest --no-cov -q tests/live/test_live_stop_report.py -> exit=0, 9 passed (rootdir /home/atom/dev/hqptuner2), through the fake 4321 daemon over a real socket with State moved by a SetFilter/SetMode/SetShaping hook."
+    },
+    {
+      "n": 7,
+      "truth": "The client shows a stopped playback as a failed apply with the owner-approved line, for a live write and a live snapshot apply, and keeps failed-setter lines beside it",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "hqptuner/static/store/ui/wirelabels.js:51 PLAYBACK_STOPPED = \"HQPlayer stopped playback while applying this.\"; hqptuner/static/store/live/state.js:43-48 (reportError pushes it when report.playback_stopped); consumed by writeLive (store/live/write.js:115,121 throws the error) and applyLivePreset (store/live/presets.js:135). Behaves: tests/js/store/live/live-stop.test.js 8/8 pass (test_a_live_write_that_stopped_playback_fails, test_a_snapshot_apply_that_stopped_playback_fails, test_a_failed_setter_in_a_report_with_a_stop_adds_the_stop_to_the_error)."
+    },
+    {
+      "n": 8,
+      "truth": "A live apply made while playback is not playing, or one that leaves it playing or paused, reports no stop and shows no stop line",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "tests/live/test_live_stop_report.py parametrize cases (STOPPED,STOPPED), (PAUSED,STOPPED), (STOP_REQUESTED,STOPPED), (PLAYING,PLAYING), (PLAYING,PAUSED) all assert playback_stopped False and pass; client side live-stop.test.js test_a_live_write_that_kept_playing_does_not_fail, test_a_snapshot_apply_with_no_stop_in_the_report_does_not_fail pass; state.js:46 adds the line only on a true flag."
+    },
+    {
+      "n": 9,
+      "truth": "scripts/gate.sh make check is green on the phase's code",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "Saved full-gate log /tmp/gate-make-AtKOcvCk.log (16:51, the time of f0c2e12f, paths under /home/atom/dev/hqptuner2) ran through every make check target to the JS suite's end: pytest '3664 passed, 149 deselected', JS '# pass 5402', '# fail 0', no 'make: ***' line. git diff --stat f0c2e12f HEAD touches only .planning/ files. Per dispatch, this verifier did not run make check; the main session's own run is the authoritative one."
+    },
+    {
+      "n": 10,
+      "truth": "A grayed remembered Switcher slot shows its reason the way a grayed row does (the tier badge, per the hand-back ruling), under both name styles",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "Under Standard names plainOf returns tier \"\" and fam \"\" (hqptuner/static/store/faceplate/page/conversion.js:107-108), and NameFace draws TierMark only inside the family line when fam is non-empty (hqptuner/static/components/faceplate/NameFace.js:77-80), so the slot face (components/faceplate/bottom/Switcher.js listFace) shows no badge. A grayed list row always shows the badge (Rows.js:33). AHM7EC8B, the ROADMAP's own example, has no rate in its engine name, so a remembered AHM7EC8B slot under Standard names is grayed with no reason anywhere on it. No test covers the slot face's badge: switcher-rate-floor.test.js asserts only disabled state and the absence of reason text."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Above-floor modulators grayed at DSD256 on every picker",
+      "evidence": "options.js:93-132 gate in listOptions; Rows.js:67-76 aria-disabled with no onClick; switcher.js:177,277 slot disabled with no write; rate-floor.test.js, rate-floor-row.test.js, rate-floor-surfaces.test.js (all four surfaces under DSD256 12288000), switcher-rate-floor.test.js all pass (scripts/gate.sh node --test, 50/50, exit=0)."
+    },
+    {
+      "k": 2,
+      "name": "At-or-below-floor modulators stay pickable and apply live",
+      "evidence": "rate-floor.test.js floor-equal and floor-below cases not grayed; rate-floor-row.test.js test_tapping_a_row_at_the_floor_hands_its_name_to_the_pick; conversion.test.js test_a_pick_from_the_list_writes_its_enum_id_live and switcher.test.js:320 POST /api/config/live; all pass."
+    },
+    {
+      "k": 3,
+      "name": "A live apply that stopped playback reports as failed",
+      "evidence": "lane.py:176-184,216-220 detection and preset OR; routes return the report intact (apply.py:196, livepreset.py:160, livesnapshots.py:215); test_live_stop_report.py 9 passed; state.js:46 + wirelabels.js:51 line, wired through write.js:115 and presets.js:135; live-stop.test.js 8/8 pass."
+    },
+    {
+      "k": 4,
+      "name": "A live apply while not playing reports no stop",
+      "evidence": "test_live_stop_report.py cases with before STOPPED, PAUSED, STOP_REQUESTED assert playback_stopped False and pass; live-stop.test.js no-stop cases do not fail the op."
+    },
+    {
+      "k": 5,
+      "name": "make check is green",
+      "evidence": "/tmp/gate-make-AtKOcvCk.log at f0c2e12f in /home/atom/dev/hqptuner2: pytest 3664 passed, JS pass 5402 fail 0, all targets reached; only .planning/ changed since. The main session's own make check run is authoritative."
+    }
+  ],
+  "gaps": [
+    {
+      "name": "A grayed remembered Switcher slot shows its tier badge reason under Standard names",
+      "reason": "behavior wrong - under Standard names the slot face draws no tier badge, so a grayed slot for a modulator whose engine name carries no rate (AHM7EC8B) shows no reason, unlike the grayed list row; no automated check exercises the slot face's reason",
+      "evidence": "hqptuner/static/store/faceplate/page/conversion.js:107-108 (plainOf under Standard: fam \"\", tier \"\"); hqptuner/static/components/faceplate/NameFace.js:77-80 (TierMark only in the family line, skipped when fam is empty); hqptuner/static/components/faceplate/bottom/Switcher.js listFace passes s.tier; tests/js/store/faceplate/switcher-rate-floor.test.js has no badge assertion.",
+      "severity": "minor",
+      "missing": "Show the tier badge on a disabled slot face under Standard names too (or have the owner rule that the Standard engine name is the reason there), plus the smallest test that a disabled slot face carries the tier badge under both name styles."
+    }
+  ],
+  "human_checks": []
+}

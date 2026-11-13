@@ -2,16 +2,15 @@
 """Pytest plugin: abort an offline run once it is past the suite-time gate's bar.
 
 ``scripts/gates/testing/check_suite_time.py`` rejects a run ``REJECT`` seconds or
-more slower than the last green run, but it judges the junit report, so it only
+more slower than its bar, but it judges the junit report, so it only
 sees a run that ended; a hung suite never reaches it. This plugin holds the run
-to the same bar while it is still going: at session start it reads the same
-baseline, and a run still going at the bar has every thread's stack dumped to
-stderr and the process ended with exit status 1. With no baseline recorded there
-is no deadline.
+to the same bar while it is still going: at session start it reads the bar the
+gate would judge the run by, the branch's own or else the one it inherits from
+its nearest recorded branch, and a run still going at the bar has every
+thread's stack dumped to stderr and the process ended with exit status 1. With
+no bar recorded there is no deadline.
 
-Loaded by ``-p suite_deadline`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``; the Makefile's
-``test`` recipe and the ``pytest-offline`` pre-commit hook are the two command
-lines that do so.
+Loaded by ``-p suite_deadline`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``.
 """
 
 from __future__ import annotations
@@ -22,6 +21,8 @@ import os
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TextIO
+
+import run_stamp
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -56,7 +57,7 @@ def _load_gate() -> ModuleType:
 
 _GATE = _load_gate()
 REJECT: float = _GATE.REJECT
-baseline_path: Callable[[Path], Path] = _GATE.baseline_path
+bar_in_force: Callable[[Path], Path] = _GATE.bar_in_force
 read_baseline: Callable[[Path], float | None] = _GATE.read_baseline
 
 #: Set at session finish, so a run that ends in time disarms the watch.
@@ -77,10 +78,30 @@ def deadline(baseline: Path) -> float | None:
     return None if last is None else last + REJECT
 
 
-def watch(seconds: float, finished: Finished, *, dump_to: TextIO, terminate: Callable[[int], None]) -> None:
-    """Give the run ``seconds`` to finish; one still going is dumped, every thread, and terminated with 1."""
+def _no_wait() -> float:
+    return 0.0
+
+
+def watch(
+    seconds: float,
+    finished: Finished,
+    *,
+    dump_to: TextIO,
+    terminate: Callable[[int], None],
+    waited: Callable[[], float] = _no_wait,
+) -> None:
+    """Give the run ``seconds`` to finish, plus every second ``waited`` says it sat waiting for a CPU.
+
+    A run still going once its wall time less its CPU-wait reaches ``seconds``
+    is dumped, every thread, and terminated with 1.
+    """
     if finished.wait(seconds):
         return
+    granted = 0.0
+    while (owed := waited() - granted) > 0:
+        granted += owed
+        if finished.wait(owed):
+            return
     dump_to.write(f"suite deadline: still running {seconds:.1f}s after session start, aborted\n")
     dump_to.flush()
     faulthandler.dump_traceback(file=dump_to, all_threads=True)
@@ -88,13 +109,13 @@ def watch(seconds: float, finished: Finished, *, dump_to: TextIO, terminate: Cal
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
-    """Arm the watch against the gate's baseline for this branch; with none recorded, arm nothing.
+    """Arm the watch against the bar the gate judges this branch by; with none recorded, arm nothing.
 
     Capture is suspended at session start, so fd 2 is still the terminal; the
     watch dumps to a copy of it, which capture taking fd 2 over for each test
     leaves alone.
     """
-    seconds = deadline(baseline_path(session.config.rootpath))
+    seconds = deadline(bar_in_force(session.config.rootpath))
     if seconds is None:
         return
     stderr = os.fdopen(os.dup(2), "w")
@@ -102,7 +123,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     threading.Thread(
         target=watch,
         args=(seconds, _FINISHED),
-        kwargs={"dump_to": stderr, "terminate": os._exit},
+        kwargs={"dump_to": stderr, "terminate": os._exit, "waited": run_stamp.main_thread_wait},
         name="suite-deadline",
         daemon=True,
     ).start()

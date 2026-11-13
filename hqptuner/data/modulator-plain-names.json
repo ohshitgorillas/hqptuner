@@ -1,9 +1,9 @@
 {
-  "_scope": "data/engine-enums.json shapers_sdm (36 SDM modulators), in engine order. PCM dithers (shapers_pcm) deliberately out of scope. Raw name -> family label, variant label, leaf label. Family is architecture, variant is modulator order except for the pseudo-multi-bit subgroup of Adaptive, leaf is the rest. Leaf labels unique within their family+variant; composed family+variant+leaf unique across the list. Vendor qualifiers 'ultralight', 'light' and 'super' are kept verbatim and left unglossed, since no HQPlayer doc defines them. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "_scope": "data/engine-enums.json shapers_sdm (36 SDM modulators), in engine order. PCM dithers (shapers_pcm) deliberately out of scope. Raw name -> family label, variant label, leaf label. Family is architecture, variant is modulator order, leaf is the rest, a rate-suffixed name carrying its DSD tier at the end of the leaf. Leaf labels unique within their family+variant; composed family+variant+leaf unique across the list. Vendor qualifiers 'ultralight', 'light' and 'super' are kept verbatim and left unglossed, since no HQPlayer doc defines them. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
   "families": {
     "Fixed": "Same behavior regardless of source",
     "Adaptive": "Adapts to the source; all choices are strong, so pick by ear, not by load",
-    "Multi-bit": "Multi-bit designs for the highest rates"
+    "Hybrid": "Multi-bit designs for the highest rates"
   },
   "modulators": {
     "DSD5": {
@@ -21,7 +21,7 @@
     "DSD5v2 256+fs": {
       "family": "Fixed",
       "variant": "Fifth order",
-      "leaf": "Revised",
+      "leaf": "Revised, DSD256+",
       "short": "Fixed · 5th order · Revised, DSD256+"
     },
     "DSD5EC": {
@@ -81,25 +81,25 @@
     "ASDM5EC-ul 512+fs": {
       "family": "Adaptive",
       "variant": "Fifth order",
-      "leaf": "Ultralight, extended compensation",
+      "leaf": "Ultralight, extended compensation, DSD512+",
       "short": "Adaptive · 5th order · Ultralight, EC, DSD512+"
     },
     "ASDM5EC-light 512+fs": {
       "family": "Adaptive",
       "variant": "Fifth order",
-      "leaf": "Light, extended compensation",
+      "leaf": "Light, extended compensation, DSD512+",
       "short": "Adaptive · 5th order · Light, EC, DSD512+"
     },
     "ASDM5EC-fast 512+fs": {
       "family": "Adaptive",
       "variant": "Fifth order",
-      "leaf": "Transient optimized, extended compensation",
+      "leaf": "Transient optimized, extended compensation, DSD512+",
       "short": "Adaptive · 5th order · Transient optimized, EC, DSD512+"
     },
     "ASDM5EC-super 512+fs": {
       "family": "Adaptive",
       "variant": "Fifth order",
-      "leaf": "Super, extended compensation",
+      "leaf": "Super, extended compensation, DSD512+",
       "short": "Adaptive · 5th order · Super, EC, DSD512+"
     },
     "DSD7": {
@@ -111,8 +111,8 @@
     "DSD7 256+fs": {
       "family": "Fixed",
       "variant": "Seventh order",
-      "leaf": "DSD256+",
-      "short": "Fixed · 7th order · DSD256+"
+      "leaf": "Base, DSD256+",
+      "short": "Fixed · 7th order · Base, DSD256+"
     },
     "ASDM7": {
       "family": "Adaptive",
@@ -165,62 +165,62 @@
     "ASDM7EC-ul 512+fs": {
       "family": "Adaptive",
       "variant": "Seventh order",
-      "leaf": "Ultralight, extended compensation",
+      "leaf": "Ultralight, extended compensation, DSD512+",
       "short": "Adaptive · 7th order · Ultralight, EC, DSD512+"
     },
     "ASDM7EC-light 512+fs": {
       "family": "Adaptive",
       "variant": "Seventh order",
-      "leaf": "Light, extended compensation",
+      "leaf": "Light, extended compensation, DSD512+",
       "short": "Adaptive · 7th order · Light, EC, DSD512+"
     },
     "ASDM7EC-fast 512+fs": {
       "family": "Adaptive",
       "variant": "Seventh order",
-      "leaf": "Transient optimized, extended compensation",
+      "leaf": "Transient optimized, extended compensation, DSD512+",
       "short": "Adaptive · 7th order · Transient optimized, EC, DSD512+"
     },
     "ASDM7EC-super 512+fs": {
       "family": "Adaptive",
       "variant": "Seventh order",
-      "leaf": "Super, extended compensation",
+      "leaf": "Super, extended compensation, DSD512+",
       "short": "Adaptive · 7th order · Super, EC, DSD512+"
     },
     "AMSDM7 512+fs": {
       "family": "Adaptive",
-      "variant": "Pseudo-multi-bit",
-      "leaf": "Base",
-      "short": "Adaptive · Pseudo-multi-bit · Base, DSD512+"
+      "variant": "Seventh order",
+      "leaf": "Pseudo-multi-bit, DSD512+",
+      "short": "Adaptive · 7th order · Pseudo-multi-bit, DSD512+"
     },
     "AMSDM7EC 512+fs": {
       "family": "Adaptive",
-      "variant": "Pseudo-multi-bit",
-      "leaf": "Extended compensation",
-      "short": "Adaptive · Pseudo-multi-bit · EC, DSD512+"
+      "variant": "Seventh order",
+      "leaf": "Pseudo-multi-bit, extended compensation, DSD512+",
+      "short": "Adaptive · 7th order · Pseudo-multi-bit, EC, DSD512+"
     },
     "AHM5EC4B": {
-      "family": "Multi-bit",
+      "family": "Hybrid",
       "variant": "Fifth order",
       "leaf": "Adaptive, 4-bit",
-      "short": "Multi-bit · 5th order · 4-bit, DSD1024+"
+      "short": "Hybrid ·5th order · 4-bit, DSD1024+"
     },
     "AHM7EC4B": {
-      "family": "Multi-bit",
+      "family": "Hybrid",
       "variant": "Seventh order",
       "leaf": "Adaptive, 4-bit",
-      "short": "Multi-bit · 7th order · 4-bit, DSD1024+"
+      "short": "Hybrid ·7th order · 4-bit, DSD1024+"
     },
     "AHM5EC8B": {
-      "family": "Multi-bit",
+      "family": "Hybrid",
       "variant": "Fifth order",
       "leaf": "Adaptive, 8-bit",
-      "short": "Multi-bit · 5th order · 8-bit, DSD1024+"
+      "short": "Hybrid ·5th order · 8-bit, DSD1024+"
     },
     "AHM7EC8B": {
-      "family": "Multi-bit",
+      "family": "Hybrid",
       "variant": "Seventh order",
       "leaf": "Adaptive, 8-bit",
-      "short": "Multi-bit · 7th order · 8-bit, DSD1024+"
+      "short": "Hybrid ·7th order · 8-bit, DSD1024+"
     }
   },
   "variants": {
@@ -228,8 +228,7 @@
     "Fixed|Seventh order": "Best for most DACs, but asks more of the hardware's analog filter",
     "Adaptive|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
     "Adaptive|Seventh order": "Best for most DACs, but asks more of the hardware's analog filter",
-    "Adaptive|Pseudo-multi-bit": "Special seventh order \"pseudo-multi-bit\" modulators for the highest rates",
-    "Multi-bit|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
-    "Multi-bit|Seventh order": "Best for most DACs, but asks more of the hardware's analog filter"
+    "Hybrid|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
+    "Hybrid|Seventh order": "Best for most DACs, but asks more of the hardware's analog filter"
   }
 }

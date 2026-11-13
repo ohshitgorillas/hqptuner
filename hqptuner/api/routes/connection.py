@@ -6,7 +6,7 @@ client the new pair earns, and takes the control lane down so it comes back on t
 
 The password goes in and never comes back out. The read route answers whether one is held, not what it is: this
 surface is reachable by any browser that reaches HQPTuner's own port, and a credential that is written once has no
-reason to be readable afterwards (architecture section 3 keeps credentials server-side).
+reason to be readable afterwards.
 """
 
 import contextlib
@@ -16,7 +16,7 @@ import httpx
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from hqptuner.api.deps import Mgr
+from hqptuner.api.deps import Mgr, config_of, connections_of
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.lanes.http.forms import FormsOutcome
@@ -37,16 +37,6 @@ class ConnectionBody(BaseModel):
     username: str | None = None
     password: str | None = None
     remember: bool | None = None
-
-
-def _store(request: Request) -> ConnectionStore:
-    store: ConnectionStore = request.app.state.connections
-    return store
-
-
-def _config(request: Request) -> Config:
-    cfg: Config = request.app.state.config
-    return cfg
 
 
 @dataclass(frozen=True)
@@ -97,7 +87,7 @@ def read_connection(request: Request) -> ConnectionReport:
 
     Never the password itself: this surface is reachable by anything that reaches HQPTuner's own port.
     """
-    return _answer(_config(request), remembered=_remembered(_store(request)))
+    return _answer(config_of(request), remembered=_remembered(connections_of(request)))
 
 
 @router.post("/connection")
@@ -108,8 +98,8 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
     about to switch on, and a credential that cannot be saved while the daemon is down is a credential the user
     cannot fix an outage with.
     """
-    cfg = _config(request)
-    store = _store(request)
+    cfg = config_of(request)
+    store = connections_of(request)
     record = ConnectionRecord(
         host=body.host if body.host is not None else cfg.hqp_host,
         username=body.username if body.username is not None else cfg.hqp_username,

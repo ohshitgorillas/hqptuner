@@ -2,7 +2,7 @@
 //
 // Narrowing reads the filter list off `enums.filters` — the running engine's
 // <GetFilters/> enumeration, `{index, name, value, arg, description}` with the
-// apodizing flag decoded from `arg` bit 0 (docs/protocol.md:226) — and the
+// apodizing flag decoded from `arg` bit 0 — and the
 // static name-keyed overlay off `metadata.filters.filters`, served by
 // /api/metadata. A suite that drives one and leaves the other holding another
 // case's payload narrows on data no wire ever served, so the two are assigned

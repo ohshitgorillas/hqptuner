@@ -1,4 +1,4 @@
-"""A deadline the test decides, for code that waits on a reply under its own timeout (docs/testing.md rule 7).
+"""A deadline the test decides, for code that waits on a reply under its own timeout.
 
 The Control API client waits on every connect, send and read under ``ControlClient``'s ``deadline``. This is
 that deadline with no real clock behind it. While HQPlayer answers, a wait is handed its operation's own result

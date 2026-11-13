@@ -1,0 +1,24 @@
+AC5 audit, Plan 4-3 Task 4
+
+Ranges
+  A: fe97fb16..rebuild/integrate (13 commits, integrate HEAD 5c2e3007)
+  B: eb290159..v2 first-parent, non-merge commits (7 commits, v2 HEAD 0258e453 at audit time; the merge commit d1fbfb2b is excluded by --no-merges and is checked through range A and the tree diff below)
+
+Check 1: no change to the coverage thresholds in Makefile or .github/cadence/coverage-policy.json
+  A: git diff fe97fb16 rebuild/integrate -- Makefile .github/cadence/coverage-policy.json prints nothing (0 lines). PASS
+  B: git log --first-parent --no-merges eb290159..v2 -- Makefile .github/cadence/coverage-policy.json pyproject.toml .filepawl.toml lists no commit. PASS
+  Makefile on v2 carries --test-coverage-lines=95, --test-coverage-branches=90, --test-coverage-functions=85, the values Plan 4-1 planned against.
+
+Check 2: no added line carrying an exemption marker
+  Pattern over added lines (git log -p --unified=0): EXEMPT, noqa, type: ignore, eslint-disable, per-file-ignores, ignore_names, exempt:, history-ok:, test-coverage-(lines|branches|functions), [tool.importlinter
+  A: no added line matches. PASS
+  B: two added lines match, both prose in planning documents of commit 4c32d918 (docs: plan phase 4), neither code nor configuration:
+    .planning/phases/4/PLAN-1.md  a Verify: line quoting the node coverage command with --test-coverage-lines/branches/functions at 95/90/85
+    .planning/phases/4/PLAN-3.md  the Action: line of Task 4 that lists these markers
+  Neither adds an exemption or changes a threshold. PASS
+
+Check 3: no commit names uv.lock, .planning/reads.jsonl or .planning/phases/2/baseline/failures.log
+  A: git log --name-only --format= fe97fb16..rebuild/integrate, grep for the three paths: no match. PASS
+  B: git log --first-parent --no-merges --name-only --format= eb290159..v2, grep for the three paths: no match. PASS
+
+Result: no hit. Nothing returned to the orchestrator for revert.

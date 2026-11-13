@@ -1,0 +1,343 @@
+/* Matrix engine family drawers: Matrix engine, DSP pipelines, Crossfeed, Loudness, DAC correction (drawer.js family
+   'matrix'), plus the Speakers drawer and the shared plot frame. Plots reuse the page plot's glass (.eq, page.css). */
+
+/* Drawers whose body is one stretching block (plot takes the height left): the panel is a column. */
+:is(#drawer-crossfeed,#pb-drawer-crossfeed) .dpanel,:is(#drawer-loudness,#pb-drawer-loudness) .dpanel{display:flex;flex-direction:column}
+.dblock[data-block="crossfeed"],.dblock[data-block="loudness"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+
+/* Plot traces (RespPlot.js): amber = what you get; ghost = the reference (dashed ink-3); side = ink-2.
+   Each trace named once at its right end, in its own ink. Handles = draggable dots (REW-style). */
+.eq .trace.ghost{stroke:var(--ink-3);stroke-width:1.25;stroke-dasharray:4 3}
+.eq .trace.side{stroke:var(--ink-2);stroke-width:1.25}
+.eq .tl text{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--acc);paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-2);stroke-linejoin:round;line-height:var(--lh-text)}
+.eq .tl text.ghost{fill:var(--ink-2)}
+.eq .tl text.side{fill:var(--ink-2)}
+.eq .hdl{fill:var(--glass);stroke:var(--acc);stroke-width:2;cursor:grab;filter:drop-shadow(0 0 var(--sp-1) var(--acc-glow))}
+.eq .hdl.act{fill:var(--acc);cursor:grabbing}
+.eq .hdl.off{display:none}
+.lplot svg,.xfplot svg{touch-action:none}
+
+/* ── Crossfeed ───────────────────────────────────────────────────────────
+   Choice lines (Volume's grammar, drawer.css .chline): radio + name; the picked line holds its controls (left, under the
+   name) and its copy (right); an unpicked implementation folds to one mono summary line. */
+.xlist .chline{grid-template-columns:var(--drow-col) minmax(0,1fr)}
+.xleft{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
+.xline .chl{min-height:var(--ctl-h-sm)}
+.xline.fold .xleft{grid-column:1/-1}   /* a folded line draws nothing on the right: its summary takes both tracks */
+.xline .chn{width:auto;flex-shrink:0}
+.xsum{min-width:0;flex:1 1 0;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.xctl{display:flex;flex-direction:column;gap:var(--sp-4);padding:0 0 var(--sp-4) var(--sp-10)}
+.xctl .ci{gap:var(--sp-2)}
+.xctl .seg button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-5)}
+.xctl .cgrp{gap:var(--sp-7)}
+.xctl .cgrp input.vfd{width:var(--slx-num-w);height:var(--ctl-h-sm);font-size:var(--fs-5)}
+.xspre{height:var(--ctl-h-sm)!important;line-height:var(--ctl-h-sm)!important;width:var(--sel-w)!important;font-size:var(--fs-4)!important}
+.xsl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:var(--sp-1) var(--sp-6)}
+.xsl .cl{grid-column:1/-1;font-size:var(--fs-cl);color:var(--ink-2)}
+.xsl input[type=range]{accent-color:var(--acc);height:var(--range-h-sm);margin:0;width:100%;min-width:0}
+.stale input[type=range]{accent-color:var(--ink-2)}   /* a handle shown while its form's readback is pending or its last read failed: neutral */
+.xsl input.vfd{width:var(--xf-num-w);height:var(--ctl-h-sm);font-size:var(--fs-5)}
+.xsl .num .u{width:var(--unit-w)}
+.xsl .num{gap:var(--sp-4)}
+.xsl .cl .h{margin-left:var(--sp-5);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.xline .man{font-size:var(--fs-3);line-height:1.42}
+.xline .man p+p{margin-top:var(--sp-1)}
+.xline .man b{color:var(--ink);font-weight:var(--fw-semi)}
+.xfplot{flex:1 1 0;min-height:var(--plot-min-xf);margin-top:var(--sp-3)}
+.dblock[data-block="crossfeed"]>.gr,.dblock[data-block="loudness"]>.gr{margin-top:var(--sp-3)}
+
+/* ── Loudness ────────────────────────────────────────────────────────────
+   Bands: Bass | Treble, one row per parameter inside the control column; both manual lines beside the row.
+   Range: the bounds on their own −120 … 0 dBFS axis; here they are the settings, so amber (the Volume bar draws the
+   same parentheses in ink-2, as a reference). Plot right of the range, filling the height left. */
+.lbands{display:grid;grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10);padding:var(--sp-3) 0 0;border-top:var(--hair) solid var(--row-rule)}
+.lleft{display:flex;flex-direction:column;gap:var(--sp-1)}
+.lsw{align-self:flex-start;margin-bottom:var(--sp-1)}
+.lsw button{position:relative;height:var(--ctl-h-xs);font-size:var(--fs-4);padding:0 var(--sp-7)}
+.lsw button.dirty::after{content:"";position:absolute;top:var(--dot-inset);right:var(--dot-inset);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+.lrow{display:grid;grid-template-columns:var(--row-key-w) minmax(0,1fr);align-items:center;justify-items:start;min-height:var(--ctl-h-xs)}
+.lrow .ll{font-size:var(--fs-4);color:var(--ink-2)}
+.lrow input.vfd{width:var(--num-w-sm);height:var(--ctl-h-xs);font-size:var(--fs-5)}
+.lrow .num{gap:var(--sp-4)}
+.lrc{display:flex;flex-direction:column;gap:var(--sp-3);padding-top:var(--sp-4)}
+.lrc .gr{min-height:var(--lgr-min)}
+.lrc .gr[hidden]+.lcopy{margin-top:var(--sp-10)}
+.lcopy{font-size:var(--fs-3);line-height:1.4}
+.lcopy p{margin:0}
+.lcopy p+p{margin-top:var(--sp-2)}
+.lcopy b{color:var(--ink);font-weight:var(--fw-semi)}
+.seg.mini2 button{height:var(--ctl-h-mid);font-size:var(--fs-3);padding:0 var(--sp-3)}
+.lbot{flex:1 1 0;min-height:0;display:grid;grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10);margin-top:var(--sp-2);padding-top:var(--sp-3);border-top:var(--hair) solid var(--row-rule)}
+.lrange{display:flex;flex-direction:column;gap:var(--sp-2);min-width:0}
+.lrange .vrboxes.inl{gap:var(--sp-7)}
+.lrange .vrbox .cl{width:auto}
+.lrange .vrbox input.vfd{height:var(--ctl-h-sm);font-size:var(--fs-5)}
+.lrange .vrbox .ro{width:var(--ro-w);height:var(--ctl-h-sm);font-size:var(--fs-5)}
+.lrange .man{font-size:var(--fs-3);line-height:1.4}
+.lrange .man p{margin:0}
+.lrange .man p+p{margin-top:var(--sp-1)}
+.lrange .man b{color:var(--ink);font-weight:var(--fw-semi)}
+.lrbar{cursor:ew-resize;touch-action:none}
+.lrbar .lspan{fill:var(--acc-dim)}
+.lrbar .paren{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linecap:round;filter:drop-shadow(0 0 var(--sp-1) var(--acc-glow))}
+.lrbar .paren.act{stroke:var(--acc-rim)}
+.lrange .vrkey .paren{stroke:var(--acc)}
+.lplot{min-height:var(--plot-min-loud)}
+/* Matrix engine drawer: copy in closer (overflow rule: narrow the control column first); option tokens are words here,
+   so the option list's token column widens to fit `overlap-save`. */
+:is(#drawer-matrix,#pb-drawer-matrix) .drow{grid-template-columns:var(--drow-col-cpu) minmax(0,1fr)}
+:is(#drawer-matrix,#pb-drawer-matrix) .optrow{grid-template-columns:var(--row-key-w) minmax(0,1fr)}
+:is(#drawer-loudness,#pb-drawer-loudness) .drow{grid-template-columns:var(--drow-col-gpu) minmax(0,1fr)}
+.lrange > .fh{justify-content:space-between;align-items:center}
+.lrange > .fh .lpb .ro{height:var(--ro-h);font-size:var(--fs-4);width:var(--ro-w)}
+.lrange > .fh .lpb .cl{font-size:var(--fs-cl)}
+/* Matrix engine drawer: rhythm a step tighter (rows, option lines) so every setting and option fits without scrolling. */
+:is(#drawer-matrix,#pb-drawer-matrix) .drow{padding:var(--sp-3) 0}
+:is(#drawer-matrix,#pb-drawer-matrix) .drow .man{line-height:1.42}
+:is(#drawer-matrix,#pb-drawer-matrix) .optlist{margin-top:var(--sp-3)}
+:is(#drawer-matrix,#pb-drawer-matrix) .optrow{padding:var(--sp-1) var(--sp-4) var(--sp-1) var(--sp-5);line-height:1.42}
+:is(#drawer-matrix,#pb-drawer-matrix) .dpanel,:is(#drawer-loudness,#pb-drawer-loudness) .dpanel,:is(#drawer-crossfeed,#pb-drawer-crossfeed) .dpanel{padding-bottom:var(--sp-2)}
+:is(#drawer-matrix,#pb-drawer-matrix) .dpanel>.drow:first-child{padding-top:var(--sp-1)}
+.lbound{display:flex;flex-direction:column;gap:var(--sp-1)}
+.lbound .man{margin:0 0 0 var(--sp-9);font-size:var(--fs-3);line-height:1.35}
+.lrange .vrbox input.vfd{width:var(--slx-num-w)}
+.lrange .vrbox .cl{width:var(--lvtab-l)}
+
+/* Compact plate. Crossfeed: copy in closer (overflow rule), to the column that keeps the compensation hint on one
+   line; the Structural line's controls stay the taller side, so the gate row, the opening paragraph and the lines'
+   controls tighten their rhythm a step. Loudness: its control column is the taller side of every row (bands, range), so
+   copy in closer cannot help; the rhythm tightens a step, its segments and band boxes take the mid height and its range
+   boxes the small one. */
+.plate[data-size="compact"] :is(#drawer-crossfeed,#pb-drawer-crossfeed) .xlist .chline{grid-template-columns:var(--drow-col-xf) minmax(0,1fr)}
+.plate[data-size="compact"] .xgate{padding:var(--sp-1) 0 var(--sp-2);margin-bottom:var(--sp-1)}
+.plate[data-size="compact"] .xintro{margin-bottom:var(--sp-1)}
+.plate[data-size="compact"] .xleft{gap:var(--sp-1)}
+.plate[data-size="compact"] .xctl{gap:var(--sp-2);padding-bottom:var(--sp-1)}
+.plate[data-size="compact"] .xctl .ci{gap:var(--sp-1)}
+.plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .drow{padding:var(--sp-2) 0}
+.plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .drow .seg:not(.mini) button{height:var(--ctl-h-mid)}
+.plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .dpanel{padding-bottom:var(--sp-1)}
+.plate[data-size="compact"] .lbands{padding-top:var(--sp-1)}
+.plate[data-size="compact"] .lsw{margin-bottom:0}
+.plate[data-size="compact"] :is(.lsw button,.lrow input.vfd){height:var(--ctl-h-mid)}
+.plate[data-size="compact"] .lrow{min-height:var(--ctl-h-mid)}
+.plate[data-size="compact"] .lbot{margin-top:0;padding-top:var(--sp-2)}
+.plate[data-size="compact"] .lrange{gap:var(--sp-1)}
+.plate[data-size="compact"] .lrange .vrwell{padding-top:var(--sp-1)}
+.plate[data-size="compact"] .lrange .vrbox input.vfd{height:var(--ctl-h-view)}
+.plate[data-size="compact"] .lbound{gap:0}
+.plate[data-size="compact"] .lbound .man{line-height:1.25}
+
+/* ── Speakers ────────────────────────────────────────────────────────────
+   Set + channel rows left (control column), the room plan right, filling the height left. Speakers in the set amber,
+   the rest dimmed (drawn, never hidden). */
+#drawer-speakers .dpanel{display:flex;flex-direction:column}
+.dblock[data-block="speakers"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.spbody{flex:1 1 0;min-height:0;display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);padding-top:var(--sp-5);border-top:var(--hair) solid var(--row-rule)}
+.spleft{display:flex;flex-direction:column;gap:var(--sp-5)}
+.spset{width:var(--sel-w-wide)!important;height:var(--ctl-h-sm)!important;line-height:var(--ctl-h-sm)!important;font-size:var(--fs-4)!important}
+.sprows{display:flex;flex-direction:column;gap:var(--sp-2)}
+.sprow{display:grid;grid-template-columns:var(--spk-name-w) 1fr 1fr;align-items:center;gap:0 var(--sp-5);min-height:var(--ctl-h-sm)}
+.spn{font-size:var(--fs-4);color:var(--ink-2)}
+.sprow input.vfd{width:var(--spk-num-w);height:var(--ctl-h-xs);font-size:var(--fs-5)}
+.sprow .num{gap:var(--sp-3)}
+.spright{min-height:0;display:flex}
+.spplan{width:100%;height:100%;max-height:100%}
+.spplan .ring{fill:none;stroke:var(--line);stroke-dasharray:2 4}
+.spplan .head{fill:var(--plate-2);stroke:var(--ink-3);stroke-width:1.2}
+.spplan .nose{fill:none;stroke:var(--ink-3);stroke-width:1.2}
+.spplan .spk rect{fill:var(--glass);stroke:var(--ink-2);stroke-width:1.5}   /* drawings in ink; amber only on the values they carry */
+.spplan .spk .drv{fill:none;stroke:var(--ink-2);stroke-width:1.2}
+.spplan .spk .sl{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-2);letter-spacing:var(--ls-1);fill:var(--ink);line-height:var(--lh-eng)}
+.spplan .spk .sv{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--acc);line-height:var(--lh-text)}
+.spplan .spk.off rect,.spplan .spk.off .drv{stroke:var(--ink-4)}
+.spplan .spk.off text{fill:var(--ink-4)}
+
+/* Crossfeed gate (ENGAGE | BYPASS) heads the drawer; its reason sits beside it. Segments in the picked line hug their
+   options (no dead space after the last one). */
+.xgate{display:flex;align-items:center;gap:var(--sp-7);padding:var(--sp-3) 0 var(--sp-4);border-bottom:var(--hair) solid var(--row-rule);margin-bottom:var(--sp-2)}
+.xgate b{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink)}
+.xgate .seg button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-6)}
+.xgate .gr{flex:1 1 0}
+.xintro{margin:0 0 var(--sp-2);max-width:none;font-size:var(--fs-3);line-height:1.42;color:var(--ink)}   /* the picked line's copy voice, full width */
+.xctl .ci{align-items:flex-start}
+
+/* Structural cartoon: near paths solid ink, far paths dashed ink-2, ±30° ticks. */
+.xfgeo{flex:1 1 0;min-height:var(--plot-min-xf);display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);padding-top:var(--sp-3)}
+.xfpic{min-height:0;display:flex;justify-content:center}
+.xfdiag{display:block;width:100%;height:100%}
+.xfro{margin:0;display:flex;flex-direction:column;justify-content:center;gap:var(--sp-6)}
+.xfro dt{font-size:var(--fs-3);color:var(--ink-2);margin-bottom:var(--sp-1)}
+.xfro dd{margin:0;font-family:var(--f-mono);font-size:var(--fs-6);font-weight:var(--fw-medium);color:var(--acc);line-height:var(--lh-text)}
+.xfro dd span{font-size:var(--fs-3);font-weight:var(--fw-regular);color:var(--ink-2)}
+.xfdiag .axis{stroke:var(--line-2);stroke-dasharray:2 4}
+.xfdiag .ref{stroke:var(--ink-4);stroke-width:1.5}
+.xfdiag .arc{fill:none;stroke:var(--ink-3)}
+.xfdiag .ang{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--acc);line-height:var(--lh-text)}
+.xfdiag .near{stroke:var(--ink);stroke-width:1.5}
+.xfdiag .far{fill:none;stroke:var(--ink-2);stroke-width:1.25;stroke-dasharray:4 3}
+.xfdiag .head{fill:var(--plate-2);stroke:var(--ink-2);stroke-width:1.2}
+.xfdiag .nose{fill:none;stroke:var(--ink-2);stroke-width:1.2}
+.xfdiag .ear{fill:var(--ink-3)}
+.xfdiag .spk rect{fill:var(--glass);stroke:var(--ink-2);stroke-width:1.5}
+.xfdiag .spk .drv{fill:none;stroke:var(--ink-2);stroke-width:1.2}
+.xfdiag .spk .sl{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-3);letter-spacing:var(--ls-1);fill:var(--ink);line-height:var(--lh-eng)}
+
+/* ── DSP pipelines ───────────────────────────────────────────────────────
+   Tabs: Overview = the pin grid + totals, actions, manual; Out x = the input switch, a fixed page of lines
+   (model/shell/pipelines.js PAGE) + page buttons, the selected pipeline's strip, then dock | plot filling the height
+   left. */
+:is(#drawer-pipelines,#pb-drawer-pipelines) .dtabs button{padding:0 var(--sp-5)}
+:is(#drawer-pipelines,#pb-drawer-pipelines).pl-short .dtabs button:not([data-tab="overview"]){text-transform:none}   /* channel names keep their case, like the grid */
+:is(#drawer-pipelines,#pb-drawer-pipelines) .dpanel{display:flex;flex-direction:column;padding-bottom:var(--sp-2)}
+:is(#drawer-pipelines,#pb-drawer-pipelines) .dblock{flex:1 1 auto}
+.obody{flex:1 1 0;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 var(--sp-10);padding-top:var(--sp-4)}
+.oleft{display:flex;flex-direction:column;gap:var(--sp-5)}
+.oright{display:flex;flex-direction:column;gap:var(--sp-5);min-width:0;padding-top:var(--sp-2)}
+.oright .man{font-size:var(--fs-3);line-height:1.42;margin:0;max-width:none}
+.oright .man p{margin:0 0 var(--sp-3)}
+.oacts{display:flex;gap:var(--sp-4);flex-wrap:wrap}
+.ofiles{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.ofiles:empty{display:none}
+.ofiles .pfile{min-width:0;height:var(--chip-h);font-size:var(--fs-3)}
+.ogrid{display:grid;gap:var(--sp-3);align-items:center;justify-items:center}
+.pch.otab{border:0;background:none;padding:var(--sp-1) var(--sp-3);border-bottom:var(--stroke) solid transparent;cursor:pointer}
+.pch.otab:hover{color:var(--ink);border-bottom-color:var(--line-2)}
+.pin .pgn{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-1);letter-spacing:0;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.oout{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:var(--sp-3);padding-top:var(--sp-3)}
+.ohead{display:flex;align-items:center;gap:var(--sp-5);min-height:var(--phead-h)}
+.ohead>.cl{font-size:var(--fs-cl);color:var(--ink-2)}
+.oin{display:flex;align-items:center;gap:var(--sp-3)}
+.seg.oinseg button{font-family:var(--f-mono);font-size:var(--fs-3);padding:0 var(--sp-5);text-transform:none;letter-spacing:0;line-height:var(--lh-text)}
+.ohead .gr{flex-shrink:1;min-width:0}
+.olist{display:flex;flex-direction:column;gap:var(--sp-2)}
+.plrows.orows{flex:none}   /* as many lines as the input has, one page at most: the plot keeps the rest */
+.opg{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+.opg:empty{display:none}
+.opb{min-width:var(--chip-h);height:var(--ctl-h-mini);padding:0 var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-1);background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-3);cursor:pointer;line-height:var(--lh-text)}
+.pedit{display:flex;flex-direction:column;border-left:var(--stroke) solid var(--acc);border-radius:0 var(--r-2) var(--r-2) 0;background:linear-gradient(var(--acc-lo),var(--acc-lo)) top/100% calc(var(--pstrip-h) + 2 * var(--hair)) no-repeat}
+.pedit .pstrip.ped{border-left:0;background:none}
+.pedit .pdock{border-top:var(--hair) solid var(--row-rule);padding:var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-5);gap:var(--sp-3);min-width:0}
+.pdr{display:flex;align-items:center;gap:var(--sp-5);min-height:var(--pdock-head-h)}
+.pdl{font-size:var(--fs-4);color:var(--ink-2)}
+.pdcopy{display:flex;flex-direction:column;gap:var(--sp-1)}
+.pmp{margin:0;font-size:var(--fs-3);line-height:1.4;color:var(--ink-2)}
+.phint{margin:0;font-size:var(--fs-3);line-height:1.4;color:var(--ink)}
+.opr{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);margin-left:var(--sp-3);line-height:var(--lh-text)}
+.opg>.cl{font-size:var(--fs-cl);color:var(--ink-2);margin-right:var(--sp-1)}
+/* Pin grid: tuner-glass wells; a routed pin is an amber jewel with its gain engraved under it. */
+.pcorner{position:relative;width:var(--pgrid-key-w);height:var(--pgrid-key-h);align-self:end;justify-self:start}
+.pcorner::after{content:"";position:absolute;left:var(--sp-1);right:var(--sp-1);top:50%;border-top:var(--hair) solid var(--ink-3);transform:rotate(35deg)}
+.pcorner span{position:absolute;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);line-height:var(--lh-eng)}
+.pcorner span:first-child{right:var(--sp-1);top:calc(-1 * var(--sp-1))}
+.pcorner span:last-child{left:0;bottom:calc(-1 * var(--sp-1))}
+.pch{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-1);color:var(--ink-2);line-height:var(--lh-eng)}   /* case kept: Lr / Rr / Sub */
+.pch.in{justify-self:start;padding-left:var(--sp-2)}
+.pin{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-3);background:var(--glass);box-shadow:var(--well);cursor:pointer;padding:0}
+.pin .dot{width:var(--pin-jewel);height:var(--pin-jewel);border-radius:var(--r-round);background:var(--lamp-off);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade)}
+.pin.on .dot{background:var(--acc);box-shadow:0 0 var(--sp-4) var(--acc),inset 0 0 var(--sp-1) var(--glint)}
+.pin .pg{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);line-height:var(--lh-text)}
+.pin .pol{position:absolute;top:var(--sp-1);right:var(--sp-2);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);line-height:var(--lh-text)}
+.pin:hover{border-color:var(--line-2)}
+.pin.sel{border-color:var(--acc);box-shadow:var(--well),0 0 0 var(--hair) var(--acc)}
+.ptot{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+
+.pstrips{display:flex;flex-direction:column;gap:var(--sp-1)}
+.pstrip{display:flex;align-items:center;gap:var(--sp-3);min-height:var(--pstrip-h);padding:var(--hair) var(--sp-2) var(--hair) var(--sp-4);border-left:var(--stroke) solid transparent;border-radius:0 var(--r-2) var(--r-2) 0}
+.pstrip.sel{background:var(--acc-lo);border-left-color:var(--acc)}
+.ppn{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);width:var(--ppn-w);flex-shrink:0;line-height:var(--lh-text)}
+.pchips{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:var(--sp-2);overflow:hidden}
+.pwire{flex:1 1 0;min-width:var(--sp-2);height:var(--hair);background:var(--line-2)}
+.chip{flex-shrink:0;height:var(--chip-h);padding:0 var(--sp-3);border:var(--hair) solid var(--line-2);border-radius:calc(var(--chip-h) / 2);background:var(--glass);color:var(--ink);font-family:var(--f-mono);font-size:var(--fs-3);white-space:nowrap;cursor:pointer;line-height:var(--lh-text)}
+.chip.k-gain{color:var(--acc)}
+.chip.add{width:var(--pstrip-key);padding:0;color:var(--ink-2)}
+.chip.chipw{display:inline-flex;align-items:center;padding:0;cursor:default}
+.chipl{height:100%;padding:0 var(--sp-2) 0 var(--sp-4);border:0;background:none;color:inherit;font:inherit;cursor:pointer}
+.chipx{width:var(--tree-chev-w);height:100%;padding:0 var(--sp-2) 0 0;border:0;background:none;color:var(--ink-2);font-size:var(--fs-6);line-height:1;cursor:pointer}
+.chipx:hover{color:var(--bad)}
+.chip.sel{border-color:var(--acc);box-shadow:0 0 0 var(--hair) var(--acc)}
+input.vfd.praw{flex:1 1 0;min-width:0;height:var(--ctl-h-mid);font-size:var(--fs-3);text-align:left;width:auto}
+.prerr{position:absolute}
+.praw-t[aria-pressed="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
+.round.px{width:var(--pstrip-key);height:var(--pstrip-key);font-size:var(--fs-glyph-xs);line-height:1;flex-shrink:0}
+
+.pdock{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-3) 0 var(--sp-1);border-top:var(--hair) solid var(--row-rule)}
+.pdock[hidden]{display:none}
+.pfields{display:flex;align-items:center;gap:var(--sp-9);flex-wrap:wrap}
+.pfield{display:flex;align-items:center;gap:var(--sp-3)}
+.pfield .cl,.pfields>.cl{font-family:var(--f-mono);font-size:var(--fs-cl);color:var(--ink-2);line-height:var(--lh-text)}
+.pfield input.vfd,.pfields>input.vfd{height:var(--ctl-h-xs);font-size:var(--fs-5)}
+.pfield .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);line-height:var(--lh-text)}
+.pfile{height:var(--ctl-h-xs);flex-direction:row;align-items:center;padding:0 var(--sp-5);font-size:var(--fs-4);min-width:var(--sel-w)}
+.ptl{margin:0;font-size:var(--fs-3);line-height:1.4;color:var(--ink-2)}
+.ptl code{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);line-height:var(--lh-text)}
+select.vfd.ptype{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:var(--ptype-w);font-size:var(--fs-4);text-align:left}
+select.vfd.pkind{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:var(--sel-w-sm);font-size:var(--fs-4);text-align:left}
+.pbnav{display:flex;align-items:center;gap:var(--sp-3)}
+.round.pbn{width:var(--chip-h);height:var(--chip-h);font-size:var(--fs-6);line-height:1;padding:0}
+.pbl{font-family:var(--f-mono);font-size:var(--fs-4);color:var(--ink);min-width:var(--lvtab-l);text-align:center;line-height:var(--lh-text)}
+.pplotwrap{flex:1 1 0;min-height:var(--plot-min-sm);min-width:0;display:flex;flex-direction:column;gap:var(--sp-3)}
+.pplotwrap[hidden]{display:none}
+.pscope{display:flex;align-items:center;gap:var(--sp-5)}
+.pscope .cl{font-size:var(--fs-cl);color:var(--ink-2)}
+.pplot{flex:1 1 0;min-height:var(--pplot-min);min-width:0}
+.pplot svg{touch-action:none}
+/* A glass shorter than the drawing's own aspect (Compact) holds the whole drawing, axis labels included: it scales down
+   to the glass's height, left-aligned, its box still the drawing's own, so a drag maps 1:1. */
+.pplot svg.plot-svg{right:auto;width:auto;max-width:100%;max-height:100%}
+/* Pipeline popovers: the stage-kind menu and Import EQ. */
+.pmenu{width:var(--menu-w)}
+.pmrow{display:flex;align-items:center;gap:var(--sp-5);height:var(--ctl-h-sm);padding:0 var(--sp-5);border:0;border-radius:var(--r-2);background:none;color:var(--ink);font:inherit;font-size:var(--fs-5);text-align:left;cursor:pointer}
+.pmrow:hover{background:var(--hover)}
+.pmrow b{font-weight:var(--fw-medium)}
+.pmrow span{margin-left:auto;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.pimp{width:var(--pop-w-wide);left:auto;gap:var(--sp-3)}
+input.vfd.pq{height:var(--ctl-h-sm);width:100%;text-align:left;font-size:var(--fs-4)}
+.pimpf{display:flex;align-items:center;gap:var(--sp-4);padding-top:var(--sp-3);border-top:var(--hair) solid var(--line)}
+.mtx-lib-hit.selected{background:var(--acc-lo);box-shadow:inset var(--stroke) 0 0 var(--acc)}   /* left-hand selection bar, as everywhere */
+/* Crossfeed blocks in the grid: dashed pins (the locked chips' dashed edge; hatch is reserved for unavailable, as on the
+   rate dial); one line naming the block on its crosspoints; its own chips locked. */
+.pin.gen{border:var(--hair) dashed var(--acc-dim)}
+.pin.gen:hover{border-color:var(--ink-2)}
+.chip.lock{border-style:dashed;color:var(--ink-2)}
+.pro{color:var(--ink-2)!important}
+.pu{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.pstrip .praw-t{height:var(--pstrip-key);padding:0 var(--sp-4)}
+/* Pipeline list: --pin-h lines, a block folded to one line (dashed edge, like its pins). */
+.plrows{flex:1 1 0;min-width:0;display:flex;flex-direction:column;overflow:hidden;border-top:var(--hair) solid var(--row-rule);border-bottom:var(--hair) solid var(--row-rule)}
+.plrow{flex:0 0 var(--pin-h);display:flex;align-items:center;gap:var(--sp-5);height:var(--pin-h);padding:0 var(--sp-3) 0 var(--sp-4);border-left:var(--stroke) solid transparent;cursor:pointer;white-space:nowrap}
+.plrow:hover{background:var(--hover)}
+.plrow.sel{background:var(--acc-lo);border-left-color:var(--acc)}
+.plrow .ppn{width:var(--ppn-w-list)}
+.plc{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.plrow.sel .plc{color:var(--ink)}
+.plg{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);min-width:var(--gain-w);text-align:right;line-height:var(--lh-text)}
+.plrow.inblk{padding-left:var(--sp-9)}
+.plrow.inblk .plg{color:var(--ink-2)}
+.plfold{gap:var(--sp-4);border-left:var(--stroke) dashed var(--acc-dim)}
+.plfold.sel{border-left-style:solid}
+.pltw{width:var(--fold-key);height:var(--fold-key);padding:0;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:var(--fs-2)}
+.pls{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.plfold .xref{font-size:var(--fs-4);align-self:center}
+.pstrip.ped{border-left:var(--stroke) solid var(--acc);background:var(--acc-lo);border-radius:0 var(--r-2) var(--r-2) 0}
+.pin .pfill{position:absolute;left:var(--sp-2);bottom:var(--sp-1);height:var(--stroke);border-radius:var(--r-bar);background:var(--acc-dim)}
+.ptot .over{color:var(--bad)}
+.pdock input.vfd[type=number]{-moz-appearance:textfield}
+.pdock input.vfd[type=number]::-webkit-inner-spin-button,.pdock input.vfd[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+/* Speakers under Direct SDM: level boxes dead, distances live; a note under the rows. */
+.spleft.sdm .sprow .num:first-of-type input{color:var(--ink-4);cursor:not-allowed}
+.spsdm{margin:var(--sp-5) 0 0;font-size:var(--fs-3);line-height:1.45;color:var(--ink-2);max-width:var(--measure-note)}
+
+/* The plot frame (components/plots.js PlotFrame), as the DSP pipelines drawer draws its response plot: the page
+   plot's glass, grid and zero line in the hairline inks, traces in the accent, handles as the .eq dots. */
+.plot{display:flex;flex-direction:column;gap:var(--sp-3);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-4)}
+.plot-svg{width:100%;height:auto;display:block}
+.plot-grid{stroke:var(--line-2);stroke-width:.5}
+.plot-zero{stroke:var(--line-2);stroke-width:.8}
+.plot-lbl,.plot-tlbl{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--ink-2);line-height:var(--lh-text)}
+.plot-trace{fill:none;stroke:var(--acc);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.plot-trace.ghost{stroke:var(--ink-3);stroke-width:1.25;stroke-dasharray:4 3}
+.plot-trace.side{stroke:var(--ink-2);stroke-width:1.25}
+.plot-dot{fill:var(--glass);stroke:var(--acc);stroke-width:2;cursor:grab}
+.plot-dot.active{fill:var(--acc);cursor:grabbing}

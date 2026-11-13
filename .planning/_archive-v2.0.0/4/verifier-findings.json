@@ -1,0 +1,139 @@
+{
+  "status": "gaps",
+  "score": "5/10",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "make check is green on rebuild/integrate at the commit that was merged (5c2e3007)",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "Gate logs exist and are clean (no 'make: ***' line): /tmp/gate-make-NzJYWMzN.log at fe97fb16 ('3672 passed', '# pass 4880', '# fail 0', '# all files | 97.18 | 91.74 | 90.98'); /tmp/gate-make-tQreN5Yr.log at abe984ba ('3682 passed', '# pass 4882'); /tmp/gate-make-GCBV0bCW.log at 85fd14fb, the excision run ('3657 passed, 138 deselected', '[ok] suite 38.5s', '# pass 4856', '# fail 0', '# all files | 97.16 | 91.62 | 90.94'). `git diff -U0 85fd14fb 5c2e3007` changes only five JS comment lines. The integrate tree differs from v2@0258e453 outside .planning only in 7 v2-only files (22+/471-), and v2@0258e453 is green too (truth 4). The phase's own record is stale on this point: .planning/phases/4/baseline/integrate-final.txt names abe984ba as integrate's final commit, but integrate's HEAD is 5c2e3007 (`git -C .claude/worktrees/integrate rev-parse HEAD`). The excision run is recorded only in .planning/tasks/excise-drop-report/reports/plan-1.md."
+    },
+    {
+      "n": 2,
+      "truth": "The local e2e suite is green on rebuild/integrate at the commit that was merged",
+      "status": "FAILED",
+      "uat_item": 3,
+      "evidence": "The only green full run is /tmp/gate-make-Sn8U83H7.log at abe984ba: '143 passed, 3682 deselected, 1 warning in 589.64s'. `git log abe984ba..rebuild/integrate` lists 6 later commits that reached the merge: 145017b7, bc6c91ee and a3d08308 (hqptuner/core/lifecycle.py, loader.py, readings.py), 082482ca (hqptuner/api/routes/status.py, core/*, lanes/*, and the deletion of tests/e2e/test_sheet_top_tracks_plate_line.py, 332 lines), 85fd14fb (hqptuner/static/store/faceplate/alerts.js, lib/api.js, store/alerts/dropped.js deleted) and 5c2e3007. No e2e run exists at 5c2e3007 or on v2. The excision report says 'The e2e suite was not run on purpose. Its proof is the grep over tests/e2e'. SUMMARY admits it: 'The e2e suite was run on integrate at abe984ba, not on v2 after the merge and the excision.' Commit 20c9cad9's body claims 'complete at a3d08308 ... e2e 143 passed', but no e2e run was made at a3d08308."
+    },
+    {
+      "n": 3,
+      "truth": "rebuild/integrate is merged into v2 by a two-parent merge commit with the subject 'merge: rebuild/integrate into v2'",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "`git merge-base --is-ancestor rebuild/integrate v2` prints ancestor_rc=0. `git log -1 --format='%P%n%s' d1fbfb2b` prints parents '1ce87572... 5c2e3007...' and the subject 'merge: rebuild/integrate into v2'. The first parent 1ce87572 is v2's prior first-parent commit. rebuild/integrate still points at 5c2e3007, the second parent. `git cat-file -e` finds hqptuner/lanes/__init__.py on v2."
+    },
+    {
+      "n": 4,
+      "truth": "scripts/gate.sh make check is green on v2 after the merge",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "/tmp/gate-make-NMy3t3HZ.log (1088028 bytes, 2026-11-07 02:55) at 0258e453: '3657 passed, 138 deselected, 2 warnings in 38.38s', '[ok] suite 38.3s, bar 37.9s (+0.4s)', '# tests 4856', '# pass 4856', '# fail 0', '# all files | 97.16 | 91.62 | 90.94'. The log has no 'make: ***' line. `git diff --name-only d1fbfb2b 0258e453` lists only .planning/CAPTURE.md and .planning/config.json. Recorded in .planning/phases/4/baseline/v2-check.txt. v2 has moved since (phase 5 commits up to 2104068e). This verifier ran no suite; the main session's single run covers the current HEAD."
+    },
+    {
+      "n": 5,
+      "truth": "No phase commit changes a coverage threshold, adds a gate exemption, or contains uv.lock, .planning/reads.jsonl or .planning/phases/2/baseline/failures.log",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "This verifier re-ran the audit over fe97fb16..5c2e3007 and over first-parent, non-merge eb290159..182df136, which takes in every phase-4 v2 commit through the summary. The added-line grep for EXEMPT|noqa|type: ignore|eslint-disable|per-file-ignores|ignore_names|-exempt:|history-ok:|test-coverage-*|tool.importlinter|pragma: no cover|c8/istanbul ignore|pytest.mark.skip|.skip(|xfail found nothing in either range, with .planning excluded from range B. The grep for the three forbidden paths found nothing in either name-only log. `git diff fe97fb16 5c2e3007 -- Makefile .github/cadence/coverage-policy.json pyproject.toml` is 0 lines. Makefile:138-140 still reads --test-coverage-lines=95, --test-coverage-branches=90 and --test-coverage-functions=85, and coverage-policy.json still reads lines 95 and branches 90. This matches .planning/phases/4/baseline/audit.txt."
+    },
+    {
+      "n": 6,
+      "truth": "The check and e2e jobs are green on the owner's pull request from v2",
+      "status": "FAILED",
+      "uat_item": 7,
+      "evidence": "No CI run of the merged tree can exist yet. The local ref origin/v2 is c986cedb, and `git merge-base --is-ancestor d1fbfb2b origin/v2` exits 1, so the merge has not reached the remote. .github/workflows/check.yml:7-9 runs on push only for dev, plus pull_request, so a CI run needs the owner's push and pull request (D-10). SUMMARY ends 'complete locally, not CI-verified'."
+    },
+    {
+      "n": 7,
+      "truth": "In CI, the e2e job starts the service from a clean state and its suite passes",
+      "status": "FAILED",
+      "uat_item": 1,
+      "evidence": "Same cause as truth 6. No CI e2e run exists for any commit containing d1fbfb2b (origin/v2 = c986cedb, which does not contain the merge). The e2e job exists (.github/workflows/check.yml:74, step 'make test-e2e' at :104-105), but nothing has run it on the merged tree. The local e2e evidence predates the merged tree (truth 2)."
+    },
+    {
+      "n": 8,
+      "truth": "The accepted coverage commands are in a v2 workflow file, in the check job",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": ".github/workflows/check.yml:51 runs pytest with '--cov=hqptuner --cov-branch --cov-report=json:.coverage.json'. :61 runs 'node .github/cadence/coverage-report-check.mjs --format python --report .coverage.json'. :68-69 pass --test-coverage-lines=95 and --test-coverage-branches=90. These match the commands in .github/cadence/coverage-policy.json, whose required_jobs are ['check', 'e2e']. Verified by grep; planning.mjs test-policy check was not run, to keep to git, grep and file reads."
+    },
+    {
+      "n": 9,
+      "truth": "The phase's production fix abe984ba (useBodyResize re-places the sheet after a changed plate line) is still exercised by a test",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "abe984ba adds to hqptuner/static/components/faceplate/Popover.js a useLayoutEffect on alertsNow.value.plate that queues latest.current(). `git diff abe984ba v2` on that file is empty, so the fix ships on v2. Its commit names tests/e2e/test_sheet_top_tracks_plate_line.py as the only reproducer ('No lower lane observes this ... the e2e module is the reproducer'). 082482ca deleted that module: `git cat-file -e v2:tests/e2e/test_sheet_top_tracks_plate_line.py` fails. `grep -rln useBodyResize tests/` finds nothing. The plate home still carries the six failureAlerts lines (excision report answer (a)), so the behavior is live with no test."
+    },
+    {
+      "n": 10,
+      "truth": "The owner has seen the rebuilt faceplate at the hand-back URL before the phase is called done",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "The repo CLAUDE.md says 'Every visual change goes in front of the user at the hand-back URL before it is called done.' .planning/phases/4/baseline/task-check.txt says 'The owner's look at the URL is the final say; this task does not call the phase done.' SUMMARY's open items say 'The owner has not yet looked at the rebuilt faceplate at http://10.0.0.238:8090', yet SUMMARY frontmatter reads 'status: complete'. 85fd14fb removed a visual element, the dropped-settings line, and abe984ba changed sheet placement."
+    }
+  ],
+  "passes": [
+    {
+      "k": 2,
+      "name": "make check green on rebuild/integrate",
+      "evidence": "Clean gate logs at fe97fb16 (/tmp/gate-make-NzJYWMzN.log), abe984ba (/tmp/gate-make-tQreN5Yr.log) and 85fd14fb (/tmp/gate-make-GCBV0bCW.log: '3657 passed', '# pass 4856', '# fail 0', '# all files | 97.16 | 91.62 | 90.94'). 85fd14fb..5c2e3007 changes only JS comments. The phase record integrate-final.txt still names abe984ba, not the merged HEAD 5c2e3007."
+    },
+    {
+      "k": 4,
+      "name": "rebuild/integrate merged into v2",
+      "evidence": "`git merge-base --is-ancestor rebuild/integrate v2` exits 0. d1fbfb2b has parents 1ce87572 and 5c2e3007 and the subject 'merge: rebuild/integrate into v2'."
+    },
+    {
+      "k": 5,
+      "name": "make check green on v2 after the merge",
+      "evidence": "/tmp/gate-make-NMy3t3HZ.log at 0258e453: '3657 passed, 138 deselected', '# pass 4856', '# fail 0', '# all files | 97.16 | 91.62 | 90.94', with no make error line. d1fbfb2b..0258e453 touches only .planning/CAPTURE.md and .planning/config.json."
+    },
+    {
+      "k": 6,
+      "name": "No threshold change, exemption or forbidden file in the phase",
+      "evidence": "Independent re-audit of fe97fb16..5c2e3007 and of first-parent, non-merge eb290159..182df136: no exemption-marker added line outside .planning, no uv.lock, .planning/reads.jsonl or .planning/phases/2/baseline/failures.log, and a 0-line threshold diff. Makefile:138-140 still reads 95/90/85."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 3,
+      "name": "Local e2e green on rebuild/integrate",
+      "reason": "behavior unproven at the merged commit. The only green e2e run is at abe984ba. Six later integrate commits changed backend and frontend production code and deleted an e2e module, and no automated check has run the e2e suite on the tree that was merged.",
+      "evidence": "/tmp/gate-make-Sn8U83H7.log: '143 passed ... in 589.64s' at abe984ba. Commits after it: 145017b7, bc6c91ee, a3d08308 (hqptuner/core/lifecycle.py, loader.py, readings.py), 082482ca (hqptuner/api/routes/status.py, core/manager.py, lanes/*, tests/e2e/test_sheet_top_tracks_plate_line.py deleted), 85fd14fb (hqptuner/static/store/faceplate/alerts.js, lib/api.js, store/alerts/dropped.js deleted) and 5c2e3007. The excision report says 'The e2e suite was not run on purpose.' .planning/phases/4/baseline/e2e.txt records only abe984ba. Commit 20c9cad9 claims e2e 143 passed at a3d08308; no such run exists.",
+      "severity": "major",
+      "missing": "One `scripts/gate.sh make test-e2e` run on the merged content (v2 HEAD, or integrate at 5c2e3007) with the plan's environment, printing exit=0 with a passed count above zero, recorded in .planning/phases/4/baseline/e2e.txt with its commit. The suite runs about 590 s, close to the 600 s command watchdog, so it should be started in the background."
+    },
+    {
+      "k": 7,
+      "name": "CI green on the owner's pull request from v2",
+      "reason": "missing. No CI run of the merged tree exists, and no automated check has exercised the check or e2e job on it. ROADMAP Phase 4 success criterion 4 is unmet.",
+      "evidence": "The local ref origin/v2 = c986cedb does not contain d1fbfb2b (`git merge-base --is-ancestor d1fbfb2b origin/v2` exits 1). .github/workflows/check.yml:7-9 triggers on push to dev and on pull_request only. SUMMARY: 'complete locally, not CI-verified'.",
+      "severity": "blocker",
+      "missing": "The owner pushes v2 and opens the pull request (D-10; agents never push). The check and e2e jobs on that pull request then report green."
+    },
+    {
+      "k": 1,
+      "name": "Clean-start boot in CI",
+      "reason": "missing. The CI e2e job has not run on any commit containing the merge, so no automated check shows the service starting from a clean state in CI with the suite passing.",
+      "evidence": ".github/workflows/check.yml:74 defines e2e, and :104-105 run 'make test-e2e'. origin/v2 (c986cedb) lacks d1fbfb2b. Local e2e evidence exists only at abe984ba (gap k 3).",
+      "severity": "blocker",
+      "missing": "A green e2e job on the owner's pull request from v2, the same run that closes item 7."
+    },
+    {
+      "name": "The phase's production fix abe984ba (useBodyResize re-places the sheet after a changed plate line) is still exercised by a test",
+      "reason": "unwired test coverage. The fix ships on v2, but the excision deleted its only reproducer, so no automated check exercises the behavior.",
+      "evidence": "hqptuner/static/components/faceplate/Popover.js holds abe984ba's useLayoutEffect on alertsNow.value.plate unchanged on v2. tests/e2e/test_sheet_top_tracks_plate_line.py was deleted by 082482ca, and `grep -rln useBodyResize tests/` is empty. The plate home still carries failureAlerts lines, so a failure line that appears or goes away depends on this code.",
+      "severity": "minor",
+      "missing": "The smallest browser-lane test that holds a sheet (connection panel or option list) on the body's top in the same task as a remaining plate line (a failure alert) appearing or going away. It must bite with the abe984ba effect removed. Otherwise, take the fix's fate back to the owner."
+    },
+    {
+      "name": "The owner has seen the rebuilt faceplate at the hand-back URL before the phase is called done",
+      "reason": "missing. The repo's hand-back rule requires the owner's look at every visual change before it is called done. The phase is marked complete, and its own open items say the owner has not looked.",
+      "evidence": "SUMMARY.md frontmatter reads 'status: complete', while its open item says 'The owner has not yet looked at the rebuilt faceplate at http://10.0.0.238:8090'. .planning/phases/4/baseline/task-check.txt says 'this task does not call the phase done'. 85fd14fb removed the dropped-settings line, a visual element, and abe984ba changed sheet placement.",
+      "severity": "minor",
+      "missing": "The owner's look at http://10.0.0.238:8090 and their ruling on it, recorded before the phase is called done."
+    }
+  ],
+  "human_checks": []
+}

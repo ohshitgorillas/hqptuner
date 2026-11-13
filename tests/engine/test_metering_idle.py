@@ -1,5 +1,5 @@
 """The metering reader's config switch: whether the 4322 side channel is
-dialled at all.
+dialed at all.
 
 The config cases build a `Config` under a patched environment."""
 
@@ -8,11 +8,6 @@ import pytest
 from hqptuner.config import Config
 
 # --- the config switch ------------------------------------------------------
-
-
-def test_metering_is_enabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HQPTUNER_METERING_ENABLED", raising=False)
-    assert Config().metering_enabled is True
 
 
 @pytest.mark.parametrize(

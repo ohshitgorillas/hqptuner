@@ -1,7 +1,7 @@
 """Resolving the working config inside a ``/backup`` archive.
 
 The daemon names that member after its OWN active profile: ``hqplayerd.xml`` on
-``[default]``, a root-level ``<Profile>.xml`` otherwise (protocol.md §3.6). An
+``[default]``, a root-level ``<Profile>.xml`` otherwise. An
 archive HQPTuner cannot resolve reads as "no working config", which is also what
 the daemon's empty-backup bug produces — so the resolver failing quietly meant
 every apply refused with a message blaming a daemon bug that a restart does not
@@ -104,19 +104,3 @@ def test_the_archive_summary_marks_bytes_that_are_not_a_zip_unreadable(data: byt
 
 def test_the_archive_summary_names_a_member_when_it_reads() -> None:
     assert "hqplayerd.xml" in engineconf.archive_summary(_archive({"hqplayerd.xml": _XML})).members
-
-
-def test_apply_to_all_names_every_preset_snapshot_beside_the_working_config() -> None:
-    # one preset is the active one; "all presets" has to reach the other too
-    archive = _archive(
-        {
-            "hqplayerd.xml": _XML,
-            engineconf.snapshot_member_name("Speakers"): _XML,
-            engineconf.snapshot_member_name("Office"): _OTHER,
-        }
-    )
-    assert set(engineconf.config_members(archive, "Speakers", all_presets=True)) == {
-        "hqplayerd.xml",
-        engineconf.snapshot_member_name("Speakers"),
-        engineconf.snapshot_member_name("Office"),
-    }

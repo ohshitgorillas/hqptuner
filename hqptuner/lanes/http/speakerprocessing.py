@@ -15,11 +15,12 @@ import httpx
 
 from hqptuner.conf.httpforms import SpeakersForm
 from hqptuner.lanes import settle
+from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
-_POLL = 1.0  # cadence for polling /speakers back after the reload
+_POLL = 1.0  # seconds on the manager's clock between reads of /speakers back after the reload
 
 
 class SpeakerApplyOutcome(Enum):
@@ -42,21 +43,25 @@ class SpeakerApplyResult:
         return SpeakerApplyOutcome.CONFIRMED if self.applied else SpeakerApplyOutcome.UNCONFIRMED
 
 
-async def apply(mgr: "ConnectionManager", channels: dict[str, dict[str, str]], *, enabled: bool) -> SpeakerApplyResult:
+async def apply(mgr: "LaneManager", channels: dict[str, dict[str, str]], *, enabled: bool) -> SpeakerApplyResult:
     """POST the speaker-processing form, then confirm it landed past the engine reload the POST triggers.
 
     Returns the confirmation flag alongside the re-read form, which is also refreshed onto the manager's cache; a
     read that fails after a confirmed write leaves the previous cache standing rather than failing the apply.
     """
     http = mgr.require_http()
-    await http.apply_speakers(channels, enabled=enabled)
+    await settle.restart(mgr, lambda: http.apply_speakers(channels, enabled=enabled), file_sources=("speakers_form",))
     applied = await _verify(mgr, channels, enabled=enabled)
+    acquisition = mgr.readings.acquire_file("speakers_form")
+    generation = mgr.phase.standing.generation
     with contextlib.suppress(httpx.HTTPError):
-        mgr.readings.speakers_form = await http.get_speakers()
+        form = await http.get_speakers()
+        if http is mgr.http_client and mgr.readings.file_current(acquisition):
+            forms.take_speakers(mgr, form, generation=generation)
     return SpeakerApplyResult(applied, mgr.readings.speakers_form)
 
 
-async def _verify(mgr: "ConnectionManager", channels: dict[str, dict[str, str]], *, enabled: bool) -> bool:
+async def _verify(mgr: "LaneManager", channels: dict[str, dict[str, str]], *, enabled: bool) -> bool:
     """Poll /speakers until it reflects the applied state — the enabled flag plus each written level/distance.
 
     Rides past the post-reload window where the lane 502s or serves the pre-restart

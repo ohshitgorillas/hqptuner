@@ -1,7 +1,7 @@
 """Probe what the UDP discovery reply's ``version`` attribute carries.
 
-protocol.md §2 documents the request and the reply shape but the ``version``
-value was unverified — GetInfo's ``version`` is the bare major ("6") while
+The request and the reply shape are documented but the ``version`` value was
+unverified — GetInfo's ``version`` is the bare major ("6") while
 ``engine`` is the engine build ("6.0.4"), and neither is the installed
 release number. Answer (6.0.2 install): ``version="Signalyst HQPlayer
 Embedded 6"`` — major only, so discovery cannot source the release either.

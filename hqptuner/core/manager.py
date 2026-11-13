@@ -1,342 +1,201 @@
-"""Connection manager — single source of truth for daemon reachability.
+"""The connection manager: the one object the app holds the daemon through."""
 
-Rules:
-- "reachable" means a successful GetInfo handshake, not a mere TCP accept
-- State/Status polling doubles as heartbeat (and keeps traffic under the
-  daemon's ~156 s idle-drop window, protocol.md §1)
-- unreachable beyond the alarm threshold (default 15 s, so a routine daemon
-  restart raises no alarm) is surfaced as `alarm`
-- poll aggressively during the initial outage window, then back off
-- API reads never touch the socket; they serve the last snapshot (fail-fast)
-
-This file is the composition root: it builds the collaborators, holds the lifecycle
-flags, runs the supervisor loop, and carries the clock and client accessors
-every lane reaches the daemon through. Nothing here fills a reading on demand.
-"""
+from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from typing import TYPE_CHECKING
 
 import httpx
 
 from hqptuner.audit import AuditLog
-from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
+from hqptuner.clock import Clock
+from hqptuner.conf.httpauth import NoHttpClientError
 from hqptuner.core import engineread, loader
 from hqptuner.core.applyops import ApplyOps
-from hqptuner.core.clock import Clock
+from hqptuner.core.lifecycle import Fact, Lifecycle, Phase
 from hqptuner.core.readings import Readings
-from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import (
-    CommandError,
-    ControlConnectionFailedError,
-    ControlError,
-    HttpCredentialsMissingError,
-)
+from hqptuner.engine.controlerrors import ControlConnectionFailedError, ControlError
+from hqptuner.engine.logtail import LogReader
 from hqptuner.lanes.http import forms
-from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.presets.presetops import PresetOps
 
 if TYPE_CHECKING:
+    from hqptuner.conf.httpconf import HttpConfigClient
+    from hqptuner.config import Config
+    from hqptuner.engine.control import ControlClient
     from hqptuner.engine.metering import MeteringReader
+    from hqptuner.lanes.http.forms import FormsOutcome
 
 log = logging.getLogger(__name__)
 
+#: Seconds on ``mgr.clock`` before the connect loop is entered again after a fault: inside the window, and once the
+#: phase is Alarm.
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
-# What the supervisor loop treats as "the daemon, not us": a refused or severed socket, a
-# timeout, a non-2xx on the 8088 lane, a command the engine rejected. These are the faults
-# `daemon unreachable` is an honest report of. Anything outside this set is a bug of ours,
-# and the loop's second clause keeps it loud instead of dressing it as an outage.
-_WIRE_FAULTS = (ControlError, CommandError, httpx.HTTPError, OSError, TimeoutError)
+
+#: The faults that are the daemon's: a refused or severed socket, a timeout, a non-2xx on 8088, a command the
+#: engine rejected. Anything else that ends the connect loop is a fault of ours.
+_WIRE_FAULTS = (ControlError, httpx.HTTPError, OSError, TimeoutError)
 
 
-def _bug(stage: str) -> None:
-    """Report a fault that is ours, not the daemon's, and leave reachability alone.
+def reconnect_delay(phase: Phase) -> float:
+    """Return how long to wait before entering the connect loop again: fast inside the window, slow once in Alarm."""
+    return RECONNECT_SLOW if phase is Phase.ALARM else RECONNECT_FAST
 
-    The blind ``except`` around each call site is deliberate: ``run()`` is started with
-    ``create_task`` and never awaited until shutdown, so an escaping exception surfaces
-    nowhere at all — the supervisor would die in silence while the API kept serving. A
-    fault outside ``_WIRE_FAULTS`` never reaches ``_drop``, which logs at most once per
-    outage and would report our own ``TypeError`` as the daemon being unreachable. Every
-    iteration logs a traceback instead, and the connection is left as it was: nothing
-    here is evidence the daemon went away.
-    """
-    log.exception("%s failed with a fault of ours, not the daemon's; retrying", stage)
+
+class _Supervisor:
+    """Keeps one manager's connect loop running until stopped, entering it again after each fault ends it."""
+
+    def __init__(self, mgr: ConnectionManager) -> None:
+        """Bind the manager and raise no stop yet, so a ``stop`` that comes before ``run`` still ends it."""
+        self._mgr = mgr
+        self._stopped = False
+        self._wake = asyncio.Event()
+
+    def stop(self) -> None:
+        """End ``run`` at its next wait, cutting that wait short."""
+        self._stopped = True
+        self._wake.set()
+
+    def redial(self) -> None:
+        """End the connect loop at its next wait, cutting that wait short, so it is entered again and dials at once."""
+        self._wake.set()
+
+    async def run(self) -> None:
+        """Drive the connect loop until stopped; a fault is logged as the daemon's or as ours, then retried."""
+        mgr, wake = self._mgr, self._wake
+        while not self._stopped:
+            wake.clear()
+            try:
+                await loader.run(mgr, wake)
+            except _WIRE_FAULTS as exc:
+                log.warning("the daemon ended the connect loop; retrying: %s", exc)
+                await self._idle()
+            except Exception:
+                log.exception("the connect loop failed with a fault of ours, not the daemon's; retrying")
+                await self._idle()
+
+    async def _idle(self) -> None:
+        """Wait out the retry delay the phase calls for on the manager's clock; a stop or a redial cuts it short."""
+        mgr = self._mgr
+        await mgr.clock.pace(self._wake, reconnect_delay(mgr.phase.standing.phase))
 
 
 class ConnectionManager:
-    """Hold the daemon connection and the last loaded snapshot every API read and write lane serves from."""
+    """Holds the clients, the readings and the collaborators every route and lane reaches the daemon through."""
 
     def __init__(self, cfg: Config, http_client: HttpConfigClient | None = None, clock: Clock | None = None) -> None:
-        """Build the audit log, preset and apply collaborators, and start unreachable with every snapshot empty."""
+        """Bind the configuration, the 8088 client and the clock, and build the collaborators."""
         self.cfg = cfg
-        # What every wait here and in the lanes paces on; the suite hands in one it advances.
-        self.clock = clock or Clock()
         self._http = http_client
-        # 8088 clients a runtime credential change replaced, closed at shutdown. See the `http_client` setter.
         self._retired: list[HttpConfigClient] = []
-        self._client: ControlClient | None = None
-        self._stop = asyncio.Event()
-        # `_wake` pulls the poll loop out of its wait early (see `restarting`);
-        # `connected` is set at the end of every connect body and cleared on every
-        # drop, the thing a post-restore wait (lanes.settle.await_ready) sleeps on.
-        self._wake = asyncio.Event()
-        self.connected = asyncio.Event()
-        # Set on every edge of what EITHER lane reports — both directions of
-        # `connected`, and the poll's 8088 stamp — and cleared by whoever waits on it.
-        # `connected` alone cannot wake a waiter on a drop, and a post-restore wait
-        # needs the drop as much as the connect that follows it; it cannot wake one on
-        # the configuration lane coming back a poll later either, which a wait for both
-        # lanes would otherwise sleep through to its deadline. A wake, never a verdict:
-        # waiters re-read the counters and `ready` themselves.
-        self.changed = asyncio.Event()
-        # The one audit log (audit.py). ONE instance, built before anything that
-        # writes through it: each instance resumes its sequence counter from the
-        # file, so a second copy would hand out numbers the first already used.
-        self.audit = AuditLog(cfg.debug_log, now=self.clock.now)
-        # Preset lifecycle + filter parking + backup persistence (presetops).
-        self.presetops = PresetOps(cfg, self)
-        # Apply/dispatch operations (applyops).
-        self.applyops = ApplyOps(self)
-
-        self.reachable = False
-        # Whole connects completed since construction: a post-restore wait's mark, so
-        # it waits for a connect that completed after its restore began.
-        self.connects = 0
-        # Drops that were evidence the daemon went away, since construction. The
-        # forced drop `restarting` takes is not one: it is our own doing, ahead of a
-        # restart the daemon has not performed yet, so counting it would let a
-        # post-restore wait mistake it for the restart landing. A refused reconnect IS
-        # one — it is the daemon not being there, and after `restarting` has cleared
-        # `connected` it is the only evidence a restart window produces.
-        self.drops = 0
-        # `drops` as of the most recently completed connect: the ordering token a
-        # post-restore wait needs. Two counters compared separately cannot say which
-        # came first, and a connect that landed on the not-yet-restarted daemon has to
-        # be told from one made after the daemon actually went away.
-        self.drops_at_connect = 0
-        self.unreachable_since: float | None = time.time()
-        # Stamped on the clock `alarm` reads it back through, so both sides of that subtraction run on one clock.
-        self._unreachable_mono: float = self.clock.monotonic()
-
-        # Everything the daemon last told us (core/readings). Refilled from scratch
-        # on every fresh connection; read by every route and lane.
+        self.clock = clock if clock is not None else Clock()
         self.readings = Readings()
-        # The 4322 metering reader (junk-filter advisor). Owned and started by
-        # the app lifespan; held here so the status route can ask for advice.
+        self.audit = AuditLog(cfg.debug_log, now=self.clock.now)
+        self.presetops = PresetOps(cfg, self)
+        self.applyops = ApplyOps(self)
+        self.log_reader = LogReader(self.clock)
+        self.live_writes = asyncio.Lock()
         self.metering: MeteringReader | None = None
-
-    @property
-    def ready(self) -> bool:
-        """Report whether both daemon lanes are up: the connect body completed and stands, and 8088 answered.
-
-        Not a flag anyone sets. `reachable` is the 4321 handshake alone, published before
-        the 8088 half of the connect has run, and a flag set at the end of the connect body
-        went on reading true for a configuration lane that was refused or never built.
-        """
-        return self.connected.is_set() and self.readings.http_ok
-
-    @property
-    def alarm(self) -> bool:
-        """Report whether the daemon has been unreachable for longer than the alarm threshold."""
-        return not self.reachable and self.clock.monotonic() - self._unreachable_mono > self.cfg.alarm_threshold
-
-    def stop(self) -> None:
-        """Signal the poll loop to leave its next wait and finish; does not close the socket (see ``aclose``)."""
-        self._stop.set()
-        self._wake.set()
-
-    async def aclose(self) -> None:
-        """Shut down cleanly: stop the loop and close the control connection so no socket dangles.
-
-        The caller awaits the run() task separately.
-        """
-        self.stop()
-        if self._client is not None:
-            await self._client.close()
-            self._client = None
-        while self._retired:
-            await self._retired.pop().aclose()
-
-    async def run(self) -> None:
-        """Run the connect-load-poll loop until stopped, dropping the connection and retrying on any failure.
-
-        Retries fast inside the expected restart window and backs off to ``RECONNECT_SLOW`` once in alarm.
-        """
-        while not self._stop.is_set():
-            if self._client is None:
-                try:
-                    await loader.connect_and_load(self)
-                except _WIRE_FAULTS as exc:
-                    await self._drop(f"connect/load failed: {exc}")
-                    await self._idle(self._reconnect_delay())
-                    continue
-                except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
-                    _bug("connect/load")
-                    await self._idle(self._reconnect_delay())
-                    continue
-            try:
-                await loader.poll(self)
-            except _WIRE_FAULTS as exc:
-                await self._drop(f"poll failed: {exc}")
-                continue
-            except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
-                _bug("poll")
-                await self._idle(self.cfg.poll_interval)
-                continue
-            await self._idle(self.cfg.poll_interval)
-
-    def _reconnect_delay(self) -> float:
-        """Retry aggressively inside the expected-restart window, then back off once in alarm."""
-        return RECONNECT_FAST if not self.alarm else RECONNECT_SLOW
-
-    async def _idle(self, seconds: float) -> None:
-        """Idle the poll loop between passes on the clock's background wait.
-
-        ``_wake`` cuts the wait short: ``restore`` sets it after dropping the control lane so the
-        reconnect starts at once, and ``stop`` sets it so shutdown never waits out a poll interval.
-        """
-        await self.clock.pace(self._wake, seconds)
-        self._wake.clear()
-
-    async def _drop(self, reason: str, *, counts: bool = True) -> None:
-        """Tear the control connection down.
-
-        ``counts`` is False for the one drop that is not evidence the daemon went away:
-        ``restarting`` takes the connection down itself, ahead of a restart the daemon has
-        not begun, and a post-restore wait that counted it would return on the connection
-        the restart is about to kill.
-
-        Every other drop counts, including a reconnect the daemon refused. That is not a
-        widening of the field's meaning but the rest of it: a refused connect is the
-        daemon not being there. It also has to count, because ``restarting`` leaves
-        `connected` clear, so in the ordinary restart — where the reconnect is refused
-        throughout the window rather than landing on the pre-restart daemon — a drop
-        requiring a live connection never arrives and a wait for one spends its whole
-        deadline on a restart that worked.
-        """
-        if self.reachable or self._client is not None:
-            log.warning("daemon unreachable: %s", reason)
-        if self.reachable:
-            self.unreachable_since = time.time()
-            self._unreachable_mono = self.clock.monotonic()
-        if counts:
-            self.drops += 1
-        self.reachable = False
-        self.connected.clear()
-        self.changed.set()
-        if self._client is not None:
-            await self._client.close()
-            self._client = None
-
-    async def refresh_http_forms(self) -> FormsOutcome:
-        """Refresh the three polled 8088 form snapshots (lanes/http/forms) and the device capability.
-
-        The capability hangs off those forms: it is read for whichever device the config form says
-        is selected, so it belongs wherever that form is refreshed — the poll loop, connect, and the
-        rescan route alike — rather than at the poll loop alone, which leaves every other path
-        serving a stale answer or none.
-
-        Answers what the refresh did on /config (``FormsOutcome``), for the one
-        caller that reports it to a browser. Every other caller wants the snapshots filled and drops it.
-        """
-        refreshed = await forms.refresh(self)
-        await engineread.refresh_device_caps(self)
-        return refreshed.outcome
-
-    # --- accessors for the extracted write lanes --------------------------
+        self.control: ControlClient | None = None
+        self.dialing: ControlClient | None = None
+        self.phase = Lifecycle(cfg.alarm_threshold, self.clock.monotonic())
+        self.changed = self.phase.changed
+        self._supervisor = _Supervisor(self)
 
     @property
     def http_client(self) -> HttpConfigClient | None:
-        """Return the 8088 config client, or None when no management credentials were configured."""
+        """Return the 8088 client, or None when no management credentials were configured."""
         return self._http
 
     @http_client.setter
     def http_client(self, client: HttpConfigClient | None) -> None:
         """Attach the 8088 client built for the credentials just saved, retiring the one it replaces.
 
-        Retired, not closed: five write lanes hold the client across an await (``lanes/settle``,
-        ``presets/presetops``, ``lanes/http/restore``), so closing it here would abort a restore in flight. The
-        retired clients are closed at shutdown, where nothing is mid-request.
+        Retired, not closed: a write lane may hold the replaced client across an await, and closing it here would
+        abort that write. ``aclose`` closes every retired client, when nothing is mid-request.
         """
         if client is self._http:
             return
         if self._http is not None:
             self._retired.append(self._http)
         self._http = client
+        self.readings.break_file()
 
-    @property
-    def http_base_url(self) -> str:
-        """Return the daemon's 8088 web root, which the ungated readers (/about, /log) fetch from."""
-        return self.cfg.hqp_http_base_url
+    async def run(self) -> None:
+        """Keep the daemon connected until ``stop``, entering the connect loop again after a fault's retry delay."""
+        await self._supervisor.run()
 
-    @property
-    def alarm_threshold(self) -> float:
-        """Return the configured unreachable-to-alarm seconds, which the lanes reuse as their default deadline."""
-        return self.cfg.alarm_threshold
+    def stop(self) -> None:
+        """End ``run`` promptly, never waiting out an interval; a stop before ``run`` starts ends it at once."""
+        self._supervisor.stop()
 
-    async def restarting(self) -> None:
-        """Drop the control lane a restore just killed and start the reconnect now.
+    async def aclose(self) -> None:
+        """Stop the connect loop and close the control connection, every retired 8088 client and the log reader.
 
-        The daemon self-restarts on every adopted restore (architecture §2.2 lane 2), so the 4321
-        socket is dead the moment the POST returns. Waiting for the poll loop to find that out costs
-        up to a poll interval; dropping here and waking the loop starts the reconnect at once, and
-        the loop's own retries carry it through the restart window. The post-restore wait itself is
-        ``lanes.settle.await_ready``.
-
-        Only a whole connection is dropped: with ``connected`` clear there is either no client, or
-        a connect body mid-flight that must finish on its own client rather than one closed under
-        it. It reads ``connected`` rather than ``ready`` because the configuration lane has no say
-        in whether there is a control connection here to take down.
-
-        The drop does not count: it is ours, taken ahead of a restart the daemon has not performed,
-        and ``await_ready`` waits for a counting drop to prove the restart actually landed.
+        The caller awaits ``run`` separately. The 8088 client still in service is the caller's to close.
         """
-        if self.connected.is_set():
-            await self._drop("restore restarts the daemon", counts=False)
-            self._wake.set()
+        self.stop()
+        client, self.control = self.control, None
+        if client is not None:
+            await client.close()
+        while self._retired:
+            await self._retired.pop().aclose()
+        await self.log_reader.aclose()
 
     async def retarget(self) -> None:
-        """Take the daemon lanes down so they come back on the address the config now names.
+        """Close the connection to the old address, then dial at once to the address the config now names.
 
-        The control lane needs no wiring beyond this: ``core/loader`` reads ``cfg.hqp_host`` on every connect, so a
-        drop plus a wake is the whole reconnect. The metering reader dials its own socket, so it is told separately.
-
-        The drop counts as evidence: from the poll loop's side the old daemon really did go away, and a post-restore
-        wait must not mistake the connection it is about to lose for the one it is waiting on.
+        The close is HQPTuner's own, a taken Down that leaves the generation where it stood; the readings taken on
+        the old connection break with it. The redial ends ``loader.run`` at its next wait, with no client left for
+        its ``finally`` to close. The connect body reads the configured address on every dial. The metering reader
+        dials its own socket, so it is pointed at the configured host and metering port separately.
         """
-        await self._drop("connection settings changed")
-        self._wake.set()
+        self.dialing = None
+        self.readings.break_file()
+        self.phase.report(Fact.SOCKET_CLOSED, self.clock.monotonic())
+        self.readings.take_address(found=None)
+        self.readings.take_file(credentials_ok=None)
+        self.readings.break_engine()
+        control, self.control = self.control, None
+        if control is not None:
+            await control.close()
+        self._supervisor.redial()
         if self.metering is not None:
-            self.metering.retarget(self.cfg.hqp_host, self.cfg.hqp_metering_port)
-
-    @property
-    def control(self) -> ControlClient | None:
-        """The live 4321 client, for the extracted lanes (None while unreachable)."""
-        return self._client
-
-    @control.setter
-    def control(self, client: ControlClient | None) -> None:
-        """Attach the client ``core/loader`` just connected, so ``_drop`` owns closing it from here on."""
-        self._client = client
+            self.metering.retarget((self.cfg.hqp_host, self.cfg.hqp_metering_port))
 
     def require_control(self) -> ControlClient:
-        """Return the live 4321 client, raising ControlError while the daemon is not connected.
-
-        The accessor for a write that cannot proceed without the control lane.
-        """
-        if self._client is None:
-            raise ControlConnectionFailedError(host=self.cfg.hqp_host, port=self.cfg.hqp_control_port)
-        return self._client
+        """Return the connected control client, or raise when no connection stands."""
+        if self.control is not None:
+            return self.control
+        raise ControlConnectionFailedError(host=self.cfg.hqp_host, port=self.cfg.hqp_control_port)
 
     def require_http(self) -> HttpConfigClient:
-        """Return the 8088 config client, raising ControlError when no credentials were configured.
-
-        The accessor every write lane that cannot proceed without the HTTP lane uses instead of ``http_client``.
-        """
+        """Return the 8088 client, or raise the refusal for its absence."""
         if self._http is None:
-            raise HttpCredentialsMissingError()
+            raise NoHttpClientError
         return self._http
+
+    async def take_control_down(self, reason: str) -> None:
+        """Close the control client, if one is held, break its readings, report the socket taken Down and redial.
+
+        The redial ends the connect loop at its next wait, so the next dial is made at once and not after a status
+        interval; the dial cadence while Down is the loop's own and is not hastened. ``reason`` is why.
+        """
+        del reason
+        control, self.control = self.control, None
+        if control is not None:
+            await control.close()
+        self.readings.break_engine()
+        self.phase.report(Fact.SOCKET_TAKEN, self.clock.monotonic())
+        self._supervisor.redial()
+
+    async def refresh_http_forms(self) -> FormsOutcome:
+        """Refresh the forms, then the device capability read for the device the config form selects.
+
+        Answers what the forms refresh did.
+        """
+        refreshed = await forms.refresh(self)
+        await engineread.refresh_device_caps(self)
+        return refreshed.outcome

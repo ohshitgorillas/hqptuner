@@ -1,0 +1,71 @@
+{
+  "modes": {
+    "stock": [
+      { "index": "0", "name": "[source]", "value": "-1" },
+      { "index": "1", "name": "PCM", "value": "0" },
+      { "index": "2", "name": "SDM (DSD)", "value": "1" }
+    ],
+    "reordered": [
+      { "index": "0", "name": "SDM (DSD)", "value": "1" },
+      { "index": "1", "name": "[source]", "value": "-1" },
+      { "index": "2", "name": "PCM", "value": "0" }
+    ],
+    "variant": [
+      { "index": "0", "name": "[Source]", "value": "-1" },
+      { "index": "1", "name": "pcm", "value": "0" },
+      { "index": "2", "name": "DSD", "value": "1" }
+    ],
+    "pcm_only": [
+      { "index": "0", "name": "[source]", "value": "-1" },
+      { "index": "1", "name": "PCM", "value": "0" }
+    ]
+  },
+  "chains": {
+    "pcm": {
+      "filters": [
+        { "index": "0", "name": "none", "value": "0" },
+        { "index": "1", "name": "IIR", "value": "4" },
+        { "index": "2", "name": "sinc-M", "value": "23" },
+        { "index": "3", "name": "poly-sinc-gauss-long", "value": "40" }
+      ],
+      "shapers": [
+        { "index": "0", "name": "none", "value": "0" },
+        { "index": "1", "name": "NS9", "value": "5" },
+        { "index": "2", "name": "TPDF", "value": "12" }
+      ],
+      "rates": [
+        { "index": "0", "rate": "0" },
+        { "index": "1", "rate": "44100" },
+        { "index": "2", "rate": "48000" },
+        { "index": "3", "rate": "88200" },
+        { "index": "4", "rate": "96000" }
+      ],
+      "junk_filters": [
+        { "index": "0", "name": "none", "value": "0" },
+        { "index": "1", "name": "slow", "value": "1" },
+        { "index": "2", "name": "fast", "value": "2" }
+      ]
+    },
+    "sdm": {
+      "filters": [
+        { "index": "0", "name": "poly-sinc-gauss-long", "value": "38" },
+        { "index": "1", "name": "sinc-M", "value": "23" },
+        { "index": "2", "name": "IIR", "value": "6" }
+      ],
+      "shapers": [
+        { "index": "0", "name": "DSD5", "value": "7" },
+        { "index": "1", "name": "ASDM7", "value": "9" }
+      ],
+      "rates": [
+        { "index": "0", "rate": "0" },
+        { "index": "1", "rate": "2822400" },
+        { "index": "2", "rate": "5644800" }
+      ],
+      "junk_filters": [
+        { "index": "0", "name": "none", "value": "0" },
+        { "index": "1", "name": "slow", "value": "1" },
+        { "index": "2", "name": "fast", "value": "2" }
+      ]
+    }
+  }
+}

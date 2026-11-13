@@ -1,12 +1,11 @@
-"""Read-only spur survey: per-track spur candidates read from 20 kHz up, and a draft relabel under the new scheme.
+"""Read-only spur survey: per-track spur candidates read from 20 kHz up, and a draft spur-band label per track.
 
-Every labelled burst is read at four cumulative windows from its own start — 1 s, 2 s, 3 s and the full burst — each
+Every labeled burst is read at four cumulative windows from its own start — 1 s, 2 s, 3 s and the full burst — each
 folded to a per-bin minimum and read through ``junkadvisor``'s own spur curve, but from 20 kHz up rather than
 ``SPUR_MIN_HZ``. A bin at or over 16 dB excess on the full window is a candidate; its partner is a bin within 3 dB of
 it at 44100 or 48000 minus its frequency, the mirror an image or an alias would leave. A candidate with no partner on
-a majority of the track's bursts writes that track's draft label to the spur band from
-``docs/junk-filter-autopilot-resource-20k.md`` section 1, except a ``FAKE`` row, which is flagged ``FAKE?`` for the
-owner instead of overwritten.
+a majority of the track's bursts writes that track's draft label to the spur band, except a ``FAKE`` row, which is
+flagged ``FAKE?`` for the owner instead of overwritten.
 """
 
 from __future__ import annotations
@@ -45,13 +44,13 @@ PARTNER_TOLERANCE_DB = 3.0
 CUMULATIVE_WINDOWS_S = (1.0, 2.0, 3.0)
 IMAGE_TOTALS_HZ = (44_100.0, 48_000.0)
 
-#: Provisional spur band edges, docs section 1: a spur below the first edge is SPUR20, and so on up to SPUR50.
+#: Provisional spur band edges: a spur below the first edge is SPUR20, and so on up to SPUR50.
 SPUR_BAND_EDGES = ((27_500.0, "SPUR20"), (37_500.0, "SPUR30"), (47_500.0, "SPUR40"))
 SPUR50 = "SPUR50"
 
 
 def spur_label_for(freq: float) -> str:
-    """Return the provisional spur label for a frequency under the docs section 1 band edges."""
+    """Return the provisional spur label for a frequency under the band edges."""
     for edge, label in SPUR_BAND_EDGES:
         if freq < edge:
             return label
@@ -208,7 +207,7 @@ def _track_sections(
         track_named[key] = named
         sections.append(f"## {artist} — {album} — {track}")
         sections.append("")
-        sections.extend(_track_table(label or "unlabelled", len(stamps_here), rows))
+        sections.extend(_track_table(label or "unlabeled", len(stamps_here), rows))
     return sections, track_named
 
 
@@ -260,14 +259,14 @@ def _draft(
 
 
 def main() -> None:
-    """Read every labelled burst once, write the per-track spur report and the draft relabel."""
+    """Read every labeled burst once, write the per-track spur report and the draft relabel."""
     tracks = load_tracks()
     by_album, by_track = load_labels()
     stamps = sorted(p.stem for p in DER.glob("*.npy"))
     owner = {s: owner_label(s, tracks, by_album, by_track) for s in stamps}
-    labelled = [s for s in stamps if owner[s] is not None]
-    graded, _dropped = collapse_overlaps(labelled)
-    print(f"derived bursts={len(stamps)} labelled={len(labelled)} graded={len(graded)}", flush=True)
+    labeled = [s for s in stamps if owner[s] is not None]
+    graded, _dropped = collapse_overlaps(labeled)
+    print(f"derived bursts={len(stamps)} labeled={len(labeled)} graded={len(graded)}", flush=True)
 
     burst_data = _read_bursts(graded, owner)
     groups = _group_by_track(graded, tracks)
@@ -290,7 +289,7 @@ def main() -> None:
 
     sections = ["# Junkburst spur survey", "", "Produced by `python scripts/junkburst/features/jbspur.py`.", ""]
     sections.extend(track_sections)
-    sections.append("## Relabelled")
+    sections.append("## Relabeled")
     sections.append("")
     sections.extend(changes or ["(no row's label changed)"])
     SPUR_REPORT.write_text("\n".join(sections) + "\n", encoding="utf-8")

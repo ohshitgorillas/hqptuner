@@ -26,21 +26,8 @@ import re
 import zipfile
 
 from hqptuner.conf.xmledit import GroundingError
-
-# Attribute → allowed value domain (manual §1.2). ``nblocks`` is an integer
-# (0 = default, else 1..N); its bound is validated by the caller/UI, not here.
-ENGINE_DOMAINS: dict[str, tuple[str, ...]] = {
-    "cuda": ("0", "1", "convolution"),
-    "multicore": ("auto", "0", "1"),
-    "ecores": ("default", "pool", "filter"),
-}
-
-# Integer-valued engine attributes (validated as ints, not against a value set).
-# ``nblocks``: 0 = auto from CPU cache, else blocks per cycle.
-# ``cuda_dev`` / ``cuda_cdev``: CUDA device ids for general DSP and for
-# convolution respectively; -1 = automatic selection (readme §1.2). Setting them
-# to different GPUs splits the workload across two cards (manual §4.7).
-ENGINE_INTS: tuple[str, ...] = ("nblocks", "cuda_dev", "cuda_cdev")
+from hqptuner.fields.model import Choice, Integer
+from hqptuner.fields.query import engine_domains
 
 _ENGINE_TAG = re.compile(rb"<engine\b[^>]*>")
 
@@ -101,7 +88,7 @@ def read_engine_attrs(xml: bytes) -> dict[str, str]:
         return {}
     tag = m.group(0)
     out: dict[str, str] = {}
-    for attr in (*ENGINE_DOMAINS, *ENGINE_INTS):
+    for attr in engine_domains():
         am = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', tag)
         if am:
             out[attr] = am.group(1).decode()
@@ -153,8 +140,8 @@ def running_config_name(names: list[str], active: str | None = None) -> str | No
 
     Normally ``hqplayerd.xml``. But when a named profile is the active one, the daemon
     writes the live config to a root-level ``<Profile>.xml`` and omits
-    ``hqplayerd.xml`` entirely (observed on 6.0.4: a preset-active ``/backup`` has
-    ``Speakers.xml`` at the root, no ``hqplayerd.xml``, protocol.md §3.6).
+    ``hqplayerd.xml`` entirely: a ``/backup`` taken with ``Speakers`` active has
+    ``Speakers.xml`` at the root and no ``hqplayerd.xml``.
 
     ``active`` is the DAEMON's active-profile label (``ConfigurationGet``, kept on
     the manager as ``active_config``) — the daemon names that member after its own
@@ -251,7 +238,7 @@ def with_boot_member(zip_bytes: bytes, active: str | None = None) -> bytes:
     """Return ``zip_bytes`` with its working config also carried as ``hqplayerd.xml``, the member a restore boots.
 
     A restore lands the daemon on ``[default]`` and discards an edit to a root
-    ``<Profile>.xml`` (docs/protocol.md §3.6), so an archive built while a named
+    ``<Profile>.xml``, so an archive built while a named
     profile is active has to write its edits where the restart reads them. An
     archive that already has ``hqplayerd.xml``, or has no working config, is
     returned unchanged.
@@ -334,20 +321,22 @@ class NotAnEditableAttributeError(ValueError):
 class AttributeValueNotInDomainError(ValueError):
     """A staged value for an editable attribute falls outside that attribute's allowed domain."""
 
-    def __init__(self, *, attr: str, value: str) -> None:
+    def __init__(self, *, attr: str, value: str, domain: Choice) -> None:
         """Render the wording naming the attribute, the rejected value, and the domain it must fall in."""
-        super().__init__(f"{attr}={value!r} not in {ENGINE_DOMAINS[attr]}")
+        super().__init__(f"{attr}={value!r} not in {domain.values}")
 
 
 def _validate_one(attr: str, value: str) -> None:
-    if attr in ENGINE_INTS:
-        if not value.lstrip("-").isdigit():
-            raise NotAnIntegerAttributeError(attr=attr, value=value)
-        return
-    if attr not in ENGINE_DOMAINS:
+    domain = engine_domains().get(attr)
+    if domain is None:
         raise NotAnEditableAttributeError(attr=attr)
-    if value not in ENGINE_DOMAINS[attr]:
-        raise AttributeValueNotInDomainError(attr=attr, value=value)
+    if domain.accepts(value):
+        return
+    match domain:
+        case Integer():
+            raise NotAnIntegerAttributeError(attr=attr, value=value)
+        case Choice():
+            raise AttributeValueNotInDomainError(attr=attr, value=value, domain=domain)
 
 
 def validate_overrides(overrides: dict[str, str]) -> None:

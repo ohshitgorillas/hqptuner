@@ -1,24 +1,24 @@
 // The app's one "ask the user something" affordance — the replacement for the
 // native prompt()/confirm() dialogs, which are unstyleable against the rest of
-// the app, not gracefully cancellable, and blocked outright in some embedded
+// the app, not gracefully cancelable, and blocked outright in some embedded
 // browsers.
 //
 // A question is a promise: askName / askConfirm resolve when the UI calls
 // answer() or cancel(), so a caller reads exactly like the native call it
 // replaces. `owner` names the component that asked, so the field or the confirm
-// line renders INLINE where the action was taken (the pending bar, the header)
+// line renders INLINE where the action was taken (a drawer, a record builder)
 // instead of floating over the page. One question is open at a time.
 import { signal } from "@preact/signals";
 
-// The open question — { owner, kind, message, cancelled, refused } — or null.
+// The open question — { owner, kind, message, canceled, refused } — or null.
 /**
  * @typedef {object} Question
- *   The one open question. `cancelled` is what "no answer" resolves to for this
+ *   The one open question. `canceled` is what "no answer" resolves to for this
  *   kind: null for a name or a choice set, false for a confirm.
  * @property {string} owner component that asked — where the question renders
  * @property {string} kind name | confirm | choices | warn
  * @property {string} message
- * @property {string | boolean | null} cancelled
+ * @property {string | boolean | null} canceled
  * @property {boolean} refused a blank name was submitted and not committed
  * @property {ChoiceOption[]} [options] choices only
  * @property {boolean} [named] choices only — the panel also asks for a name
@@ -49,26 +49,16 @@ function close(value) {
  * @param {string} owner
  * @param {string} kind
  * @param {string} message
- * @param {string | boolean | null} cancelled
+ * @param {string | boolean | null} canceled
  * @returns {Promise<unknown>}
  */
-function open(owner, kind, message, cancelled) {
+function open(owner, kind, message, canceled) {
   cancel(); // a second question supersedes the first rather than stranding it
   return new Promise((resolve) => {
     settle = resolve;
-    question.value = { owner, kind, message, cancelled, refused: false };
+    question.value = { owner, kind, message, canceled, refused: false };
   });
 }
-
-// Ask for a name. Resolves the trimmed name, or null if the user backs out.
-/** Open a name question, resolving the trimmed name or null if the user backs out. */
-export const askName = (/** @type {string} */ owner, /** @type {string} */ message) =>
-  open(owner, "name", message, null);
-
-// Ask for a yes/no. Resolves true only on an explicit confirm.
-/** Open a yes/no question, resolving true only on an explicit confirm. */
-export const askConfirm = (/** @type {string} */ owner, /** @type {string} */ message) =>
-  open(owner, "confirm", message, false);
 
 // Warn before a hazardous edit. Same yes/no contract as a confirm, but the UI
 // renders it as a top-layer popover with explicit consequence wording instead
@@ -93,45 +83,6 @@ export function askWarn(owner, message, labels = WARN_LABELS) {
   const q = open(owner, "warn", message, false);
   question.value = { ...question.value, confirm: labels.confirm, decline: labels.decline };
   return q;
-}
-
-// Ask for a subset of options: [{value, label, checked, disabled}]. Resolves
-// the checked values in option order, or null if the user backs out. A disabled
-// option's checked state is pinned — rendered for honesty, immune to clicks.
-// With `{name: true}` the panel also carries a name field and resolves
-// {name, values} instead; a blank name is refused the way askName refuses it.
-/**
- * Open a multiple-choice question, resolving the checked values in option order
- * (or {name, values} when a name is asked for too) or null if the user backs out.
- *
- * @param {string} owner
- * @param {string} message
- * @param {ChoiceOption[]} options
- * @param {{ name?: boolean }} [opts]
- * @returns {Promise<unknown>}
- */
-export function askChoices(owner, message, options, opts = {}) {
-  const q = open(owner, "choices", message, null);
-  question.value = { ...question.value, options: options.map((o) => ({ ...o })), named: !!opts.name };
-  return q;
-}
-
-// Flip one choice by value. Disabled options stay as offered.
-/**
- * Flip one choice's checked state by value, leaving disabled options as offered.
- *
- * @param {string} value
- * @returns {void}
- */
-export function toggleChoice(value) {
-  const q = question.value;
-  if (!q || q.kind !== "choices") return;
-  question.value = {
-    ...q,
-    options: q.options.map((/** @type {ChoiceOption} */ o) =>
-      o.value === value && !o.disabled ? { ...o, checked: !o.checked } : o,
-    ),
-  };
 }
 
 // Commit the answer. A blank or whitespace-only name is REFUSED: nothing is
@@ -167,17 +118,9 @@ export function answer(value) {
   else question.value = { ...q, refused: true };
 }
 
-// Withdraw a standing refusal — the user is typing, so the complaint about an
-// empty field has stopped being true.
-/** Clear a standing blank-name refusal, called as the user types. */
-export function clearRefusal() {
-  const q = question.value;
-  if (q && q.refused) question.value = { ...q, refused: false };
-}
-
 // Withdraw the question, resolving whatever "no answer" means for its kind.
 /** Withdraw the open question, resolving whatever "no answer" means for its kind. */
 export function cancel() {
   const q = question.value;
-  if (q) close(q.cancelled);
+  if (q) close(q.canceled);
 }

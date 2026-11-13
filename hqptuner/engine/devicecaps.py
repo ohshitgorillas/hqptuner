@@ -6,7 +6,7 @@ API has no capability command — ``GetRates`` answers for the loaded chain, and
 only while something is playing. What the daemon *does* do is announce, on every
 endpoint connect, the device it opened followed by one line per format that
 device accepts. That announcement is the only capability source there is, so the
-rate menus take it from the log (the same ``GET /log`` lane the System tab tails).
+rate menus take it from the log (the same ``GET /log`` lane the Logging drawer tails).
 
 Absence of evidence narrows nothing. An unreadable log, logging switched off, no
 announcement, or an announcement naming a device other than the selected one all
@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from hqptuner.conf.httpforms import ConfigForm
+from hqptuner.fields import query
 
 
 @dataclass(frozen=True)
@@ -38,15 +39,6 @@ _DEVICE_RE = re.compile(r"output endpoint '([^']*)' : '([^']*)'")
 # bits/channels fields are matched but not kept: the menus choose a rate, and a
 # device announcing a rate at all is what makes that rate reachable.
 _FORMAT_RE = re.compile(r"output (?:\w+ )?format: (\d+)/\d+/\d+ \[(pcm|dsd)\]")
-# The form field naming the device each backend drives. Combo is deliberately
-# absent: it drives both devices and the daemon announces one, so which device's
-# limits bind is unknown and combo narrows nothing.
-_DEVICE_FIELD = {
-    "network": "net_device",
-    "alsa": "alsa_device",
-    "asio": "asio_device",
-    "wasapi": "wasapi_device",
-}
 
 
 def parse_caps(text: str) -> DeviceCaps | None:
@@ -80,7 +72,7 @@ def _caps(device: str | None, formats: list[tuple[str, str]]) -> DeviceCaps | No
 
 def _device(values: dict[Any, Any]) -> str | None:
     """Return the device one view's field values name — its backend's own device field, or None."""
-    field = _DEVICE_FIELD.get(str(values.get("backend") or ""))
+    field = query.device_field(str(values.get("backend") or ""))
     if field is None:
         return None
     return str(values.get(field) or "") or None
@@ -105,10 +97,10 @@ def agreed_device(config_form: ConfigForm | None, file_config: dict[str, str] | 
     so loading a preset leaves a window where they describe different devices —
     the file already carries the new preset's, the form still reports the one
     before it. A capability read in that window describes one generation's device
-    beside another generation's settings, which is how a reachable rate came to
-    be corrected down to a device the user had just switched away from.
+    beside another generation's settings, so a reachable rate is corrected down
+    to a device the user had just switched away from.
 
-    The file view speaks the same form-field names (conf/presetconf.FIELD_MAP),
+    The file view speaks the same form-field names (the field register's),
     so the two are compared directly. A file view that is absent, or silent about
     the device, is not a disagreement: there is only one answer and the form
     carries it. A file view naming ``combo`` is not silence — it names two
@@ -122,7 +114,8 @@ def agreed_device(config_form: ConfigForm | None, file_config: dict[str, str] | 
     backend = str(values.get("backend") or "")
     if not backend:
         return selected
-    if backend not in _DEVICE_FIELD:
+    # combo drives both devices and the daemon announces one, so which limits bind is unknown and nothing narrows
+    if query.device_field(backend) is None:
         return None
     other = _device(values)
     return selected if other is None or other == selected else None

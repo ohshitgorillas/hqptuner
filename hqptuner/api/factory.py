@@ -4,8 +4,9 @@ import logging
 
 from fastapi import FastAPI
 
-from hqptuner.api import errors
+from hqptuner.api import errors, push
 from hqptuner.api.lifespan import make_lifespan
+from hqptuner.api.push import PushFeed
 from hqptuner.api.routes import (
     apply,
     autopilot,
@@ -18,26 +19,40 @@ from hqptuner.api.routes import (
     meter,
     narrowing,
     pending,
-    preset,
     status,
     volume,
 )
 from hqptuner.api.routes.audit import audit_router
 from hqptuner.api.routes.matrix import matrix, matrixmodes
-from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
+from hqptuner.clock import Clock
 from hqptuner.config import Config
-from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.pending import PendingStore
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
 from hqptuner.presets.store.jsonfile import StoreCorruptError
-from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.narrowing import NarrowingStore
 
 log = logging.getLogger(__name__)
+
+
+def _staging(manager: ConnectionManager, static: StaticMetadata) -> tuple[PendingStore, PushFeed]:
+    """Build the staging buffer and the push feed, each wired to the other.
+
+    The buffer tells the feed of every write to it, and the manager's readings of every move of the Engine view or the
+    File readings; the feed reads the buffer back as its ``pending`` event.
+    """
+
+    def poke() -> None:
+        feed.poke()
+
+    store = PendingStore(on_change=poke)
+    feed = PushFeed(push.sources(manager, static, store))
+    manager.readings.on_change = poke
+    return store, feed
 
 
 def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI:
@@ -59,36 +74,33 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     layer_onto_config(cfg, record)
     http_client = build_http_client(cfg)
     if http_client is None:
-        log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
+        log.warning(
+            "no hqplayerd credentials — /api/config/refresh unavailable until POST /api/connection carries a pair"
+        )
     manager = ConnectionManager(cfg, http_client, clock)
 
-    app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager))
+    store, feed = _staging(manager, static)
+    app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager, feed))
     errors.install(app)
     app.state.manager = manager
     app.state.config = cfg
     app.state.static = static
     app.state.connections = connections
-    app.state.pending = PendingStore()
+    app.state.pending = store
+    app.state.push = feed
     app.state.audit = manager.audit
     if manager.audit.enabled:
         app.include_router(audit_router(manager.audit))
-    app.state.live_presets = LivePresetStore(cfg.live_preset_file)
     app.state.favorites = FavoriteStore(cfg.favorites_file)
     app.state.descriptions = DescriptionStore(cfg.description_file, now=manager.clock.now)
     app.state.narrowing = NarrowingStore(cfg.narrowing_file)
     # One instance, not two: the prune on preset delete lives with the preset
     # operations, so the routes read the store that delete writes.
     app.state.matrix_modes = manager.presetops.matrix_modes
-    # Both `/preset/{name:path}` routes are greedy so that an empty or
-    # separator-bearing name reaches the store's name rule instead of falling
-    # past every route to the router's own 404. Their registration order carries
-    # nothing: they differ by method, and a route whose path matches but whose
-    # method does not is a partial match, never a full one.
     app.include_router(status.router)
     app.include_router(config.router)
     app.include_router(apply.router)
     app.include_router(volume.router)
-    app.include_router(preset.router)
     app.include_router(pending.router)
     app.include_router(matrix.router)
     app.include_router(livepreset.router)
@@ -100,5 +112,6 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     app.include_router(discovery.router)
     app.include_router(connection.router)
     app.include_router(meter.router)
+    app.include_router(push.router)
     mount_spa(app, cfg)
     return app

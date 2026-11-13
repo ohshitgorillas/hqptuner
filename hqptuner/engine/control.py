@@ -1,6 +1,6 @@
 """HQPlayer Control API (TCP 4321) client.
 
-Wire behavior per docs/protocol.md §1/§4: each request is a complete XML
+Wire behavior: each request is a complete XML
 document; responses are XML documents with newline as a flush hint, so the
 receiver accumulates and parses until a document is valid. Lenient in both
 directions: bare '&' in attribute values is re-escaped before parsing
@@ -25,10 +25,12 @@ from hqptuner.engine.controlerrors import (
     ControlConnectionFailedError,
     ControlError,
     ControlTimeoutError,
+    DialOutcome,
     ResponseTooLargeError,
     StateMismatchError,
+    dial_outcome,
 )
-from hqptuner.engine.frames import parse_frame
+from hqptuner.engine.frames import FrameBuffer
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ class Reply:
 
     @property
     def ok(self) -> bool:
-        """Whether the daemon accepted it: result="OK", or absent (SetAdaptiveVolume quirk, protocol.md §6)."""
+        """Whether the daemon accepted it: result="OK", or absent, as SetAdaptiveVolume replies with no result."""
         return self.result is None or self.result == "OK"
 
     def refusal(self) -> CommandRefusedError | None:
@@ -102,7 +104,7 @@ class ControlClient:
     ):
         """Record where to dial and how long to wait; no socket is opened until ``connect``.
 
-        ``deadline`` is what every connect, send and read waits under (docs/testing.md rule 7).
+        ``deadline`` is what every connect, send and read waits under.
         """
         self._host = host
         self._port = port
@@ -111,15 +113,27 @@ class ControlClient:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
+        self._dial_outcome = DialOutcome(address_found=None)
+
+    @property
+    def dial_outcome(self) -> DialOutcome:
+        """Return address evidence from the latest connect attempt, inconclusive before any attempt."""
+        return self._dial_outcome
 
     async def connect(self) -> None:
         """Open the TCP connection and turn on SO_KEEPALIVE so a silently dead daemon surfaces as a socket error."""
         # a refused reconnect repeats every poll while HQPlayer is down, and the
         # manager already logs the drop once
+        self._dial_outcome = DialOutcome(address_found=None)
         with self._as_control_error("connect", level=logging.DEBUG):
-            reader, writer = await self._deadline.wait_for(
-                asyncio.open_connection(self._host, self._port), self._timeout
-            )
+            try:
+                reader, writer = await self._deadline.wait_for(
+                    asyncio.open_connection(self._host, self._port), self._timeout
+                )
+            except OSError as exc:
+                self._dial_outcome = dial_outcome(exc)
+                raise
+        self._dial_outcome = dial_outcome(None)
         self._reader, self._writer = reader, writer
         sock = writer.get_extra_info("socket")
         if sock is not None:
@@ -185,7 +199,7 @@ class ControlClient:
                     return await self._recv_document(command)
                 except (TimeoutError, OSError, ControlError):
                     # The daemon answers every command it accepts, unknown ones
-                    # included (protocol.md §4), so a reply given up on is a reply
+                    # included, so a reply given up on is a reply
                     # still to come. Left on an open socket it becomes the answer
                     # the NEXT command reads: `set_command` checks the root's
                     # `result` and not which element it is, so a stale OK passes
@@ -200,19 +214,15 @@ class ControlClient:
         reader = self._reader
         if reader is None:
             raise self._unreachable()
-        data = b""
+        buffer = FrameBuffer(command)
         while True:
             chunk = await self._deadline.wait_for(reader.read(65536), self._timeout)
             if not chunk:
                 raise ConnectionClosedError()
-            data += chunk
-            text = data.decode("utf-8", errors="replace")
-            body = text.split("?>", 1)[-1].strip() if "?>" in text else text.strip()
-            if body:
-                frame = parse_frame(body, command)
-                if frame is not None:
-                    return frame
-            if len(data) > MAX_RESPONSE:
+            frame = buffer.feed(chunk)
+            if frame is not None:
+                return frame
+            if len(buffer) > MAX_RESPONSE:
                 raise ResponseTooLargeError(command=command, limit=MAX_RESPONSE)
 
     # --- typed helpers -------------------------------------------------
@@ -237,7 +247,7 @@ class ControlClient:
         return (await self.request("<ConfigurationGet/>")).attrib.get("value", "")
 
     async def get_state(self) -> dict[str, str]:
-        """Run `<State/>` for the settings snapshot — the primary readback, settings as list indices (protocol.md §6).
+        """Run `<State/>` for the settings snapshot — the primary readback, settings as list indices.
 
         Numeric attributes are list indices into the corresponding enumeration, not enum IDs; `volume` is dB and
         `matrix_profile` a name. A refused State is no snapshot, so it raises HQPlayer's refusal instead.
@@ -262,16 +272,15 @@ class ControlClient:
     async def get_volume_range(self) -> dict[str, str]:
         """`<VolumeRange/>` -> {min, max, enabled, adaptive} (dB doubles + flags).
 
-        The authority for live-volume slider bounds and whether volume control is active at all (protocol.md §6,
-        "Volume commands").
+        The authority for live-volume slider bounds and whether volume control is active at all.
         """
         return await self._attrs("<VolumeRange/>")
 
     async def get_status(self) -> tuple[dict[str, str], dict[str, str] | None]:
         """Run one-shot `<Status subscribe="0"/>`, returning the root attributes and the `metadata` child's, if present.
 
-        Status reports the *active* filter/shaper/mode as display strings where State reports configured list indices
-        (protocol.md §6); `metadata` is present only while a track is loaded.
+        Status reports the *active* filter/shaper/mode as display strings where State reports configured list indices;
+        `metadata` is present only while a track is loaded.
         """
         root = await self.request('<Status subscribe="0"/>')
         meta = root.find("metadata")
@@ -280,15 +289,15 @@ class ControlClient:
     async def set_matrix_profile(self, name: str) -> None:
         """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty = the unnamed [Default]).
 
-        Probe-verified on 6.0.4: unauthenticated, zero reload, playback uninterrupted; memory-only, reverts on daemon
-        restart (docs/matrix-spec.md probe findings).
+        Unauthenticated, zero reload, playback uninterrupted; memory-only, reverts on daemon
+        restart.
         """
         await self.set_command("MatrixSetProfile", value=name)
 
     async def get_matrix_profiles(self) -> list[str]:
         """`<MatrixListProfiles/>` -> saved matrix profile names (`MatrixProfile` children).
 
-        Verified live on 6.0.4 (docs/matrix-spec.md probe findings): unauthenticated, live lane, no reload.
+        Unauthenticated, live lane, no reload.
         """
         root = await self.request("<MatrixListProfiles/>")
         return [item.attrib.get("name", "") for item in root]
@@ -308,7 +317,7 @@ class ControlClient:
     async def send(self, element_name: str, **attrs: str) -> Reply:
         """Send one setter and return the daemon's answer to it, accepted or refused.
 
-        Note result="OK" is not proof of application — callers verify by State readback (protocol.md §6 caveat).
+        Note result="OK" is not proof of application — callers verify by State readback.
         """
         attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())
         root = await self.request(f"<{element_name}{attr_str}/>")
@@ -320,13 +329,12 @@ class ControlClient:
         if refused is not None:
             raise refused
 
-    # --- typed setters (index domain; protocol.md §6) ------------------
+    # --- typed setters (index domain) ---------------------------------
     #
     # Only the settings whose call is more than "one value attribute, one State
     # attribute" live here. The uniform ones (mode, shaper, rate, junk filter,
-    # adaptive volume) are rows in ``writer.SETTINGS`` driving ``set_command``
-    # directly — a wrapper per setting was a second place for the element name
-    # to be spelled, and spelling it twice is how it drifts.
+    # adaptive volume) are the register's ``Setter`` rows (``fields/register.py``),
+    # sent through ``send`` with no wrapper per setting.
 
     async def send_filter(self, nx: str, x1: str | None = None) -> Reply:
         """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value, 1x=value1x).
@@ -365,7 +373,7 @@ class ControlClient:
     async def state_mismatch(self, expected: dict[str, str]) -> CommandError | None:
         """Re-read State and return HQPlayer's refusal of the read, else the mismatch against ``expected``.
 
-        None when every attribute matches. result="OK" is not proof of application (protocol.md §6) — this is.
+        None when every attribute matches. result="OK" is not proof of application — this is.
         """
         state, refused = await self.state_readback()
         if refused is not None:

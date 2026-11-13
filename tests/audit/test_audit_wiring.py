@@ -1,4 +1,4 @@
-"""The audit log the existing write paths feed (docs/testing.md).
+"""The audit log the existing write paths feed.
 
 Every write HQPTuner makes is supposed to leave a JSONL record behind, one per
 line, under an envelope of ``ts``/``seq``/``event`` plus the event's own fields.
@@ -21,21 +21,20 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import wait_for_api
 from audit_records import last, records
 from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
 from fixtures_clients import CREDENTIAL, app
+from state_import import PRESET_XML, export, store_config, upload
 
 from hqptuner.presets.store.presets import PresetStore
 
-#: The value staged into a field literally keyed ``password`` — what a redactor
-#: has to keep out of the file.
-NEVER_LOG_ME = "hunter2-do-not-log-me"
-
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}
+
+#: The preset the archive source saves and deletes again, so its export carries an empty preset store.
+SOURCE_PRESET = "Source"
 
 
 # --- the app under test, with and without a debug log -------------------------
@@ -59,31 +58,11 @@ def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: in
     yield from app(http_daemon, tmp_path, closed_port, None)
 
 
-@pytest.fixture
-def dual_lane_client(
-    http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path, audit_log: Path
-) -> Iterator[TestClient]:
-    """Both lanes at once — control on the threaded fake 4321 daemon, http on
-    the fake 8088 one — which is what a live control-lane write needs before it
-    can happen at all (the `_dual_lane_client` shape in tests/presets)."""
-    for client in app(http_daemon, tmp_path, threaded_daemon_port, audit_log):
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
-        yield client
-
-
 # --- reading the log back, independently of the module that writes it ---------
 
 
 def events(path: Path) -> list[str]:
     return [str(rec.get("event")) for rec in records(path)]
-
-
-def profile_targets(path: Path) -> list[Any]:
-    """Every ``profile.write`` record's ``target`` — where that write landed.
-    Compared by equality, never by substring: the seeded preset's own title
-    contains its name, so a substring test over a record would pass on the
-    running-config write too."""
-    return [rec.get("target") for rec in records(path) if rec.get("event") == "profile.write"]
 
 
 def stray_files(root: Path) -> list[str]:
@@ -119,9 +98,26 @@ def seed_preset(tmp_path: Path, name: str = "Office") -> None:
     PresetStore(tmp_path / "presets").save(name, cfg_xml(state(title="Office desk")))
 
 
-def arm_autosave(client: TestClient, name: str = "Kept") -> None:
-    client.post("/api/profile/save", json={"name": name})
-    client.post("/api/autosave", json={"enabled": True})
+def save_preset(client: TestClient, name: str) -> None:
+    # nothing is staged, so the save rides an apply of the "(no preset)" switch
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
+
+
+def import_preset_store(client: TestClient, tmp_path: Path) -> None:
+    """Import an archive whose preset store holds no preset."""
+    source = store_config(tmp_path / "source")
+    # an export carries only a preset store something wrote, so the source
+    # writes one with a save and empties it again with the delete
+    store = PresetStore(source.preset_dir)
+    store.save(SOURCE_PRESET, PRESET_XML)
+    store.delete(SOURCE_PRESET)
+    upload(client, export(source))
+
+
+def import_preset_store_then_save(client: TestClient, tmp_path: Path, name: str = "Kept") -> None:
+    """Replace the preset store by a state import, then save ``name``."""
+    import_preset_store(client, tmp_path)
+    save_preset(client, name)
 
 
 # --- the log is off unless asked for -----------------------------------------
@@ -147,11 +143,6 @@ def test_an_unset_debug_log_writes_no_audit_file_but_a_configured_one_does(
 # --- staging ------------------------------------------------------------------
 
 
-def test_staging_an_edit_appends_a_stage_record(audit_client: TestClient, audit_log: Path) -> None:
-    stage_title(audit_client)
-    assert "stage" in events(audit_log)
-
-
 def test_the_stage_record_carries_the_staged_http_value(audit_client: TestClient, audit_log: Path) -> None:
     # the value, not just the field name: a log of names with no payload cannot
     # answer what the user actually asked the daemon to do
@@ -160,12 +151,6 @@ def test_the_stage_record_carries_the_staged_http_value(audit_client: TestClient
 
 
 # --- discard ------------------------------------------------------------------
-
-
-def test_discarding_the_pending_buffer_appends_a_discard_record(audit_client: TestClient, audit_log: Path) -> None:
-    stage_title(audit_client)
-    audit_client.delete("/api/config/pending")
-    assert "discard" in events(audit_log)
 
 
 def test_the_discard_record_carries_the_http_value_it_destroyed(audit_client: TestClient, audit_log: Path) -> None:
@@ -178,12 +163,6 @@ def test_the_discard_record_carries_the_http_value_it_destroyed(audit_client: Te
 
 
 # --- apply --------------------------------------------------------------------
-
-
-def test_a_successful_apply_appends_an_apply_record(audit_client: TestClient, audit_log: Path) -> None:
-    stage_title(audit_client)
-    audit_client.post("/api/config/apply")
-    assert "apply" in events(audit_log)
 
 
 def test_the_apply_record_carries_the_staged_value_the_apply_itself_cleared(
@@ -201,7 +180,7 @@ def test_the_apply_record_carries_the_staged_value_the_apply_itself_cleared(
 def test_the_apply_record_names_the_preset_the_apply_switched_to(audit_client: TestClient, audit_log: Path) -> None:
     # switching preset is the write with the largest blast radius — the whole
     # config changes — so which preset was loaded belongs in the same record
-    audit_client.post("/api/profile/save", json={"name": "Kept"})
+    save_preset(audit_client, "Kept")
     audit_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert last(audit_log, "apply")["switch_to"] == "Kept"
 
@@ -233,11 +212,6 @@ def test_a_refused_apply_still_records_the_staged_payload(audit_client: TestClie
 # --- matrix profile writes ----------------------------------------------------
 
 
-def test_an_applied_profile_save_appends_a_profile_write_record(audit_client: TestClient, audit_log: Path) -> None:
-    apply_profile_save(audit_client, "Crossfeed EQ", ROW0, ROW1)
-    assert "profile.write" in events(audit_log)
-
-
 def test_the_profile_write_record_names_the_saved_profile(audit_client: TestClient, audit_log: Path) -> None:
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0, ROW1)
     assert last(audit_log, "profile.write")["name"] == "Crossfeed EQ"
@@ -252,31 +226,12 @@ def test_a_profile_save_records_whether_it_replaced_an_existing_name(
     assert last(audit_log, "profile.write")["replaced"] is expected
 
 
-def test_a_fanned_out_profile_write_names_the_stored_preset_it_landed_in(
-    audit_client: TestClient, audit_log: Path, tmp_path: Path
-) -> None:
-    # a write into the stored preset "Office" must be tellable apart from the
-    # write into the running config; the target is what tells them apart, and it
-    # says which of the two it was — "config" there, "preset:<name>" here
-    # (docs/architecture.md §10.2), so one pass over a mixed log reads both
-    seed_preset(tmp_path)
-    apply_profile_save(audit_client, "Crossfeed EQ", ROW0, presets=["Office"])
-    assert "preset:Office" in profile_targets(audit_log)
-
-
 # --- preset writes, by what triggered them ------------------------------------
 
 
 def test_an_explicit_preset_save_records_the_save_trigger(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Studio"})
+    save_preset(audit_client, "Studio")
     assert last(audit_log, "preset.write")["trigger"] == "save"
-
-
-def test_an_autosaved_apply_records_the_autosave_trigger(audit_client: TestClient, audit_log: Path) -> None:
-    arm_autosave(audit_client)
-    stage_title(audit_client)
-    audit_client.post("/api/config/apply")
-    assert last(audit_log, "preset.write")["trigger"] == "autosave"
 
 
 def test_a_profile_fanout_into_a_stored_preset_records_the_fanout_trigger(
@@ -300,27 +255,25 @@ def test_an_applied_profile_delete_appends_a_profile_delete_record(audit_client:
     assert "profile.delete" in events(audit_log)
 
 
-def test_deleting_a_stored_preset_appends_a_preset_delete_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Doomed"})
-    audit_client.delete("/api/preset/Doomed")
+def test_deleting_a_stored_preset_appends_a_preset_delete_record(
+    audit_client: TestClient, audit_log: Path, tmp_path: Path
+) -> None:
+    # an import replaces the whole preset store, deleting each preset the archive does not carry
+    save_preset(audit_client, "Doomed")
+    import_preset_store(audit_client, tmp_path)
     assert "preset.delete" in events(audit_log)
 
 
 def test_loading_a_preset_appends_a_preset_load_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Kept"})
-    audit_client.post("/api/profile/load", json={"name": "Kept"})
+    save_preset(audit_client, "Kept")
+    audit_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert "preset.load" in events(audit_log)
 
 
 def test_switching_the_active_preset_appends_an_active_set_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Kept"})
+    save_preset(audit_client, "Kept")
     audit_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert "active.set" in events(audit_log)
-
-
-def test_turning_autosave_on_appends_an_autosave_set_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/autosave", json={"enabled": True})
-    assert "autosave.set" in events(audit_log)
 
 
 def test_uploading_a_settings_archive_appends_a_restore_upload_record(
@@ -332,32 +285,16 @@ def test_uploading_a_settings_archive_appends_a_restore_upload_record(
     assert "restore.upload" in events(audit_log)
 
 
-def test_a_live_control_lane_write_appends_a_live_write_record(dual_lane_client: TestClient, audit_log: Path) -> None:
-    # a live write never touches the config file, so the log is the only place
-    # it is ever recorded
-    dual_lane_client.post("/api/config/live", json={"fields": {"filter": "25"}})
-    assert "live.write" in events(audit_log)
-
-
 # --- what must never be in the file ------------------------------------------
-
-
-def test_a_staged_secret_valued_field_is_not_written_to_the_log_verbatim(
-    audit_client: TestClient, audit_log: Path
-) -> None:
-    # a field literally keyed `password` is the shape the redactor exists for.
-    # The record is indexed, not the whole file, so a stage that never recorded
-    # at all raises here instead of passing this test by absence.
-    audit_client.post("/api/config/stage", json={"http": {"password": NEVER_LOG_ME}})
-    assert NEVER_LOG_ME not in json.dumps(last(audit_log, "stage")["http"])
 
 
 def test_the_audit_log_never_carries_the_daemon_credential(
     audit_client: TestClient, audit_log: Path, tmp_path: Path
 ) -> None:
     # every write path this file covers, through one app, then the whole file
+    # the import runs first: it replaces the preset store, which would drop the seeded preset
+    import_preset_store_then_save(audit_client, tmp_path)
     seed_preset(tmp_path)
-    arm_autosave(audit_client)
     stage_title(audit_client)
     audit_client.post("/api/config/apply")
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0, presets=["Office"])

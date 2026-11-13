@@ -1,5 +1,4 @@
-"""Shared fixtures over the two fake daemons (docs/testing.md — fakes speak the
-wire protocol, over a real socket).
+"""Shared fixtures over the two fake daemons.
 
 The Control API fake itself is `fake_control`; the port-8088 HTTP fake is
 `fake_http`. The fixture families over them live in the plugin modules
@@ -26,7 +25,7 @@ from typing import Any
 import apps
 import pytest
 from apps import settled
-from fake_control import CommandLog, serve, serve_shared
+from fake_control import CommandHooks, CommandLog, serve, serve_shared
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
@@ -61,8 +60,8 @@ _KEPT_ENVS = frozenset({"HQPTUNER_CHROMIUM"})
 
 @pytest.fixture(scope="session", autouse=True)
 def _no_inherited_environment() -> Iterator[dict[str, str]]:
-    """No test reads a knob the shell happened to export (docs/testing.md rule
-    16), and the suite still knows what that shell said.
+    """No test reads a knob the shell happened to export, and the suite still
+    knows what that shell said.
 
     The suite is run from shells carrying ``HQPTUNER_*`` variables for their own
     reasons — sourced credentials, a hand-set store path, a daemon address — and
@@ -113,7 +112,7 @@ def _no_daemon_but_the_fakes(_no_inherited_environment: dict[str, str]) -> Itera
     The control, 8088 and metering defaults are the ports the host's own hqplayerd serves, and
     the ungated readers (``/about``, ``/log``) fetch from 8088 whether or not a credential is set.
     The alias defaults to a DNS name the start-up probe resolves. Any of these defaults makes a
-    test of the machine it ran on (docs/testing.md rule 16), and the control one can write to it.
+    test of the machine it ran on, and the control one can write to it.
     Each port is held bound and never listened on for the whole session, so a connect to it is
     refused and no later listener can take it. Cases that want a daemon pass its port themselves.
     """
@@ -135,7 +134,7 @@ def clock() -> VirtualClock:
 
 
 #: Invented metadata for the app under test: join and lookup mechanics run on
-#: this, never on the shipped prose (docs/testing.md rule 9).
+#: this, never on the shipped prose.
 METADATA_MIN = Path(__file__).parent / "support" / "fixtures" / "metadata_min"
 
 #: Bytes of a WAVE container before its samples: RIFF form header, a 16-byte
@@ -184,9 +183,9 @@ async def live_manager(daemon: DaemonFactory, clock: VirtualClock) -> AsyncItera
 
     Keyword arguments are the daemon's State overrides — ``rate="2"`` starts the
     engine already pinned, ``mode="2"`` starts it with the SDM chain loaded,
-    ``_deaf="SetMode"`` starts one whose ``SetMode`` answers OK without applying
-    (protocol.md §4: OK is not proof). A case that waits on the manager's own
-    poll loop advances the clock by a ``poll_interval``.
+    ``_deaf="SetMode"`` starts one whose ``SetMode`` answers OK without applying.
+    A case that waits on the manager's own poll loop advances the clock by a
+    ``poll_interval``.
     """
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
 
@@ -255,20 +254,23 @@ def spawn_threaded_daemon(
     log: CommandLog | None = None,
     host: str = "127.0.0.1",
     bind_port: int = 0,
+    *,
+    hooks: CommandHooks | None = None,
 ) -> Iterator[int]:
     # `state` shares ONE dict across connections, as the `daemon` fixture does —
     # how a sync test moves a daemon the app has already connected to; `log`
     # likewise, so a sync test can watch the daemon's side of the wire.
     # `host`/`bind_port` put daemons at two loopback ADDRESSES on one port number,
     # which is what a test of which address the app dials needs; the defaults
-    # keep every existing caller on an ephemeral 127.0.0.1 port.
+    # keep every existing caller on an ephemeral 127.0.0.1 port. `hooks` is
+    # shared like `log`; it needs `state`, as only the shared server runs it.
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
     handler = (
         functools.partial(serve, overrides=overrides, log=log)
         if state is None
-        else functools.partial(serve_shared, state=state, log=log)
+        else functools.partial(serve_shared, state=state, log=log, hooks=hooks)
     )
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
     port: int = server.sockets[0].getsockname()[1]
@@ -300,6 +302,7 @@ async def http_manager_factory(tmp_path: Path, clock: VirtualClock) -> AsyncIter
     and preset directories land in ``tmp_path``, never in the repo.
     """
     clients: list[HttpConfigClient] = []
+    managers: list[ConnectionManager] = []
 
     def build(daemon: dict[str, Any], **overrides: object) -> ConnectionManager:
         http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
@@ -309,9 +312,13 @@ async def http_manager_factory(tmp_path: Path, clock: VirtualClock) -> AsyncIter
             "backup_dir": tmp_path,
             "preset_dir": tmp_path / "presets",
         }
-        return ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
+        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
+        managers.append(manager)
+        return manager
 
     yield build
+    for manager in managers:
+        await manager.aclose()
     for http in clients:
         await http.aclose()
 
@@ -322,13 +329,14 @@ def http_manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, An
     return http_manager_factory(http_daemon)
 
 
-@pytest.fixture
-def clamping_manager(http_manager_factory: ManagerFactory, clamping_http_daemon: dict[str, Any]) -> ConnectionManager:
-    """A manager whose daemon rewrites a setting the user never staged."""
-    return http_manager_factory(clamping_http_daemon)
-
-
 # --- ports and guards for the REST app under test ---------------------------
+
+
+@pytest.fixture(autouse=True)
+def _closed_ports_released() -> Iterator[None]:
+    """Every port ``apps.closed_port`` held for a test is let go once that test and its fixtures are done."""
+    yield
+    apps.release_closed_ports()
 
 
 @pytest.fixture

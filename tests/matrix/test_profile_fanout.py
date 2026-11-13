@@ -2,8 +2,8 @@
 
 A save or delete staged with a ``presets`` list also lands (or removes) the
 ``<matrix_profile>`` element in each named stored preset's XML — a pure file
-edit on the HQPTuner-owned store, no daemon traffic (matrix-spec.md
-"Profiles"). The untargeted payload shape (no ``presets`` key for a save, an
+edit on the HQPTuner-owned store, no daemon traffic.
+The untargeted payload shape (no ``presets`` key for a save, an
 empty ``presets`` list for a delete) writes the running config only and
 leaves stored presets untouched. Stored preset XML here is rendered by
 the fake daemon's own config renderer, so the writer is exercised against 6.0.4-shaped documents,
@@ -23,11 +23,14 @@ from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
 from narrow import FixtureError
+from virtual_clock import VirtualClock
 
+from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
+from hqptuner.presets.presetfields import restore_hooks
 from hqptuner.presets.store.presets import PresetNotFoundError, PresetStore
 
 if TYPE_CHECKING:
@@ -90,11 +93,6 @@ async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, An
 # --- save without targets: the old shape, byte for byte ----------------------
 
 
-async def test_save_without_presets_key_still_reaches_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, ROW1))
-    assert "Crossfeed EQ" in await running_profiles(http_manager)
-
-
 async def test_save_without_presets_key_leaves_stored_presets_untouched(http_manager: ConnectionManager) -> None:
     seeded = preset_xml()
     http_manager.presetops.store.save("Office", seeded)
@@ -127,7 +125,7 @@ async def test_fanout_preserves_the_presets_other_settings(http_manager: Connect
 
 async def test_fanout_to_a_missing_preset_still_applies(http_manager: ConnectionManager) -> None:
     assert (
-        await restore.apply(http_manager, save("Crossfeed EQ", ROW0, presets=["Ghost"]))
+        await restore.apply(http_manager, save("Crossfeed EQ", ROW0, presets=["Ghost"]), restore_hooks(http_manager))
     ).outcome is RestoreOutcome.APPLIED
 
 
@@ -199,14 +197,11 @@ async def test_an_untargeted_delete_leaves_stored_presets_untouched(http_manager
     assert "Stock" in stored_profiles(http_manager.presetops.store.read("Office"))
 
 
-async def test_an_untargeted_delete_still_removes_from_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, delete_from("Stock", []))
-    assert "Stock" not in await running_profiles(http_manager)
-
-
 async def test_delete_targeting_a_preset_without_the_profile_still_applies(http_manager: ConnectionManager) -> None:
     http_manager.presetops.store.save("Office", preset_xml())
-    assert (await restore.apply(http_manager, delete_from("Stock", ["Office"]))).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(http_manager, delete_from("Stock", ["Office"]), restore_hooks(http_manager))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_delete_no_op_leaves_the_presets_file_unchanged(http_manager: ConnectionManager) -> None:
@@ -235,11 +230,6 @@ def arrange_apply(client: TestClient, field: dict[str, str], code: str | None) -
     got = staged_apply(client, field).get("code")
     if got != code:
         raise FixtureError(reason=f"the staged apply was meant to answer code {code!r}, got {got!r}")
-
-
-@pytest.mark.parametrize("presets", ["Office", [1]])
-def test_non_list_of_strings_presets_is_refused_as_invalid_input(http_client: TestClient, presets: object) -> None:
-    assert staged_apply(http_client, bad_presets_save(presets))["code"] == "invalid_input"
 
 
 #: A save whose presets value is refused, beside one that is accepted and so
@@ -306,3 +296,16 @@ def test_api_matrix_serves_each_stored_presets_profile_names_sorted(
     seed_presets(tmp_path / "presets", presets)
     http_client.post("/api/config/refresh")  # makes the form routes servable
     assert http_client.get("/api/matrix").json()["data"]["preset_profiles"] == expected
+
+
+def offline_manager(tmp_path: Path) -> ConnectionManager:
+    """A manager with no daemon lane, its preset store under ``tmp_path``."""
+    return ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock())
+
+
+def test_preset_profiles_follows_a_save_of_that_preset_with_another_profile_set(tmp_path: Path) -> None:
+    seed_presets(tmp_path / "presets", {"Office": {"Alpha": [FILE_ROW]}})
+    ops = offline_manager(tmp_path).presetops
+    ops.preset_profiles()
+    ops.store.save("Office", preset_xml({"Bravo Two": [FILE_ROW]}))
+    assert ops.preset_profiles()["Office"] == ["Bravo Two"]

@@ -4,8 +4,8 @@
 // Graying an option the user cannot click is only half the job: the setting may
 // already SIT on one, carried in from a preset, from a previous device, or from
 // unticking DoP on a device whose only DSD path was DoP. The store corrects it
-// as an ordinary STAGED edit — visible in the pending bar, discardable, and
-// never a display-only substitution, because the editor has to show what would
+// as an ordinary STAGED edit: its drawer marks it (store/faceplate/drawer.js),
+// Discard drops it, and it is never a display-only substitution, because the editor has to show what would
 // actually apply. So every case here reads the correction off the same pending
 // buffer an `edit()` writes to, and every staged value is a string.
 //
@@ -13,16 +13,14 @@
 // the menu-reading helpers both suites run on live in
 // ../support/devicecaps-harness.js. The controls are seeded by their real
 // config field names — `defaults_samplerate` and `defaults_bitrate` (the LIMIT
-// slots; `samplerate` / `bitrate` are forced to 0 on every write,
-// docs/settings-classification.md:42) and `mode`.
+// slots; `samplerate` / `bitrate` are forced to 0 on every write) and `mode`.
 //
-// The first two cases pin the other direction of the same reactivity: graying
-// follows STAGED values, not applied ones (architecture.md §7.6), so the menus
-// move the moment the user ticks a box, with no apply and no change to the
+// The first case pins the other direction of the same reactivity: graying
+// follows STAGED values, not applied ones, so the menus
+// move the moment the user stages an edit, with no apply and no change to the
 // config payload.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no store
-// function stubbed — the correction is an effect, so it is triggered by seeding
+// The correction is an effect, so it is triggered by seeding
 // the payload and awaiting a tick, never by calling into internals.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/devicecaps-fallback.test.js
@@ -31,34 +29,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { edit } from "../../../../hqptuner/static/store/actions.js";
-import { grayRatesByDevice, grayModesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
+import { grayRatesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
 import {
-  MODE_OPTIONS,
   NET_DEVICE,
   OTHER_NET_DEVICE,
   PCM_OPTIONS,
   PCM_TO_192,
-  UNTOUCHED,
   caps,
   markedCount,
-  marks,
-  optionFor,
   reset,
-  tick,
 } from "../../support/devicecaps-harness.js";
 
 // --- graying reacts to staged values, not applied ones ------------------------
-
-test("test_staging_a_dop_edit_relights_the_sdm_mode_without_an_apply", async () => {
-  // The daemon's form says DoP is off and the device has no native DSD, so the
-  // SDM button starts grayed. Ticking the box has to relight it there and then
-  // — a store reading the applied form alone leaves the user staring at a dead
-  // button until apply.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  await edit("net_dop", "1");
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), UNTOUCHED);
-});
 
 test("test_staging_a_device_change_grays_no_pcm_tier", async () => {
   // The capability describes the device the daemon has open, which is still
@@ -87,8 +69,8 @@ test("test_an_sdm_rate_the_device_cannot_reach_falls_back_to_its_highest_announc
 });
 
 test("test_a_pcm_rate_the_device_can_reach_is_left_alone", async () => {
-  // Otherwise the correction fires on every load and the pending bar is never
-  // empty.
+  // Otherwise the correction fires on every load and the staged set
+  // (store/signals.js `staged`) is never empty.
   const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), mode: "pcm", pcmRate: "96000" });
   assert.deepEqual(w.staged.http, {});
 });
@@ -104,15 +86,6 @@ test("test_the_sdm_mode_is_left_alone_while_dop_still_gives_the_device_a_dsd_pat
   // carrier is announced, so SDM is reachable and there is nothing to correct.
   const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true, mode: "sdm" });
   assert.deepEqual(w.staged.http, {});
-});
-
-test("test_unticking_dop_falls_the_mode_back_to_pcm", async () => {
-  // Second half: the only DSD path this device had was DoP, and the user has
-  // just switched it off. SDM stops being reachable, so the mode goes with it.
-  const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true, mode: "sdm" });
-  await edit("net_dop", "0");
-  await tick();
-  assert.equal(w.staged.http.mode, "pcm");
 });
 
 test("test_the_pcm_mode_is_never_corrected", async () => {

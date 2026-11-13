@@ -8,28 +8,22 @@ own ``_get`` and ``_post`` both end in it, so no route can answer a refusal by
 parsing an error page as if it were a form.
 """
 
-from typing import TYPE_CHECKING
-
 import httpx
 
 from hqptuner.errors import HQPTunerError
-
-if TYPE_CHECKING:  # avoid a circular import at runtime — conf is the lowest layer
-    from hqptuner.core.manager import ConnectionManager
 
 # The one sentence every surface reports a refused credential with — the alert
 # row, the apply caption and the log line all carry exactly this. Owner-approved
 # copy, verbatim (CLAUDE.md): reworded only with its own approval.
 AUTH_REFUSED_MESSAGE = (
-    "Authentication rejected: username and password are bad. "
-    "Open the Connection panel from the status pill and try again."
+    "Authentication rejected: username and password are bad. Open connection settings from the knob and try again."
 )
 
 # The one sentence a caller gets when the app was never given HTTP credentials
 # at all — distinct from a credential the daemon refused (AUTH_REFUSED_MESSAGE).
 # Shared by the config-lane error and the API's no-credentials refusal.
 NO_HTTP_CLIENT_MESSAGE = (
-    "HQPTuner has no HQPlayer username and password. Open the Connection panel from the status pill and enter them."
+    "HQPTuner has no HQPlayer username and password. Open connection settings from the knob and enter them."
 )
 
 # What the daemon answers when it will not accept who we say we are. 401 is the
@@ -92,23 +86,26 @@ class NoHttpClientError(HttpLaneDeclinedError):
 class CredentialsRefusedError(HttpLaneDeclinedError):
     """A credential the app holds was already recorded as refused by the daemon."""
 
-    code = "no_credentials"
+    code = "credentials_refused"
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
         super().__init__(AUTH_REFUSED_MESSAGE)
 
 
-def decline_error(mgr: "ConnectionManager") -> HttpLaneDeclinedError | None:
+def decline_error(*, has_client: bool, credentials_refused: bool) -> HttpLaneDeclinedError | None:
     """Return the refusal a use of the 8088 lane would meet, or None when the lane is usable.
+
+    ``has_client`` says whether the app holds an 8088 client at all, and
+    ``credentials_refused`` whether the daemon has already refused the credential it holds.
 
     The one owner of the cause-to-sentence mapping. A plain value, not a raise: a compound
     action reads it to build its outcome as data before it ever calls the lane; a standalone
     caller that wants the lane or nothing raises the returned error itself.
     """
-    if mgr.http_client is None:
+    if not has_client:
         return NoHttpClientError()
-    if mgr.readings.credentials_ok is False:
+    if credentials_refused:
         return CredentialsRefusedError()
     return None
 

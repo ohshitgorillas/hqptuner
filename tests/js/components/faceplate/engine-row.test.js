@@ -1,0 +1,200 @@
+// Rendered suite for hqptuner/static/components/faceplate/EngineRow.js: the engine row's speed gauge, buffer meters and
+// event counters, drawn from the Status poll. The readings themselves are store/faceplate/engine.js's, pinned in
+// tests/js/store/faceplate/engine.test.js; this suite pins how the row draws them: the needle swings with the speed,
+// the figure and each buffer take their zone, a reading with nothing to show prints no figure and no zone, and a
+// counter's lamp flashes on a frame that counted and fades.
+//
+// The wire is the seam: each case writes Status frames into `engineStatus`, as the poll does, with the health store's
+// baseline effect registered so this track's deltas and the output buffer's latch follow the frames. Every case starts
+// a track of its own.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/engine-row.test.js
+
+import { test, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { EngineRow } from "../../../../hqptuner/static/components/faceplate/EngineRow.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
+import { initHealth } from "../../../../hqptuner/static/store/health.js";
+import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { apodLight } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
+import { fakeClock } from "../../support/clock.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {Record<string, string>} Frame */
+
+initHealth(fakeClock().clock);
+initApodHistory();
+
+/** The daemon generation the suite runs at. */
+const GEN = 1;
+
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN, credentials_ok: true };
+});
+
+/** A Status frame while playing. @type {Frame} */
+const PLAYING = {
+  state: "2",
+  process_speed: "1.62",
+  input_fill: "0.82",
+  output_fill: "0.74",
+  clips: "3",
+  apod: "5398",
+};
+
+let track = 0;
+
+/** Playback position in seconds, advanced on every frame so each one observes playback. */
+let position = 0;
+
+/**
+ * The row's elements after the poll reads `frame` on the current track.
+ *
+ * @param {Frame} frame  overrides on PLAYING
+ */
+function poll(frame) {
+  position += 2;
+  engineStatus.value = {
+    status: { ...PLAYING, ...frame, track_serial: String(track), position: String(position) },
+  };
+  return elements(render(html`<${EngineRow} />`));
+}
+
+/**
+ * The row's elements after a track starts on `first` and the poll then reads `frame` on the same track.
+ *
+ * @param {Frame} frame  overrides on PLAYING
+ * @param {Frame} [first]  overrides on PLAYING for the track's first frame; the same as `frame` when omitted
+ */
+function row(frame, first = frame) {
+  track += 1;
+  poll(first);
+  return poll(frame);
+}
+
+/** @param {MarkupElement[]} all @param {string} cls */
+const byClass = (all, cls) => all.find((e) => classes(e).includes(cls));
+
+/** @param {MarkupElement[]} all @param {string} k */
+const keyed = (all, k) => all.find((e) => attr(e, "data-k") === k);
+
+/** A zone attribute, empty when it renders bare; undefined when the element or the attribute is missing. */
+const zoneOf = (/** @type {MarkupElement | undefined} */ e) =>
+  e && hasAttr(e, "data-zone") ? (attr(e, "data-zone") ?? "") : undefined;
+
+/** @param {Frame} f */
+const needleX = (f) => {
+  const n = byClass(row(f), "ndl");
+  return Number(n ? attr(n, "x2") : NaN);
+};
+
+/** @param {Frame} f */
+const figureZone = (f) => zoneOf(byClass(row(f), "val"));
+
+/** @param {Frame} f @param {string} k */
+const meter = (f, k) => keyed(row(f), k);
+
+/** @param {MarkupElement | undefined} e @param {string} cls */
+const inside = (e, cls) => (e ? byClass(elements(e.html), cls) : undefined);
+
+/**
+ * A counter lamp's `--lamp` inline style value; NaN when the lamp or the property is missing.
+ *
+ * @param {MarkupElement[]} all
+ * @param {string} k
+ */
+const lampOf = (all, k) => {
+  const lamp = inside(keyed(all, k), "lamp");
+  const m = /--lamp:\s*([^;]+)/.exec(lamp ? (attr(lamp, "style") ?? "") : "");
+  return m ? Number(m[1]) : NaN;
+};
+
+/**
+ * The text of each figure a counter prints.
+ *
+ * @param {MarkupElement[]} all
+ * @param {string} k
+ */
+const figures = (all, k) => {
+  const c = keyed(all, k);
+  const cnts = c ? elements(c.html).filter((e) => classes(e).includes("cnt")) : [];
+  return cnts.map((e) => text(e));
+};
+
+/**
+ * The numbers each figure a counter prints carries, in reading order, thousands separators dropped.
+ *
+ * @param {MarkupElement[]} all
+ * @param {string} k
+ */
+const figureNumbers = (all, k) =>
+  figures(all, k).map((t) => (t.match(/\d[\d,]*/g) ?? []).map((n) => Number(n.replace(/,/g, ""))));
+
+// --- the gauge ---------------------------------------------------------------------------------------------------
+
+test("test_a_faster_engine_swings_the_needle_further_right", () => {
+  assert.ok(needleX({ process_speed: "2.0" }) > needleX({ process_speed: "0.9" }));
+});
+
+test("test_a_playing_engine_with_headroom_gives_the_figure_the_ok_zone", () => {
+  assert.equal(figureZone({}), "ok");
+});
+
+test("test_the_figure_prints_the_reported_speed", () => {
+  const val = byClass(row({ process_speed: "1.37" }), "val");
+  assert.match(val ? text(val) : "", /1\.37/);
+});
+
+// --- the buffers -------------------------------------------------------------------------------------------------
+
+test("test_a_buffer_fills_its_bar_to_its_percent", () => {
+  const fill = inside(meter({ input_fill: "0.82" }, "input_fill"), "fill");
+  assert.match(fill ? attr(fill, "style") || "" : "", /width:\s*82%/);
+});
+
+test("test_a_buffer_prints_its_percent", () => {
+  const mv = inside(meter({ input_fill: "0.82" }, "input_fill"), "mv");
+  assert.match(mv ? text(mv) : "", /82/);
+});
+
+// --- the counters ------------------------------------------------------------------------------------------------
+
+test("test_the_apodizing_lamp_lights_on_a_frame_that_counted_while_the_header_light_is_off", () => {
+  const was = apodLight.value;
+  apodLight.value = "off";
+  let reading = NaN;
+  try {
+    reading = lampOf(row({ apod: "5410" }, { apod: "5398" }), "apod");
+  } finally {
+    apodLight.value = was;
+  }
+  assert.ok(reading > 0, `the Apodizing lamp's --lamp reads ${reading}`);
+});
+
+test("test_the_clip_lamp_reads_full_on_a_frame_whose_clips_rose", () => {
+  const rose = row({ clips: "5" }, { clips: "3" });
+  assert.equal(lampOf(rose, "clips"), 1);
+});
+
+test("test_a_counter_prints_this_tracks_count_then_the_total_in_one_figure", () => {
+  assert.deepEqual(figureNumbers(row({ apod: "5410" }, { apod: "5398" }), "apod"), [[12, 5410]]);
+});
+
+test("test_a_counter_whose_track_count_equals_the_total_prints_the_total_alone_in_one_figure", () => {
+  assert.deepEqual(figureNumbers(row({ apod: "5410" }, { apod: "0" }), "apod"), [[5410]]);
+});
+
+test("test_a_stopped_engine_prints_one_figure_with_no_count", () => {
+  assert.deepEqual(
+    figures(row({ state: "0" }), "clips").map((t) => /\d/.test(t)),
+    [false],
+  );
+});
+
+test("test_the_clip_lamp_reads_full_on_a_frame_whose_clips_rose_while_this_tracks_count_equals_the_total", () => {
+  assert.equal(lampOf(row({ clips: "5" }, { clips: "0" }), "clips"), 1);
+});

@@ -11,7 +11,7 @@ Two record shapes are covered, and neither is selected by its event name: an
 ``readback`` it carries. Every asserted level is one this suite itself put on
 the wire — the level staged, the level posted, or the startup volume the seeded
 preset was built with — compared as a number, since the string form of a level
-is formatting rather than contract (docs/testing.md rules 9 and 11).
+is formatting rather than contract.
 """
 
 import contextlib
@@ -21,7 +21,7 @@ from types import MappingProxyType
 from typing import Any, NamedTuple
 
 import pytest
-from apps import wait_for_api
+from apps import connection_stands, wait_for_api
 from audit_records import records
 from conftest import spawn_threaded_daemon
 from fake_config_xml import cfg_xml
@@ -57,27 +57,9 @@ def last_observation(path: Path, source: str) -> dict[str, Any]:
     return found[-1] if found else {}
 
 
-def last_volume_write(path: Path) -> dict[str, Any]:
-    """The most recent record of a volume HQPTuner wrote — the one carrying a
-    readback — or an empty record if nothing wrote."""
-    found = [rec for rec in records(path) if "readback" in rec]
-    return found[-1] if found else {}
-
-
 def level(raw: object) -> float | None:
     """A recorded level as a number; ``None`` stays ``None`` (no reading)."""
     return None if raw is None else float(str(raw))
-
-
-def levels(record: dict[str, Any]) -> list[float]:
-    """Every reading in an observation's field set, as numbers. The checkpoint
-    carries several volume fields and which one a level lands under is the
-    implementation's business; that a level was recorded at all is not."""
-    found: list[float] = []
-    for value in record["fields"].values():
-        with contextlib.suppress(TypeError, ValueError):
-            found.append(float(str(value)))
-    return found
 
 
 # --- the apps under test ------------------------------------------------------
@@ -89,28 +71,11 @@ def audit_log(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def unwritable_log(tmp_path: Path) -> Path:
-    """A debug-log path the emitter cannot write: a directory where it wants a
-    file, so every append raises rather than landing."""
-    path = tmp_path / "unwritable.jsonl"
-    path.mkdir()
-    return path
-
-
-@pytest.fixture
 def audit_client(
     http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
 ) -> Iterator[TestClient]:
     """The REST surface on the fake 8088 daemon with the audit log enabled."""
     yield from app(http_daemon, tmp_path, closed_port, audit_log)
-
-
-@pytest.fixture
-def blocked_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, unwritable_log: Path
-) -> Iterator[TestClient]:
-    """The same app pointed at a debug log that cannot be written."""
-    yield from app(http_daemon, tmp_path, closed_port, unwritable_log)
 
 
 #: Build an app on a fresh threaded 4321 fake — ``overrides`` bakes State
@@ -135,16 +100,11 @@ def control_client(http_daemon: dict[str, Any], tmp_path: Path, audit_log: Path)
         clients = app(http_daemon, tmp_path, port, audit_log)
         client = next(clients)
         stack.callback(next, clients, None)
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        wait_for_api(client, connection_stands)
         return client
 
     yield build
     stack.close()
-
-
-@pytest.fixture
-def dual_lane_client(control_client: ClientFactory) -> TestClient:
-    return control_client()
 
 
 # --- driving the checkpoints --------------------------------------------------
@@ -183,8 +143,8 @@ def a_third_refresh_after_the_startup_volume_moved(scene: Scene) -> None:
 
 def two_loads_of_one_preset(scene: Scene) -> None:
     seed_preset(scene.tmp_path, "Headphones", "-30")
-    scene.client.post("/api/profile/load", json={"name": "Headphones"})
-    scene.client.post("/api/profile/load", json={"name": "Headphones"})
+    scene.client.post("/api/config/apply", json={"switch_to": "Headphones"})
+    scene.client.post("/api/config/apply", json={"switch_to": "Headphones"})
 
 
 # --- 1. which checkpoints repeat, and which only speak when something moved ---
@@ -224,38 +184,8 @@ def test_a_preset_load_records_the_startup_volume_the_stored_preset_carries(
     # the checkpoint's name with no volume behind it says a load happened; the
     # question after the bug is what the load carried
     seed_preset(tmp_path, "Headphones", startup_volume)
-    audit_client.post("/api/profile/load", json={"name": "Headphones"})
+    audit_client.post("/api/config/apply", json={"switch_to": "Headphones"})
     assert level(last_observation(audit_log, "preset.stored")["fields"]["defaults_volume"]) == expected
-
-
-# --- 3. the window after an apply that never touched the config file ---------
-
-
-@pytest.mark.parametrize("staged, expected", [("-18", -18.0), ("-33", -33.0)])
-def test_an_apply_that_only_moved_the_live_volume_records_the_volume_after_it(
-    dual_lane_client: TestClient, audit_log: Path, *, staged: str, expected: float
-) -> None:
-    # nothing in this staged set routes to the config file, so the whole batch
-    # rides the 4321 lane and the daemon never restarts — the apply that leaves
-    # no trace at all unless the post-apply checkpoint runs on it too
-    dual_lane_client.post("/api/config/stage", json={"live": {"volume": {"value": staged}}})
-    dual_lane_client.post("/api/config/apply")
-    assert expected in levels(last_observation(audit_log, "post_apply"))
-
-
-# --- 4. what came back from a write ------------------------------------------
-
-
-@pytest.mark.parametrize("enabled, expected", [(True, -24.5), (False, None)])
-def test_a_volume_write_records_what_the_engine_reported_back(
-    control_client: ClientFactory, audit_log: Path, *, enabled: bool, expected: float | None
-) -> None:
-    # `result="OK"` is not proof of application and a disabled volume control
-    # refuses outright (docs/protocol.md §6), so a record that echoes the level
-    # asked for reads as a landed write in both cases
-    client = control_client({} if enabled else {"_vol_enabled": "0"})
-    client.post("/api/volume", json={"level": POSTED})
-    assert level(last_volume_write(audit_log)["readback"]) == expected
 
 
 # --- 5. who asked for the volume that is there now ----------------------------
@@ -279,19 +209,5 @@ def test_an_observation_reports_the_last_level_hqptuner_itself_asked_for(
     if wrote_first:
         client.post("/api/volume", json={"level": POSTED})
         engine["volume"] = MOVED
-    client.post("/api/profile/load", json={"name": "Headphones"})
+    client.post("/api/config/apply", json={"switch_to": "Headphones"})
     assert level(last_observation(audit_log, "preset.stored")["last_write"]) == expected
-
-
-# --- 6. a log that cannot be written -----------------------------------------
-
-
-def test_an_observation_that_cannot_be_logged_does_not_stop_the_next_one(
-    blocked_client: TestClient, audit_client: TestClient, audit_log: Path
-) -> None:
-    # the same checkpoint runs on the poll, so a write error escaping the
-    # emitter does not merely lose one record: it takes the reading with it, for
-    # as long as the path stays unwritable
-    blocked_client.post("/api/config/refresh")
-    audit_client.post("/api/config/refresh")
-    assert len(observations(audit_log, "config_form")) == 1

@@ -26,7 +26,7 @@ def median_smooth(rows: np.ndarray, width: int) -> np.ndarray:
     """Median filter along the bin axis, edges padded by replication.
 
     ``median_filter`` in ``nearest`` mode is the running median of the same replicated-edge windows, and every width
-    here is odd, so it returns bin for bin what an explicit window sort returns — without materialising the
+    here is odd, so it returns bin for bin what an explicit window sort returns — without materializing the
     ``width``-times copy of the array that a sliding-window sort needs.
     """
     return np.asarray(median_filter(rows, size=(1, width), mode="nearest"))

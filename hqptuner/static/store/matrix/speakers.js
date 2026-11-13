@@ -1,72 +1,77 @@
-// Speaker processing (hqplayerd readme §1.9) — per-channel level (dBFS) and
-// distance (cm), read from and written to the daemon's /speakers form.
-//
-// This does NOT ride the config staging buffer. The write is its own form POST
-// that reloads the engine (~3 s), interrupting playback, exactly like a
-// matrix profile Load — so the card holds its own edits and applies them
-// directly, rather than pretending to be part of the pending-changes bar.
-import { signal } from "@preact/signals";
-
+import { computed } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
-import { duringEngineWrite } from "../enginewrite.js";
+import { UNCONFIRMED, formDraft } from "../core/forms.js";
 
-export const speakers = signal(null); // {enabled, channels:[{index,label,level,distance,...}]}
-export const speakersStale = signal(false);
-export const speakersError = signal("");
-export const speakersBusy = signal(false);
+/** @typedef {{ level?: string, distance?: string }} ChannelEdit */
+/** @typedef {import("../faceplate/drawers/speakers.js").SpeakersForm} SpeakersForm */
 
-/**
- * @typedef {{ level?: string, distance?: string }} ChannelEdit
- *   One channel's pending edit. Both fields are strings — the card writes what
- *   the input holds (speakers/Card.js editCh), and a field the user cleared is
- *   DELETED rather than set empty, so "absent" means "leave the daemon's value".
- */
+const keys = ["enabled"];
 
-/** @param {unknown} e */
-function fail(e) {
-  speakersError.value = errText(e);
-}
-
-/** Read the daemon's /speakers form into the store, recording staleness or failure. */
-export async function loadSpeakers() {
-  try {
-    const r = await api.speakers();
-    speakers.value = r.data;
-    speakersStale.value = !!r.stale;
-    speakersError.value = "";
-  } catch (e) {
-    fail(e);
+/** @param {SpeakersForm} form @returns {Record<string, unknown>} */
+function formValues(form) {
+  const values = /** @type {Record<string, unknown>} */ ({ ...form });
+  for (const channel of form.channels ?? []) {
+    for (const kind of ["level", "distance"]) {
+      const key = `${channel.index}.${kind}`;
+      if (!keys.includes(key)) keys.push(key);
+      values[key] = Number(channel[kind]);
+    }
   }
+  return values;
 }
 
-// `channels` is {index: {level?, distance?}} — a partial overlay. The server
-// re-reads the complete form and overlays these, so untouched channels keep
-// whatever the daemon currently holds.
+/** @param {Record<string, unknown>} values */
+function channelEdits(values) {
+  const channels = /** @type {Record<string, ChannelEdit>} */ ({});
+  for (const [key, value] of Object.entries(values)) {
+    const [index, kind] = key.split(".");
+    if (kind !== "level" && kind !== "distance") continue;
+    channels[index] ??= {};
+    channels[index][kind] = String(value);
+  }
+  return channels;
+}
+
+export const speakerForm = formDraft({
+  area: "apply",
+  eager: false,
+  keys,
+  load: async () => formValues((await api.speakers()).data),
+  write: async (values) => {
+    const { report } = await api.applySpeakers({
+      enabled: !!(values.enabled ?? speakerForm.base.value?.enabled),
+      channels: channelEdits(values),
+    });
+    if (!report.applied) throw new Error(UNCONFIRMED);
+  },
+});
+
+export const speakers = computed(() => /** @type {SpeakersForm | null} */ (speakerForm.base.value));
+export const speakersBusy = speakerForm.busy;
+/** Whether the form shown may differ from what the daemon holds: a write has landed and its readback has not, or the last read failed. */
+export const speakersStale = speakerForm.stale;
+export const speakersError = computed(() => (speakerForm.error.value === null ? "" : errText(speakerForm.error.value)));
+
+/** Draft the speaker-processing switch. @param {boolean} on */
+export function setSpeakersGate(on) {
+  if (on === !!speakers.value?.enabled) speakerForm.remove("enabled");
+  else speakerForm.set("enabled", on);
+}
+
+/** Refresh the daemon's form through its read lifecycle. */
+export const loadSpeakers = () => speakerForm.reload();
+
 /**
- * Write the speaker-processing switch and the per-channel edits to the daemon, and
- * take the readback it answers with.
+ * Apply the speaker switch and channel edits through the shared form lifecycle.
  * @param {boolean} enabled
- * @param {Record<string, ChannelEdit>} channels keyed by channel index as a string
- * @returns {Promise<boolean>} whether the daemon confirmed the new values
+ * @param {Record<string, ChannelEdit>} channels
+ * @returns {Promise<boolean>}
  */
-export async function applySpeakers(enabled, channels) {
-  speakersBusy.value = true;
-  speakersError.value = "";
-  try {
-    // The form POST reloads the engine (~3 s), and the pill read Unreachable across it
-    // whenever that cost the poll loop a tick. Same lifecycle as every other engine write.
-    const { report: r } = await duringEngineWrite(() => api.applySpeakers({ enabled: !!enabled, channels }));
-    if (r.speakers) speakers.value = r.speakers;
-    speakersStale.value = false;
-    // The lane verifies by reading /speakers back past the reload; an unverified
-    // apply is reported rather than dressed up as success.
-    if (!r.applied) speakersError.value = "applied, but the daemon did not confirm the new values — check below";
-    return !!r.applied;
-  } catch (e) {
-    fail(e);
-    return false;
-  } finally {
-    speakersBusy.value = false;
+export function applySpeakers(enabled, channels) {
+  setSpeakersGate(enabled);
+  for (const [index, row] of Object.entries(channels)) {
+    for (const [kind, value] of Object.entries(row)) speakerForm.set(`${index}.${kind}`, Number(value));
   }
+  return speakerForm.apply();
 }

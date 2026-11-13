@@ -2,8 +2,8 @@
 ``merge_enumerations``.
 
 Each test reads one field under ``StaticDb``/``MergedEnums`` by key off the value the public
-producer returned, one assertion each (docs/testing.md rule 2), on data invented for this fixture
-(docs/testing.md rule 9).
+producer returned, on data invented for this fixture. ``merge_enumerations`` is asked of one
+Engine view, built from an Engine reading the test writes itself.
 """
 
 from __future__ import annotations
@@ -12,12 +12,17 @@ import json
 import shutil
 from typing import TYPE_CHECKING
 
+from answered_reading import Answered
 from conftest import METADATA_MIN as FIXTURE_DIR
 
+from hqptuner.engine.view import EngineView
 from hqptuner.metadata import StaticMetadata, merge_enumerations
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+#: The one junk filter the invented Engine reading lists.
+JUNK_FILTERS = [{"index": "0", "name": "none"}]
 
 
 def _dir_with_settings(tmp_path: Path, settings: dict[str, object]) -> Path:
@@ -38,14 +43,6 @@ def test_raw_serves_the_pcm_dithers_overlay_by_name() -> None:
     assert entry["min_rate_hz"] == 44100
 
 
-def test_raw_serves_the_filter_plain_names_overlay_under_plain_names() -> None:
-    assert StaticMetadata(FIXTURE_DIR).raw.plain_names["filters"] == {
-        "entries": {},
-        "families": {},
-        "variants": {},
-    }
-
-
 def test_raw_serves_the_easy_mode_database_verbatim(tmp_path: Path) -> None:
     target = tmp_path / "metadata"
     shutil.copytree(FIXTURE_DIR, target)
@@ -63,7 +60,7 @@ def test_raw_serves_the_settings_system_table(tmp_path: Path) -> None:
     assert StaticMetadata(target).raw.settings.system["buffer"]["tooltip"] == "invented system prose"
 
 
-def test_merge_enumerations_serves_the_junk_filters_enum_list() -> None:
+def test_merge_enumerations_serves_the_junk_filters_list_of_the_engine_view_it_is_asked() -> None:
     static = StaticMetadata(FIXTURE_DIR)
-    enums = {"junk_filters": [{"index": "0", "name": "none"}]}
-    assert merge_enumerations(enums, static, "PCM").junk_filters == [{"index": "0", "name": "none"}]
+    view = EngineView.of(Answered(None, None, {"junk_filters": JUNK_FILTERS}, None))
+    assert merge_enumerations(view, static, "PCM").junk_filters == JUNK_FILTERS

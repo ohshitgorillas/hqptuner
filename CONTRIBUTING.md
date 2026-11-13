@@ -4,10 +4,11 @@
 
 To report a bug, please reach out with the following information:
 
-* HQPTuner version (System → About) and hqplayerd version (top bar, next to the daemon name)
+* HQPTuner version (Settings → About HQPTuner) and hqplayerd version (Settings → About HQPlayer, the Version window)
 * What you changed, what you expected, what happened
 * Browser and OS, for anything visual
-* Relevant lines from HQPTuner's log (System tab) — the failure detail that doesn't fit on screen goes there
+* Relevant lines from hqplayerd's log (Settings → Logging)
+* HQPTuner's state file (Settings → About HQPTuner → Download state): it carries HQPTuner's log, where the failure detail that doesn't fit on screen goes, and your stations and snapshots
 
 ## Setup
 
@@ -28,7 +29,7 @@ CI runs Python 3.14. `requires-python` still admits 3.12+, but 3.14 is what is a
 
 `make check` must be green. It is the same set the pre-commit hooks run, plus the JS test suite. See the Development section of `README.md` for what each target covers.
 
-I am extremely strict about what tests make it into the codebase, so please review `docs/testing.md` for the binding testing policy.
+I am extremely strict about what tests make it into the codebase, so please review `docs/spec/testing.md` for the binding testing policy.
 
 Every user-visible change lands with a `CHANGELOG.md` entry under `[Unreleased]`, in the same commit as the change. Write it for the person hitting the bug, not for the person who fixed it: what went wrong from their side, what it does now.
 
@@ -51,6 +52,14 @@ What it cannot check is tone, and that is where entries actually go wrong. Three
 - **No implementation archaeology.** Enum ids, file paths, the order the daemon does things in, the two things you had to discover to fix it — none of that helps someone reading a release note. It is in the commit and in `docs/`.
 - **State the change; do not sell it.** "its settings moved to where they belong" is a verdict on your own work. "its settings moved" is the change.
 - **One entry per change, not one per commit.** Three commits fixing one bug are one entry.
+
+## Code structure
+
+**The import order, `api > core > presets > lanes > engine > conf`, holds at runtime too.** A layer below core that is handed the manager types it as a protocol declared in its own layer, which the manager satisfies structurally, and that protocol exposes nothing built above the layer: a lane never reads the preset store off the manager, and what it owes the store is handed down by its caller.
+
+**`core/manager.py` is the composition root.** It holds construction, the lifecycle flags, the supervisor loop, the clock seams and the client accessors, and nothing that fills a reading on demand. Connect and poll steps go to `core/loader.py`, post-restart resyncs and waits to `lanes/settle.py`, backup-archive readers to `presets/fileconfig.py`, engine readers to `core/engineread.py`, and anything a lane can own to that lane. An addition to the manager names which of those it could not live in and why.
+
+`unified-hifi-control` (PolyForm Noncommercial) and `hqpwv` (GPL-3) are **not** to be opened or copied.
 
 ## Splits
 

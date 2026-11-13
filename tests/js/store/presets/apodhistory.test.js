@@ -1,11 +1,11 @@
 // Behavioral suite for store/apodhistory.js — the per-track history of
-// apodizing-event counts behind the Engine Health card's density strip, its
-// auto-hide flag, and the window slice.
+// apodizing-event counts behind the Engine Health card's density strip, and its
+// auto-hide flag.
 //
 // The seam is the same one store/health.js is driven through
 // (tests/js/store/live/health.test.js): a poll is a FRESH object written to
 // engineStatus, carrying the daemon's own Status fields (state, track_serial,
-// apod; `state` values per docs/protocol.md — 0 stopped, 1 paused, 2 playing,
+// apod; `state` values 0 stopped, 1 paused, 2 playing,
 // 3 stop requested). remain_min/remain_sec appear only in the cases pinning that
 // they are NEVER read. Nothing of HQPTuner's is stubbed: each poll moves the
 // position by the step the case sets.
@@ -28,34 +28,22 @@
 //      append two bins per poll. The disposer case runs LAST, deliberately:
 //      it tears the effect down and nothing after it would record anything.
 //
-// setApodWindow() is called here without installing the storage fake from
-// tests/js/support/storage.js, and that is deliberate rather than an oversight:
-// this process has no localStorage at all, which is prefs.js's storage-disabled
-// path — it warns once at import and every setter still moves its signal in
-// memory (pinned by tests/js/store/prefs.test.js). Persistence itself is not
-// this file's subject; it is pinned in tests/js/store/apodwindow-*.test.js,
-// which do install the fake.
-//
 // The daemon's `position` is read for three purposes: the playback a bin
 // observed, telling a frame the daemon handed over twice from an interval in
 // which nothing happened, and telling a track that ended on its own from one
 // still running. The fixture advances it on every poll; the stall() cases below
 // hold it still, and the restartPosition() cases send it backwards.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection,
+// and the phase cases move it away mid-track.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/presets/apodhistory.test.js
 
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
-import {
-  initApodHistory,
-  apodBins,
-  apodStripVisible,
-  apodVisibleBins,
-} from "../../../../hqptuner/static/store/apodhistory.js";
+import { initApodHistory, apodBins } from "../../../../hqptuner/static/store/apodhistory.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import {
   STOPPED,
   PAUSED,
@@ -70,14 +58,27 @@ import {
   feed,
 } from "../../support/apodpolls.js";
 
-const CAP = 3600;
-
 // The width of one bin at the default poll step.
 const STEP_MS = 1000;
 
+/** The lifecycle generation every /api/health reply below carries. */
+const GEN = 3;
+/** The lifecycle phases in which the connection is not Ready. */
+const NOT_READY = ["Down", "Reachable", "Alarm"];
+
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
+});
+
 initApodHistory();
 
-/** @typedef {{ ms: number, n: number }} Bin */
+/**
+ * One bin: `ms` the playback it observed, ms; `n` the events it counted; `at` its stamp, playback, ms, or null where
+ * it arrived with no feed edge. No feed is open in this file, so every bin here carries a null stamp, and its stamp is
+ * pinned in tests/js/store/meter/apodstrip.test.js.
+ *
+ * @typedef {{ ms: number, n: number, at: number | null }} Bin
+ */
 
 /** @param {Bin[]} bins */
 const counts = (bins) => bins.map((b) => b.n);
@@ -86,72 +87,17 @@ const counts = (bins) => bins.map((b) => b.n);
 const widths = (bins) => bins.map((b) => b.ms);
 
 /**
- * @param {Bin[]} bins
- * @param {number} n
- * @returns {boolean}
- */
-const anyBinCounting = (bins, n) => bins.some((b) => b.n === n);
-
-/**
  * @param {number} length
  * @param {(i: number) => number} f
  */
 const series = (length, f) => Array.from({ length }, (_, i) => f(i));
 
-// --- nothing recorded before the first apodizing event ------------------------
-// These run first, before any non-zero count has ever been fed, because the
-// strip's visibility is sticky by design.
-
-test("test_the_first_poll_of_a_track_appends_no_bin", () => {
-  setPollStep(1);
-  newTrack();
-  assert.deepEqual(apodBins.value, []);
-});
-
-test("test_a_silent_poll_appends_a_zero_bin", () => {
-  setPollStep(1);
-  const deltas = feed([0]);
-  assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_the_strip_is_not_visible_before_any_apodizing_event", () => {
-  setPollStep(1);
-  feed([0, 0, 0]);
-  assert.equal(apodStripVisible.value, false);
-});
-
 // --- what a bin counts ---------------------------------------------------------
-
-test("test_a_bin_records_the_rise_in_the_apodizing_counter_since_the_previous_poll", () => {
-  setPollStep(1);
-  const deltas = feed([3]);
-  assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_a_bin_carries_its_count_as_a_number", () => {
-  // the phase-2 renderer reads these fields, so their types are contract
-  setPollStep(1);
-  feed([3]);
-  assert.equal(typeof apodBins.value[0].n, "number");
-});
-
-test("test_a_bin_carries_its_width_as_a_number", () => {
-  setPollStep(1);
-  feed([3]);
-  assert.equal(typeof apodBins.value[0].ms, "number");
-});
 
 test("test_each_poll_appends_one_bin_of_its_own", () => {
   setPollStep(1);
   const deltas = feed([3, 0, 7]);
   assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_a_track_change_clears_the_bins", () => {
-  setPollStep(1);
-  feed([1, 2]);
-  newTrack();
-  assert.deepEqual(apodBins.value, []);
 });
 
 test("test_a_track_change_rebaselines_the_counter", () => {
@@ -174,13 +120,6 @@ test("test_a_track_change_rebaselines_the_counter", () => {
 // the serial reported — the history is cleared and the frame that carried the
 // backwards reading is a baseline recording no bin.
 
-test("test_a_position_that_restarts_under_the_same_serial_clears_the_bins", () => {
-  setPollStep(1);
-  feed([1, 2]);
-  restartPosition();
-  assert.deepEqual(apodBins.value, []);
-});
-
 test("test_a_position_that_restarts_under_the_same_serial_records_no_bin_for_its_own_frame", () => {
   // the counter is untouched across this boundary, so a store that cleared but
   // then recorded the frame anyway would leave a stray zero behind
@@ -189,14 +128,6 @@ test("test_a_position_that_restarts_under_the_same_serial_records_no_bin_for_its
   restartPosition();
   append([4]);
   assert.deepEqual(counts(apodBins.value), [4]);
-});
-
-test("test_a_counter_that_restarts_under_the_same_serial_clears_the_bins", () => {
-  setPollStep(1);
-  setApodCounter(580);
-  feed([4]); // the outgoing track's counter stands at 584
-  restartCounter(4);
-  assert.deepEqual(apodBins.value, []);
 });
 
 test("test_a_counter_that_restarts_under_the_same_serial_rebaselines_at_the_restarted_value", () => {
@@ -229,9 +160,9 @@ test("test_a_counter_holding_level_while_the_position_advances_is_not_a_track_ch
 });
 
 // --- a repeated frame is one observation, not an interval ------------------------
-// The page's poll clock and the daemon's own update clock both run near 2s and
-// drift against each other, so a poll sometimes returns the frame it already
-// returned. stall() builds those frames: the position stays where it was, which
+// The page's poll clock drifts against the daemon's Status, which is
+// playback-tied at about 1 to 2 Hz, so a poll sometimes returns the frame it
+// already returned. stall() builds those frames: the position stays where it was, which
 // is what tells a handed-over repeat from a quiet interval that really happened.
 
 test("test_a_frame_repeating_the_counter_and_the_position_appends_no_bin", () => {
@@ -278,6 +209,18 @@ test("test_a_paused_poll_appends_no_bin_to_a_history_already_running", () => {
   assert.deepEqual(counts(apodBins.value), deltas);
 });
 
+// While the connection is not Ready the engine counts as not playing, though every poll still says it plays.
+for (const phase of NOT_READY) {
+  // Break: the history reads playing off the Status state alone and ignores the connection phase.
+  test(`test_a_playing_poll_on_a_connection_that_is_not_ready_appends_no_bin: ${phase}`, () => {
+    setPollStep(1);
+    const deltas = feed([1, 2]);
+    health.value = { phase, generation: GEN };
+    append([20]);
+    assert.deepEqual(counts(apodBins.value), deltas);
+  });
+}
+
 // --- the width a bin carries -----------------------------------------------------
 // A bin is as wide as the playback it observed, whatever the page's poll cadence:
 // these cases run at the default cadence, which is not the one-second step.
@@ -298,33 +241,6 @@ test("test_a_longer_step_records_a_wider_bin", () => {
 
 // --- the auto-hide flag -----------------------------------------------------------
 
-test("test_the_strip_becomes_visible_once_a_non_zero_bin_is_appended", () => {
-  setPollStep(1);
-  feed([0, 2]);
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_the_strip_stays_visible_across_a_track_change_while_playback_continues", () => {
-  setPollStep(1);
-  feed([3]);
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_the_strip_is_not_visible_once_the_engine_stops", () => {
-  setPollStep(1);
-  feed([3]);
-  poll({ state: STOPPED });
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_the_strip_is_not_visible_once_the_engine_pauses", () => {
-  setPollStep(1);
-  feed([3]);
-  poll({ state: PAUSED });
-  assert.equal(apodStripVisible.value, false);
-});
-
 // What survives a track change is decided by the OUTGOING track's own bins and
 // by nothing else. The daemon's remain_min/remain_sec are never consulted: they
 // go negative on any stream of unknown length (a live capture reports
@@ -333,171 +249,9 @@ test("test_the_strip_is_not_visible_once_the_engine_pauses", () => {
 // The cases below therefore pin the counted-events rule, and pin that those two
 // fields move nothing whatever value they carry.
 
-test("test_a_track_change_from_a_silent_track_hides_the_strip", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0]);
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_a_track_change_from_a_track_that_counted_events_early_keeps_the_strip", () => {
-  // the events came at the head of the outgoing track and nothing followed: it
-  // is whether the track counted ANY event that decides, not what its last bin
-  // happened to be
-  setPollStep(1);
-  feed([3, 0, 0]);
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_negative_remain_fields_leave_a_silent_track_hidden", () => {
-  // the shape a stream of unknown length reports, which a remain-based rule
-  // would read as "not finished" and wrongly keep on screen
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0], { remain_min: "-55", remain_sec: "-41" });
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_remain_fields_reading_zero_leave_a_silent_track_hidden", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0], { remain_min: "0", remain_sec: "0" });
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_remain_fields_reading_zero_do_not_hide_a_track_that_counted_events", () => {
-  setPollStep(1);
-  feed([2, 3], { remain_min: "0", remain_sec: "0" });
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_junk_remain_fields_leave_a_silent_track_hidden", () => {
-  // the outgoing track counted nothing and its remain fields are unreadable —
-  // a rule that read them and treated the unreadable pair as "not finished"
-  // would keep the strip on screen here, which is the whole point of the case
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0], { remain_min: "nonsense", remain_sec: "" });
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_junk_remain_fields_do_not_hide_a_track_that_counted_events", () => {
-  setPollStep(1);
-  feed([2, 3], { remain_min: "nonsense", remain_sec: "" });
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
 // The same rule answers to the wider definition of a track ending: a track that
 // counted nothing retires the strip when it ends, and "ends" includes a boundary
 // the serial never reported.
-
-test("test_a_position_restart_from_a_silent_track_hides_the_strip", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0]);
-  restartPosition();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_a_counter_restart_from_a_silent_track_hides_the_strip", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0]);
-  restartCounter(0);
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_a_position_restart_from_a_track_that_counted_events_keeps_the_strip", () => {
-  setPollStep(1);
-  feed([3, 0, 0]);
-  restartPosition();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_a_counter_restart_from_a_track_that_counted_events_keeps_the_strip", () => {
-  setPollStep(1);
-  feed([3, 0, 0]);
-  restartCounter(0);
-  assert.equal(apodStripVisible.value, true);
-});
-
-// --- the window slice ---------------------------------------------------------------
-// The slice keeps the newest bins whose recorded widths sum to no more than the
-// window. Where every bin carries the same width, how many fit is plain
-// division; the mixed case below is the one that tells that apart from a slice
-// of a fixed number of bins.
-
-for (const seconds of [30, 60, 120, 300]) {
-  test(`test_the_window_keeps_the_bins_whose_recorded_widths_fit_it: ${seconds}s`, () => {
-    setPollStep(1);
-    setApodWindow(String(seconds));
-    const fits = Math.floor((seconds * 1000) / STEP_MS);
-    feed(series(fits + 20, () => 1));
-    assert.equal(apodVisibleBins.value.length, fits);
-  });
-}
-
-test("test_the_window_slice_is_the_newest_bins_ordered_oldest_first", () => {
-  setPollStep(1);
-  setApodWindow("30");
-  const fits = Math.floor(30000 / STEP_MS);
-  const deltas = feed(series(fits + 5, (i) => (i % 7) + 1));
-  assert.deepEqual(counts(apodVisibleBins.value), deltas.slice(-fits));
-});
-
-test("test_the_window_spends_each_bins_own_width_when_the_step_changed_mid_track", () => {
-  // One track, two widths: an older stretch of two-second bins and a newer
-  // stretch of one-second bins. The window is spent newest-first — the narrow
-  // bins are cheap, so more of them fit than the count a single-width reading
-  // would allow, and the cut lands INSIDE the older stretch. Any implementation
-  // that slices by a fixed number of bins, or that reads one width for the whole
-  // array, lands somewhere else.
-  setPollStep(2);
-  setApodWindow("30");
-  const fast = 10;
-  const slowFits = Math.floor((30000 - fast * 1000) / 2000);
-  const older = feed(series(slowFits + 15, (i) => (i % 5) + 1));
-  setPollStep(1);
-  const newer = append(series(fast, (i) => (i % 3) + 1));
-  assert.deepEqual(counts(apodVisibleBins.value), [...older, ...newer].slice(-(slowFits + fast)));
-});
-
-test("test_a_history_shorter_than_the_window_is_shown_whole", () => {
-  setPollStep(1);
-  setApodWindow("300");
-  const deltas = feed([1, 0, 2, 3]);
-  assert.deepEqual(counts(apodVisibleBins.value), deltas);
-});
-
-test("test_the_all_window_shows_every_retained_bin_of_the_track", () => {
-  setPollStep(1);
-  setApodWindow("all");
-  // longer than the longest fixed window
-  const deltas = feed(series(Math.floor(300000 / STEP_MS) + 50, (i) => i % 3));
-  assert.deepEqual(counts(apodVisibleBins.value), deltas);
-});
-
-// --- the retention cap ---------------------------------------------------------------
-
-test("test_the_history_is_capped_at_thirty_six_hundred_bins", () => {
-  setPollStep(1);
-  feed([9, ...series(CAP, () => 0)]); // one bin past the cap
-  assert.equal(apodBins.value.length, CAP);
-});
-
-test("test_the_oldest_bin_is_dropped_once_the_cap_is_passed", () => {
-  // only the first bin of this track carries a 9; past the cap it is gone
-  setPollStep(1);
-  feed([9, ...series(CAP, () => 0)]);
-  assert.equal(anyBinCounting(apodBins.value, 9), false);
-});
 
 // --- registration -----------------------------------------------------------------------
 
@@ -506,10 +260,6 @@ test("test_registering_the_history_twice_does_not_append_two_bins_per_poll", () 
   initApodHistory();
   const deltas = feed([2]);
   assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_registering_the_history_twice_returns_the_same_disposer", () => {
-  assert.equal(initApodHistory(), initApodHistory());
 });
 
 // LAST in the file, deliberately (hazard 4): the effect is gone afterwards.

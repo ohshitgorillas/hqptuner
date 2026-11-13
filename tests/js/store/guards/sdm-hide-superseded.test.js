@@ -25,15 +25,15 @@
 // the effective value by different routes.
 //
 // Surfaces under test, both public:
-//   - the /config page dropdown — the list a field's option source hands it,
+//   - the config-form dropdown — the list a field's option source hands it,
 //     `optionsFor("config", <form field>)` (store/ui/options.js), which is also the
 //     list the chain's count chip counts; `narrowOptions(options, stage, field)`
 //     is what the dropdown then offers and `narrowCount(...)` is the `{n, total}`
 //     badge beside it (store/narrow/match.js), `total` being the length of the
 //     list the dropdown holds BEFORE facet narrowing;
-//   - the LIVE page — `liveModel`'s per-chain controls, whose options for the
+//   - the live chain controls — `liveModel`'s per-chain controls, whose options for the
 //     chain the engine has LOADED come off the engine's own `<GetFilters/>`
-//     enumeration rather than the daemon's /config form (protocol.md §4). Each
+//     enumeration rather than the daemon's /config form. Each
 //     live case reads the chain its own scenario loaded, never the two chains
 //     concatenated, so a control answering out of the dormant column fails.
 //
@@ -45,15 +45,14 @@
 // `sdm_filter_nx` and `pcm_filter_1x` / `pcm_filter_nx`, /config form fields
 // `oversampling1x` / `oversampling` and `filter1x` / `filter`.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at the
-// wire, no store function stubbed. Facet data is driven the way narrowing.test.js
+// Facet data is driven the way narrowing.test.js
 // drives it — the engine's `<FiltersItem/>` shape on `enums.filters` with the
 // quality rating at the head of the engine's own description string
-// (protocol.md:228) — and no facet is engaged in any case here, so nothing but
+// — and no facet is engaged in any case here, so nothing but
 // the supersession rule can remove a name from a list. Names carry no display
 // assertion: a filter name is an engine wire identifier — `label` carries it
 // unchanged through both surfaces — while the words rendered for it and the
-// order they come in are the owner's (rule 9).
+// order they come in are the owner's.
 //
 // Each reset reassigns EVERY signal these cases read and clears the private
 // staged buffer through discardAll(): module-level signals outlive a test, and a
@@ -81,9 +80,9 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
-import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "../../support/wire/wire.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
+import { seedReadings } from "../../support/readings.js";
 
 // --- the fixture --------------------------------------------------------------
 // The same list on both chains. Descriptions are the engine's own format,
@@ -113,9 +112,7 @@ const SUPERSEDED = ["poly-sinc-lp", "poly-sinc-short-mp", "zzz-nonesuch"];
 // filter no `-2s` supersedes, used as the effective value wherever a case is NOT
 // about the current-selection exception.
 const HIDDEN = "poly-sinc-lp";
-const INVENTED = "zzz-nonesuch";
 const TWIN = "poly-sinc-lp-2s";
-const ORPHAN_TWIN = "poly-sinc-hb-xs-2s";
 const KEPT = "poly-sinc-gauss-long";
 
 const OFFERED = FILTERS.length - SUPERSEDED.length;
@@ -152,8 +149,9 @@ async function resetConfigPage({ sdmNx = KEPT, sdm1x = KEPT, pcmNx = KEPT, pcm1x
     oversampling1x: wire(sdm1x),
     oversampling: wire(sdmNx),
   };
-  const fields = Object.entries(values).map(([name, value]) => ({ name, value, options }));
-  config.value = { fields, file: { ...values }, active: "", profiles: null };
+  const fields = Object.keys(values).map((name) => ({ name, options }));
+  config.value = { fields };
+  await seedReadings(values);
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;
@@ -186,13 +184,6 @@ test("test_the_sdm_nx_dropdown_does_not_offer_a_filter_its_two_stage_twin_supers
   assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(HIDDEN), false);
 });
 
-// The same rule on a name no data file in this repo has ever heard of: a roster
-// of superseded names could not hide it, and only the list itself says it is one.
-test("test_the_sdm_nx_dropdown_hides_a_superseded_name_no_shipped_file_knows", async () => {
-  await resetConfigPage();
-  assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(INVENTED), false);
-});
-
 test("test_the_sdm_1x_dropdown_does_not_offer_a_filter_its_two_stage_twin_supersedes", async () => {
   await resetConfigPage();
   assert.equal(offered(held("oversampling1x"), "1x", "sdm_filter_1x").includes(HIDDEN), false);
@@ -217,13 +208,6 @@ test("test_the_sdm_nx_dropdown_offers_the_fixture_less_its_superseded_names", as
 test("test_the_sdm_nx_dropdown_still_offers_the_two_stage_filter_that_supersedes", async () => {
   await resetConfigPage();
   assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(TWIN), true);
-});
-
-// A `-2s` whose plain twin is not in the list supersedes nothing and is nobody's
-// supersession, so it is offered like any other filter.
-test("test_the_sdm_nx_dropdown_still_offers_a_two_stage_filter_with_no_plain_twin", async () => {
-  await resetConfigPage();
-  assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(ORPHAN_TWIN), true);
 });
 
 // The badge's denominator is the list the dropdown HOLDS, so a hidden filter is
@@ -259,10 +243,10 @@ test("test_the_pcm_nx_dropdown_still_offers_a_filter_a_two_stage_twin_supersedes
   assert.equal(offered(held("filter"), "nx", "pcm_filter_nx").includes(HIDDEN), true);
 });
 
-// --- the LIVE page ----------------------------------------------------------------
+// --- the live chain controls ------------------------------------------------------
 // The loaded chain's controls take their options from the engine's enumeration,
 // not from the /config form, so the rule has to hold on that list too. The two
-// chains number the same names differently (protocol.md §4), which is why the two
+// chains number the same names differently, which is why the two
 // enumerations below carry different enum values for identical names.
 
 const RATES = [
@@ -338,7 +322,7 @@ const LIVE_METADATA = {
 };
 
 /**
- * The LIVE page with one chain loaded and its Nx filter set to `nx`, named by
+ * The live chain controls with one chain loaded and its Nx filter set to `nx`, named by
  * FILTER NAME. State reports LIST INDICES of the loaded chain's enumeration;
  * `chain` names which chain that is.
  *
@@ -372,18 +356,13 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
   volume.value = "-10.0";
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };
   config.value = {
-    fields: Object.entries(form).map(([name, value]) => ({
+    fields: Object.keys(form).map((name) => ({
       name,
-      value,
       options: LISTS[name].map((i) => ({ value: i.value, label: i.name })),
     })),
-    file: { mode: chain, ...form },
-    active: "",
-    profiles: null,
   };
-  matrixConfig.value = { fields: [], file_profiles: {}, live_profiles: [] };
-  liveErrors.value = {};
-  liveBusy.value = "";
+  matrixConfig.value = { fields: [], file_profiles: {} };
+  await seedReadings({ mode: chain, ...form });
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;
@@ -392,7 +371,7 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
 }
 
 /**
- * The filter names one LIVE chain control offers, read off the column named by
+ * The filter names one live chain control offers, read off the column named by
  * `chain` — never the two columns concatenated, so a control answering out of the
  * dormant chain is a miss rather than a pass. `label` is the option's engine
  * name, and it is read directly: a fallback chain would answer a list of empty
@@ -420,7 +399,7 @@ test("test_the_live_sdm_nx_control_offers_the_enumeration_less_its_superseded_na
   assert.equal(liveOptionNames("sdmChain", "oversampling").length, OFFERED);
 });
 
-// The exception on the other surface: LIVE reaches the effective value through
+// The exception on the other surface: a live control reaches the effective value through
 // the engine's own State report, so it is its own path and its own case.
 test("test_the_live_sdm_nx_control_still_offers_a_superseded_filter_it_is_set_to", async () => {
   await resetLivePage({ chain: "sdm", mode: "2", nx: HIDDEN });

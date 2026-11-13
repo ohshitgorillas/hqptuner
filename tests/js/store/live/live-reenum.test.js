@@ -10,11 +10,10 @@
 // such a write landing and the new lists arriving the page is stale, and the new
 // State must not be shown against the old lists.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Every case drives the exported `engineState` / `enums` / `config`
+// Every case drives the exported `engineState` / `enums` / `config`
 // signals with the shapes /api/state, /api/enumerations and /api/config actually
 // serve, and every write goes out over a faked `globalThis.fetch` on the real
-// REST path — no store function is ever stubbed.
+// REST path.
 //
 // The three sources are kept apart on purpose: the filter the assertions read is
 // enum 25 before the write, 0 if the new State is joined to the OLD list, and 3
@@ -36,9 +35,10 @@ import assert from "node:assert/strict";
 
 import { engineState, enums, config } from "../../../../hqptuner/static/store/signals.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
-import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
 import { ok, bad } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 const FILTERS = [
   { index: "0", value: "0", name: "none" },
@@ -49,7 +49,7 @@ const SHAPERS = [
   { index: "0", value: "0", name: "none" },
   { index: "1", value: "31", name: "TPDF" },
 ];
-// RatesItem carries no name and no value — `<RatesItem index rate/>` (protocol.md §6).
+// RatesItem carries no name and no value — `<RatesItem index rate/>`.
 const RATES = [
   { index: "0", rate: "0" },
   { index: "1", rate: "96000" },
@@ -84,16 +84,6 @@ const STATE = () => ({
 // enum 3 against the new one.
 const MOVED = () => ({ ...STATE(), filterNx: "0" });
 
-// The SDM side: the rate enumeration is mode-dependent (manual §4.6), so the two
-// families never share a list.
-const SDM_RATES = [
-  { index: "0", rate: "0" },
-  { index: "1", rate: "12288000" },
-];
-const SDM_ENUMS = () => ({ ...ENUMS(), rates: SDM_RATES, mode: { name: "SDM (DSD)" } });
-const SDM_RE_ENUMS = () => ({ ...SDM_ENUMS(), filters: RE_FILTERS });
-const SDM_STATE = () => ({ ...STATE(), mode: "2", rate: "1", active_chain: "sdm" });
-
 /** @typedef {{ index: string, value: string, name: string }} EnumItem */
 /** @typedef {{ index: string, rate: string }} RateItem */
 /**
@@ -118,7 +108,9 @@ const SDM_STATE = () => ({ ...STATE(), mode: "2", rate: "1", active_chain: "sdm"
  * }} EngineState
  */
 /** @typedef {Record<string, string>} FileTruth */
-/** @typedef {{ live: { setting: string, ok: boolean }[], stored?: Record<string, string> }} LiveReport */
+/**
+ * @typedef {{ live: { setting: string, ok: boolean }[], stored?: Record<string, string>, reenumerated?: boolean }} LiveReport
+ */
 /** @typedef {{ posts: unknown[], gets: string[], seen: string[] }} LiveWireHandle */
 
 /**
@@ -144,6 +136,11 @@ const SDM_STATE = () => ({ ...STATE(), mode: "2", rate: "1", active_chain: "sdm"
 const env = globalThis;
 
 const FILE = () => ({ mode: "pcm" });
+
+// The running configuration's overlay as the served readings carry it: each key one field reading showing its file value.
+/** @param {FileTruth} file */
+const fileFields = (file) =>
+  Object.fromEntries(Object.entries(file).map(([k, v]) => [k, fieldReading(v, { show: "file" })]));
 
 // A live-lane server: the write path, plus the endpoints a write re-mirrors
 // from. `report` is the report /api/config/live answers on 200; `status` + `detail`
@@ -183,7 +180,7 @@ function liveWire({
       if (gate) await gate(w);
       return ok({ data: lists });
     }
-    if (path === "/api/config") return ok({ data: { fields: [], file: overlay, active: "", profiles: null } });
+    if (path === "/api/config") return ok({ generation: readings.value?.generation, fields: fileFields(overlay) });
     // Pending answers RAW — the store mirrors it with the raw unwrapper.
     if (path === "/api/config/pending") return ok({ live: {}, http: {} });
     return ok({});
@@ -195,14 +192,13 @@ function liveWire({
 // pass alone and fail in sequence.
 /**
  * @param {WireOpts & { state?: EngineState, lists?: Enums }} [opts]
- * @returns {LiveWireHandle}
+ * @returns {Promise<LiveWireHandle>}
  */
-function reset({ state, lists, file = FILE(), ...wire } = {}) {
+async function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
-  config.value = { fields: [], file, active: "", profiles: null };
-  liveErrors.value = {};
-  liveBusy.value = "";
+  config.value = { fields: [] };
+  await seedReadings(fileFields(file));
   return liveWire({ mirrored: state, file, ...wire });
 }
 
@@ -218,41 +214,17 @@ const control = (field) => {
 };
 const filterName = () => enums.value.filters[0].name;
 
-// --- every field that rebuilds the engine's menus ------------------------------
-// The two SDM-chain fields are written against an engine that has the SDM chain
-// loaded, because a write for the chain the engine has NOT loaded is held rather
-// than applied and re-enumerates nothing (the HELD case below).
-
-/** @typedef {{ field: string, value: string, sdm?: boolean }} ReenumCase */
-
-/** @type {ReenumCase[]} */
-const REENUM = [
-  { field: "mode", value: "sdm" },
-  { field: "filter1x", value: "40" },
-  { field: "filter", value: "40" },
-  { field: "oversampling1x", value: "38", sdm: true },
-  { field: "oversampling", value: "38", sdm: true },
-];
-
-/** @param {ReenumCase} c */
-const scene = (c) =>
-  c.sdm ? { state: SDM_STATE(), lists: SDM_ENUMS(), fresh: SDM_RE_ENUMS() } : { fresh: RE_ENUMS() };
-
-for (const c of REENUM) {
-  test(`test_a_${c.field}_write_pulls_the_new_enumerations`, async () => {
-    reset({ ...scene(c), report: { live: [{ setting: c.field, ok: true }] } });
-    await writeLive(c.field, c.value);
-    assert.equal(filterName(), "poly-sinc-short");
-  });
-}
-
 // --- the two halves land together ---------------------------------------------
 
 test("test_a_re_enumerating_write_ends_with_the_new_state_read_against_the_new_lists", async () => {
   // filterNx index 0 against the NEW list is enum 3. Against the old list it is
   // enum 0, and unmoved it is the seeded 25 — so only a store that adopted both
   // halves can answer 3.
-  reset({ fresh: RE_ENUMS(), mirrored: MOVED(), report: { live: [{ setting: "filter", ok: true }] } });
+  await reset({
+    fresh: RE_ENUMS(),
+    mirrored: MOVED(),
+    report: { live: [{ setting: "filter", ok: true }], reenumerated: true },
+  });
   await writeLive("filter", "40");
   assert.equal(control("filter").value, "3");
 });
@@ -262,10 +234,10 @@ test("test_the_engine_state_is_still_the_pre_write_one_while_the_new_enumeration
   // pending answer has had its turn. A store that committed State first would be
   // showing index 0 against the old list here — enum 0, a filter the user never
   // chose and the engine is not running.
-  const w = reset({
+  const w = await reset({
     fresh: RE_ENUMS(),
     mirrored: MOVED(),
-    report: { live: [{ setting: "filter", ok: true }] },
+    report: { live: [{ setting: "filter", ok: true }], reenumerated: true },
     gate: async (server) => {
       await new Promise((r) => setImmediate(r));
       server.seen.push(control("filter").value);
@@ -287,7 +259,7 @@ const PLAIN = [
 // not already forbid.
 for (const c of PLAIN) {
   test(`test_a_${c.field}_write_asks_the_daemon_for_no_enumerations`, async () => {
-    const w = reset({ fresh: RE_ENUMS(), report: { live: [{ setting: c.field, ok: true }] } });
+    const w = await reset({ fresh: RE_ENUMS(), report: { live: [{ setting: c.field, ok: true }] } });
     await writeLive(c.field, c.value);
     assert.equal(w.gets.includes("/api/enumerations"), false);
   });
@@ -296,10 +268,30 @@ for (const c of PLAIN) {
 test("test_a_write_that_rebuilds_nothing_still_adopts_the_engines_new_state", async () => {
   // Nothing re-enumerated, so the seeded list still applies: index 0 of it is
   // enum 0, which is neither the seeded 25 nor anything the new lists carry.
-  reset({ mirrored: MOVED(), report: { live: [{ setting: "junk_filter", ok: true }] } });
+  await reset({ mirrored: MOVED(), report: { live: [{ setting: "junk_filter", ok: true }] } });
   await writeLive("junk_filter", "0");
   assert.equal(control("filter").value, "0");
 });
+
+// --- a write that failed outright ----------------------------------------------
+// The request throws, so there is no report to say whether the batch made the
+// engine rebuild its menus. A stalled setter may still have landed, so the
+// controls must end on the lists the engine serves now, whatever the field.
+// None of the fields below re-enumerates on success, so a store that only
+// re-reads the lists for a fixed set of fields leaves filterNx index 0 joined
+// to the old list (enum 0) instead of the new one (enum 3).
+
+const STALL_DETAIL = "SetAdaptiveVolume: no reply within 5.0s";
+
+const FAILED = [{ field: "rate", value: "192000" }];
+
+for (const c of FAILED) {
+  test(`test_a_${c.field}_write_that_fails_outright_leaves_the_controls_on_the_engines_current_lists`, async () => {
+    await reset({ status: 503, detail: STALL_DETAIL, fresh: RE_ENUMS(), mirrored: MOVED() });
+    await writeLive(c.field, c.value);
+    assert.equal(control("filter").value, "3");
+  });
+}
 
 // --- a write the backend HELD --------------------------------------------------
 // The edit was for the chain the engine has not loaded, so the daemon stored it
@@ -328,7 +320,7 @@ test("test_a_held_write_shows_the_held_value_on_the_dormant_control", async () =
   // that issued the re-read and threw the answer away is still showing 3 here.
   // What this cannot separate is adoption from the overlay and adoption from the
   // report's own `stored` — both end on 7, and only the wire tells them apart.
-  reset(HELD());
+  await reset(HELD());
   await writeLive("modulator", "7");
   assert.equal(control("modulator").value, "7");
 });
@@ -336,13 +328,13 @@ test("test_a_held_write_shows_the_held_value_on_the_dormant_control", async () =
 test("test_a_held_write_reads_the_enumerations_no_more_than_that_re_read_carries", async () => {
   // The configuration re-read brings one set of lists with it. A store that
   // treated a held write as a re-enumeration as well would walk that lane twice.
-  const w = reset(HELD());
+  const w = await reset(HELD());
   await writeLive("modulator", "7");
   assert.equal(w.gets.filter((p) => p === "/api/enumerations").length, 1);
 });
 
 test("test_a_held_write_adopts_the_lists_that_re_read_brought_back", async () => {
-  reset(HELD());
+  await reset(HELD());
   await writeLive("modulator", "7");
   assert.equal(filterName(), "poly-sinc-short");
 });

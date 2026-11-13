@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Screenshot / measure a page with headless chromium — the visual hand-back harness.
 
-Replaces the per-session playwright boilerplate scratchpad scripts. Two modes,
-combinable in one invocation:
+Two modes, combinable in one invocation:
 
   screenshot   .venv/bin/python scripts/snap.py http://127.0.0.1:8090 out.png
   measure      .venv/bin/python scripts/snap.py http://127.0.0.1:8090 --measure ".card"
@@ -14,17 +13,21 @@ Measure prints one JSON object per matching element: bounding box plus any
   --full-page        capture full scrollable page
   --dark / --light   emulate prefers-color-scheme (default: dark)
   --wait SELECTOR    wait for selector before acting
-  --settle MS        extra settle delay after load (default 250)
   --eval JS          run JS in page context after load, print its JSON result
   --measure SELECTOR repeatable; dump geometry for every match
   --style PROP       repeatable; computed style properties to include in measure
   --console          collect console errors, uncaught page errors and failed
-                     requests seen from before load until after settle, into
+                     requests seen from before load until the JSON prints, into
                      the JSON under ``console``
   --text SELECTOR    repeatable; print the rendered text of every match as
                      numbered blocks after the JSON, with the element's title,
                      aria-label and any popover or tooltip body the DOM already
                      holds (nothing is hovered, clicked or opened)
+
+Before any capture or measurement the page's text is laid out in its real
+fonts: every face the drawn text uses is loaded and the document's font set
+reports loaded. The app's faces swap in late (``font-display: swap``), so a
+capture taken before then measures fallback-font widths.
 
 Browser binary comes from ``HQPTUNER_CHROMIUM`` if set (on hosts that use a
 system chromium instead of an ms-playwright cache), else playwright's default.
@@ -32,11 +35,11 @@ system chromium instead of an ms-playwright cache), else playwright's default.
 
 import argparse
 import json
-import os
 import sys
 from typing import Any
 
-from playwright.sync_api import Browser, ConsoleMessage, Error, Page, Playwright, Request, Response, sync_playwright
+from chromium import launch
+from playwright.sync_api import ConsoleMessage, Error, Page, Request, Response, sync_playwright
 
 MEASURE_JS = """
 ([sel, props]) => Array.from(document.querySelectorAll(sel)).map(el => {
@@ -46,6 +49,27 @@ MEASURE_JS = """
   return {selector: sel, x: r.x, y: r.y, width: r.width, height: r.height, ...styles};
 })
 """
+
+# Loads every font face the page's drawn text and form fields use, then resolves.
+FONTS_JS = """
+async () => {
+  const faces = new Set();
+  for (const el of document.querySelectorAll("body *")) {
+    const drawn = el.matches("input, textarea, select")
+      || [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim() !== "");
+    if (!drawn) continue;
+    const s = getComputedStyle(el);
+    faces.add(`${s.fontStyle} ${s.fontWeight} 16px ${s.fontFamily}`);
+  }
+  await Promise.all([...faces].map((face) => document.fonts.load(face)));
+}
+"""
+
+# True once the document's font set has no load in flight.
+FONTS_LOADED_JS = '() => document.fonts.status === "loaded"'
+
+# Ceiling, in ms, on the fonts loading. A ceiling on a condition, never a duration anything is expected to take.
+FONTS_TIMEOUT = 10_000
 
 # Status at or above which a response counts as a failed request rather than a served one.
 HTTP_ERROR_STATUS = 400
@@ -89,7 +113,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     scheme.add_argument("--dark", dest="scheme", action="store_const", const="dark", default="dark")
     scheme.add_argument("--light", dest="scheme", action="store_const", const="light")
     ap.add_argument("--wait", metavar="SELECTOR")
-    ap.add_argument("--settle", type=int, default=250, metavar="MS")
     ap.add_argument("--eval", dest="eval_js", metavar="JS")
     ap.add_argument("--measure", action="append", default=[], metavar="SELECTOR")
     ap.add_argument("--style", action="append", default=[], metavar="PROP")
@@ -99,14 +122,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if not (args.out or args.measure or args.eval_js or args.console or args.text):
         ap.error("nothing to do: give an output path, --measure, --eval, --console, or --text")
     return args
-
-
-def launch(pw: Playwright) -> Browser:
-    """Launch chromium, preferring the binary named by ``HQPTUNER_CHROMIUM`` over playwright's default."""
-    binary = os.environ.get("HQPTUNER_CHROMIUM")
-    if binary:
-        return pw.chromium.launch(executable_path=binary)
-    return pw.chromium.launch()
 
 
 def attach_console(page: Page, sink: list[dict[str, Any]]) -> None:
@@ -155,7 +170,8 @@ def run(page: Page, args: argparse.Namespace) -> None:
     page.goto(args.url, wait_until="networkidle")
     if args.wait:
         page.wait_for_selector(args.wait)
-    page.wait_for_timeout(args.settle)
+    page.evaluate(FONTS_JS)
+    page.wait_for_function(FONTS_LOADED_JS, timeout=FONTS_TIMEOUT)
     results: dict[str, Any] = {}
     if args.console:
         results["console"] = console

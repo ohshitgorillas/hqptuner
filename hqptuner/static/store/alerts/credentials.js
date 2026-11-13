@@ -1,4 +1,5 @@
-// Rejected management credentials — one fixed-copy alert-strip row.
+// Rejected management credentials: one fixed-copy alert line
+// (components/faceplate/AlertLines.js).
 //
 // The 4321 handshake that decides `reachable` is unauthenticated, so a health
 // poll can report a connected daemon while every 8088 configuration read is
@@ -17,8 +18,7 @@ import { health } from "../signals.js";
 // (`AUTH_REFUSED_MESSAGE`) — /api/health carries a boolean rather than a
 // sentence, so the frontend has nothing to render but its own copy.
 const AUTH_REFUSED_MESSAGE =
-  "Authentication rejected: username and password are bad. " +
-  "Open the Connection panel from the status pill and try again.";
+  "Authentication rejected: username and password are bad. Open connection settings from the knob and try again.";
 
 /** The rejected-credentials alert row for the strip, or null when the daemon has not refused them. */
 export const credentialsAlert = computed(() => {

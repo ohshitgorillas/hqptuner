@@ -1,11 +1,11 @@
 // Installation-side surface of the structural crossfeed block: the settings it
 // cannot coexist with, what it carries in from the rows it replaces, and the
 // named control points offered for it.
-// binaural.js holds the maths, this file the install surface,
+// vendor/eqlab/core/binaural/ holds the maths, this file the install surface,
 // and callers import from whichever they need.
 //
-// Like binaural.js, this module imports NOTHING — that is what lets the
-// binaural tests run under plain node with no shim.
+// This module imports NOTHING but units.js, which itself imports nothing; that
+// is what lets the binaural tests run under plain node with no shim.
 
 // --- invariants --------------------------------------------------------------
 // Two settings elsewhere in the app are incompatible with this block, and both
@@ -16,7 +16,7 @@
 //     this block is two crossfeeds in series.
 //   matrix_iir2fir = 2 — converts the matrix's parametric stages to linear phase,
 //     and linear phase means constant group delay, which deletes the low-frequency
-//     ITD the head-shadow filter supplies (docs/crossfeed-math.md §3). The
+//     ITD the head-shadow filter supplies (docs/research/crossfeed-math.md §3). The
 //     magnitude response stays correct, so nothing on a plot would show it.
 //
 // iir2fir = 1 is ALLOWED. The manual calls it "direct conversion, retain
@@ -24,15 +24,17 @@
 // which is exactly why T_g falls out of eq. (3) rather than being added on top.
 // The conversion applies to parametric EQs, so `delay` stages are untouched.
 //
-// This reports; it does not mutate. The caller stages the fixes so they appear in
-// the pending bar like any other change — the app never silently rewrites config
-// the user can see, and a conflict arriving via a preset load (whose snapshot
+// This reports; it does not mutate. The caller (store/xfeed/mode.js) stages the
+// fixes so they show as staged like any other change: the app never silently
+// rewrites config the user can see, and a conflict arriving via a preset load (whose snapshot
 // carries post_bauer_enabled) has to be visible for the same reason.
+
+import { ampToDb } from "./units.js";
 
 /**
  * @typedef {import("../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  *   A type-only reference: JSDoc `import()` is erased, so this file still pulls
- *   in nothing at runtime (see the header).
+ *   in nothing at runtime beyond units.js (see the header).
  * @typedef {string | number | boolean | undefined} ConfigValue
  *   One control's rendered value, as `effective` resolves it.
  * @typedef {{ refused?: boolean, eq?: { left: string, right: string },
@@ -76,7 +78,7 @@ export function blockConflicts(effective) {
 // The install is all-or-nothing, and this is the half that decides. A starting
 // point the block cannot carry is REFUSED, not carried in partially: the
 // alternative — installing an EQ-less block over rows that had EQ on them —
-// destroys settings the user already had, which is not honouring their action
+// destroys settings the user already had, which is not honoring their action
 // but doing something they never asked for. Refusing costs them a click;
 // installing over the top costs them their tuning.
 //
@@ -109,7 +111,7 @@ function gainDb(row) {
   const raw = Number(row.gain);
   if (!Number.isFinite(raw)) return null;
   if (row.gainunit === "dB") return snapDb(raw);
-  return raw > 0 ? snapDb(20 * Math.log10(raw)) : null;
+  return raw > 0 ? snapDb(ampToDb(raw)) : null;
 }
 
 /**

@@ -6,6 +6,11 @@
 #   scripts/abuse.sh close
 #   scripts/abuse.sh status
 #
+# status prints the resolved state root and store list, then whether a run is
+# open. The state root is HQPTUNER_ABUSE_STATE, from the environment or else
+# from the host's hqpcreds; the stores are HQPTuner's own paths under /state
+# that the Dockerfile ENV block names, read from it on every run.
+#
 # An abuser agent types garbage into the UI. Whatever it stages lands in the
 # server's buffer, and the next human Apply writes all of it to the daemon,
 # which is how twelve stale fields once took hqplayerd off 4321. So a run is
@@ -14,9 +19,9 @@
 #   open    refuse unless the daemon is idle (State state "0") and the staged
 #           buffer is empty; save GET /api/backup as the baseline beside a
 #           snapshot of the config form and of the live State, the running
-#           matrix profile included; copy HQPTuner's seven own stores beside
-#           those, with a manifest saying which existed and what each held;
-#           record the newest audit seq; write state/abuse/current.
+#           matrix profile included; copy HQPTuner's own stores beside those,
+#           with a manifest saying which existed and what each held; record
+#           the newest audit seq; write abuse/current under the state root.
 #   close   DELETE /api/config/pending; read the audit records the run added;
 #           if an apply, a live write or a preset store write landed, POST
 #           /api/restore with the baseline (the daemon reloads on it) and poll
@@ -25,7 +30,7 @@
 #           by POST /api/volume when a live write moved it; put the matrix
 #           profile back by POST /api/matrix/profile when the run switched it,
 #           refusing instead when the daemon no longer has the recorded one;
-#           then put the seven stores back from the manifest, last, because the
+#           then put the stores back from the manifest, last, because the
 #           baseline upload writes one of them. Print the run's records either
 #           way. current is removed only on success, so a failed close can be
 #           re-run.
@@ -40,15 +45,35 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root
 API=${HQPTUNER_ABUSE_API:-http://127.0.0.1:8090}
-# Where HQPTuner keeps everything it writes — the bind mount's host side.
-STATE=${HQPTUNER_ABUSE_STATE:-state}
-DIR=$STATE/abuse
-CURRENT=$DIR/current
-# HQPTuner's own stores, the seven user-owned paths Dockerfile's ENV block names.
-# state/backups holds the rolling pre-apply zip HQPTuner writes for itself, and
-# the two .jsonl files are append-only records close itself reads — neither is a
-# store a run can damage, and rewinding a log would erase what the run did.
-STORES="presets live-presets.json favorites.json descriptions.json narrowing.json matrixmodes.json autopilot.json"
+# The stores the Dockerfile names, one per line: every HQPTUNER_* value in its
+# ENV instructions, backslash continuations included, that names something
+# inside /state, as its path relative to /state. Three are left out by name.
+# HQPTUNER_BACKUP_DIR holds the pre-apply safety copies, and putting it back
+# would discard the copies the run's own steps took, close's restore among
+# them. HQPTUNER_DEBUG_LOG and HQPTUNER_JUNKCAL_DIR are never stores, wherever
+# they are named: restoring either would erase what the run recorded.
+stores_in() {
+  sed -n -e '/^[[:space:]]*[Ee][Nn][Vv][[:space:]]/{' -e ':a' -e '/\\$/{N;ba' -e '}' -e p -e '}' "$1" \
+    | tr -s ' \t\n\\' '\n' \
+    | sed -n -e 's/^\(HQPTUNER_[A-Z0-9_]*=\)"\(.*\)"$/\1\2/' -e 's|//*|/|g' -e 's|/$||' \
+        -e '/^HQPTUNER_\(BACKUP_DIR\|DEBUG_LOG\|JUNKCAL_DIR\)=/d' \
+        -e '/=\/state\/\(.*\/\)\?\.\.\?\(\/\|$\)/d' \
+        -e 's|^HQPTUNER_[A-Z0-9_]*=/state/\(..*\)$|\1|p'
+}
+# Sets STATE (where HQPTuner keeps everything it writes) and STORES (its own
+# stores, space separated). STATE is HQPTUNER_ABUSE_STATE from the environment,
+# else the line of that name in the gitignored hqpcreds at the repo root, read
+# for that one line and never sourced, since it carries credentials. With
+# neither, every command refuses: no directory inside the repo stands in for
+# it, because that is not where the hand-back container keeps its state.
+resolve() {
+  STATE=${HQPTUNER_ABUSE_STATE:-}
+  if [ -z "$STATE" ] && [ -f hqpcreds ]; then
+    STATE=$(sed -n 's/^HQPTUNER_ABUSE_STATE=//p' hqpcreds | tail -n 1)
+  fi
+  [ -n "$STATE" ] || refuse "no state root: set HQPTUNER_ABUSE_STATE in the environment or as a line in hqpcreds"
+  STORES=$(stores_in Dockerfile | paste -sd ' ' -) || die "could not read the store list from Dockerfile"
+}
 # Upload retries and readback polls, 2 s apart: two minutes each, well past the
 # half minute a reload takes.
 TRIES=60
@@ -60,12 +85,18 @@ get()  { curl -sf "$API$1"; }
 
 [ $# -eq 1 ] || usage
 CMD=$1
+resolve
+DIR=$STATE/abuse
+CURRENT=$DIR/current
 
 state_of()   { get /api/state | jq -r '.data.state'; }
 pending_of() { get /api/config/pending | jq -c '{http, live}'; }
 top_seq()    { get "/api/audit?limit=1" | jq -r '.records[-1].seq // 0'; }
 # The config form as {field: value}, the shape open snapshots and close reads back.
-form_of() { get /api/config | jq -c '[.data.fields[] | {key: .name, value: .value}] | from_entries'; }
+# The value is the File reading: the bracket compares the daemon's persisted
+# config before the run against what a restore puts back, and the Engine reading
+# is a live list index that a reload resets and a restore does not carry.
+form_of() { get /api/config | jq -c '[.fields | to_entries[] | select(.value | has("file")) | {key, value: .value.file.value}] | from_entries'; }
 # The live State fields a live write can move and the restore reload resets.
 # The snapshot is wider than this list: volume and the matrix profile are taken
 # too, and both are kept OUT of LIVE_KEYS because nothing puts them back before
@@ -105,15 +136,15 @@ case "$CMD" in
     get /api/backup > "$DIR/$stamp/settings.zip" || die "GET /api/backup failed"
     form_of > "$DIR/$stamp/form.json" || die "GET /api/config failed"
     live_of > "$DIR/$stamp/live.json" || die "GET /api/state failed"
-    # HQPTuner's own stores, which no daemon backup carries: a run writing live
-    # fields folds them into the active preset when auto-save is on, and every
-    # other store has a write route of its own. A store that does not exist is a
+    # HQPTuner's own stores, which no daemon backup carries: every store has a
+    # write route of its own. A store that does not exist is a
     # legitimate empty install, recorded as absent rather than refused.
     mkdir -p "$DIR/$stamp/stores"
     man='{}'
     kept=0; missing=0
     for s in $STORES; do
       if [ -e "$STATE/$s" ]; then
+        mkdir -p "$(dirname "$DIR/$stamp/stores/$s")"
         cp -a "$STATE/$s" "$DIR/$stamp/stores/$s" || die "snapshot of $STATE/$s failed"
         d=$(digest_of "$STATE/$s") || die "digest of $STATE/$s failed"
         man=$(echo "$man" | jq -c --arg s "$s" --argjson d "$d" '.[$s] = {present: true, files: $d}')
@@ -146,10 +177,10 @@ case "$CMD" in
     say "audit since seq $since"
     records=$(get "/api/audit?limit=100000" | jq -c --argjson s "$since" '[.records[] | select(.seq > $s)]') \
       || die "GET /api/audit failed"
-    echo "$records" | jq -c '.[] | {seq, event, http, live, ok}'
-    applied=$(echo "$records" | jq '[.[] | select(.event == "apply" and .ok == true)] | length')
+    echo "$records" | jq -c '.[] | {seq, event, http: .fields.http, live: .fields.live, ok: .fields.ok}'
+    applied=$(echo "$records" | jq '[.[] | select(.event == "apply" and .fields.ok == true)] | length')
     echo "  applies landed: $applied"
-    lived=$(echo "$records" | jq '[.[] | select(.event == "live.write" and .ok == true)] | length')
+    lived=$(echo "$records" | jq '[.[] | select(.event == "live.write" and .fields.ok == true)] | length')
     echo "  live writes landed: $lived"
     # A preset write, load or delete mirrors into the daemon's own data/cfgs, so
     # it needs the baseline upload too. Those records carry no ok field, unlike
@@ -169,7 +200,7 @@ case "$CMD" in
       # the restore took: the upload is retried until 8088 accepts it, and the
       # restore is proven by readback, the fields the run applied reading their
       # baseline values again, the way HQPTuner's own persistent lane verifies.
-      keys=$(echo "$records" | jq -c '[.[] | select(.event == "apply" and .ok == true) | .http | keys[]] | unique')
+      keys=$(echo "$records" | jq -c '[.[] | select(.event == "apply" and .fields.ok == true) | .fields.http | keys[]] | unique')
       echo "  fields to read back: $keys"
       uploaded=""
       for _ in $(seq "$TRIES"); do
@@ -184,6 +215,12 @@ case "$CMD" in
         # The polled form is the copy taken at connect; refresh refetches it
         # from the daemon (and rescans devices, which is what the route is for).
         curl -sf -X POST "$API/api/config/refresh" >/dev/null 2>&1 || true
+        # The refresh takes the control connection down, so state answers 503
+        # until the app is Ready again; read it back only then.
+        for _ in $(seq "$TRIES"); do
+          [ "$(get /api/health | jq -r '.phase')" = "Ready" ] && break
+          sleep 1
+        done
         if now=$(form_of) && livenow=$(live_of) \
           && [ "$(jq -n --argjson k "$keys" --argjson b "$baseline" --argjson n "$now" '[$k[] | $b[.] == $n[.]] | all')" = "true" ] \
           && [ "$(jq -n --argjson k "$LIVE_KEYS" --argjson b "$(cat "$livebase")" --argjson n "$livenow" '[$k[] | $b[.] == $n[.]] | all')" = "true" ]; then
@@ -249,17 +286,18 @@ case "$CMD" in
       if [ "$now" = "$want" ]; then
         echo "  $s: unchanged"
       elif [ "$want" = "null" ]; then
-        rm -rf "$STATE/$s"
+        rm -rf "${STATE:?}/$s"
         echo "  $s: deleted (absent at open)"
       else
         # Build beside the store and swap it in: an interrupted close leaves
         # either the old store or the new one, never half of either. Wholesale,
         # which is what takes out the files the run added.
-        rm -rf "$STATE/$s.abuse-new" "$STATE/$s.abuse-old"
+        rm -rf "${STATE:?}/$s.abuse-new" "${STATE:?}/$s.abuse-old"
+        mkdir -p "$(dirname "$STATE/$s")"
         cp -a "$DIR/$stamp/stores/$s" "$STATE/$s.abuse-new" || die "restore of $STATE/$s failed"
         [ ! -e "$STATE/$s" ] || mv "$STATE/$s" "$STATE/$s.abuse-old"
         mv "$STATE/$s.abuse-new" "$STATE/$s"
-        rm -rf "$STATE/$s.abuse-old"
+        rm -rf "${STATE:?}/$s.abuse-old"
         echo "  $s: restored"
       fi
       back=$(digest_of "$STATE/$s")
@@ -267,10 +305,12 @@ case "$CMD" in
     done
     say "readback"
     echo "  pending: $(pending_of)"
-    echo "  health:  $(get /api/health | jq -c '{reachable, connected_at}')"
+    echo "  health:  $(get /api/health | jq -c '{phase, generation, connected_at}')"
     rm -f "$CURRENT"
     ;;
   status)
+    echo "root: $STATE"
+    for s in $STORES; do echo "store: $s"; done
     if [ -e "$CURRENT" ]; then echo "open: $(cat "$CURRENT")"; else echo "no run open"; fi
     ;;
   *) usage ;;

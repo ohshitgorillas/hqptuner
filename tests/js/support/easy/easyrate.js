@@ -56,26 +56,21 @@ export const engineRows = ({ backend = "alsa", anydsd = "1" } = {}) => {
 };
 
 /**
- * The /api/config payload: the daemon's form as rows, and the `file` half — the
- * settings as the daemon's own XML holds them. Both halves carry the same
- * backend and switches, because a payload whose halves disagree is one the
- * daemon never serves.
+ * The /api/config payload: the daemon's form as rows carrying form metadata
+ * alone, name and options. The values those rows would
+ * carry reach `readings.value` through the one `seedReadings` of the harness
+ * that assigns this.
  *
  * @param {Record<string, unknown>} form
- * @param {string} mode
- * @param {Engine} [engine]
  */
-export const configPayload = (form, mode, engine) => ({
-  fields: formFields(/** @type {never} */ (form)),
-  file: { mode, ...engineRows(engine) },
-  active: "",
-  profiles: null,
+export const configPayload = (form) => ({
+  fields: formFields(/** @type {never} */ (form)).map(({ value: _value, ...metadata }) => metadata),
 });
 
 // The tails the engine spells a filter's ratio class with, by the class name a
 // case asks for. The class is stated at the end of a `<FiltersItem/>`
 // description, after the chain glyph — `⥣` on the SDM chain, `⥮` on the PCM one
-// (docs/protocol.md §4, the format tests/js/store/narrow/narrowing-rate.test.js drives
+// (the format tests/js/store/narrow/narrowing-rate.test.js drives
 // narrowing with). A filter the enumeration describes with no tail, or does not
 // describe at all, carries no ratio class: that is the absence a case wanting
 // "the enumeration says nothing" seeds.
@@ -112,26 +107,8 @@ export const enumerations = (vocab, modeName, ratios = {}) => ({
 });
 
 /**
- * What the Output tab's lane finds in `enums`. The tab is driven off the daemon's
- * form, but a filter's ratio class is stated in the running engine's enumeration
- * and the app polls that on every page, so a case handing `ratios` — even an
- * EMPTY map, an enumeration describing no filter's class at all — gets that
- * enumeration seeded, and a case handing none gets the bare tab the other suites
- * drive, with nothing enumerated. The reported mode name is the engine's own
- * word for our output mode (`[SOURCE]` for auto, `SDM` for DSD out,
- * store/live/derive.js), so form and enumeration say the same thing twice rather
- * than a pair the daemon never serves together.
- *
- * @param {Vocab} vocab
- * @param {string} mode
- * @param {Record<string, string> | null} ratios
- */
-export const tabEnums = (vocab, mode, ratios) =>
-  ratios === null ? null : enumerations(vocab, { pcm: "PCM", sdm: "SDM", auto: "[SOURCE]" }[mode] || "PCM", ratios);
-
-/**
  * What State reports for one chain end: the LIST INDEX of the filter the engine
- * has loaded there (docs/protocol.md §4, never the id), or the "0" of a chain
+ * has loaded there (never the id), or the "0" of a chain
  * end holding nothing.
  *
  * @param {Vocab} vocab

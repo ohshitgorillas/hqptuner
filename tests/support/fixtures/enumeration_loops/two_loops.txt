@@ -1,0 +1,12 @@
+"""A module with two loops over enumeration lists."""
+
+
+def shaper_ids(view):
+    ids = []
+    for item in view.enums["shapers"]:
+        ids.append(item["value"])
+    return ids
+
+
+def rate_indices(view):
+    return [item["index"] for item in view.enums["rates"]]

@@ -1,8 +1,8 @@
 """Profile descriptions — the prose the user wrote about a saved matrix profile, kept for the install.
 
-A description is keyed by profile NAME, never by any id the daemon hands out: names are the stable join key
-(architecture §3.1), and ``<matrix_profile>`` carries exactly one attribute, ``name`` (readme §1.12), so there is
-nowhere in the config XML for this text to live. It is HQPTuner's own record, the way favorites are.
+A description is keyed by profile NAME, never by any id the daemon hands out: ``<matrix_profile>``
+carries exactly one attribute, ``name`` (readme §1.12), so there is nowhere in the config XML for this text to live.
+It is HQPTuner's own record, the way favorites are.
 
 Stored as one JSON file beside the live snapshots and the favorites, and for the same reason: a few hundred short
 paragraphs, so a file per profile would be all overhead. Layout follows ``favorites``' conventions — a schema
@@ -18,11 +18,12 @@ zip member and a stray byte there is a corrupt archive rather than a funny-looki
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
-from functools import partial
+from datetime import UTC
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
+from hqptuner.clock import utc_now
+from hqptuner.conf.matrixpayload import FIRST_PRINTABLE, PROFILE_NAME_MAX, NameFault, check_profile_name
 from hqptuner.config import DESCRIPTION_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
@@ -30,6 +31,7 @@ from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
@@ -37,19 +39,13 @@ if TYPE_CHECKING:
 _SCHEMA = 1
 
 # Ceilings on what a client may store. A description is a paragraph about a measurement, not a document; the profile
-# ceiling matches the daemon's 128-channel matrix with room to spare, and the name ceiling is the one
-# the profile element's own name validation enforces.
+# ceiling matches the daemon's 128-channel matrix with room to spare.
 _MAX_TEXT = 2000
 _MAX_PROFILES = 256
-_MAX_NAME_LEN = 128
 
 # Control characters the text may carry. Everything below 0x20 is refused except these two, which are what a pasted
 # measurement header is made of.
 _KEPT_CONTROLS = ("\n", "\t")
-_FIRST_PRINTABLE = 0x20
-
-# The store's default clock, a module-level singleton a constructor default reads.
-_DEFAULT_NOW = partial(datetime.now, UTC)
 
 
 class DescriptionEntry(TypedDict):
@@ -60,9 +56,8 @@ class DescriptionEntry(TypedDict):
 
 
 class DescriptionsFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the profile-name-to-entry map."""
+    """The on-disk envelope as read: the profile-name-to-entry map."""
 
-    schema: int
     profiles: dict[str, DescriptionEntry]
 
 
@@ -99,7 +94,7 @@ class NameEmptyError(DescriptionError):
 
 
 class NameTooLongError(DescriptionError):
-    """A staged profile name exceeded ``_MAX_NAME_LEN`` characters."""
+    """A staged profile name exceeded ``PROFILE_NAME_MAX`` characters."""
 
     def __init__(self, *, limit: int, name: str) -> None:
         """Render the wording naming the length limit and the (already-truncated) offending name."""
@@ -164,14 +159,16 @@ class CarriedNotAStoreError(DescriptionError):
 
 def _validate_name(name: object) -> str:
     """Return a profile name fit to key an entry, raising ``DescriptionError`` when it is not one."""
-    if not isinstance(name, str) or not name.strip():
-        raise NameEmptyError()
-    cleaned = name.strip()
-    if len(cleaned) > _MAX_NAME_LEN:
-        raise NameTooLongError(limit=_MAX_NAME_LEN, name=cleaned[:40])
-    if any(ord(c) < _FIRST_PRINTABLE for c in cleaned):
-        raise NameControlCharsError(name=cleaned[:40])
-    return cleaned
+    cleaned, fault = check_profile_name(name)
+    match fault:
+        case NameFault.NOT_STRING | NameFault.EMPTY:
+            raise NameEmptyError()
+        case NameFault.TOO_LONG:
+            raise NameTooLongError(limit=PROFILE_NAME_MAX, name=cleaned[:40])
+        case NameFault.CONTROL_CHARS:
+            raise NameControlCharsError(name=cleaned[:40])
+        case None:
+            return cleaned
 
 
 def _validate_text(text: object) -> str:
@@ -183,7 +180,7 @@ def _validate_text(text: object) -> str:
         raise TextNotStringError()
     if len(text) > _MAX_TEXT:
         raise TextTooLongError(limit=_MAX_TEXT, length=len(text))
-    if any(ord(c) < _FIRST_PRINTABLE and c not in _KEPT_CONTROLS for c in text):
+    if any(ord(c) < FIRST_PRINTABLE and c not in _KEPT_CONTROLS for c in text):
         raise TextControlCharsError()
     return text
 
@@ -209,7 +206,7 @@ def _clean_entry(name: object, entry: object) -> DescriptionEntry | None:
 
 
 def _clean(stored: object) -> DescriptionsFile:
-    """Return a read document's envelope, keeping the stamp when it is an int and only the storable profile entries.
+    """Return a read document's envelope, keeping only the storable profile entries.
 
     A file another version wrote, or one a client corrupted, loses the entries that make no sense rather than the
     whole store.
@@ -217,9 +214,6 @@ def _clean(stored: object) -> DescriptionsFile:
     out: DescriptionsFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     profiles = stored.get("profiles")
     if not isinstance(profiles, dict):
         return out
@@ -239,7 +233,7 @@ class DescriptionStore:
     reads as empty.
     """
 
-    def __init__(self, path: Path, *, now: Callable[[], datetime] = _DEFAULT_NOW) -> None:
+    def __init__(self, path: Path, *, now: Callable[[], datetime] = utc_now) -> None:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write.
 
         ``now`` supplies the instant stamped on a write; a test passes a fixed clock.

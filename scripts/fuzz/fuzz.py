@@ -3,7 +3,7 @@
 
   .venv/bin/python scripts/fuzz/fuzz.py http://127.0.0.1:8090 OUTDIR [--cap 12] [--dry-run]
 
-The attacks are built off ``docs/openapi.json`` before the first request.
+The attacks are built off the committed OpenAPI snapshot, ``SPEC``, before the first request.
 Records go to ``OUTDIR/attacks.jsonl``, one object per attack: the request, the
 status, the body, and one ordinary ``GET /api/health`` after it, which is the
 instrument that says whether the app survived.
@@ -20,7 +20,7 @@ but puts nothing back in HQPTuner's own store:
           the write-back confirmed by readback. At most 3.
   store   writes HQPTuner's own store; captured before the run and restored
           after, and name-taking routes get only names this script invented.
-  never   backup, restore and autosave are not sent at all.
+  never   backup and restore are not sent at all.
 
 Rails: at most 8 requests in flight, every loop over a list built before the
 first request, a timeout on every one. The daemon's own port is never addressed.
@@ -29,6 +29,7 @@ Refuses to run at all unless a bracket is open.
 
 import argparse
 import json
+import subprocess
 import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -40,8 +41,7 @@ import httpx
 from fuzzgen import RACE_CATEGORY, Attack, generate
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = ROOT / "docs" / "openapi.json"
-CURRENT = ROOT / "state" / "abuse" / "current"
+SPEC = ROOT / "docs" / "spec" / "openapi.json"
 
 DEFAULT_CAP = 12
 IN_FLIGHT = 8
@@ -52,11 +52,47 @@ BODY_LIMIT = 2000
 
 HEALTH = "/api/health"
 LIVE_PATHS = ["/api/config", "/api/volume"]
-STORE_PATHS = ["/api/favorites", "/api/narrowing", "/api/autopilot", "/api/descriptions", "/api/matrixmodes"]
+STATUS = "/api/status"
+AUTOPILOT = "/api/autopilot"
+STORE_PATHS = ["/api/favorites", "/api/narrowing", "/api/descriptions", "/api/matrixmodes"]
 NO_BRACKET = (
-    f"{CURRENT.relative_to(ROOT)} is not there: no abuse bracket is open.\n"
+    "No abuse bracket is open under the state root `scripts/abuse.sh status` prints.\n"
     "The caller opens one with `scripts/abuse.sh open` and closes it after."
 )
+
+
+#: How long `scripts/abuse.sh status` may take: it reads local files and no network.
+STATUS_TIMEOUT = 10.0
+#: The prefix of the line on which `scripts/abuse.sh status` prints the state root.
+ROOT_LINE = "root: "
+
+
+def state_root(repo: Path) -> Path | None:
+    """Return the state root `scripts/abuse.sh status` in `repo` prints, or None when it resolves none."""
+    done = subprocess.run(
+        ["./scripts/abuse.sh", "status"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        timeout=STATUS_TIMEOUT,
+        check=False,
+    )
+    if done.returncode != 0:
+        return None
+    roots = [line.removeprefix(ROOT_LINE) for line in done.stdout.splitlines() if line.startswith(ROOT_LINE)]
+    return Path(roots[0]) if roots else None
+
+
+def open_bracket(repo: Path) -> Path | None:
+    """Return the open bracket's `abuse/current` file, or None when no bracket is open.
+
+    The state root is the one `scripts/abuse.sh` in `repo` resolves.
+    """
+    root = state_root(repo)
+    if root is None:
+        return None
+    current = root / "abuse" / "current"
+    return current if current.is_file() else None
 
 
 @dataclass
@@ -64,8 +100,8 @@ class ProbeResult:
     """The health probe sent after every attack: whether the app answered and is well."""
 
     status: int | None = None
-    reachable: bool | None = None
-    alarm: bool | None = None
+    phase: str | None = None
+    generation: int | None = None
     error: str | None = None
 
 
@@ -96,7 +132,7 @@ def probe(client: httpx.Client) -> ProbeResult:
         body = response.json()
     except (httpx.HTTPError, OSError, json.JSONDecodeError) as exc:
         raise ProbeFailedError(exc) from exc
-    return ProbeResult(response.status_code, body.get("reachable"), body.get("alarm"))
+    return ProbeResult(response.status_code, body.get("phase"), body.get("generation"))
 
 
 class StateUnavailableError(Exception):
@@ -143,6 +179,23 @@ def snapshot(client: httpx.Client, paths: list[str]) -> dict[str, Any]:
     return out
 
 
+def autopilot_switch(status: dict[str, Any]) -> bool | None:
+    """Auto-pilot's switch off a ``GET /api/status`` answer, or None where that answer is no reading of it.
+
+    Before the first Status frame, or with the advisor off, status reads the switch as off whatever the store holds.
+    """
+    data = status.get("data")
+    switch = data.get("autopilot") if isinstance(data, dict) and data.get("advisor") is True else None
+    return switch if isinstance(switch, bool) else None
+
+
+def store_state(client: httpx.Client) -> dict[str, Any]:
+    """Read every store surface into one dict, auto-pilot's switch under its write route."""
+    out = snapshot(client, STORE_PATHS)
+    out[AUTOPILOT] = {"enabled": autopilot_switch(snapshot(client, [STATUS])[STATUS])}
+    return out
+
+
 def form_of(body: dict[str, Any]) -> dict[str, str]:
     """Return the config form as field/value pairs, the shape a live write-back takes."""
     fields = body.get("data", {}).get("fields", [])
@@ -182,13 +235,17 @@ def store_restore(client: httpx.Client, before: dict[str, Any]) -> list[str]:
     drop_descriptions(client, before)
     client.put("/api/favorites", json=before["/api/favorites"])
     client.put("/api/narrowing", json={"facets": before["/api/narrowing"].get("facets", {})})
-    client.post("/api/autopilot", json={"enabled": bool(before["/api/autopilot"].get("enabled"))})
-    after = snapshot(client, STORE_PATHS)
+    switch = before[AUTOPILOT]["enabled"]
+    if switch is not None:
+        client.post(AUTOPILOT, json={"enabled": switch})
+    after = store_state(client)
     problems = [
         f"{path} did not read back as captured"
-        for path in ("/api/favorites", "/api/narrowing", "/api/autopilot")
+        for path in ("/api/favorites", "/api/narrowing", AUTOPILOT)
         if after[path] != before[path]
     ]
+    if switch is None:
+        problems.append(f"{AUTOPILOT} could not be read off {STATUS} before the run, so it was not restored")
     return problems + [
         f"{path} changed and has no route that removes an entry; residue left"
         for path in ("/api/descriptions", "/api/matrixmodes")
@@ -324,7 +381,7 @@ def report(run: Run, attacks: list[Attack], out: Path) -> None:
 def execute(url: str, attacks: list[Attack], out: Path) -> int:
     """Run every attack against the live app, restoring the store around the whole run."""
     with httpx.Client(base_url=url, timeout=TIMEOUT) as client, out.open("w", encoding="utf-8") as handle:
-        before = snapshot(client, STORE_PATHS)
+        before = store_state(client)
         run = Run(client, handle)
         try:
             for number, attack in enumerate(attacks, start=1):
@@ -361,7 +418,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str]) -> int:
     """Refuse without an open bracket, generate the attacks, then either record them or send them."""
     args = parse_args(argv)
-    if not args.dry_run and not CURRENT.is_file():
+    if not args.dry_run and open_bracket(ROOT) is None:
         print(NO_BRACKET, file=sys.stderr)
         return 1
     spec = json.loads(SPEC.read_text(encoding="utf-8"))

@@ -1,0 +1,367 @@
+// Rendered suite for the Output drawer's two blocks: the rate dial (components/faceplate/drawers/output/RateDial.js) and the
+// device picker (components/faceplate/drawers/output/DevicePicker.js), each over the store. The dial: which tier each
+// band's needle prints selected, which tiers are hatched, where the playing lamp sits, that the output mode never takes
+// a band away, and the write a key makes. The picker: the list opening from its trigger, a tap
+// staging a device, the current and dirty marks, and the rescan.
+//
+// The whole drawer, drawn by the generic drawer from the Output schema with nothing staged: the restart mark on the rows
+// it draws its own way rather than as plain rows. The output device row, the Channels row and the rate dial row each
+// edit a setting that restarts the engine (an http field: the per-backend
+// output device, `channels`, the rate limits), so each carries the mark from the moment the drawer is drawn, before
+// any edit. The Output mode row is the live reference in the same drawer: `SetMode` applies it at once, so it carries
+// none, and a drawer that marked every row fails on it. The mark is found by its `data-testid`, so no copy is
+// asserted; the Channels and Output mode rows are found by catalog key (`data-k`), the device row as the
+// smallest drawer row enclosing the network device picker, the rate row as the smallest drawer row enclosing the dial.
+//
+// Renders through preact-render-to-string. A handler is fired through the vnode seam (tests/js/support/vnodeseam.js),
+// since server rendering fires no events. Controls are found by wire identifiers: a band (`data-band`), a tier's position (`data-i`), a
+// device's value (`data-v`) or a `data-testid`.
+//
+// Not reachable here: the needle's glide and the drag class, which a stylesheet and a live element own. A browser run
+// closes both.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { RateDial } from "../../../../hqptuner/static/components/faceplate/drawers/output/RateDial.js";
+import { DevicePicker } from "../../../../hqptuner/static/components/faceplate/drawers/output/DevicePicker.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
+import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  generation,
+  metadata,
+} from "../../../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { effective } from "../../../../hqptuner/static/store/resolve.js";
+import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { renderTree } from "../../support/vnodeseam.js";
+import { attr, classes, elements, hasAttr } from "../../support/markup.js";
+
+/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
+/** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+
+const STANDA = "naa-7bdbb6cb/hw:CARD=Standa,DEV=0";
+const OFFICE = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
+const NET_OPTIONS = [
+  { value: "S26/hw:CARD=Output,DEV=0", label: "S26: Gustard Digital Output: USB Audio" },
+  { value: STANDA, label: "naa-7bdbb6cb: Holo Audio UAC2.0 Gen2.1 Standa: USB Audio" },
+  { value: OFFICE, label: "naa-office: snd_rpi_hifiberry_digi: HiFiBerry Digi+ Pro HiFi wm8804-spdif-0" },
+];
+
+/** @type {string[]} */
+let refreshes = [];
+
+/** The values the wire serves, by field name; `load` sets them. @type {Record<string, unknown>} */
+let file = {};
+
+/** The Engine's list index of each output mode. */
+const MODE_INDEX = { auto: 0, pcm: 1, sdm: 2 };
+
+/** The daemon's limits of each numeric field here. */
+const BOUNDS = { channels: { min: 2, max: 32, step: 1 } };
+
+/**
+ * One field's served reading: the output mode from the Engine on the live lane with no restart of its own; every
+ * other field here from the File on the restore lane, restarting the engine; each carrying what the staging wire
+ * holds for it.
+ *
+ * @param {string} name
+ * @param {unknown} value
+ * @param {Record<string, unknown>} staged
+ */
+function served1(name, value, staged) {
+  const held = name in staged && staged[name] !== value ? staged[name] : null;
+  if (name === "mode") {
+    const index = MODE_INDEX[/** @type {keyof typeof MODE_INDEX} */ (value)];
+    return fieldReading(index, {
+      name: String(value),
+      lane: "live",
+      file: { value, generation: generation.value },
+      staged: held,
+    });
+  }
+  const bounds = BOUNDS[/** @type {keyof typeof BOUNDS} */ (name)] ?? null;
+  return fieldReading(value, { show: "file", lane: "restore", restarts: true, bounds, staged: held });
+}
+
+/**
+ * The served field readings of every value `load` set.
+ *
+ * @param {StagingWire | undefined} w
+ */
+function served(w) {
+  const staged = w ? w.staged.http : {};
+  return Object.fromEntries(Object.entries(file).map(([name, value]) => [name, served1(name, value, staged)]));
+}
+
+/** @type {StagingWire} */
+let wire;
+
+/**
+ * Load the /config payload: the values as served readings, and the form's options as its metadata.
+ *
+ * @param {{ mode?: string }} [over]
+ */
+async function load({ mode = "pcm" } = {}) {
+  file = {
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    mode,
+    backend: "network",
+    net_dop: false,
+    net_device: STANDA,
+    channels: 2,
+  };
+  config.value = {
+    fields: [
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "net_dop", type: "checkbox" },
+      { name: "net_device", type: "select", options: NET_OPTIONS },
+      { name: "channels", type: "number" },
+    ],
+  };
+  await seedReadings(served(wire));
+}
+
+/** @param {string} path @param {{ method?: string }} opts @param {StagingWire} w */
+function routes(path, opts, w) {
+  if (path === "/api/config" && (opts.method ?? "GET") === "GET")
+    return ok({ generation: generation.value, fields: served(w) });
+  if (path !== "/api/config/refresh") return undefined;
+  refreshes.push(String(opts.method));
+  return ok(null);
+}
+
+beforeEach(async () => {
+  refreshes = [];
+  wire = stagingWire({ routes });
+  await load();
+  engineState.value = { state: "0" };
+  engineStatus.value = { status: {}, metadata: {} };
+  enums.value = null;
+  metadata.value = null;
+  openPopover.value = null;
+  await discardAll();
+});
+
+const dial = () => elements(render(html`<${RateDial} />`));
+const picker = () => elements(render(html`<${DevicePicker} k="net_device" />`));
+
+/**
+ * The positions of the tier printings carrying `cls`, inside the band group named `band` or across the dial.
+ *
+ * @param {string} cls
+ * @param {string} [band]
+ */
+function tiersWith(cls, band) {
+  const all = dial();
+  const scope = band ? elements(all.find((e) => e.name === "g" && attr(e, "data-band") === band)?.html ?? "") : all;
+  return scope
+    .filter((e) => e.name === "g" && attr(e, "data-i") !== undefined && classes(e).includes(cls))
+    .map((e) => attr(e, "data-i"));
+}
+
+/**
+ * Fire the handler of the first vnode matching `pred` in one render of `tree`, or nothing when none matches.
+ *
+ * @param {unknown} tree
+ * @param {(props: Record<string, unknown>) => boolean} pred
+ * @param {string} handler
+ * @param {unknown} [event]
+ */
+async function fire(tree, pred, handler, event = undefined) {
+  const { seen } = renderTree(/** @type {Parameters<typeof renderTree>[0]} */ (tree));
+  const hit = seen.find((v) => typeof v.type === "string" && pred(v.props ?? {}));
+  const fn = /** @type {((e: unknown) => unknown) | undefined} */ (hit?.props[handler]);
+  if (fn) await fn(event);
+}
+
+/** @param {string} band */
+const slider = (band) => (/** @type {Record<string, unknown>} */ p) => p.role === "slider" && p["data-band"] === band;
+
+/** A key press as the slider reads it. @param {string} key */
+const keyEvent = (key) => ({ key, preventDefault: () => undefined });
+
+/** The x the dial prints tier `i` at, and the width of its viewBox. @param {number} i */
+function tierX(i) {
+  const all = dial();
+  const svg = all.find((e) => e.name === "svg");
+  const width = Number((attr(svg ?? { name: "", attrs: "", start: 0, html: "" }, "viewBox") ?? "").split(" ")[2]);
+  const g = all.find((e) => e.name === "g" && attr(e, "data-i") === String(i));
+  const label = elements(g?.html ?? "").find((e) => e.name === "text");
+  return { x: Number(label ? attr(label, "x") : NaN), width };
+}
+
+/** The position of each band's needle tier for the loaded rates: 192000 on PCM, 12288000 on SDM. */
+const NEEDLE_TIER = { pcm: "2", sdm: "8" };
+
+for (const [band, tier] of Object.entries(NEEDLE_TIER)) {
+  test(`test_the_${band}_band_prints_its_needles_tier_selected`, () => {
+    assert.deepEqual(tiersWith("sel", band), [tier]);
+  });
+}
+
+test("test_the_playing_lamp_stands_over_the_running_tier", () => {
+  engineStatus.value = { status: { active_rate: "352800" }, metadata: {} };
+  const lamp = dial().find((e) => e.name === "circle" && classes(e).includes("playing"));
+  const tier = tierX(3).x;
+  assert.equal(lamp ? Number(attr(lamp, "cx")) : null, Number.isNaN(tier) ? undefined : tier);
+});
+
+const lamps = () => dial().filter((e) => e.name === "circle" && classes(e).includes("playing")).length;
+
+for (const { behavior, rate, lit } of [
+  { behavior: "is_lit_with_a_running_rate", rate: "352800", lit: 1 },
+  { behavior: "is_out_with_no_running_rate", rate: "0", lit: 0 },
+]) {
+  test(`test_the_playing_lamp_${behavior}`, () => {
+    engineStatus.value = { status: { active_rate: rate }, metadata: {} };
+    assert.equal(lamps(), lit);
+  });
+}
+
+const sliderNow = (/** @type {string} */ band) => {
+  const el = dial().find((e) => attr(e, "role") === "slider" && attr(e, "data-band") === band);
+  return el ? attr(el, "aria-valuenow") : undefined;
+};
+
+for (const [band, tier] of Object.entries(NEEDLE_TIER)) {
+  test(`test_the_${band}_band_slider_reports_its_needles_tier`, () => {
+    assert.equal(sliderNow(band), tier);
+  });
+}
+
+test("test_an_arrow_key_steps_its_band_one_tier", async () => {
+  await fire(html`<${RateDial} />`, slider("pcm"), "onKeyDown", keyEvent("ArrowRight"));
+  assert.equal(effective("pcm_rate"), "384000");
+});
+
+test("test_end_sends_a_needle_to_its_bands_last_tier", async () => {
+  await fire(html`<${RateDial} />`, slider("sdm"), "onKeyDown", keyEvent("End"));
+  assert.equal(effective("sdm_rate"), "98304000");
+});
+
+const listHidden = () => {
+  const list = picker().find((e) => attr(e, "role") === "listbox");
+  return list ? hasAttr(list, "hidden") : null;
+};
+
+test("test_the_device_list_is_hidden_before_the_trigger", () => {
+  assert.equal(listHidden(), true);
+});
+
+test("test_the_trigger_opens_the_device_list", async () => {
+  await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["aria-haspopup"] === "listbox", "onClick");
+  assert.equal(listHidden(), false);
+});
+
+test("test_tapping_a_device_stages_it", async () => {
+  await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["data-v"] === OFFICE, "onClick");
+  assert.equal(effective("net_device"), OFFICE);
+});
+
+const pickerDirty = () => {
+  const root = picker()[picker().length - 1];
+  return root ? hasAttr(root, "data-dirty") : null;
+};
+
+test("test_an_unedited_picker_is_not_dirty", () => {
+  assert.equal(pickerDirty(), false);
+});
+
+test("test_a_staged_device_marks_the_picker_dirty", async () => {
+  await edit("net_device", OFFICE);
+  assert.equal(pickerDirty(), true);
+});
+
+test("test_the_rescan_button_asks_the_daemon_to_rescan", async () => {
+  await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["data-testid"] === "rescan", "onClick");
+  assert.deepEqual(refreshes, ["POST"]);
+});
+
+/** The restart mark's test id, shared by every surface that carries it. */
+const MARK = "restart-mark";
+
+/** The drawer row style every row carries. */
+const ROW = "drow";
+
+/** Restart-lane key: the channel count. */
+const CHANNELS = "channels";
+
+/** Live-lane key: the output mode, set at once by `SetMode`. */
+const OUTPUT_MODE = "output_mode";
+
+const drawer = () => elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`));
+
+/**
+ * Whether `inner` lies inside `outer`.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+const within = (inner, outer) =>
+  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
+
+/**
+ * The smallest drawer row enclosing the first element matching `pred`, or undefined when none does.
+ *
+ * @param {MarkupElement[]} all
+ * @param {(e: MarkupElement) => boolean} pred
+ */
+function rowAround(all, pred) {
+  const inner = all.find(pred);
+  if (!inner) return undefined;
+  return all
+    .filter((e) => classes(e).includes(ROW) && within(inner, e))
+    .sort((a, b) => a.html.length - b.html.length)[0];
+}
+
+/**
+ * Whether `row` carries the restart mark, or null when the row is not drawn at all.
+ *
+ * @param {MarkupElement | undefined} row
+ * @returns {boolean | null}
+ */
+const marked = (row) => (row ? elements(row.html).some((e) => attr(e, "data-testid") === MARK) : null);
+
+/** @param {MarkupElement[]} all @param {string} key */
+const rowOf = (all, key) => all.find((e) => classes(e).includes(ROW) && attr(e, "data-k") === key);
+
+/** @param {MarkupElement[]} all */
+const deviceRow = (all) => rowAround(all, (e) => classes(e).includes("devpick") && attr(e, "data-k") === "net_device");
+
+/** @param {MarkupElement[]} all */
+const rateRow = (all) => rowAround(all, (e) => classes(e).includes("dial") && attr(e, "role") === "group");
+
+for (const { name, row, mark } of [
+  { name: "an_unedited_output_device_row_carries_the_mark", row: deviceRow, mark: true },
+  {
+    name: "an_unedited_channels_row_carries_the_mark",
+    row: (/** @type {MarkupElement[]} */ all) => rowOf(all, CHANNELS),
+    mark: true,
+  },
+  { name: "an_unedited_rate_row_carries_the_mark", row: rateRow, mark: true },
+  {
+    name: "the_live_mode_row_carries_none",
+    row: (/** @type {MarkupElement[]} */ all) => rowOf(all, OUTPUT_MODE),
+    mark: false,
+  },
+]) {
+  test(`test_${name}`, () => {
+    assert.equal(marked(row(drawer())), mark);
+  });
+}

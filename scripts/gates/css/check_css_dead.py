@@ -14,9 +14,9 @@ read as the literal text ``var(--token)`` and a keyframe is named as a bare
 word in an animation value, so a static reader sees every consumer there is,
 and a reverse gate is sound here where it was not for classes.
 
-JS counts as a consumer, both ways round: ``theme.js`` writes ``--accent`` and
-``--accent-glow`` through ``style.setProperty``, and ``controls/index.js``
-builds a gradient out of the string ``var(--accent)``. A gate reading only the
+JS counts as a consumer, both ways round: ``applyFaceplateTheme`` writes
+``--acc`` and its siblings through ``style.setProperty``, and a component may
+build a value out of the string ``var(--acc)``. A gate reading only the
 stylesheets would call those dead. Reading a property back with
 ``getPropertyValue("--x")`` counts too; writing one with ``setProperty`` does
 not, because a value nobody ever reads is exactly what this gate is for.
@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent.parent
 STATIC = ROOT / "hqptuner" / "static"
 PRAGMA = "dead-exempt:"
 
-#: an exemption is honoured only when a reason follows the colon, the same
+#: an exemption is honored only when a reason follows the colon, the same
 #: contract check_css_tokens.py enforces: without the lookahead the comment's
 #: own `*/` reads as a reason and a blank exemption buys silence.
 EXEMPT = re.compile(re.escape(PRAGMA) + r"\s*(?!\*/)\S")

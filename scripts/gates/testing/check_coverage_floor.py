@@ -30,19 +30,25 @@ FLOOR = 90
 #: Files excused from the floor, path to the reason.
 EXEMPT: dict[str, str] = {
     "hqptuner/__main__.py": "uvicorn launch shim — no behavior to assert, and running it starts a server",
-    "hqptuner/engine/control.py": "cover struck with the wall-clock tests; retired by cover-floor",
-    "hqptuner/engine/metering.py": "cover struck with the wall-clock tests; retired by cover-floor",
     "hqptuner/lanes/autopilot.py": "cover struck with the wall-clock tests; retired by cover-floor",
-    "hqptuner/api/routes/autopilot.py": "cover struck with the wall-clock tests; retired by cover-floor",
     "hqptuner/core/autopilotops.py": "cover struck with the wall-clock tests; retired by cover-floor",
+    "hqptuner/core/junkcal.py": "advisor stack dormant by owner ruling",
 }
 
 
 def percentages(report: Path) -> dict[str, float]:
-    """Return path -> percent covered, as coverage.py's JSON report carries it."""
+    """Return path -> percent covered, as coverage.py's JSON report carries it, for files with code.
+
+    coverage.py reports 100% for a file with no statements; such a file has
+    nothing to cover, so it is left out rather than counted as a pass.
+    """
     data: dict[str, Any] = json.loads(report.read_text())
     files: dict[str, Any] = data.get("files") or {}
-    return {path: float(entry["summary"]["percent_covered"]) for path, entry in files.items()}
+    return {
+        path: float(entry["summary"]["percent_covered"])
+        for path, entry in files.items()
+        if entry["summary"].get("num_statements") != 0
+    }
 
 
 def below(measured: dict[str, float], floor: int, exempt: dict[str, str]) -> list[str]:

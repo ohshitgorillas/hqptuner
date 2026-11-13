@@ -68,32 +68,6 @@ export function modulatorTier(name) {
   return `${2 ** Math.round(Math.log2(floor / DSD_BASE_HZ))}+`;
 }
 
-// The generation a modulator belongs to, as the hover tip's own metadata row —
-// read off the same shaper overlay, by the same name join, as the tier badge
-// above. Generation is the manual's §4.5 column: the design lineage Signalyst
-// states, NOT a rating, so the row says the ordinal and stops there.
-//
-// The suffix is a table rather than a general ordinal rule because the column
-// is a closed 1-8 and a rule would have to handle teens and 21st for callers
-// that do not exist. Index 0 is unused and empty, so a generation the overlay
-// carries but this table does not know contributes no row at all.
-const GENERATION_ORDINALS = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
-/**
- * One metadata row naming a modulator's generation, or no row at all when the
- * overlay has no entry for the name and when the entry carries no generation.
- * The tuple is a tip row: facet key, heading, the value the reader sees, and the
- * raw code it was built from (components/narrowbar/facettip.js FacetRow).
- * @param {string} name the raw engine name, the overlay's own join key
- * @returns {[string, string, string, string[]][]}
- */
-export function modulatorTipRows(name) {
-  const shapers = metadata.value && metadata.value.shapers;
-  const entry = shapers && shapers.sdm_modulators && shapers.sdm_modulators[name];
-  const gen = entry && entry.generation;
-  const ordinal = gen ? GENERATION_ORDINALS[gen] || "" : "";
-  return ordinal ? [["generation", "Generation", ordinal, [String(gen)]]] : [];
-}
-
 // The trailing rate in a modulator's engine name ("ASDM7EC-super 512+fs"), which
 // the row badge now says on its own. Stripped for DISPLAY only: `label` stays
 // the raw engine name, because every join in the app is by that name, and the
@@ -110,10 +84,9 @@ export function stripRateSuffix(options) {
 }
 
 // Live-enum option source (schema `optionsFrom: 'enum'` + `enumKey`), for the
-// 4321-lane controls that have no /config form field to take options from. The
-// running engine is the sole authority for names AND ordering (architecture §3.1), and
-// Set* writes the LIST INDEX rather than the enum id (docs/protocol.md §4) — so
-// `index` is the value, never a shipped constant.
+// 4321-lane controls that have no /config form field to take options from.
+// Set* writes the LIST INDEX rather than the enum id, so `index` is the value,
+// never a shipped constant.
 /**
  * A named live enumeration as menu options, each valued by its list index.
  * @param {string} name
@@ -128,9 +101,8 @@ export function enumOptions(name) {
 // Superseded single-stage filters, on the SDM chain only. A filter whose
 // two-stage `-2s` twin is in the same list has no reason to be picked there, so
 // it is not offered and not counted. The rule reads the list it was handed
-// rather than a shipped name table: the running engine is the sole authority for
-// which filters exist (architecture §3.1), and a `-2s` the engine stops
-// enumerating brings its plain twin straight back.
+// rather than a shipped name table, so a `-2s` the engine stops enumerating
+// brings its plain twin straight back.
 //
 // One name survives the prune: whatever the field is currently set to. The
 // closed control and its prose read their label off this same list

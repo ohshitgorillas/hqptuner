@@ -1,0 +1,260 @@
+// Behavioral suite for hqptuner/static/store/faceplate/drawer.js, the stage drawer's store half: which tabs carry a
+// dirty dot, when the title carries it, when the apply group shows and when its buttons are live, how a drawer family
+// shares its staged state, which tab a drawer shows, which open question a drawer renders, and the apply mode the
+// split button runs.
+//
+// The store is driven at the wire: a staging fake answers the real REST paths (tests/js/support/wire/wire.js) and the
+// source signals are assigned the shapes their endpoints serve. The schema keys are catalog keys chosen for their
+// lane: volume_max and quick_pause stage for a restart, output_mode is an http field the write path routes live, and
+// adaptive_volume is a live-lane setter, and crossfeed_enabled is a key the matrix family holds, its baseline the
+// /matrix form's post_bauer_enabled. The storage key is named because it is the contract a persisted preference
+// makes with the browser.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawer.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  config,
+  engineState,
+  enums,
+  matrixConfig,
+  metadata,
+  pendingPreset,
+} from "../../../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { askWarn, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
+import {
+  applyMode,
+  canSave,
+  drawerHead,
+  drawerQuestion,
+  pickApplyMode,
+  runApply,
+  showTab,
+  shownTab,
+} from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
+import { useStorage } from "../../support/storage.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
+
+const STATION = "Living room";
+
+/** The /config form fields the rows read their baselines from. */
+const FIELDS = [
+  { name: "volume_max", type: "number" },
+  { name: "quick_pause", type: "checkbox" },
+  { name: "mode", type: "select" },
+];
+
+/** The /matrix form field the matrix family's crossfeed_enabled reads its baseline from. */
+const MATRIX_FIELDS = [{ name: "post_bauer_enabled", type: "checkbox" }];
+
+/**
+ * The values the daemon serves for both forms, with `station` the loaded one; Max volume restarts the engine.
+ *
+ * @param {string} station
+ */
+const served = (station) => ({
+  volume_max: fieldReading(-3, { show: "file", restarts: true }),
+  quick_pause: false,
+  mode: "pcm",
+  post_bauer_enabled: false,
+  active_preset: { value: station, readonly: true },
+});
+
+/** The family the store names, and a key it holds that no fixture drawer holds. */
+const FAMILY = "matrix";
+const FAMILY_KEY = "crossfeed_enabled";
+
+/** @type {string[]} */
+let applies = [];
+
+/** @param {string} path @param {{ body?: string }} opts */
+function routes(path, opts) {
+  if (path !== "/api/config/apply") return undefined;
+  applies.push(String(opts.body ?? "{}"));
+  return ok({ report: {} });
+}
+
+beforeEach(async () => {
+  applies = [];
+  stagingWire({ routes });
+  config.value = { fields: FIELDS };
+  matrixConfig.value = { fields: MATRIX_FIELDS };
+  await seedReadings(served(STATION));
+  engineState.value = { adaptive: 0 };
+  enums.value = null;
+  metadata.value = null;
+  pendingPreset.value = null;
+  openPopover.value = null;
+  cancel();
+  await discardAll();
+  pickApplyMode("apply");
+});
+
+/**
+ * A drawer of two tabs: a restart tab and a tab of live rows only.
+ *
+ * @param {string} id
+ * @param {string} [family]
+ * @returns {DrawerSchema}
+ */
+const twoTabs = (id, family) => ({
+  id,
+  title: id,
+  aria: id,
+  family,
+  tabs: [
+    { id: "range", label: "range", body: [{ row: { key: "volume_max" } }] },
+    { id: "live", label: "live", body: [{ row: { key: "output_mode" } }, { row: { key: "adaptive_volume" } }] },
+  ],
+});
+
+/**
+ * A drawer of one tab holding one row.
+ *
+ * @param {string} id
+ * @param {string} key
+ * @param {string} [family]
+ * @returns {DrawerSchema}
+ */
+const oneTab = (id, key, family) => ({
+  id,
+  title: id,
+  aria: id,
+  family,
+  tabs: [{ id: "only", label: "only", body: [{ row: { key } }] }],
+});
+
+test("test_an_edit_to_a_restart_row_marks_its_tab_and_live_row_edits_mark_none", async () => {
+  await edit("volume_max", "-6");
+  await edit("output_mode", "sdm");
+  await edit("adaptive_volume", "1");
+  assert.deepEqual(drawerHead(twoTabs("d1"), "range").dirty, ["range"]);
+});
+
+test("test_the_dot_goes_on_the_title_of_a_one_tab_drawer", async () => {
+  await edit("volume_max", "-6");
+  const single = drawerHead(oneTab("d2", "volume_max"), "only").titleDot;
+  assert.equal(single, true);
+});
+
+test("test_the_dot_of_a_multi_tab_drawer_goes_on_its_tab_and_not_on_its_title", async () => {
+  await edit("volume_max", "-6");
+  const { dirty, titleDot } = drawerHead(twoTabs("d3"), "range");
+  assert.deepEqual({ dirty, titleDot }, { dirty: ["range"], titleDot: false });
+});
+
+test("test_the_apply_group_shows_on_a_restart_tab_with_nothing_staged", () => {
+  assert.equal(drawerHead(twoTabs("d4"), "range").apply.shown, true);
+});
+
+test("test_the_apply_group_shows_on_a_live_tab_once_something_is_staged", async () => {
+  await edit("volume_max", "-6");
+  const after = drawerHead(twoTabs("d5"), "live").apply.shown;
+  assert.equal(after, true);
+});
+
+test("test_staged_edits_make_the_apply_buttons_live", async () => {
+  await edit("volume_max", "-6");
+  assert.equal(drawerHead(twoTabs("d6"), "range").apply.live, true);
+});
+
+test("test_a_family_members_staged_edit_lights_the_apply_group_of_its_siblings_only", async () => {
+  const sibling = oneTab("m-a", "volume_max", FAMILY);
+  const other = oneTab("solo-a", "volume_max");
+  await edit(FAMILY_KEY, "1");
+  const lit = [drawerHead(sibling, "only").apply.live, drawerHead(other, "only").apply.live];
+  assert.deepEqual(lit, [true, false]);
+});
+
+test("test_a_staged_live_lane_edit_makes_the_apply_buttons_live", async () => {
+  await edit("adaptive_volume", "1");
+  assert.equal(drawerHead(twoTabs("d7"), "live").apply.live, true);
+});
+
+test("test_a_drawer_shows_the_tab_last_picked", () => {
+  showTab("d7", "live");
+  assert.equal(shownTab(twoTabs("d7")), "live");
+});
+
+test("test_a_drawer_nobody_picked_a_tab_in_shows_its_first", () => {
+  showTab("d8", "live");
+  assert.equal(shownTab(twoTabs("d9")), "range");
+});
+
+test("test_the_apply_time_question_belongs_to_every_drawer", () => {
+  askWarn("pending", "q");
+  assert.equal(drawerQuestion(oneTab("d12", "volume_max"))?.owner, "pending");
+});
+
+test("test_a_rows_question_is_pinned_under_its_own_drawer_only", () => {
+  askWarn("volume_max", "q");
+  const pinned = [drawerQuestion(oneTab("d13", "volume_max"))?.owner, drawerQuestion(oneTab("d14", "quick_pause"))];
+  assert.deepEqual(pinned, ["volume_max", null]);
+});
+
+test("test_picking_a_mode_persists_it_under_its_storage_key", () => {
+  const storage = useStorage();
+  pickApplyMode("save");
+  assert.equal(storage.map.get("hqptuner.applyMode"), "save");
+});
+
+const MODULE = "../../../../hqptuner/static/store/faceplate/drawer.js";
+
+test("test_the_stored_mode_is_the_mode_the_page_comes_up_with", async () => {
+  useStorage().setItem("hqptuner.applyMode", "save");
+  const fresh = await import(`${MODULE.replace(/\.js$/, ".fresh-load.js")}`);
+  assert.equal(fresh.applyMode.value, "save");
+});
+
+test("test_picking_a_mode_closes_the_mode_menu", () => {
+  openPopover.value = "applymode";
+  pickApplyMode("save");
+  assert.equal(openPopover.value, null);
+});
+
+test("test_picking_a_mode_outside_the_two_leaves_the_mode_standing", () => {
+  pickApplyMode("save");
+  pickApplyMode("autosave");
+  assert.equal(applyMode.value, "save");
+});
+
+test("test_apply_and_save_is_available_with_a_loaded_station", () => {
+  const loaded = canSave.value;
+  assert.equal(loaded, true);
+});
+
+test("test_the_apply_mode_posts_the_staged_set_without_a_save", async () => {
+  await edit("volume_max", "-6");
+  await runApply();
+  assert.deepEqual(
+    applies.map((b) => JSON.parse(b).save),
+    [undefined],
+  );
+});
+
+test("test_the_save_mode_saves_into_the_loaded_station", async () => {
+  await edit("volume_max", "-6");
+  pickApplyMode("save");
+  await runApply();
+  assert.deepEqual(
+    applies.map((b) => JSON.parse(b).save?.name),
+    [STATION],
+  );
+});
+
+test("test_the_save_mode_sends_nothing_with_no_loaded_station", async () => {
+  await edit("volume_max", "-6");
+  pickApplyMode("save");
+  await seedReadings(served(""));
+  await runApply();
+  pickApplyMode("apply");
+  await runApply();
+  assert.equal(applies.length, 1);
+});

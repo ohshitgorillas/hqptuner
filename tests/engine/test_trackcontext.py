@@ -1,47 +1,133 @@
-"""``trackcontext.context_from`` — the advisor's view of the engine's current track, built off the manager's
-last poll (state, status, enumerations) rather than the wire."""
+"""The track context is read off the manager's 4321 readings: what the daemon last reported.
+
+Each fixture is one consistent daemon snapshot: ``State`` carries settings as list indices,
+``Status`` carries the running filter and rate, and the enumerations map index to name.
+Values come from the wire protocol's State and Status shapes and the fakes.
+"""
+
+from __future__ import annotations
 
 import pytest
+from virtual_clock import VirtualClock
 
+from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.engine import trackcontext
+from hqptuner.engine.trackcontext import TrackContext, context_from
+
+STOPPED = "0"
+PAUSED = "1"
+PLAYING_STATE = "2"
+STOP_REQUESTED = "3"
+
+GAUSS_LONG = "poly-sinc-gauss-long"
+SINC_LH = "sinc-Lh"
+FILTERS = [
+    {"index": "0", "name": "none", "value": "0"},
+    {"index": "1", "name": GAUSS_LONG, "value": "40"},
+    {"index": "2", "name": SINC_LH, "value": "72"},
+]
+JUNK_20K = "20k"
+JUNK_30K = "30k"
+JUNK_FILTERS = [
+    {"index": "0", "name": "none"},
+    {"index": "1", "name": JUNK_20K},
+    {"index": "2", "name": JUNK_30K},
+]
+RATE_705K = 705600
+RATE_352K = 352800
+SOURCE_44K = 44100
+SOURCE_96K = 96000
+DSD64 = 2822400
+RATES = [
+    {"index": "0", "rate": "0"},
+    {"index": "1", "rate": str(RATE_352K)},
+    {"index": "2", "rate": str(RATE_705K)},
+]
 
 
-class NoContextError(Exception):
-    """``context_from`` answered ``None`` where this test's fixture always carries a reachable poll snapshot."""
+def _context(
+    *,
+    state: str = PLAYING_STATE,
+    filter_index: str = "1",
+    junk_index: str = "1",
+    rate: int = RATE_705K,
+    track: dict[str, str] | None = None,
+    active_mode: str = "PCM",
+) -> TrackContext | None:
+    """Fill a bare manager's readings with one consistent snapshot and read its context."""
+    filter_name = FILTERS[int(filter_index)]["name"]
+    mgr = ConnectionManager(Config(), clock=VirtualClock())
+    mgr.readings.enums = {"filters": FILTERS, "junk_filters": JUNK_FILTERS, "rates": RATES}
+    mgr.readings.state = {
+        "state": state,
+        "mode": "1",
+        "filter": filter_index,
+        "filter1x": filter_index,
+        "filterNx": filter_index,
+        "shaper": "0",
+        "rate": "0",
+        "active_rate": str(rate),
+        "filter_junk": junk_index,
+    }
+    mgr.readings.status = {
+        "state": state,
+        "active_mode": active_mode,
+        "active_filter": filter_name,
+        "active_shaper": "none",
+        "active_rate": str(rate),
+        "filter_junk": junk_index,
+    }
+    mgr.readings.status_metadata = track
+    return context_from(mgr)
 
-    def __init__(self) -> None:
-        """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("expected a TrackContext")
+
+@pytest.mark.parametrize(("index", "name"), [("1", GAUSS_LONG), ("2", SINC_LH)])
+def test_filter_is_the_name_of_the_running_filter(index: str, name: str) -> None:
+    context = _context(filter_index=index)
+    assert context is not None
+    assert context.filter == name
 
 
-def _context(manager: ConnectionManager) -> trackcontext.TrackContext:
-    """``context_from``'s result, narrowed: the manager here always carries a reachable poll snapshot."""
-    ctx = trackcontext.context_from(manager)
-    if ctx is None:
-        raise NoContextError()
-    return ctx
+@pytest.mark.parametrize(("index", "name"), [("1", JUNK_20K), ("2", JUNK_30K)])
+def test_junk_filter_is_the_name_of_the_engaged_junk_filter(index: str, name: str) -> None:
+    context = _context(junk_index=index)
+    assert context is not None
+    assert context.junk_filter == name
 
 
-def test_an_unparseable_status_attribute_raises_the_typed_error(http_manager: ConnectionManager) -> None:
-    http_manager.reachable = True
-    http_manager.readings.status = {"state": "not-a-number"}
-    http_manager.readings.status_metadata = {}
-    with pytest.raises(trackcontext.UnparseableStatusAttributeError):
-        trackcontext.context_from(http_manager)
+def test_samplerate_is_the_source_rate_not_the_output_rate() -> None:
+    context = _context(rate=RATE_705K, track={"samplerate": str(SOURCE_44K)})
+    assert context is not None
+    assert context.samplerate == SOURCE_44K
 
 
-@pytest.mark.parametrize(
-    ("junk_filters", "expected"),
-    [([], None), ([{"index": "3", "name": "junk-three"}], "junk-three")],
-    ids=["no matching enum", "matching enum"],
-)
-def test_a_junk_filter_index_reads_as_its_matching_enum_and_as_no_filter_engaged_without_one(
-    http_manager: ConnectionManager, junk_filters: list[dict[str, str]], expected: str | None
-) -> None:
-    http_manager.reachable = True
-    http_manager.readings.status = {}
-    http_manager.readings.status_metadata = {}
-    http_manager.readings.state = {"filter_junk": "3"}
-    http_manager.readings.enums = {"junk_filters": junk_filters}
-    assert _context(http_manager).junk_filter == expected
+def test_samplerate_follows_the_source_when_the_output_rate_is_unchanged() -> None:
+    context = _context(rate=RATE_705K, track={"samplerate": str(SOURCE_96K)})
+    assert context is not None
+    assert context.samplerate == SOURCE_96K
+
+
+def test_sdm_is_true_for_a_dsd_source_on_a_pcm_output_chain() -> None:
+    context = _context(track={"samplerate": str(DSD64), "sdm": "1"}, active_mode="PCM")
+    assert context is not None
+    assert context.sdm is True
+
+
+def test_sdm_is_false_for_a_pcm_source_on_an_sdm_output_chain() -> None:
+    contexts = (
+        _context(track={"samplerate": str(SOURCE_44K), "sdm": "0"}, active_mode="SDM"),
+        _context(track={"samplerate": str(DSD64), "sdm": "1"}, active_mode="SDM"),
+    )
+    assert [context.sdm for context in contexts if context is not None] == [False, True]
+
+
+def test_state_two_reads_as_playing() -> None:
+    context = _context(state=PLAYING_STATE)
+    assert context is not None
+    assert context.playing is True
+
+
+@pytest.mark.parametrize("state", [STOPPED, PAUSED, STOP_REQUESTED])
+def test_stopped_paused_and_stop_requested_read_as_not_playing(state: str) -> None:
+    contexts = (_context(state=state), _context(state=PLAYING_STATE))
+    assert [context.playing for context in contexts if context is not None] == [False, True]

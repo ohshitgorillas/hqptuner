@@ -1,4 +1,4 @@
-"""Read candidate I over the owner-labelled corpus and write the image-fold report.
+"""Read candidate I over the owner-labeled corpus and write the image-fold report.
 
 The share is the first question a block is asked: a block is kept where its share of mirrored frames clears the
 share cut. The second question is the one ``jbpolicyyield.py`` grades under — G90 against its fixed cut, the ratio
@@ -81,9 +81,9 @@ def steady_bursts() -> list[tuple[str, str, str]]:
     tracks = load_tracks()
     by_album, by_track = load_labels()
     stamps = sorted(p.stem for p in DER.glob("*.npy"))
-    labelled = [s for s in stamps if owner_label(s, tracks, by_album, by_track) is not None]
-    graded, duplicates = collapse_overlaps(labelled)
-    print(f"derived={len(stamps)} labelled={len(labelled)} duplicates={len(duplicates)} graded={len(graded)}")
+    labeled = [s for s in stamps if owner_label(s, tracks, by_album, by_track) is not None]
+    graded, duplicates = collapse_overlaps(labeled)
+    print(f"derived={len(stamps)} labeled={len(labeled)} duplicates={len(duplicates)} graded={len(graded)}")
     out = []
     for stamp in graded:
         row = tracks.get(stamp, {})
@@ -268,7 +268,7 @@ def _intro() -> str:
         f"{CANDIDATE_I_SPAN_HZ / 1000:g} kHz below it, reversed so each pair of bins sits the same distance from "
         f"the fold. Both folds are read, {folds}, and the frame takes the larger of the two correlations. A block "
         f"reports the share of its frames whose correlation clears a cut, over the frames carrying one. Every "
-        f"graded steady burst of the labelled corpus is scored at {HEADLINE_WINDOW:g} s blocks."
+        f"graded steady burst of the labeled corpus is scored at {HEADLINE_WINDOW:g} s blocks."
     )
 
 
@@ -289,7 +289,7 @@ def _grade_intro() -> str:
 def write_report(corpus: Corpus, rows: list[dict[str, Any]]) -> None:
     """Write every table to ``REPORT``, each under the command that produced it."""
     lines = [
-        "# Image-fold candidate I over the labelled corpus",
+        "# Image-fold candidate I over the labeled corpus",
         "",
         _intro(),
         "",

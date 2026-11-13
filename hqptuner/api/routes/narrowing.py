@@ -10,10 +10,8 @@ from dataclasses import dataclass
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from hqptuner.presets.store.narrowing import (
-    Facets,
-    NarrowingStore,
-)
+from hqptuner.api.deps import narrowing_of
+from hqptuner.presets.store.narrowing import Facets
 
 router = APIRouter(prefix="/api")
 
@@ -50,11 +48,6 @@ class NarrowingAnswer:
     facets: Facets
 
 
-def _store(request: Request) -> NarrowingStore:
-    store: NarrowingStore = request.app.state.narrowing
-    return store
-
-
 @router.get("/narrowing")
 def narrowing(request: Request) -> NarrowingAnswer:
     """Every narrow-bar facet, stored value or default.
@@ -62,7 +55,7 @@ def narrowing(request: Request) -> NarrowingAnswer:
     409 when the store on disk is stamped newer than this HQPTuner reads — answering with defaults would be a lie
     about a file that is there and full.
     """
-    facets = _store(request).read()
+    facets = narrowing_of(request).read()
     return NarrowingAnswer(facets)
 
 
@@ -75,5 +68,5 @@ def save_narrowing(body: NarrowingBody, request: Request) -> NarrowingAnswer:
 
     422s a facet key ``FacetBody`` does not name — pydantic's own ``extra="forbid"`` refuses it at the door.
     """
-    facets = _store(request).write(body.facets.model_dump(exclude_none=True))
+    facets = narrowing_of(request).write(body.facets.model_dump(exclude_none=True))
     return NarrowingAnswer(facets)

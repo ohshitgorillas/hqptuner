@@ -1,0 +1,48 @@
+// Suite for the WAV header sample-rate sniff in lib/wav.js:
+// a RIFF/WAVE header yields its fmt-chunk rate, a corrupted RIFF tag yields null.
+//
+// Run: node --test --import ./tests/js/support/vendor-resolve.js tests/js/lib/wav.test.js
+
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { wavRateFromHeader } from "../../../hqptuner/static/lib/wav.js";
+
+/**
+ * A canonical 44-byte PCM WAV header: RIFF/WAVE, a 16-byte fmt chunk, an empty data chunk.
+ *
+ * @param {number} rate
+ * @returns {Uint8Array}
+ */
+function wavHeader(rate) {
+  const bytes = new Uint8Array(44);
+  const v = new DataView(bytes.buffer);
+  const tag = (/** @type {number} */ off, /** @type {string} */ s) => {
+    for (let i = 0; i < 4; i++) bytes[off + i] = s.charCodeAt(i);
+  };
+  tag(0, "RIFF");
+  v.setUint32(4, 36, true);
+  tag(8, "WAVE");
+  tag(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 2, true);
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 4, true);
+  v.setUint16(32, 4, true);
+  v.setUint16(34, 16, true);
+  tag(36, "data");
+  v.setUint32(40, 0, true);
+  return bytes;
+}
+
+test("wavRateFromHeader reads the fmt-chunk rate", () => {
+  const good = wavHeader(48000);
+  assert.equal(wavRateFromHeader(new DataView(good.buffer)), 48000);
+});
+
+test("wavRateFromHeader reads no rate from a corrupted RIFF tag", () => {
+  const bad = wavHeader(48000);
+  bad[0] = 0x58;
+  assert.equal(wavRateFromHeader(new DataView(bad.buffer)), null);
+});

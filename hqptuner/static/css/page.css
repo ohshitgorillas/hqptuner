@@ -1,0 +1,109 @@
+/* Body: rail | hairline | page. The page shows engaged stages only; each section = engraved header + rule.
+   The rule sits close to the rail (--rail-gap) and further from the page (--sp-9): its margins set both, and the
+   auto column sizes to them. --body-rail is this body's rail column; the grid and the drawers' left edge read it. */
+.body{--body-rail:var(--rail-w);position:relative;flex-grow:1;min-height:0;display:grid;grid-template-columns:var(--body-rail) auto minmax(0,1fr)}
+.vrule{width:var(--hair);margin:0 var(--sp-9) 0 var(--rail-gap);background:var(--line)}
+/* Spare height is never spread as random gaps between sections: spacing is fixed (--sp-9 between sections, --sp-5 header→body),
+   and the one section with stretchable content (.fill: plot + text) takes whatever height is left. */
+.page{display:flex;flex-direction:column;gap:var(--sp-9);padding:var(--sp-6) 0 var(--sp-5);min-height:0;overflow:hidden}
+
+.sec{display:flex;flex-direction:column;gap:var(--sp-5)}
+.sec.fill{flex:1 1 0;min-height:var(--fill-min)}
+.sec.fill > .two{flex:1 1 0;min-height:0}
+.sh{display:flex;align-items:center;gap:var(--sp-7)}
+.sh .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:var(--sp-4);white-space:nowrap;line-height:var(--lh-eng)}
+.sh .ln{flex-grow:1;height:var(--hair);background:var(--line)}
+/* The rule keeps a minimum length; the head's buttons never shrink. */
+.sh .ln{min-width:var(--sp-9)}
+.sh > .btn{flex-shrink:0}
+
+/* Section body: control column (524px) | manual copy. .stretch = equal-height columns. */
+.two{display:grid;grid-template-columns:var(--ctl-col) minmax(0,1fr);gap:0 var(--col-gap);align-items:start}
+.two.stretch{align-items:stretch}
+.two .man{padding-top:var(--sp-1)}
+.two > .lede{align-self:center}
+.row{display:flex;align-items:center;gap:var(--sp-8);flex-wrap:wrap}
+
+/* Field: head + control, stacked. */
+.fld,.stack{display:flex;flex-direction:column;gap:var(--sp-3);max-width:100%}
+.inline{display:flex;gap:var(--sp-5);align-items:center}
+
+
+/* Matrix engine left column: profile head + select, then the description fills down to the plot's bottom edge. */
+.mstack{min-height:0}
+.mstack .desc{flex:1 1 0;min-height:var(--desc-min);margin-top:var(--sp-2)}
+
+/* Profile description: the user's own text, so ink not amber. Recessed well; pencil marks it editable. The text keeps
+   clear of the pencil: its inset, its width and a gap. */
+.desc{position:relative;display:block}
+.desc textarea{box-sizing:border-box;display:block;width:100%;height:100%;margin:0;resize:none;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-4) calc(var(--sp-5) + var(--pencil) + var(--sp-4)) var(--sp-4) var(--sp-6);font:var(--fs-4)/1.55 var(--f-body);color:var(--ink-2)}
+.desc textarea:focus{outline:none;border-color:var(--acc-dim);color:var(--ink)}
+.desc svg{position:absolute;right:var(--sp-5);top:var(--sp-5);color:var(--ink-2);pointer-events:none}
+.desc:hover svg{color:var(--ink-2)}
+.desc:focus-within svg{color:var(--acc)}
+
+/* Matrix response plot (±12 dB, 20 Hz–20 kHz, log f). Stretches with the section. */
+.eq{position:relative;min-height:var(--plot-min);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);overflow:hidden;background:var(--glass)}
+.eq svg{position:absolute;inset:0;display:block}
+.eq .grid{stroke:var(--grid)}
+.eq .grid.minor{stroke:var(--grid-minor)}
+.eq .zero{stroke:var(--zero)}
+.eq .trace{fill:none;stroke:var(--acc);stroke-width:1.75;stroke-linejoin:round}
+.eq .lbl{fill:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-1);line-height:var(--lh-text)}
+
+/* One-line fold: a field or chain that isn't open — ▸, its name, why, its value; tapping opens it and
+   folds the open one (one open per section, so the height never changes). Never accented. */
+.fline{display:flex;align-items:center;gap:var(--sp-5);width:var(--fold-w);max-width:100%;height:var(--fold-h);padding:0;border:0;background:none;
+  color:var(--ink-2);font:inherit;font-size:var(--fs-4);white-space:nowrap;text-align:left;cursor:pointer}
+.fline::before{content:"▸";color:var(--ink-2);font-size:var(--fs-3);width:var(--fold-mark);flex-shrink:0}
+.fline b{font-weight:var(--fw-semi);color:var(--ink-2)}
+.fline .fn{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.fline .band{flex-shrink:0}
+.fline:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1);border-radius:var(--r-1)}
+.fld>.fline+.fline{margin-top:calc(-1 * var(--sp-1))}
+.fld>select+.fline,.fld>.vpick+.fline{margin-top:var(--sp-2)}
+
+/* Collapsed secondary control (Nx filter): one summary line, expands in place. */
+details.fold{width:var(--fold-w);max-width:100%}
+.fld>details.fold+details.fold{margin-top:calc(-1 * var(--sp-1))}
+details.fold summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:var(--sp-5);height:var(--fold-h);color:var(--ink-2);font-size:var(--fs-4);white-space:nowrap}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary::before{content:"▸";color:var(--ink-2);font-size:var(--fs-3);width:var(--fold-mark)}
+details.fold[open] summary::before{content:"▾"}
+details.fold summary b{font-weight:var(--fw-semi);color:var(--ink-2)}
+details.fold summary .fn{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+details.fold summary .band{flex-shrink:0}
+/* Resampling / Shaping bodies are mount points; their .two sits in the section as if written there. One
+   section holds both (the drawer's name); a rule between the two bodies keeps the two stages apart. */
+#rs-body,#sh-body{display:contents}
+/* The body steps in under the summary's name: past the ▸ column and its gap. */
+details.fold .in{padding:var(--sp-2) 0 0 calc(var(--fold-mark) + var(--sp-5));display:flex;flex-direction:column;gap:var(--sp-3)}
+
+/* Alert glyph on a page section's title: the stage's alert, in its color; the text is the title tooltip. */
+/* Section alert: the line(s) beside the title, in the header's spare width; the hairline keeps its minimum. */
+.sh .salert{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:var(--sp-1)}
+/* Matrix engine folded to its header line (the spectrum has the top of the page): the profile picker
+   and Profile builder sit on the header, after the hairline; the section body is gone. */
+.sec.mxfold .sh > .inline{flex-shrink:0}
+
+/* Chain picker (Resampling 1x / Nx, Shaping): nameplate glass.
+   The ▾ is two --chev halves, --sp-5 in from the right edge; the text keeps --sp-4 clear of it. */
+.cpk{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
+.fld>.cpk+.fline{margin-top:var(--sp-2)}
+button.vfd.cplate{height:var(--cplate-h);padding:var(--sp-2) var(--sp-6);display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;align-items:center;justify-content:stretch;justify-items:stretch;align-content:stretch;gap:0;text-align:left;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-5) - var(--chev)) 50%,calc(100% - var(--sp-5)) 50%;background-size:var(--chev) var(--chev);background-repeat:no-repeat;padding-right:calc(var(--sp-5) + 2 * var(--chev) + var(--sp-4))}
+.cplate:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
+.cpf{display:flex;align-items:baseline;gap:var(--sp-3);min-width:0;white-space:nowrap;overflow:hidden;line-height:var(--lh-text)}
+.cpfam{flex-shrink:0;font:var(--fw-semi) var(--fs-face) var(--f-body);color:var(--ink)}
+.cpsep{flex-shrink:0;font-size:var(--fs-face-sep);color:var(--ink-2)}
+.cpvar{min-width:0;font:var(--fw-medium) var(--fs-face) var(--f-body);color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+/* The rate badge closes the family line on its baseline; a long variant ellipsizes before it gives. */
+.cpf>.otier{flex-shrink:0;margin-left:calc(-1 * var(--sp-1))}
+.cpl{font:var(--fw-medium) var(--fs-face-leaf) var(--f-body);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text);align-self:center}
+.cplate.dim .cpl{color:var(--ink-2)}
+/* A name with no family line spans both rows, so it sits centered in the plate. */
+.cplate>.cpl:only-child{grid-row:1/-1}
+
+
+/* Resampling with both filters open (13″, Conversion.js): a row per filter, field | its copy, with the fold's gap between them. */
+.two.both{row-gap:var(--sp-7)}

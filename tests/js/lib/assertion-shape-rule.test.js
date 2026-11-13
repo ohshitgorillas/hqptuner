@@ -1,6 +1,5 @@
 // Behavioral suite for eslint-rules/assertion-shape.js, the frontend peer of
-// the shape checks in scripts/gates/testing/check_test_assertions.py (docs/testing.md
-// rules 2, 10 and the Markers clause).
+// the shape checks in scripts/gates/testing/check_test_assertions.py.
 //
 // The rule is driven through ESLint's Linter on invented source text, never
 // RuleTester: RuleTester's assertions are internal, and the one-assertion gate
@@ -116,25 +115,5 @@ test("a root conjunction reports its operand count and a nested || is not walked
       ["count", 2],
       ["count", 3],
     ],
-  );
-});
-
-test("an inequality against null, test.skip and test.todo are reported but an equality is not", () => {
-  const { messages } = lint([
-    ...PREAMBLE,
-    'test("one", () => {',
-    "  assert.ok(x !== null);",
-    "});",
-    'test.skip("two", () => {',
-    "  assert.ok(1);",
-    "});",
-    'test.todo("three");',
-    'test("four", () => {',
-    "  assert.equal(x, 3);",
-    "});",
-  ]);
-  assert.deepEqual(
-    messages.map((m) => m.messageId),
-    ["existence", "skip", "skip"],
   );
 });

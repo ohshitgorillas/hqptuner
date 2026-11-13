@@ -1,0 +1,111 @@
+{
+  "status": "gaps",
+  "score": "8/9",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "One scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test run over the retained baseline plus every direct importer of each touched support file exits 0 with zero failures at the phase tip",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "baseline/exit.txt records the command at rebuild/integrate 3e90a616 over 165 files; its saved log /tmp/gate-node-WhbfrsZE.log still exists and reads '# tests 2051 / # pass 2051 / # fail 0 / # skipped 0 / # todo 0', with 0 'not ok' lines. The integrate tip is still 3e90a616 (git log -1), and the tracked tree is clean: status shows only untracked .planning/reads.jsonl and uv.lock. No test.skip/todo in the 165 files. Routed B1/B2/B3 cases show as ok in that log, e.g. 'ok 1695 - test_a_modulator_conflict_is_critical', 'ok 1781 - test_a_held_write_shows_the_held_value_on_the_dormant_control'. Under the testing policy this verifier did not run the suite; the evidence is the saved log."
+    },
+    {
+      "n": 2,
+      "truth": "The baseline file list and failure log, captured at 082346ff before any repair, exist outside /tmp, and the exit run's file set equals that list plus the helper importers",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "baseline/files.txt (53 paths) and baseline/failures.log (1.1 MB, '# tests 4904 / # pass 4709 / # fail 195') exist; base.txt names sha 082346ff. The failing-file set taken from the log's location: lines is identical to files.txt (diff empty). Recomputed set: direct importers of the 14 support files (grep over tests/js *.test.js finds 154), unioned with files.txt, minus tests/js/store/hardware-catalog.test.js (deleted whole by ceb112e9), gives 165 paths. comm against the exit.txt list shows no difference either way. Note: failures.log is untracked on v2 (git status '??'). It exists on disk, so AC2's literal 'exists outside /tmp' holds."
+    },
+    {
+      "n": 3,
+      "truth": "No config.value or matrixConfig.value assignment under tests/js/ (support included) carries a field value or a file, active or rows key",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "Independent multi-line perl scan of every '(config|matrixConfig).value[.x] =' up to its ';' across tests/js found 182 assignments. None carries a file:/active:/rows: key, a member write, or a field-level value: once option objects are stripped. The only rows: is the nested stored-profile shape at store/faceplate-page/profile.test.js:120 (file_profiles.Desk.rows). Variable-payload sources checked: field-harness.js:162-163 and easy/easyrate.js:67 destructure value out and seed through seedReadings (field-harness.js:167-170, easytiles.js:279-285). profile-fixtures.js:65 spreads file_profiles only, since live_* are destructured at :49. Retired keys remain only in served fake bodies (polling.test.js:116,122; about-state-import-stores.test.js:145), and those are not assignments."
+    },
+    {
+      "n": 4,
+      "truth": "Phase commits change no assert line in a baseline test file without a contract-mismatch record, and the 6343d922 crossfeed renames are reverted or recorded",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "Statement-level extraction of every assert(...) call and test() title, BASE 082346ff against HEAD, over all modified or deleted *.test.js files. Assert changes in files.txt paths are all deletions, in applyguard, shaperfit-mode-gate, presets, drawers-speakers-schema, structural-roundtrip and hardware-catalog. All are in ceb112e9, whose message carries 'Contract mismatch: C1/C2/C3' with the owner rulings and the code/spec cites (actions.js:188,209; control.js:164; docs/spec/api.md:33). Both drawers-crossfeed.test.js files: asserts and titles at HEAD are identical to 6343d922^ (diff empty), reverted by 19cc6273. Every other assert that 6343d922 changed is identical to pre-WIP at HEAD, except the speakers-schema case deleted under C2."
+    },
+    {
+      "n": 5,
+      "truth": "A test covers nameOf in hqptuner/static/model/store/reading.js, passes now, and the record shows it red against code without nameOf",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "nameOf sits at reading.js:67-70 and is wired into fieldOf at :99. ba04762f adds 6 tests to tests/js/model/store/reading.test.js (the positive engine-name case plus file-shown, drag, page-staged, served-staged and stale-stamp). The regression log /tmp/gate-node-L0OIisBn.log shows all 6 ok, e.g. 'ok 2626 - test_the_view_names_the_engine_value_it_shows_when_the_engine_store_is_current'. The ba04762f message records the bite proof with nameOf reversed via git apply -R: '# fail 6', decisive line '+ undefined / - null'. Its log under /tmp is gone, so the record is the commit message."
+    },
+    {
+      "n": 6,
+      "truth": "Phase commits never include uv.lock or .planning/reads.jsonl",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "git log --name-only over 082346ff..3e90a616 on rebuild/integrate matches 0 paths for uv.lock or .planning/reads.jsonl. git log --name-only over 14dd1427^..084e44af on v2 also matches 0; its paths are only .planning/phases/2/* and .planning/STATE.md. ROADMAP SC4 is satisfied by the same check."
+    },
+    {
+      "n": 7,
+      "truth": "The production defects routed builder (B1 shaper-fit name, B2 held-write re-mirror, B3 profiles/device caps) are fixed in hqptuner/static/ with their failing tests unchanged and now passing",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "B1: b68825fd shaperfit.js reads field(key).value.name first. B2: 89a46b88 sync.js:102-107 refreshConfig calls safe(refreshReadings). B3: 1ee4e55a adds metadataValue at readings.js:48-58, read by stations.js and devicecaps.js. The assert diff (truth 4) shows no assert or title change in the routed test files: alerts, shaperfit-alerts, rail, live-reenum, stations. Their cases are ok in the exit log: 'ok 1695 - test_a_modulator_conflict_is_critical', 'ok 47 - test_a_modulator_below_its_floor_blinks_the_shaping_stage_red', 'ok 1781 - test_a_held_write_shows_the_held_value_on_the_dormant_control', 'ok 1520 - test_the_loaded_preset_is_the_one_active_station'. The phase diff has no TODO/FIXME/XXX/HACK/placeholder or skip markers."
+    },
+    {
+      "n": 8,
+      "truth": "Every valid claim stays unchanged: a test is deleted only when the owner retired its claim, through the contract-mismatch route with document quotations",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "cb5d5d42 deletes test_a_failed_config_fetch_keeps_the_last_good_snapshot from tests/js/store/live/polling.test.js. Its only record is 'Contract mismatch: Plan 6 Task 4 removed the mirror (sync.js refreshConfig no longer writes config).', with no owner ruling and no document quotation (D-03). The claim is still valid. 89a46b88's own message states the fix keeps 'a failed call leaving the last good readings in place as before', and sync.js:104 wraps refreshReadings in safe(). The matrix sibling was kept and repaired as a valid claim in 3e90a616. No remaining test exercises a failed /api/config fetch leaving readings in place: tests/js/store/core/readings.test.js has no failure case, and the only keep-last-good case in polling.test.js is the matrix one at :155."
+    },
+    {
+      "n": 9,
+      "truth": "The full JS suite at the phase tip runs with zero failures, and the drop in test count is fully explained by the recorded deletions and additions",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "/tmp/gate-node-L0OIisBn.log: '# tests 4882 / # pass 4882 / # fail 0 / # skipped 0 / # todo 0' at 3e90a616 (baseline/regression.txt). Net count: 4904 - 4882 = 22, which is 25 cases deleted in ceb112e9 (applyguard 8, shaperfit-mode-gate 5, presets 1, speakers-schema 1, hardware-catalog 6 ids, structural-roundtrip 4), plus 3 polling cases (8287314d 2, cb5d5d42 1), minus 6 added by ba04762f. No unexplained loss. regression.txt's wording '28 cases ... in ceb112e9' and SUMMARY's '24 claims' do not match the 25 counted, but the net arithmetic holds."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Exit check over baseline plus helper importers is green",
+      "evidence": "/tmp/gate-node-WhbfrsZE.log '# tests 2051 # pass 2051 # fail 0' over the 165-file list in baseline/exit.txt at 3e90a616. Tip unchanged and tracked tree clean."
+    },
+    {
+      "k": 2,
+      "name": "Baseline list and failure log retained outside /tmp, and the exit run uses exactly that list plus importers",
+      "evidence": "files.txt equals the failing-file set taken from failures.log. The recomputed 154 direct importers unioned with files.txt, minus deleted hardware-catalog.test.js, gives 165 paths, identical to the exit.txt list."
+    },
+    {
+      "k": 3,
+      "name": "No field-value or file/active/rows seeds in config.value or matrixConfig.value under tests/js/",
+      "evidence": "Independent scan: 182 assignments, 0 with file/active/rows keys or field-level values. Helpers strip value and seed through seedReadings (field-harness.js:162-170, easyrate.js:67)."
+    },
+    {
+      "k": 4,
+      "name": "No unrecorded assert-line change in baseline test files; 6343d922 crossfeed renames reverted or recorded",
+      "evidence": "Statement-level assert diff BASE..HEAD: baseline-file changes are all ceb112e9 deletions under Contract mismatch C1/C2/C3. Both drawers-crossfeed.test.js files are identical to 6343d922^ in asserts and titles."
+    },
+    {
+      "k": 5,
+      "name": "nameOf engine-name behavior is tested with a recorded red bite proof",
+      "evidence": "6 tests in tests/js/model/store/reading.test.js pass in /tmp/gate-node-L0OIisBn.log (ok 2626-2631). ba04762f records '# fail 6' with nameOf reversed."
+    },
+    {
+      "k": 6,
+      "name": "Phase commits never include uv.lock or .planning/reads.jsonl",
+      "evidence": "git log --name-only matches 0 hits on rebuild/integrate 082346ff..3e90a616 and 0 on v2 14dd1427^..084e44af."
+    }
+  ],
+  "gaps": [
+    {
+      "name": "Valid config keep-last-good claim deleted without the contract-mismatch quotations, leaving the behavior untested",
+      "reason": "behavior wrong: a valid claim was deleted instead of repaired, against the goal's 'every valid claim unchanged' and D-03. No automated check now exercises a failed /api/config fetch keeping the last good readings.",
+      "evidence": "cb5d5d42 deletes test_a_failed_config_fetch_keeps_the_last_good_snapshot (tests/js/store/live/polling.test.js). Its record, 'Contract mismatch: Plan 6 Task 4 removed the mirror (sync.js refreshConfig no longer writes config).', has no owner ruling and no document quotation. 89a46b88 states the behavior still holds ('a failed call leaving the last good readings in place as before'; hqptuner/static/store/sync.js:104 safe(refreshReadings)). The matrix sibling test_a_failed_matrix_fetch_keeps_the_last_good_form was repaired as valid in 3e90a616. tests/js/store/core/readings.test.js has no failure case. SUMMARY open items list the missing quotation, but nothing restores the coverage.",
+      "severity": "major",
+      "missing": "Restore the claim under its original name in the readings shape. Seed readings through seedReadings, answer GET /api/config with a 503, call refreshConfig, and assert the held readings survive, with a red bite proof (e.g. refreshReadings clearing readings on failure). Or record an owner ruling that retires the claim, with the before-and-after document quotations D-03 requires."
+    }
+  ],
+  "human_checks": []
+}

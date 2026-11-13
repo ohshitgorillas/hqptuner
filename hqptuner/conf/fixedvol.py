@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 
 from hqptuner.conf.xmledit import GroundingError, find_element, get_attr, open_tag_re
+from hqptuner.fields.model import Codec
+from hqptuner.fields.query import kept_at
 
 
 class RootAbsentError(GroundingError):
@@ -18,8 +20,6 @@ class RootAbsentError(GroundingError):
 # Fixed volume is a top-level ``<fixed volume="X"/>`` element whose PRESENCE means
 # "enabled" — there is no ``enabled`` attribute (readme §1.13 + live config). The
 # two form fields fold onto that one element, reconciled together (reconcile_fixed).
-FIXED_ENABLED = "fixed_volume_enabled"
-FIXED_LEVEL = "fixed_volume"
 _TRUTHY = frozenset({"1", "on", "true", "yes"})
 
 
@@ -69,16 +69,17 @@ def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[byte
 
     An unstaged half falls back to the snapshot's current state, so editing one field never clobbers the other.
     """
-    if FIXED_ENABLED in fixed_edits:
-        enabled = fixed_edits[FIXED_ENABLED].strip().lower() in _TRUTHY
+    enabled_field, level_field = kept_at(Codec.FIXED_ENABLED), kept_at(Codec.FIXED_LEVEL)
+    if enabled_field in fixed_edits:
+        enabled = fixed_edits[enabled_field].strip().lower() in _TRUTHY
     else:
         # Staging the LEVEL alone switches the feature ON. Presence of <fixed> IS
         # the enabled flag, so there is nowhere to park a level while the feature
         # is off. An explicit fixed_volume_enabled=0 still wins: it is handled
         # above, so "turn it off" never resurrects the feature.
-        enabled = FIXED_LEVEL in fixed_edits or active is not None
+        enabled = level_field in fixed_edits or active is not None
     current = fixed_level_of(active.group(0)) if active is not None else None
-    return enabled, fixed_edits.get(FIXED_LEVEL) or current or _remembered_level(xml)
+    return enabled, fixed_edits.get(level_field) or current or _remembered_level(xml)
 
 
 def _strip_active_fixed(xml: bytes, active: re.Match[bytes]) -> bytes:

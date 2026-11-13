@@ -305,7 +305,7 @@ def latch_table(per: dict[tuple[str, str], list[FrameRow]], title: str, reader: 
 def _intro() -> str:
     """State what each of the three no-gate readings is, and that every raw frame is read."""
     return (
-        f"Every raw frame of every steady headline block ({HEADLINE_WINDOW:g} s) of the labelled corpus is read "
+        f"Every raw frame of every steady headline block ({HEADLINE_WINDOW:g} s) of the labeled corpus is read "
         f"here, with no lit gate and no per-block quantity of any kind. The fold step is "
         f"`jbframestep.fold_frame_step` at {', '.join(f'{hz / 1000:g} kHz' for hz in FRAME_STEP_FOLDS_HZ)}, the "
         f"larger of the two folds taken. The edge step is the largest fall between the median of a "
@@ -345,7 +345,7 @@ def write_report(corpus: Corpus) -> None:
     """Write every table to ``REPORT``, each under the command that produced it."""
     per = _by_track(corpus.rows)
     lines = [
-        "# Frame-only no-gate readings over the labelled corpus",
+        "# Frame-only no-gate readings over the labeled corpus",
         "",
         _intro(),
         "",

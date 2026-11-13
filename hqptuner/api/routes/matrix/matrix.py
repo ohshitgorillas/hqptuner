@@ -1,4 +1,4 @@
-"""Matrix-tab REST surface (matrix-spec): the /matrix read model, profile operations, and convolution filter uploads.
+"""Matrix-tab REST surface: the /matrix read model, profile operations, and convolution filter uploads.
 
 A self-contained feature surface mounted alongside ``api``.
 """
@@ -16,13 +16,16 @@ from hqptuner.api import deps
 from hqptuner.api.deps import Cfg, HttpMgr, Mgr
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.conf.httpforms import FormField, MatrixRow, ProfileSelect, SpeakersForm
-from hqptuner.conf.matrixprofiles import MATRIX_PROFILES, StoredProfile
+from hqptuner.conf.matrixprofiles import StoredProfile
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes import matrixlane
 from hqptuner.lanes.http import speakerprocessing
 from hqptuner.lanes.http.speakerprocessing import SpeakerApplyResult
 from hqptuner.lanes.matrixlane import MatrixProfileSwitch
 from hqptuner.paths import bundled
+from hqptuner.shape.guards import is_str_map
 
 router = APIRouter(prefix="/api")
 
@@ -72,19 +75,14 @@ class MatrixReport:
     preset_profiles: dict[str, list[str]]
 
 
-def _is_str_map(value: object) -> TypeGuard[dict[str, str]]:
-    """Return whether ``value`` is a JSON object with only string values."""
-    return isinstance(value, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in value.items())
-
-
 def _is_rows(value: object) -> TypeGuard[list[dict[str, str]]]:
     """Return whether ``value`` is a list of string-valued row maps."""
-    return isinstance(value, list) and all(_is_str_map(row) for row in value)
+    return isinstance(value, list) and all(is_str_map(row) for row in value)
 
 
 def _is_stored_profile(value: object) -> TypeGuard[StoredProfile]:
     """Return whether ``value`` has ``StoredProfile``'s shape: a ``rows`` list and a ``post`` map, string-valued."""
-    return isinstance(value, dict) and _is_rows(value.get("rows")) and _is_str_map(value.get("post"))
+    return isinstance(value, dict) and _is_rows(value.get("rows")) and is_str_map(value.get("post"))
 
 
 def _parse_file_profiles(raw: str) -> dict[str, StoredProfile]:
@@ -103,7 +101,7 @@ def _parse_file_profiles(raw: str) -> dict[str, StoredProfile]:
 def matrix(manager: HttpMgr) -> deps.Snapshot[MatrixReport]:
     """Return the Matrix tab's read model: the /matrix form plus the live, file-saved, and per-preset profile lists.
 
-    Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait.
+    Served from the last-loaded form snapshot, never a socket wait.
     """
     form = deps.ensure_form(manager.readings.matrix_form, manager.readings.matrix_error)
     # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
@@ -114,7 +112,6 @@ def matrix(manager: HttpMgr) -> deps.Snapshot[MatrixReport]:
     # daemon's own list (live_profiles) holds what it read at startup, so the
     # picker shows the union and only a name in live_profiles can switch live.
     return deps.snapshot(
-        manager,
         MatrixReport(
             fields=form["fields"],
             rows=form["rows"],
@@ -122,7 +119,9 @@ def matrix(manager: HttpMgr) -> deps.Snapshot[MatrixReport]:
             active=form["active"],
             live_profiles=manager.readings.matrix_profiles or [],
             live_active=(manager.readings.state or {}).get("matrix_profile", ""),
-            file_profiles=_parse_file_profiles((manager.readings.file_config or {}).get(MATRIX_PROFILES) or ""),
+            file_profiles=_parse_file_profiles(
+                (manager.readings.file_config or {}).get(query.kept_at(Codec.PROFILES)) or ""
+            ),
             # each stored preset's profile names — the save/delete target pickers'
             # read model, computed from the store at request time (pure filesystem)
             preset_profiles=manager.presetops.preset_profiles(),
@@ -141,16 +140,6 @@ _NO_TRACK = "GetTrackFile"
 _NO_TRACK_MESSAGE = "Live playback is needed to load a matrix profile."
 
 
-class UnknownMatrixProfileActionError(ErrorBody):
-    """``POST /api/matrix/profile`` named a verb this route does not have."""
-
-    code = "not_found"
-
-    def __init__(self, *, action: str) -> None:
-        """Render the wording naming the unrecognized ``action``."""
-        super().__init__(f"unknown matrix profile action: {action}")
-
-
 class MatrixSwitchRefusedError(ControlFailedError):
     """The daemon refused a live matrix profile switch; the known no-track case is translated, alone."""
 
@@ -166,15 +155,14 @@ class MatrixSwitchRefusedError(ControlFailedError):
 
 
 class MatrixProfileBody(BaseModel):
-    """Carry the verb and profile name for ``POST /api/matrix/profile``, the live matrix-profile switch."""
+    """Carry the profile name for ``POST /api/matrix/profile``, the live matrix-profile switch."""
 
-    action: str  # switch — the only verb this route has (4321, live)
     name: str = ""  # empty = the unnamed [Default]
 
 
 @router.post("/matrix/profile")
 async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfileSwitch:
-    """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles").
+    """Load a saved matrix profile into the running matrix.
 
     4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no
     credentials — the Control API lane is unauthenticated.
@@ -185,8 +173,6 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfile
     does not persist profiles itself. The client stages the loaded
     profile's rows alongside this call, so a load is live AND persists.
     """
-    if body.action != "switch":
-        raise refuse(UnknownMatrixProfileActionError(action=body.action))
     try:
         return await matrixlane.switch_profile(manager, body.name)
     except ControlError as exc:
@@ -197,11 +183,10 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfile
 def speakers(manager: HttpMgr) -> deps.Snapshot[SpeakersForm]:
     """Speaker-processing read model (readme §1.9): enabled + per-channel level (dBFS) / distance (cm).
 
-    Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait
-    (fail-fast, see deps).
+    Served from the last-loaded form snapshot, never a socket wait (fail-fast, see deps).
     """
     form = deps.ensure_form(manager.readings.speakers_form, manager.readings.speakers_error)
-    return deps.snapshot(manager, form)
+    return deps.snapshot(form)
 
 
 class SpeakersBody(BaseModel):
@@ -222,7 +207,7 @@ class SpeakersApplyFailedError(ErrorBody):
 
 
 @router.post("/speakers")
-async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> deps.WithAutosave[SpeakerApplyResult]:
+async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> deps.Reported[SpeakerApplyResult]:
     """Apply speaker processing via the /speakers form lane (readme §1.9).
 
     Reloads the engine (~3 s), interrupting playback — never refused for it. The write is checkbox-safe and
@@ -234,7 +219,7 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> deps.WithAutos
         raise refuse(InvalidInputError(error=exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(SpeakersApplyFailedError(error=exc)) from exc
-    return await deps.with_autosave(result, manager)
+    return deps.Reported(result)
 
 
 def _limit_text(limit: int) -> str:
@@ -270,7 +255,7 @@ async def matrix_filter(file: Annotated[UploadFile | str, File()], manager: Mgr)
     Refuses an oversize, misnamed or malformed upload with 422 before anything is written; the size check runs on
     the part's byte count so an oversize body is never read into the route. A part with an empty filename reaches
     the handler as a bare string, which is refused the same way. Returns the daemon-side absolute path the pipeline
-    process string should reference (matrix-spec.md "Filter upload").
+    process string should reference.
     """
     if isinstance(file, str):
         raise refuse(FilterUploadTypeError())

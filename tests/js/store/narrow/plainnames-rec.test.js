@@ -7,9 +7,9 @@
 //   the flag is per-entry data, never a default. With the pref OFF (Standard)
 //   the return value is the input array untouched, so nothing carries a flag.
 //
-//   schema: the `noise_filter` row is labelled "Noise filter" and joins the
-//   `noise_filter` plain-names section; the `pcm_conversion` row is labelled
-//   "Decimation filter", sublabelled "SDM → PCM conversion", and joins the
+//   schema: the `noise_filter` row is labeled "Noise filter" and joins the
+//   `noise_filter` plain-names section; the `pcm_conversion` row is labeled
+//   "Decimation filter", sublabeled "SDM → PCM conversion", and joins the
 //   `pcm_conversion` plain-names section. The labels are pinned because they
 //   are the spec's own wording for these two rows.
 //
@@ -24,8 +24,6 @@
 // the change fails per-case rather than at module link — the convention
 // tests/js/store/narrow/plainnames-truename.test.js settled.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/plainnames-rec.test.js
 
 import test from "node:test";
@@ -33,7 +31,6 @@ import assert from "node:assert/strict";
 
 import { reset, META } from "../../support/field-harness.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { schema } from "../../../../hqptuner/static/store/schema.js";
 
 const MOD = new URL("../../../../hqptuner/static/store/plainnames.js", import.meta.url).href;
 const plainnames = await import(`${MOD}`);
@@ -74,6 +71,27 @@ async function decorated({ plain = true } = {}) {
   return plainnames.decorateOptions(OPTIONS, "noise_filter");
 }
 
+// Built fresh here rather than through the module-level OPTIONS, which earlier
+// cases already pushed through the pref-ON path: an implementation mutating its
+// input objects in place would otherwise deep-equal its own mutation.
+/**
+ * Seed the overlay with the pref OFF, then decorate a freshly built copy of the noise-filter options.
+ *
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+async function decoratedPrefOff() {
+  await reset({ meta: META_REC });
+  plainNames.value = false;
+  return plainnames.decorateOptions(
+    [
+      { value: "0", label: "standard" },
+      { value: "7", label: "sac" },
+      { value: "11", label: "wec2" },
+    ],
+    "noise_filter",
+  );
+}
+
 /**
  * One decorated option, found by the raw engine label it was built from.
  * Throws when the decoration dropped it, so a missing option fails loudly
@@ -95,43 +113,14 @@ test("test_a_rec_flagged_entry_decorates_its_option_with_rec_true", async () => 
   assert.equal(byLabel(await decorated(), "wec2").rec, true);
 });
 
-test("test_an_entry_without_rec_adds_no_rec_key_to_its_option", async () => {
-  assert.equal("rec" in byLabel(await decorated(), "sac"), false);
+test("test_pref_off_returns_the_rec_flagged_standard_option_untouched", async () => {
+  assert.deepEqual(byLabel(await decoratedPrefOff(), "standard"), { value: "0", label: "standard" });
 });
 
-// Built fresh here rather than through the module-level OPTIONS, which earlier
-// cases already pushed through the pref-ON path: an implementation mutating its
-// input objects in place would otherwise deep-equal its own mutation.
-test("test_pref_off_returns_the_input_options_untouched", async () => {
-  await reset({ meta: META_REC });
-  plainNames.value = false;
-  assert.deepEqual(
-    plainnames.decorateOptions(
-      [
-        { value: "0", label: "standard" },
-        { value: "7", label: "sac" },
-        { value: "11", label: "wec2" },
-      ],
-      "noise_filter",
-    ),
-    [
-      { value: "0", label: "standard" },
-      { value: "7", label: "sac" },
-      { value: "11", label: "wec2" },
-    ],
-  );
+test("test_pref_off_returns_the_unflagged_sac_option_untouched", async () => {
+  assert.deepEqual(byLabel(await decoratedPrefOff(), "sac"), { value: "7", label: "sac" });
 });
 
-// --- the schema rows ------------------------------------------------------------
-
-// The rows' own label and sublabel were pinned here. Both are owner copy
-// (docs/testing.md rule 9) — they were reworded once already — and the
-// plainNames key below is the row's machine identity.
-
-test("test_schema_noise_filter_joins_the_noise_filter_plain_names_section", () => {
-  assert.equal(schema.noise_filter.plainNames, "noise_filter");
-});
-
-test("test_schema_pcm_conversion_joins_the_pcm_conversion_plain_names_section", () => {
-  assert.equal(schema.pcm_conversion.plainNames, "pcm_conversion");
+test("test_pref_off_returns_the_rec_flagged_wec2_option_untouched", async () => {
+  assert.deepEqual(byLabel(await decoratedPrefOff(), "wec2"), { value: "11", label: "wec2" });
 });

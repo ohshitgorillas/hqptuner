@@ -13,80 +13,23 @@
 // no localStorage), so every read and write is guarded and a dead store simply
 // leaves the in-memory signal driving the session.
 import { signal } from "@preact/signals";
+import { getStored, setStored } from "../../lib/browser/storage.js";
 
-const K_MODE = "hqptuner.easyMode";
 const K_KNOBS = "hqptuner.easyKnobs";
-const K_MATERIAL = "hqptuner.easyMaterial";
 
 /**
- * @param {string} key
- * @returns {string | null}
+ * The stored record as parsed JSON, null where none can be read.
+ *
+ * @returns {unknown}
  */
-function read(key) {
+function storedKnobs() {
+  const stored = getStored(K_KNOBS);
+  if (!stored.ok) return null; // storage disabled — the default stands for this session
   try {
-    return localStorage.getItem(key);
+    return JSON.parse(stored.value || "");
   } catch {
-    return null; // storage disabled — the default stands for this session
+    return null; // nothing stored, or not JSON — every tile starts at its defaults
   }
-}
-
-/**
- * @param {string} key
- * @param {string} value
- * @returns {void}
- */
-function write(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* storage disabled — the in-memory value drives the session */
-  }
-}
-
-/** Whether the Easy Mode card is showing in place of the filter cards. */
-export const easyMode = signal(read(K_MODE) === "1");
-
-// The one thing in this module that is NOT remembered. Which face of the
-// controls someone prefers is a property of the person; having once read the
-// help is not, and a panel that reopened itself on every load would be a page
-// element rather than an answer to a question.
-/** Whether the help panel is open under the Easy Mode card. */
-export const easyHelp = signal(false);
-
-/**
- * Open the help panel, or close it if it is already open.
- * @returns {void}
- */
-export function toggleEasyHelp() {
-  easyHelp.value = !easyHelp.value;
-}
-
-/**
- * Show or hide the Easy Mode card, and remember which for next time.
- * @param {boolean} on
- * @returns {void}
- */
-export function setEasyMode(on) {
-  easyMode.value = !!on;
-  write(K_MODE, easyMode.value ? "1" : "0");
-}
-
-// The card's one knob: what material is playing. A fact about the source, not
-// about a preset, so it is held once here rather than per tile, and remembered
-// the way the mode is — the same person plays the same library next time.
-// Nothing here is written to a field: moving it changes what the tiles name and
-// what a press writes, and the press is still the write.
-/** The card's material position: "lossless" (default) or "lossy". */
-export const easyMaterial = signal(read(K_MATERIAL) || "lossless");
-
-/**
- * Set the card's material position, and remember it for next time.
- * @param {string} value
- * @returns {void}
- */
-export function setEasyMaterial(value) {
-  easyMaterial.value = value;
-  write(K_MATERIAL, value);
 }
 
 // Where each preset's knobs were left. A tile's knob positions are otherwise
@@ -96,7 +39,7 @@ export function setEasyMaterial(value) {
 // That loses a position the user set, which is what this remembers.
 //
 // Only DARK tiles read it. The lit tile still shows what the fields carry, so a
-// filter changed by hand in a chain card still wins over anything stored here.
+// filter changed by hand on its chain wins over anything stored here.
 /**
  * Parse the stored record, discarding anything that is not a map of maps of
  * strings — a hand-edited or half-written entry leaves the store empty rather
@@ -107,12 +50,7 @@ export function setEasyMaterial(value) {
 function readKnobs() {
   /** @type {Record<string, Record<string, string>>} */
   const out = {};
-  let raw;
-  try {
-    raw = JSON.parse(read(K_KNOBS) || "");
-  } catch {
-    return out; // nothing stored, or not JSON — every tile starts at its defaults
-  }
+  const raw = storedKnobs();
   if (raw === null || typeof raw !== "object") return out;
   for (const [presetId, positions] of Object.entries(raw)) {
     if (positions === null || typeof positions !== "object") continue;
@@ -136,7 +74,8 @@ export const easyKnobs = signal(readKnobs());
  */
 export function rememberKnobs(presetId, knobs) {
   easyKnobs.value = { ...easyKnobs.value, [presetId]: { ...knobs } };
-  write(K_KNOBS, JSON.stringify(easyKnobs.value));
+  // storage disabled — the in-memory value drives the session
+  setStored(K_KNOBS, JSON.stringify(easyKnobs.value));
 }
 
 /**

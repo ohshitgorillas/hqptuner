@@ -1,0 +1,155 @@
+// Store suite for hqptuner/static/store/faceplate/page/meter.js: what the page's Source section frames over the meter
+// feed. Whether the meter or a no-stream line shows, the page's own Range, the dB scale it sets, the frequency axis to
+// the source Nyquist, how many level bars the section draws, and whether the section is slim. What moves inside that
+// frame, the trace, the bars and their readings, is the meter loop's scene and the painter's (store/meter/loop.js,
+// components/faceplate/page/sourcepaint.js).
+//
+// The stream reaches the store at the wire: meter feed events through the EventSource fake
+// (tests/js/support/eventsource.js), playback through fresh /api/status objects. The feed's clock is a fixed `() => 0`,
+// so the feed never goes quiet. Prefs are written through their own setters over a fake storage; the plate through
+// the window size the entry writes. The engine plays only while /api/health reports the connection Ready, so every
+// case starts on a Ready connection.
+//
+// Ticks are fractions of the plot: across from 0 Hz, down from full scale.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-page/meter.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+import { pageMeter } from "../../../../hqptuner/static/store/faceplate/page/meter.js";
+import { engineStatus, health, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import {
+  METER_RANGES,
+  setMeterChannel,
+  setMeterRange,
+  setPageRange,
+} from "../../../../hqptuner/static/store/ui/prefs.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
+import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { useStorage } from "../../support/storage.js";
+import { fakeClock } from "../../support/clock.js";
+
+const FULL = { w: 1366, h: 1024 };
+const SLIM = { w: 1080, h: 810 };
+
+// The Ranges each switch offers are the owner's: the cases pick by place in the offered set, never by value.
+const [PAGE_FIRST = "", PAGE_SECOND = ""] = METER_RANGES;
+const PAGE_LAST = METER_RANGES.at(-1) ?? "";
+const [METER_FIRST = ""] = METER_RANGES;
+const METER_LAST = METER_RANGES.at(-1) ?? "";
+
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
+
+/**
+ * A geometry event's data.
+ *
+ * @param {{ nyquist?: number, channels?: number, bins?: number }} [o]
+ */
+const geometry = ({ nyquist = 22050, channels = 2, bins = 1025 } = {}) => ({ nyquist, channels, bins });
+
+/**
+ * Open a fresh feed over one /api/status object, and send the geometry event unless it is null.
+ *
+ * @param {{ state?: string, geo?: object | null }} [o]
+ */
+function stream({ state = "2", geo = geometry() } = {}) {
+  closeMeterFeed();
+  useEventSource();
+  engineStatus.value = { status: { state }, metering: true, metadata: { samplerate: "44100" } };
+  openMeterFeed(fakeClock().clock);
+  if (geo) lastStream()?.emit("geometry", geo);
+}
+
+/** @param {number} v */
+const r4 = (v) => +v.toFixed(4);
+
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
+  useStorage();
+  matrixConfig.value = null;
+  setMeterChannel("sum");
+  setMeterRange(METER_FIRST);
+  setPageRange(PAGE_FIRST);
+  viewport.value = FULL;
+  stream();
+});
+
+// --- which shows ---------------------------------------------------------------------------------------------------
+
+test("test_a_playing_source_with_the_feed_open_shows_the_meter", () => {
+  assert.equal(pageMeter().state, "live");
+});
+
+test("test_nothing_playing_shows_the_idle_line", () => {
+  stream({ state: "0" });
+  assert.equal(pageMeter().state, "idle");
+});
+
+// --- the page's range ----------------------------------------------------------------------------------------------
+
+test("test_the_range_is_the_pages_own_range", () => {
+  setPageRange(PAGE_LAST);
+  assert.equal(pageMeter().range, Number(PAGE_LAST));
+});
+
+test("test_the_drawers_range_leaves_the_pages_range_standing", () => {
+  setPageRange(PAGE_SECOND);
+  setMeterRange(METER_LAST);
+  assert.equal(pageMeter().range, Number(PAGE_SECOND));
+});
+
+// --- the dB scale --------------------------------------------------------------------------------------------------
+
+for (const range of METER_RANGES) {
+  test(`test_the_db_scale_ends_at_the_floor_of_the_offered_${range}_db_range`, () => {
+    setPageRange(range);
+    assert.equal(pageMeter().db.at(-1)?.db, -Number(range));
+  });
+}
+
+// --- the frequency axis --------------------------------------------------------------------------------------------
+
+test("test_the_nyquist_is_the_geometrys", () => {
+  stream({ geo: geometry({ nyquist: 96000 }) });
+  assert.equal(pageMeter().nyquist, 96000);
+});
+
+test("test_a_new_geometry_moves_the_nyquist", () => {
+  stream({ geo: geometry({ nyquist: 96000 }) });
+  lastStream()?.emit("geometry", geometry({ nyquist: 48000 }));
+  assert.equal(pageMeter().nyquist, 48000);
+});
+
+test("test_the_frequency_axis_is_linear_across_the_spectrum", () => {
+  stream({ geo: geometry({ nyquist: 48000 }) });
+  const at = pageMeter().freq.ticks.find((t) => t.khz === 20)?.at;
+  assert.equal(at === undefined ? NaN : r4(at), 0.4167);
+});
+
+// --- the bars ------------------------------------------------------------------------------------------------------
+
+test("test_a_six_channel_source_draws_six_bars", () => {
+  stream({ geo: geometry({ channels: 6 }) });
+  assert.equal(pageMeter().channels, 6);
+});
+
+test("test_a_new_geometry_redraws_the_bar_count", () => {
+  stream({ geo: geometry({ channels: 6 }) });
+  lastStream()?.emit("geometry", geometry({ channels: 8 }));
+  assert.equal(pageMeter().channels, 8);
+});
+
+// --- slim ----------------------------------------------------------------------------------------------------------
+
+test("test_the_section_is_slim_on_a_10_inch_plate", () => {
+  viewport.value = SLIM;
+  assert.equal(pageMeter().slim, true);
+});
+
+test("test_a_window_a_little_shorter_than_expanded_takes_the_full_section", () => {
+  viewport.value = { w: 1366, h: 1004 };
+  assert.equal(pageMeter().slim, false);
+});

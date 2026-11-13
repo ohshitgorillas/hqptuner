@@ -2,11 +2,10 @@
 version = 1
 
 [allowance]
-".claude/hooks/read-volume.py" = { lines = 404 }
-"hqptuner/audit.py" = { lines = 406 }
-"hqptuner/static/components/xfeed/Card.js" = { lines = 483 }
-"hqptuner/static/css/features/volume.css" = { lines = 407 }
-"hqptuner/static/store/actions.js" = { lines = 413 }
-"hqptuner/static/store/ui/prefs.js" = { lines = 428 }
+"hqptuner/fields/register.py" = { lines = 425 }
+"hqptuner/lanes/http/restore.py" = { lines = 401 }
+"hqptuner/static/components/faceplate/page/spectrumfx.js" = { lines = 496, reason = "owner ruling 28 Oct: lib/dom.js import; no split" }
+"hqptuner/static/lib/spectroraster.js" = { lines = 401 }
+"scripts/fuzz/fuzz.py" = { lines = 433 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }

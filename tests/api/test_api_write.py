@@ -1,7 +1,7 @@
 """Write-path REST surface: staging validation, the pending buffer, and apply
-guards (docs/testing.md). The manager is pointed at a closed local port, so the
-connection endpoints under test never reach a real daemon; the connected apply
-path is validated live on Opal. The `http_client` fixture (conftest) wires the
+guards. The manager is pointed at a closed local port, so the connection
+endpoints under test never reach a real daemon; the connected apply path is
+validated live on Opal. The `http_client` fixture (conftest) wires the
 http lane to the faithful fake 8088 daemon for the applies that need one."""
 
 from typing import Any
@@ -32,10 +32,6 @@ def test_a_discard_or_a_later_drop_empties_the_pending_buffer_a_stage_filled(
     api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
     api_client.request(method, path, json=body)
     assert api_client.get("/api/config/pending").json()["live"] == expected
-
-
-def test_apply_with_nothing_staged_is_rejected(api_client: TestClient) -> None:
-    assert api_client.post("/api/config/apply").status_code == 400
 
 
 def test_failed_apply_preserves_the_staged_edits(api_client: TestClient) -> None:
@@ -107,24 +103,6 @@ def test_dropping_every_live_argument_removes_the_bucket(api_client: TestClient)
     assert "filter" not in api_client.get("/api/config/pending").json()["live"]
 
 
-def test_a_field_staged_and_dropped_in_one_call_is_absent(http_client: TestClient) -> None:
-    # merge happens before the drop, so the same call's own value is removed too
-    http_client.post(
-        "/api/config/stage",
-        json={"http": {"title": "Renamed"}, "drop": {"http": ["title"]}},
-    )
-    assert "title" not in http_client.get("/api/config/pending").json()["http"]
-
-
-def test_a_live_argument_staged_and_dropped_in_one_call_is_absent(api_client: TestClient) -> None:
-    # merge before drop on the live lane too, not only the http one
-    api_client.post(
-        "/api/config/stage",
-        json={"live": {"shaper": {"value": "5"}}, "drop": {"live": {"shaper": ["value"]}}},
-    )
-    assert "shaper" not in api_client.get("/api/config/pending").json()["live"]
-
-
 def test_a_drop_of_a_never_staged_live_key_does_not_reject_the_call(api_client: TestClient) -> None:
     api_client.post(
         "/api/config/stage",
@@ -151,53 +129,11 @@ def test_restaging_a_live_key_replaces_its_whole_bucket(api_client: TestClient) 
     assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value1x": "3"}
 
 
-def test_a_stage_call_carrying_only_a_drop_still_unstages(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
-    assert "shaper" not in api_client.get("/api/config/pending").json()["live"]
-
-
-def test_a_stage_call_without_a_drop_member_still_merges(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1"}}})
-    assert api_client.get("/api/config/pending").json()["live"]["filter"]["value"] == "1"
-
-
-def test_apply_after_dropping_the_only_staged_edit_reports_nothing_staged(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
-    assert api_client.post("/api/config/apply").status_code == 400
-
-
-def test_unknown_profile_action_is_not_found(api_client: TestClient) -> None:
-    assert api_client.post("/api/profile/bogus", json={"name": "x"}).status_code == 404
-
-
-def _load_without_a_name(client: TestClient) -> Response:
-    resp: Response = client.post("/api/profile/load", json={"name": ""})
-    return resp
-
-
-def test_profile_action_requires_a_name(api_client: TestClient) -> None:
-    # the empty name is refused by the shared name rule, so it carries that rule's code
-    assert _load_without_a_name(api_client).json()["code"] == "name_invalid"
-
-
-def test_a_profile_action_without_a_name_is_a_client_error(api_client: TestClient) -> None:
-    assert _load_without_a_name(api_client).status_code // 100 == 4
-
-
 def _save_with_the_daemon_down(client: TestClient, daemon: dict[str, Any]) -> Response:
     daemon["_down"] = True
-    resp: Response = client.post("/api/profile/save", json={"name": "Kept"})
+    # nothing is staged, so the save rides an apply of the "(no preset)" switch
+    resp: Response = client.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Kept"}})
     return resp
-
-
-def test_profile_save_when_the_daemon_goes_down_answers_the_same_as_load(
-    http_client: TestClient, http_daemon: dict[str, Any]
-) -> None:
-    # load's answer is pinned at exactly 502 (test_api_config_ops)
-    assert _save_with_the_daemon_down(http_client, http_daemon).status_code == 502
 
 
 def test_profile_save_when_the_daemon_goes_down_names_the_failed_read_by_code(

@@ -1,0 +1,193 @@
+// The options a catalog key's list holds, and the ones narrowing keeps. The running engine enumerates: the loaded
+// chain's list is its enumeration and the dormant chain's the daemon's /config form, both as the chain controls read them
+// (store/live/chains.js), and a key no chain holds lists its drawer row's options. Each option joins the store's overlays by
+// engine name: its facets (store/narrow/facets.js), its plain-names family, variant and leaf in Simplified, a
+// modulator's rate floor tier and generation, its manual prose, and whether it is the factory default the key's
+// settings.json entry records (store/prose.js describe()). Narrowing is store/narrow/match.js's matching over the
+// narrowing state, which hides whatever it excludes, the value running in the field among them.
+
+import { schema } from "../../schema.js";
+import { metadata } from "../../signals.js";
+import { chainControlOf } from "../../live/chains.js";
+import { narrowOptions } from "../../narrow/match.js";
+import { filterFacets } from "../../narrow/facets.js";
+import {
+  favoriteFilters,
+  favoriteModulators,
+  nFavOnly,
+  toggleFavorite,
+  toggleFavoriteModulator,
+} from "../../narrow/favorites.js";
+import { decorateOptions } from "../../plainnames.js";
+import { describe, optionDescription } from "../../prose.js";
+import { modulatorTier } from "../../ui/options.js";
+import { isDsdRate } from "../../../model/family.js";
+import { pinnedRate } from "../../live/pin.js";
+import { runningValue } from "../../resolve.js";
+import { runningChain } from "../path.js";
+import { rowOptions } from "../drawer/rows.js";
+import { kindOf } from "./open.js";
+import { ditherRate, modTier, shaperKeeps } from "./shapers.js";
+
+/** @typedef {import("../../../model/shell/option-list.js").Opt} Opt */
+/** @typedef {import("../../../model/shell/option-list.js").Facets} Facets */
+/** @typedef {import("../../narrow/facets.js").FilterFacet} FilterFacet */
+/** @typedef {import("../../live/derive.js").MenuOption} MenuOption */
+/** @typedef {{ families: Record<string, string>, variants: Record<string, string> }} Blurbs */
+/** @typedef {MenuOption & { display?: string, group?: string, subgroup?: string | null }} Decorated */
+
+/**
+ * A key's options before any narrowing, valued by enum ID and labeled by engine name: a chain key's as its chain's control
+ * lists them, any other key's as its drawer row does.
+ *
+ * @param {string} key
+ * @returns {MenuOption[]}
+ */
+export function rawOptions(key) {
+  return chainControlOf(key)?.optionsRaw ?? rowOptions(key);
+}
+
+/**
+ * A filter's facet record in the option list's shape, or undefined when nothing describes it.
+ *
+ * @param {FilterFacet | undefined} ff
+ * @returns {Facets | undefined}
+ */
+function facetsOf(ff) {
+  if (!ff) return undefined;
+  return {
+    q: ff.quality,
+    genre: ff.genre,
+    focus: ff.focus,
+    phase: ff.phase,
+    len: ff.length,
+    adaptive: ff.adaptive,
+    apod: ff.apodizing ? "full" : ff.apodizingHalf ? "half" : null,
+    hires: ff.hiresFamily,
+    up: ff.upsampleOnly,
+    ratio: ff.ratio,
+    ratioPcm: ff.ratioPcm,
+    ratioSdm: ff.ratioSdm,
+  };
+}
+
+/**
+ * A modulator's rate floor tier and generation, where its overlay records them.
+ *
+ * @param {string} name
+ * @returns {{ tier?: string, gen?: number }}
+ */
+function shaperMarks(name) {
+  const tier = modulatorTier(name);
+  const gen = metadata.value?.shapers?.sdm_modulators?.[name]?.generation;
+  return { ...(tier ? { tier } : {}), ...(gen ? { gen } : {}) };
+}
+
+/**
+ * The SDM output rate in force, in Hz, 0 when none is: the pin when it names an SDM rate, else the SDM rate limit the
+ * engine runs while the chain that runs is SDM. A staged limit is not in force until Apply restarts the engine, and the
+ * device's announced rates cap the output rates, never the modulators.
+ *
+ * @returns {number}
+ */
+function sdmRateInForce() {
+  if (isDsdRate(pinnedRate.value)) return pinnedRate.value;
+  return runningChain() === "sdm" ? Number(runningValue("sdm_rate")) || 0 : 0;
+}
+
+/**
+ * The disabled mark of a modulator whose rate floor is above the rate in force; nothing when the rate is at or above
+ * the floor, the overlay records none, or no rate is in force.
+ *
+ * @param {string} name
+ * @param {number} rate  the SDM output rate in force, 0 when none
+ * @returns {{ disabled: true } | {}}
+ */
+function floorMark(name, rate) {
+  const floor = metadata.value?.shapers?.sdm_modulators?.[name]?.min_rate_hz;
+  return rate > 0 && floor > rate ? { disabled: true } : {};
+}
+
+/**
+ * The options a key's list holds, in the overlay's order while Simplified groups them and the engine's otherwise.
+ *
+ * @param {string} key
+ * @returns {Opt[]}
+ */
+export function listOptions(key) {
+  const entry = schema[key];
+  const kind = kindOf(key);
+  const facets = filterFacets.value;
+  const meta = describe(entry, key);
+  /** @type {Decorated[]} */
+  const listed = decorateOptions(rawOptions(key), entry.plainNames ?? "");
+  const rate = kind === "modulators" ? sdmRateInForce() : 0;
+  return listed.map((o) => ({
+    v: o.label,
+    fam: o.group ?? "",
+    var: o.subgroup ?? null,
+    leaf: o.display ?? o.label,
+    d: optionDescription(entry, o, meta),
+    ...(kind === "filters" ? { f: facetsOf(facets[o.label]) } : {}),
+    ...(kind === "modulators" ? { ...shaperMarks(o.label), ...floorMark(o.label, rate) } : {}),
+    ...(meta.default !== undefined && o.label === meta.default ? { def: true } : {}),
+  }));
+}
+
+/**
+ * The family and variant blurbs a key's plain-names overlay writes, empty when it writes none.
+ *
+ * @param {string} key
+ * @returns {Blurbs}
+ */
+export function listBlurbs(key) {
+  const overlay = metadata.value?.plain_names?.[schema[key].plainNames ?? ""];
+  return { families: overlay?.families ?? {}, variants: overlay?.variants ?? {} };
+}
+
+/**
+ * The options narrowing keeps at a stage. The value running in the field gets no exemption: narrowing hides it like any
+ * other option it excludes. A DSD list has no narrowing and keeps every option.
+ *
+ * @param {string} key
+ * @param {"1x" | "nx"} stage
+ * @param {string} [omit]  an option dropped whatever narrowing says
+ * @returns {Opt[]}
+ */
+export function narrowedOptions(key, stage, omit = "") {
+  const kind = kindOf(key);
+  const opts = listOptions(key).filter((o) => omit === "" || o.v !== omit);
+  if (kind === "dsd") return opts;
+  if (kind === "filters") {
+    const kept = new Set(narrowOptions(rawOptions(key), stage, key).map((o) => o.label));
+    return opts.filter((o) => kept.has(o.v));
+  }
+  const st = { fav: nFavOnly.value, modTier: modTier.value, ditherRate: ditherRate.value };
+  return opts.filter((o) => shaperKeeps(o, kind, st));
+}
+
+/**
+ * Whether an option of a key's list is starred; a dither never is.
+ *
+ * @param {string} key
+ * @param {string} v
+ * @returns {boolean}
+ */
+export function isListFavorite(key, v) {
+  const kind = kindOf(key);
+  if (kind === "filters") return favoriteFilters.value.has(v);
+  return kind === "modulators" && favoriteModulators.value.has(v);
+}
+
+/**
+ * Star an option of a key's list, or unstar it, in its kind's set; a dither has none.
+ *
+ * @param {string} key
+ * @param {string} v
+ * @returns {Promise<void>}
+ */
+export async function toggleListFavorite(key, v) {
+  const kind = kindOf(key);
+  if (kind === "filters") await toggleFavorite(v);
+  else if (kind === "modulators") await toggleFavoriteModulator(v);
+}

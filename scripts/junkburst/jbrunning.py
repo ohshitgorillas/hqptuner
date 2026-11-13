@@ -1,4 +1,4 @@
-"""Two running readings kept together over every raw frame of the labelled corpus, from a burst's first frame on.
+"""Two running readings kept together over every raw frame of the labeled corpus, from a burst's first frame on.
 
 The pair is swept over a step cut, a warm-up and a named/unnamed break cut pairing.
 
@@ -10,7 +10,7 @@ candidate when that step reaches a step cut swept at 10, 12 and 14 dB.
 From the same first frame, a per-bin cumulative mean is kept over every raw frame seen so far. Its 9-bin smooth
 is swept the same way to pick its own candidate, the largest fall winning again. Three least-squares slopes in
 dB per kHz are read there off that smooth, each fit dropping its own band's 3 highest-dB bins: ``below`` over the
-2 kHz ending 500 Hz under the candidate, ``across`` over the 1 kHz centred on it, ``above`` over the 2 kHz
+2 kHz ending 500 Hz under the candidate, ``across`` over the 1 kHz centered on it, ``above`` over the 2 kHz
 starting 500 Hz over it. ``break`` is the smaller of ``below`` minus ``across`` and ``above`` minus ``across``.
 
 The burst engages at the first frame at or after a warm-up, swept at 0.25, 0.5 and 1 s, where ``break`` reaches
@@ -347,7 +347,7 @@ def summary_table(corpus: Corpus) -> list[str]:
 def write_report(corpus: Corpus) -> None:
     """Write the summary table and every per-track table to ``REPORT``."""
     lines = [
-        "# Two-reading running rule over the labelled corpus",
+        "# Two-reading running rule over the labeled corpus",
         "",
         f"Produced by `{RUN_CMD}`.",
         "",

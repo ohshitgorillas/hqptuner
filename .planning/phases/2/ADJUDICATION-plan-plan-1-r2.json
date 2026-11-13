@@ -1,0 +1,63 @@
+{
+  "phase": "2",
+  "trigger": "plan",
+  "discriminator": "plan-1",
+  "round": 2,
+  "base": "e792caca",
+  "head": "e792caca",
+  "base_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+  "head_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/2/PLAN-1.md",
+      "line": 64,
+      "severity": "medium",
+      "claim": "The new rule that the SDM rate limit 'counts only while the running output mode is SDM' does not say which reading decides the mode. Output mode has a third running value, `auto` (`hqptuner/static/store/schema/options.js:121-125`). The plain reading, `runningValue(\"output_mode\") === \"sdm\"`, grays nothing under auto even while the output is SDM, and the testing scope has no auto case to catch it.",
+      "failure_scenario": "Output mode is auto, a DSD source plays to SDM output, no pin, running `sdm_rate` limit 12288000 (DSD256). The implementer gates on `runningValue('output_mode') === 'sdm'` as Task 2 reads, so the gate sees 'not SDM' and AHM7EC8B (floor 40960000) is not grayed. A chain-picker pick, or the Task 5 Switcher slot tap, writes it live and playback stops: the exact AC1/SC1 case. The plan only works if the reading is the path-based `runningChain()` (`hqptuner/static/store/faceplate/path.js:51-55`), and the plan never names it.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+      "head_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/2/PLAN-1.md",
+      "line": 64,
+      "severity": "low",
+      "claim": "Task 2 justifies the PCM rule with a false fact: 'sdm_rate reads the same defaults_bitrate field the PCM rate does'. `pcm_rate` reads `defaults_samplerate` and only `sdm_rate` reads `defaults_bitrate` (`hqptuner/static/store/schema/output.js:135,146`; `hqptuner/fields/register.py:205-206`).",
+      "failure_scenario": "The rule itself is right: in PCM mode the stored SDM limit lingers and is not in force. But a test writer who follows this rationale may seed the PCM case by setting `defaults_bitrate` to a PCM rate, not by keeping a lingering SDM limit (e.g. 12288000) with PCM output. That test then passes even against an implementation that never checks the mode, because a PCM-valued limit grays no floored modulator. Round-one finding 2 would then reopen unseen.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+      "head_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/2/PLAN-1.md",
+      "line": 97,
+      "severity": "low",
+      "claim": "Task 5 adds a visual change: the Switcher slot face in `Switcher.js` grays, gets a disabled attribute and shows the reason. Its only test is a store-level suite, and Task 6's hand-back list names the 'Switcher slot list' but not a remembered slot's face, so no task puts the 'shows grayed' half of line 36 in front of the owner.",
+      "failure_scenario": "Task 5's store test passes on a Slot flag alone. The face rendering in `hqptuner/static/components/faceplate/bottom/Switcher.js` (slot body, line 144-156) can be missing or wrong. Task 6 hands back only the four open lists, so the owner never sees the grayed slot face, yet line 36 is checked off and the repo's 'every visual change goes in front of the user' rule goes unmet for this surface.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+      "head_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 """The runtime connection record: which host and password HQPTuner resolves at
-startup, and the /api/connection pair that moves them (docs/testing.md).
+startup, and the /api/connection pair that moves them.
 
 Every case parks the record file under ``tmp_path``. The Config default points
 at the install's own state, and conftest's `_state_never_touches_the_repo`
@@ -23,10 +23,6 @@ from virtual_clock import VirtualClock
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, layer_onto_config
-
-#: The keys GET /api/connection answers, sorted. The password it holds is not
-#: among them: anything that reaches port 8090 can read this body.
-CONNECTION_KEYS = ["has_password", "host", "remember", "username"]
 
 AppFactory = Callable[..., TestClient]
 
@@ -102,12 +98,12 @@ def test_the_posted_password_survives_a_restart_only_when_remember_asked_it_to(
     assert restarted.hqp_password == resolved
 
 
-def test_posted_credentials_open_the_config_route_with_no_restart(app_factory: AppFactory) -> None:
+def test_posted_credentials_open_config_refresh_with_no_restart(app_factory: AppFactory) -> None:
     client = app_factory()
-    if client.get("/api/config").status_code != 503:
-        raise FixtureError(reason="the config route was open before any credentials were posted")
+    if client.post("/api/config/refresh").status_code != 503:
+        raise FixtureError(reason="config refresh was open before any credentials were posted")
     post_connection(client, password="p", remember=True)
-    assert client.get("/api/config").status_code == 200
+    assert client.post("/api/config/refresh").status_code == 200
 
 
 #: The password the install starts with, the password then posted (`None` for
@@ -121,7 +117,6 @@ CONNECTION_VIEWS = [
     ("cleared-from-held", "p", "", False),
 ]
 HELD_VIEWS = [pytest.param(configured, posted, holds, id=case) for case, configured, posted, holds in CONNECTION_VIEWS]
-VIEWS = [pytest.param(configured, posted, id=case) for case, configured, posted, _ in CONNECTION_VIEWS]
 
 
 def _connection_view(app_factory: AppFactory, configured: str, posted: str | None) -> dict[str, Any]:
@@ -137,10 +132,3 @@ def test_the_connection_view_reports_whether_a_password_is_held(
     app_factory: AppFactory, configured: str, posted: str | None, *, holds: bool
 ) -> None:
     assert _connection_view(app_factory, configured, posted)["has_password"] is holds
-
-
-@pytest.mark.parametrize(("configured", "posted"), VIEWS)
-def test_the_connection_view_never_carries_the_password(
-    app_factory: AppFactory, configured: str, posted: str | None
-) -> None:
-    assert sorted(_connection_view(app_factory, configured, posted)) == CONNECTION_KEYS

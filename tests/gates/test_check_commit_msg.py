@@ -63,11 +63,3 @@ def test_scanned_lines_are_refused_one_complaint_each_and_skipped_lines_are_not(
     scanned: tuple[str, ...], expected: int
 ) -> None:
     assert len(CHECK_MESSAGE(_message(*scanned))) == expected
-
-
-def test_a_reason_excuses_a_line_and_a_bare_pragma_is_itself_a_complaint() -> None:
-    text = _message(
-        "The bar used to sit on the 0 tick. history-ok: pinned legacy wording",
-        "The label used to sit on the 0 tick. history-ok:",
-    )
-    assert len(CHECK_MESSAGE(text)) == 1

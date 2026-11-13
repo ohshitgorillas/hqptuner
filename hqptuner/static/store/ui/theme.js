@@ -1,96 +1,73 @@
-// Client-only UI preferences stamped on <html> for the CSS to key off: the
-// signature accent color (`data-accent`, the CSS owns the color values in
-// `:root[data-accent="…"]`) and the dyslexic font switch (`data-dyslexic`,
-// which swaps `--font-ui`). Both persisted in localStorage, both stamped once
-// at boot. No daemon involvement — pure chrome.
+// Client-only UI preferences: the signature accent color (a preset name or a
+// custom hex, from which the faceplate theme derives the `--acc` tokens on
+// <html>) and the dyslexic font switch (`data-dyslexic` on <html>, which swaps
+// `--font-ui`). Both persisted in localStorage. No daemon involvement — pure
+// chrome.
 //
 // Module load must stay node-safe (the SSR harness imports the component graph
 // with no `localStorage`/`document`): the storage read is guarded, and the
 // document is only touched inside functions the browser entry point calls.
 import { signal } from "@preact/signals";
+import { getStored, removeStored, setStored } from "../../lib/browser/storage.js";
 
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
 const KEY_DYSLEXIC = "hqptuner.dyslexic";
-export const ACCENTS = ["blue", "green", "amber", "violet"];
-const DEFAULT = "blue";
-// each preset's --accent value (mirrors the :root[data-accent] CSS) — fills the
-// hex box when a swatch is picked, so custom colors start from the preset
+const ACCENTS = ["blue", "green", "amber", "violet"];
+const DEFAULT = "amber";
+// each preset's color, the hex the faceplate theme derives the `--acc` tokens
+// from when no custom hex is set
 /** @type {Record<string, string>} */
 export const ACCENT_HEX = {
   blue: "#4f9dde",
   green: "#3fe0a0",
-  amber: "#e0a63a",
+  amber: "#e9a63c",
   violet: "#a78bfa",
 };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 function load() {
-  try {
-    const v = localStorage.getItem(KEY) || "";
-    return ACCENTS.includes(v) ? v : DEFAULT;
-  } catch {
-    return DEFAULT;
-  }
+  const stored = getStored(KEY);
+  if (!stored.ok) return DEFAULT;
+  const v = stored.value || "";
+  return ACCENTS.includes(v) ? v : DEFAULT;
 }
 
 function loadHex() {
-  try {
-    const v = localStorage.getItem(KEY_HEX);
-    return HEX_RE.test(v || "") ? v : "";
-  } catch {
-    return "";
-  }
+  const stored = getStored(KEY_HEX);
+  if (!stored.ok) return "";
+  const v = stored.value;
+  return HEX_RE.test(v || "") ? v : "";
 }
 
 function loadDyslexic() {
-  try {
-    return localStorage.getItem(KEY_DYSLEXIC) === "1";
-  } catch {
-    return false;
-  }
+  const stored = getStored(KEY_DYSLEXIC);
+  if (!stored.ok) return false;
+  return stored.value === "1";
 }
 
 export const accent = signal(load());
 export const accentHex = signal(loadHex()); // "" = follow the preset swatch
 export const dyslexic = signal(loadDyslexic()); // true = Atkinson Hyperlegible for --font-ui
 
-// --accent-glow is the brighter hero sibling; derive it from a custom hex by
-// pulling each channel 30% toward white (matches the presets' glow relationship)
 /**
+ * The accent a swatch name and an optional custom hex pick: the custom hex when set, else the named swatch's, else the
+ * default swatch's.
+ * @param {string} name
  * @param {string} hex
  * @returns {string}
  */
-function glowOf(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = (/** @type {number} */ s) => {
-    const c = (n >> s) & 255;
-    return Math.round(c + (255 - c) * 0.3)
-      .toString(16)
-      .padStart(2, "0");
-  };
-  return `#${ch(16)}${ch(8)}${ch(0)}`;
-}
+export const accentPick = (name, hex) => hex || ACCENT_HEX[Object.hasOwn(ACCENT_HEX, name) ? name : DEFAULT];
 
 /**
- * @param {string} hex
- * @returns {void}
+ * The accent in force, as the theme store's swatch and custom hex pick it.
+ * @returns {string}
  */
-function setInline(hex) {
-  const st = document.documentElement.style;
-  if (hex) {
-    st.setProperty("--accent", hex);
-    st.setProperty("--accent-glow", glowOf(hex));
-  } else {
-    st.removeProperty("--accent");
-    st.removeProperty("--accent-glow");
-  }
-}
+export const accentInForce = () => accentPick(accent.value, accentHex.value);
 
-// Persist + apply a preset swatch. Sets the root attribute the CSS keys on and
-// drops any custom-hex override, so the swap is instant and every accent site
-// follows from the one variable.
+// Persist a preset swatch and drop any custom-hex override; the faceplate
+// theme restyles the page from the two signals.
 /**
  * Persist and apply a preset accent swatch, dropping any custom-hex override.
  * @param {string} name
@@ -100,17 +77,11 @@ export function applyAccent(name) {
   const v = ACCENTS.includes(name) ? name : DEFAULT;
   accent.value = v;
   accentHex.value = "";
-  document.documentElement.dataset.accent = v;
-  setInline("");
-  try {
-    localStorage.setItem(KEY, v);
-    localStorage.removeItem(KEY_HEX);
-  } catch {
-    /* storage disabled (private mode) — keep the in-memory value */
-  }
+  // storage disabled (private mode) — keep the in-memory value
+  if (setStored(KEY, v)) removeStored(KEY_HEX);
 }
 
-// Persist + apply a custom hex, overriding the preset via inline --accent.
+// Persist a custom hex, which overrides the preset swatch.
 // Invalid input is ignored (the box simply doesn't take).
 /**
  * Persist and apply a custom accent hex, with or without its leading `#`.
@@ -121,12 +92,8 @@ export function applyAccentHex(hex) {
   const v = (hex || "").trim().startsWith("#") ? hex.trim() : `#${(hex || "").trim()}`;
   if (!HEX_RE.test(v)) return;
   accentHex.value = v;
-  setInline(v);
-  try {
-    localStorage.setItem(KEY_HEX, v);
-  } catch {
-    /* storage disabled — keep the in-memory value */
-  }
+  // storage disabled — keep the in-memory value
+  setStored(KEY_HEX, v);
 }
 
 // The dyslexic font is one attribute on the root and a CSS rule keyed off it;
@@ -150,16 +117,6 @@ function stampDyslexic(on) {
 export function applyDyslexic(on) {
   dyslexic.value = !!on;
   stampDyslexic(dyslexic.value);
-  try {
-    localStorage.setItem(KEY_DYSLEXIC, dyslexic.value ? "1" : "0");
-  } catch {
-    /* storage disabled (private mode) — keep the in-memory value */
-  }
-}
-
-/** Stamp the root attributes (accent, any custom hex, dyslexic font) at boot — no first-paint flash. */
-export function initTheme() {
-  document.documentElement.dataset.accent = accent.value;
-  if (accentHex.value) setInline(accentHex.value);
-  stampDyslexic(dyslexic.value);
+  // storage disabled (private mode) — keep the in-memory value
+  setStored(KEY_DYSLEXIC, dyslexic.value ? "1" : "0");
 }

@@ -14,10 +14,10 @@ Two measurements, mode left exactly as found:
   A  SetFilter    to a neighboring index in the running GetFilters list
   B  SetShaping   likewise, in the running GetShapers list
 
-Each is verified by `State` readback (`result="OK"` is not proof, protocol.md §6)
-and put straight back, also verified. **Writes only live settings** — no config
-write, no `/restore`, no daemon restart. Runs mid-playback deliberately: that is
-the condition under test, and a filter change re-primes the pipeline rather than
+Each is verified by `State` readback and put straight back, also verified.
+**Writes only live settings** — no config write, no `/restore`, no daemon
+restart. Runs mid-playback deliberately: that is the condition under test,
+and a filter change re-primes the pipeline rather than
 stopping it. Run with the listener's say-so (granted 2026-07-29, drive test).
 
     .venv/bin/python scripts/probes/probe_chain_source.py
@@ -38,7 +38,7 @@ async def _restore(client: ControlClient, command: str, state: dict[str, str]) -
     """Put a chain setting back exactly as found — BOTH members for the filter.
 
     ``SetFilter value=`` alone sets the 1x and Nx filters to the same index
-    (protocol.md §6, ``ControlClient.set_filter``), so restoring the Nx member by
+    (``ControlClient.set_filter``), so restoring the Nx member by
     value alone silently overwrites the 1x one. This probe did exactly that on
     2026-07-29 and left a split pair collapsed; the split form is the only correct
     restore, and it is why this takes the whole original State rather than one

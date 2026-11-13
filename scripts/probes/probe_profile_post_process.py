@@ -17,7 +17,7 @@ whether mirroring the preset's post-process into every saved profile is a fix:
 Read-write-restore against the live daemon. Only addition is one probe profile;
 every existing element is left alone, and the pristine archive captured up front
 is pushed back and verified byte-identical at the end. Every step is confirmed by
-readback — an HTTP 200 is not proof (protocol.md §3.6).
+readback.
 
 Aborts before any write unless the engine is stopped.
 

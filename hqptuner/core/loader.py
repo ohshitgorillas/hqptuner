@@ -1,180 +1,367 @@
-"""Connect and poll: the two bodies that refill ``core/readings`` from the wire.
+"""The connect body and the heartbeat: dial, handshake, fill the readings, poll, and report each wire fact.
 
-Only the supervisor loop in ``core/manager`` calls these. ``connect_and_load`` is
-what "reachable" and "ready" mean; ``poll`` is the heartbeat that keeps the last
-snapshot current between connects.
+Neither sets a phase. Every move of the daemon's standing is a fact handed to ``mgr.phase.report``, and the
+phase module decides what it moves.
 """
+
+from __future__ import annotations
 
 import contextlib
 import logging
-import time
+import math
 import zipfile
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import httpx
 
 from hqptuner import voltrace
+from hqptuner.conf import engineconf
 from hqptuner.core import engineread
+from hqptuner.core.lifecycle import Fact
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import CommandError, ControlError
-from hqptuner.lanes.live import chain, lane
-from hqptuner.presets import fileconfig
+from hqptuner.engine.controlerrors import (
+    CommandError,
+    ControlError,
+    ResponseTooLargeError,
+    UnparseableResponseError,
+)
+from hqptuner.engine.view import EngineView
+from hqptuner.lanes.http import forms
+from hqptuner.lanes.http.forms import FormsOutcome
+from hqptuner.lanes.live import lane
+from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
 if TYPE_CHECKING:
+    import asyncio
+
     from hqptuner.core.manager import ConnectionManager
+    from hqptuner.core.readings import EngineFields
 
 log = logging.getLogger(__name__)
 
-
-def _held_state(fresh: dict[str, str] | None, held: dict[str, str] | None) -> dict[str, str] | None:
-    """Return the State reading to hold: ``fresh``, or ``held`` when the read was refused and gave none."""
-    return fresh if fresh is not None else held
+#: The mode index of ``[source]``, which keeps the lists the engine already enumerated.
+SOURCE_MODE = "0"
 
 
-async def connect_and_load(mgr: "ConnectionManager") -> None:
-    """Open the 4321 lane, take the handshake, and refill every reading from scratch.
+def form_fact(outcome: FormsOutcome) -> Fact | None:
+    """Return the wire fact a forms pass proves, or None for one that proves nothing.
 
-    ``reachable`` is published as soon as the handshake answers; ``ready`` turns true only
-    once this body has run to its end and the 8088 configuration lane answered inside it.
+    A credential refusal is an answer that moves nothing: it rides ``credentials_ok``. No client means no read
+    was tried.
+    """
+    if outcome is FormsOutcome.OK:
+        return Fact.FORM_ANSWERED
+    if outcome is FormsOutcome.NO_ANSWER:
+        return Fact.FORM_STOPPED
+    return None
+
+
+def archive_owed(forms_fact: Fact | None, *, archive_read: bool) -> bool:
+    """Answer whether this pass reads the settings archive: the forms answered and this connection has not read it."""
+    return forms_fact is Fact.FORM_ANSWERED and not archive_read
+
+
+def lane_fact(forms_fact: Fact | None, *, archive_read: bool) -> Fact | None:
+    """Return the wire fact the configuration lane's pass proves on this connection.
+
+    The lane's read includes the archive read, so the forms answering proves nothing until the archive has been
+    read on this connection too.
+    """
+    if forms_fact is Fact.FORM_ANSWERED and not archive_read:
+        return None
+    return forms_fact
+
+
+def poll_due(now: float, polled_at: float, interval: float) -> bool:
+    """Answer whether ``interval`` has run since the last poll of the forms and the enumerations."""
+    return now - polled_at >= interval
+
+
+def mode_moved(before: str | None, after: str | None) -> bool:
+    """Answer whether State's mode index moved to a mode whose lists must be enumerated afresh."""
+    return after is not None and after not in (before, SOURCE_MODE)
+
+
+def drop_fact(exc: ControlError) -> Fact:
+    """Return the wire fact a control read that raised ``exc`` proves once its client has closed the socket.
+
+    A frame that will not parse and a frame too large to hold are HQPTuner's own close, a taken Down. EOF, reset and
+    timeout are a departure.
+    """
+    if isinstance(exc, UnparseableResponseError | ResponseTooLargeError):
+        return Fact.SOCKET_CLOSED
+    return Fact.SOCKET_LOST
+
+
+def still_stands(standing: ControlClient | None, client: ControlClient) -> bool:
+    """Answer whether ``client``, the connection being read, is still the one standing."""
+    return standing is client
+
+
+@dataclass
+class Cadence:
+    """When the connection standing now last polled the forms and enumerations, and whether it read the archive."""
+
+    polled_at: float = -math.inf  # the manager's monotonic clock, seconds: when the last poll ran
+    archive_read: bool = False
+
+
+async def run(mgr: ConnectionManager, stop: asyncio.Event) -> None:
+    """Dial until a connection stands, poll it until it goes, and dial again, until ``stop`` is set.
+
+    After each pass the window is reported run, so a Down past it turns Alarm and a pending request settles by
+    deadline on the manager's clock. A fault that ends the loop is HQPTuner's own: it closes the connection standing,
+    a taken Down that leaves the generation where it stood, and is logged and raised, so the next dial proves what
+    is true. ``stop`` ending it closes the connection and reports nothing.
+    """
+    cadence = Cadence()
+    try:
+        while not stop.is_set():
+            await _pass(mgr, cadence)
+            mgr.phase.report(Fact.WINDOW_RAN, mgr.clock.monotonic())
+            await _rest(mgr, stop)
+    except Exception:
+        log.exception("connect loop ended by a fault of HQPTuner's own")
+        await _closed_on_fault(mgr)
+        raise
+    finally:
+        await _hang_up(mgr)
+
+
+async def _pass(mgr: ConnectionManager, cadence: Cadence) -> None:
+    """Dial when no connection stands, else run one heartbeat on the one that does."""
+    client = mgr.control
+    if client is None:
+        cadence.archive_read = False
+        await connect(mgr, cadence)
+        cadence.polled_at = mgr.clock.monotonic()
+        return
+    try:
+        await _beat(mgr, client, cadence)
+    except CommandError as exc:
+        log.warning("heartbeat command answered Error, connection kept: %s", exc)
+    except ControlError as exc:
+        log.info("control connection lost: %s", exc)
+        await _lost(mgr, drop_fact(exc))
+
+
+async def _rest(mgr: ConnectionManager, stop: asyncio.Event) -> None:
+    """Idle between passes: the status cadence while connected, the dial cadence while Down; ``stop`` cuts it short."""
+    if mgr.control is not None:
+        await mgr.clock.pace(stop, mgr.cfg.status_interval)
+    else:
+        await mgr.clock.wait(stop, mgr.cfg.poll_interval)
+
+
+async def connect(mgr: ConnectionManager, cadence: Cadence) -> None:
+    """Dial, handshake and fill the readings, leaving ``mgr.control`` set only when a connection stands.
+
+    ``GetInfo`` answered on the new socket is the handshake. A dial refused or unanswered reports that and
+    holds nothing; a socket lost while the readings fill is a departure on the new connection, and a frame that will
+    not parse is a close of HQPTuner's own.
     """
     cfg = mgr.cfg
     client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout, deadline=mgr.clock)
-    await client.connect()
+    mgr.dialing = client
     try:
-        info = await _handshake(mgr, client)
-    except BaseException:
-        # until the handshake attaches it, no `_drop` owns this client, so a failed one closes here
-        await client.close()
-        raise
-    # best-effort and credential-free: /about is not gated, and reachability is
-    # already decided above, so a failed lookup here leaves the release blank
-    # rather than failing the connect.
-    mgr.readings.release = ""
+        await client.connect()
+        if not still_stands(mgr.dialing, client):
+            return
+        mgr.readings.take_address(found=client.dial_outcome.address_found)
+        info = await client.get_info()
+    except ControlError as exc:
+        log.debug("control dial turned away: %s", exc)
+        if still_stands(mgr.dialing, client):
+            mgr.readings.take_address(found=client.dial_outcome.address_found)
+            mgr.phase.report(Fact.DIAL_REFUSED, mgr.clock.monotonic())
+    else:
+        if not still_stands(mgr.dialing, client):
+            return
+        mgr.control = client
+        mgr.phase.report(Fact.GETINFO_ANSWERED, mgr.clock.monotonic())
+        await _stand(mgr, client, cadence, info)
+    finally:
+        if still_stands(mgr.dialing, client):
+            mgr.dialing = None
+        if not still_stands(mgr.control, client):
+            await client.close()
+
+
+async def _stand(mgr: ConnectionManager, client: ControlClient, cadence: Cadence, info: dict[str, str]) -> None:
+    """Fill the readings on the connection just made, dropping it if the daemon ends it meanwhile."""
     try:
-        mgr.readings.release = release.parse_release(await release.fetch_about(mgr.http_base_url))
+        await _fill(mgr, client, cadence, info)
+    except CommandError as exc:
+        log.warning("reading command answered Error, connection kept: %s", exc)
+    except ControlError as exc:
+        log.info("control connection lost while reading: %s", exc)
+        await _lost(mgr, drop_fact(exc))
+
+
+async def _fill(mgr: ConnectionManager, client: ControlClient, cadence: Cadence, info: dict[str, str]) -> None:
+    """Take the handshake's ``info``, the license, release and every Engine reading on a new connection.
+
+    Then the forms, File and capability. A connection that ended while the release lookup was awaited keeps nothing
+    read on it, and the fill stops there.
+    """
+    license_ = await client.get_license()
+    fields = await _fast(client)
+    fields.update(await _slow(client))
+    fields["license"] = license_
+    fields["info"] = info
+    fields["release"] = None
+    await _read_release(mgr, fields)
+    if not still_stands(mgr.control, client):
+        return
+    _take(mgr, fields)
+    await _configuration(mgr, cadence)
+    await engineread.refresh_device_caps(mgr, force=True)
+
+
+async def _read_release(mgr: ConnectionManager, fields: EngineFields) -> None:
+    """Write the installed release off the ungated ``/about`` page into ``fields`` once the page answers.
+
+    Best-effort: the connection already stands, so a failed lookup fails nothing and leaves the release not read.
+    """
+    try:
+        page = await release.fetch_about(mgr.cfg.hqp_http_base_url)
     except httpx.HTTPError as exc:
         log.debug("release lookup failed: %s", exc)
-    if mgr.http_client is not None:
-        await _load_http_lane(mgr)
-    # Last statements on purpose: the connect body has run to its end. `ready` is read
-    # off this pair, the connect standing and the 8088 lane having answered, so an
-    # install whose configuration lane is refused or absent reports itself unready
-    # rather than ready on the handshake alone.
-    stamp_http_ok(mgr)
-    # Both written before `connects`, which is the counter a post-restore wait tests
-    # first: once it sees this connect, `http_ok` and `drops_at_connect` already
-    # describe THIS connect and not the one before it.
-    mgr.drops_at_connect = mgr.drops
-    mgr.connects += 1
-    mgr.connected.set()
-    mgr.changed.set()
-    log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
+    else:
+        fields["release"] = release.parse_release(page) or None
 
 
-async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[str, str]:
-    """Take the GetInfo handshake and the 4321 readings, attach the client, and publish ``reachable``."""
-    info = await client.get_info()  # the handshake — this defines "reachable"
-    license_info = await client.get_license()  # static; licensee + valid flag
-    active_config = await client.get_active_config()  # active preset name
-    state = await client.state_unless_refused()  # refused: unknown, never a reading from before this connect
-    status, meta = await client.get_status()
-    vrange = await client.get_volume_range()
-    enums = await client.get_all_enumerations()
-    matrix_profiles: list[str] | None = None
-    with contextlib.suppress(CommandError):  # older engines may not speak Matrix*
-        matrix_profiles = await client.get_matrix_profiles()
-
-    mgr.control = client
-    readings = mgr.readings
-    readings.info, readings.state, readings.status, readings.status_metadata = info, state, status, meta
-    readings.license = license_info
-    readings.active_config = active_config
-    readings.volume_range = vrange
-    readings.enums = enums
-    readings.matrix_profiles = matrix_profiles
-    readings.live.forget()
-    readings.loaded_at = time.time()
-    mgr.reachable = True
-    mgr.unreachable_since = None
-    return info
+async def _beat(mgr: ConnectionManager, client: ControlClient, cadence: Cadence) -> None:
+    """Re-read State and Status; on the poll cadence or a mode move, the enumerations and the forms too."""
+    before_state = mgr.readings.state
+    before_mode = (before_state or {}).get("mode")
+    before_chain = EngineView.of(mgr.readings).loaded_chain()
+    fields = await _fast(client)
+    now = mgr.clock.monotonic()
+    due = poll_due(now, cadence.polled_at, mgr.cfg.poll_interval)
+    after_mode = (fields.get("state") or {}).get("mode")
+    moved = mode_moved(before_mode, after_mode)
+    if moved:
+        log.info("engine moved (mode %s), re-enumerating", after_mode)
+    if due or moved:
+        fields.update(await _slow(client))
+    if not still_stands(mgr.control, client):
+        return
+    _take(mgr, fields)
+    _trace_volume(mgr, before_state)
+    await lane.chain_entered(mgr, client, before_chain, reenumerated=due or moved)
+    if due:
+        cadence.polled_at = now
+        await _configuration(mgr, cadence)
 
 
-def stamp_http_ok(mgr: "ConnectionManager") -> None:
-    """Record whether the 8088 configuration lane just answered.
+async def _fast(client: ControlClient) -> EngineFields:
+    """Read State and Status with its track metadata, leaving State out when HQPlayer refuses the read."""
+    status, metadata = await client.get_status()
+    fields: EngineFields = {"status": status, "status_metadata": metadata}
+    state = await client.state_unless_refused()
+    if state is not None:
+        fields["state"] = state
+    return fields
 
-    Called at the end of each of the two lifecycle refreshes, the connect body's and
-    the poll's, and nowhere else: ``forms.refresh`` has off-lifecycle callers that run
-    mid-apply, and a stamp inside it would report the app unready while a write is in
-    flight. ``/config`` is the lane's own verdict — ``config_error`` is None only when it
-    answered and parsed, and an install with no client never asks at all.
+
+async def _slow(client: ControlClient) -> EngineFields:
+    """Read the enumerations, with the matrix profiles, the volume range and the active configuration."""
+    return {
+        "enums": await client.get_all_enumerations(),
+        "matrix_profiles": await _matrix_profiles(client),
+        "volume_range": await client.get_volume_range(),
+        "active_config": await client.get_active_config(),
+    }
+
+
+async def _matrix_profiles(client: ControlClient) -> list[str] | None:
+    """Read the saved matrix profiles, or None from an engine that does not speak Matrix*."""
+    with contextlib.suppress(CommandError):
+        return await client.get_matrix_profiles()
+    return None
+
+
+def _take(mgr: ConnectionManager, fields: EngineFields) -> None:
+    """Take one Engine reading, stamped with the generation the connection stands in."""
+    mgr.readings.take_engine(mgr.phase.standing.generation, **fields)
+
+
+def _trace_volume(mgr: ConnectionManager, before: dict[str, str] | None) -> None:
+    """Record State's volume to the trace when this heartbeat's reading moved it from ``before``."""
+    now = mgr.readings.state or {}
+    was = before or {}
+    voltrace.observe_change(mgr, "state", {"volume": now.get("volume")}, {"volume": was.get("volume")})
+
+
+async def _configuration(mgr: ConnectionManager, cadence: Cadence) -> None:
+    """Run one pass of the configuration lane: the forms, the archive while this connection owes it, the fact."""
+    forms_fact = form_fact((await forms.refresh(mgr)).outcome)
+    if archive_owed(forms_fact, archive_read=cadence.archive_read):
+        await _load_backup(mgr, cadence)
+    fact = lane_fact(forms_fact, archive_read=cadence.archive_read)
+    if fact is not None:
+        mgr.phase.report(fact, mgr.clock.monotonic())
+
+
+async def _load_backup(mgr: ConnectionManager, cadence: Cadence) -> None:
+    """Fetch the settings archive once, read the File's config from it and hand it to the one-time preset import.
+
+    The archive counts as read on this connection only once the File's config is read from it. One that does not
+    arrive, or arrives as no readable archive, is logged with its error, leaves the File not read, feeds no import
+    and stays owed; the connection stands either way.
     """
-    mgr.readings.http_ok = mgr.http_client is not None and mgr.readings.config_error is None
-
-
-async def _load_http_lane(mgr: "ConnectionManager") -> None:
-    """Fill the 8088 half of a connect: forms, device capability, file config, preset migration.
-
-    Best-effort throughout — a failure here must not undo the 4321 connect.
-    """
-    # refresh_http_forms populates config/matrix/speakers (+ their *_error).
-    await mgr.refresh_http_forms()
-    await engineread.refresh_device_caps(mgr, force=True)
+    generation = mgr.phase.standing.generation
+    acquisition = mgr.readings.acquire_file("file_config")
+    source = mgr.require_http()
     try:
-        await fileconfig.load_file_config(mgr)
-    except (httpx.HTTPError, ControlError) as exc:
-        # the form still carries every field; only the lossy ones degrade.
-        # A corrupt archive is not in this set on purpose: engineconf.base_config_xml
-        # raises UnreadableArchiveError on unreadable bytes, caught inside the load.
-        log.warning("file-config read failed: %s", exc)
+        backup = await source.backup()
+        if source is not mgr.http_client or not mgr.readings.file_current(acquisition):
+            return
+        await fileconfig.load_file_config(mgr, backup=backup, generation=generation, acquisition=acquisition)
+    except (httpx.HTTPError, engineconf.UnreadableArchiveError) as exc:
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            log.warning("file config read failed: %s", exc)
+    else:
+        await _migrate(mgr, backup)
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            cadence.archive_read = True
+
+
+async def _migrate(mgr: ConnectionManager, backup: bytes) -> None:
+    """Hand an archive already read to the one-time preset import, logging a failure rather than raising it."""
     try:
-        await mgr.presetops.migrate_once(mgr.readings.active_config)
-    except (httpx.HTTPError, PresetError, OSError, zipfile.BadZipFile) as exc:
-        # the daemon's own snapshots stay unimported; the store keeps whatever it had.
-        # BadZipFile belongs here and not above: presetzip.snapshot_members opens the
-        # archive itself, with no empty-bytes fallback under it.
+        await presetlane.migrate_once(mgr, mgr.readings.active_config, backup=backup)
+    except (PresetError, OSError, zipfile.BadZipFile) as exc:
+        # presetzip.snapshot_members opens the archive itself with no empty-bytes fallback, so a corrupt archive
+        # raises BadZipFile here.
         log.warning("preset migration skipped: %s", exc)
 
 
-async def poll(mgr: "ConnectionManager") -> None:
-    """Take one heartbeat: refresh State, Status, the volume range, the profiles and the 8088 forms.
+async def _lost(mgr: ConnectionManager, fact: Fact) -> None:
+    """Drop the connection a control read ended: the readings break first, then ``fact`` is reported."""
+    client, mgr.control = mgr.control, None
+    if client is not None:
+        await client.close()
+    mgr.readings.break_engine()
+    mgr.phase.report(fact, mgr.clock.monotonic())
 
-    Re-enumerates when the engine's mode or transport state moved, because either swaps
-    the lists every later write resolves its indices against.
-    """
-    client = mgr.require_control()
-    readings = mgr.readings
-    previous = readings.state or {}
-    state = _held_state(await client.state_unless_refused(), readings.state)
-    current = state or {}
-    # A mode switch swaps the lists wholesale (architecture §3.3), and playback
-    # state moves the rate list: what fills that one is the transport as well
-    # as the mode (manual p.18 §4.4), so an idle network backend answers
-    # GetRates with auto alone where the same daemon serves thirteen PCM tiers
-    # once asked again (verified live on 6.0.4) — and the page grayed every tier.
-    moved = readings.state is not None and any(current.get(a) != previous.get(a) for a in ("mode", "state"))
-    if moved:
-        log.info("engine moved (mode %s, state %s), re-enumerating", current.get("mode"), current.get("state"))
-        readings.enums = await client.get_all_enumerations()
-    status, meta = await client.get_status()
-    before = chain.active_chain(mgr)
-    # BEFORE the assignment below, which is what still leaves the previous tick's
-    # volume in hand: the readings are the trace's memory for this comparison, so
-    # a volume that is not moving writes nothing at all.
-    voltrace.observe_change(mgr, "state", {"volume": current.get("volume")}, {"volume": previous.get("volume")})
-    readings.state, readings.status, readings.status_metadata = state, status, meta
-    await lane.chain_entered(mgr, client, before, reenumerated=moved)
-    readings.volume_range = await client.get_volume_range()
-    with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
-        readings.matrix_profiles = await client.get_matrix_profiles()
-    # external changes (preset loads, the DAC changing, HQPlayer's own UI)
-    # rewrite the http forms without any HQPTuner apply — refetch each poll so
-    # the config/matrix snapshots track reality instead of only connect-time.
-    await mgr.refresh_http_forms()
-    stamp_http_ok(mgr)
-    # The 8088 lane can come back a poll after the control lane did, and a wait for both
-    # lanes sleeps on `changed`. Without an edge here that wait would be satisfied in
-    # fact and slept through to its deadline.
-    mgr.changed.set()
-    readings.loaded_at = time.time()
+
+async def _closed_on_fault(mgr: ConnectionManager) -> None:
+    """Close the connection a fault of HQPTuner's own ended: the socket closes, the readings break, a taken Down."""
+    client, mgr.control = mgr.control, None
+    if client is None:
+        return
+    await client.close()
+    mgr.readings.break_engine()
+    mgr.phase.report(Fact.SOCKET_CLOSED, mgr.clock.monotonic())
+
+
+async def _hang_up(mgr: ConnectionManager) -> None:
+    """Close the connection on the way out; HQPTuner closing it is no departure and reports nothing."""
+    client, mgr.control = mgr.control, None
+    if client is not None:
+        await client.close()

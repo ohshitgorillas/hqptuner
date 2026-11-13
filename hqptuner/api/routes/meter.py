@@ -1,10 +1,9 @@
-"""The METER page's event stream — the metering reader's feed as server-sent events.
+"""The Source meter's event stream — the metering reader's feed as server-sent events.
 
 One ``geometry`` event ahead of the ``frame`` events it describes, then one ``frame`` per stride
 (``engine/meterfeed.py``). The stream sends nothing while the engine is not playing and stays open.
 """
 
-import json
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Response
@@ -31,7 +30,7 @@ def meter_feed(manager: Mgr) -> Response:
 
 
 async def _events(feed: MeterFeed) -> AsyncIterator[str]:
-    """Relay one subscriber's queue as SSE lines, detaching it however the stream ends.
+    """Relay one subscriber's queue of ready event texts, detaching it however the stream ends.
 
     Subscribing inside the generator ties the queue's lifetime to the stream's: a client gone before the first send
     never attaches one.
@@ -39,7 +38,6 @@ async def _events(feed: MeterFeed) -> AsyncIterator[str]:
     queue = feed.subscribe()
     try:
         while True:
-            event, data = await queue.get()
-            yield f"event: {event}\ndata: {json.dumps(data, separators=(',', ':'))}\n\n"
+            yield await queue.get()
     finally:
         feed.unsubscribe(queue)

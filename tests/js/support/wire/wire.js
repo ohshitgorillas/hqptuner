@@ -1,6 +1,5 @@
 // Shared wire fakes for the component and store suites. Fakes speak the real
-// REST paths with the real response shapes (docs/testing.md rule 4); no store
-// function is ever stubbed.
+// REST paths with the real response shapes.
 
 /**
  * A response as these fakes serve it: the three members the client reads.
@@ -45,6 +44,23 @@ const env = globalThis;
  * @returns {FakeResponse}
  */
 export const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+
+/** The generation an unrouted GET /api/config reading is stamped with. */
+const UNROUTED_CONFIG_GENERATION = 1;
+
+/**
+ * The answer to a request no route claimed: GET /api/config in its served shape, else an empty body.
+ *
+ * @param {string} path
+ * @param {FakeRequest} opts
+ * @returns {FakeResponse}
+ */
+const unrouted = (path, opts) =>
+  ok(
+    path === "/api/config" && (opts.method ?? "GET") === "GET"
+      ? { generation: UNROUTED_CONFIG_GENERATION, fields: {} }
+      : {},
+  );
 
 // A refusal in the daemon's own shape: FastAPI answers every error with a
 // `detail` string. `bad(status)` with no detail is the other real case — a
@@ -115,6 +131,66 @@ function dropLive(staged, drop) {
   return live;
 }
 
+// The server answers every staging route with the buffer reconciled against
+// the readings it serves (a reading's `staged` member; core/pending.py
+// `clean_pending`): an entry its destination store already holds is left out of
+// the answer, while the full payload stays staged for the next Apply. The fake
+// does the same against the readings the suite serves at GET /api/config. A
+// suite that serves none leaves nothing to compare against, and its answers
+// carry every entry.
+//
+// The destination is the store the served reading shows, and the comparison is
+// made in the staged domain: a checkbox's bool reads "1"/"0" and a pipeline row
+// set reads as the canonical JSON of the five editable columns.
+const PIPELINE_COLUMNS = /** @type {const} */ (["gain", "gainunit", "mixdown", "process", "source"]);
+const PIPELINE_COLUMN_DEFAULTS = { gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0" };
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function inStagedDomain(value) {
+  if (typeof value === "boolean") return value ? "1" : "0";
+  if (!Array.isArray(value)) return String(value);
+  return JSON.stringify(
+    value.map((row) =>
+      Object.fromEntries(
+        PIPELINE_COLUMNS.map((column) => [column, String(row[column] ?? PIPELINE_COLUMN_DEFAULTS[column])]),
+      ),
+    ),
+  );
+}
+
+/**
+ * The `fields` of the GET /api/config the suite serves, or null when it serves none.
+ *
+ * @param {((path: string, opts: FakeRequest, w: StagingWire) => FakeResponse | Promise<FakeResponse> | undefined) | undefined} routes
+ * @param {StagingWire} w
+ * @returns {Promise<Record<string, unknown> | null>}
+ */
+async function servedFields(routes, w) {
+  const hit = routes && (await routes("/api/config", { method: "GET" }, w));
+  if (!hit || !hit.ok) return null;
+  const body = /** @type {{ fields?: Record<string, unknown> } | null} */ (await hit.json());
+  return body?.fields ?? null;
+}
+
+/**
+ * @param {Record<string, unknown>} http
+ * @param {Record<string, unknown> | null} fields
+ * @returns {Record<string, unknown>}
+ */
+function reconcileHttp(http, fields) {
+  if (fields === null) return http;
+  return Object.fromEntries(
+    Object.entries(http).filter(([name, value]) => {
+      const reading = /** @type {Record<string, any> | undefined} */ (fields[name]);
+      const held = reading?.[reading.show]?.value;
+      return held === undefined || inStagedDomain(held) !== inStagedDomain(value);
+    }),
+  );
+}
+
 /**
  * @typedef {{
  *   staged: StagedBuffer,
@@ -135,29 +211,33 @@ export function stagingWire({ routes, fallback } = {}) {
   /** @type {StagingWire} */
   const w = { staged: { live: {}, http: {} }, posts: [], stages: [], inflight: new Set() };
   /** @param {StageBody} body */
-  const applyStage = (body) => {
+  const applyStage = async (body) => {
+    // Served first: the buffer is read and replaced in one synchronous turn, so two stages in flight never lose each other's entries.
+    const fields = await servedFields(routes, w);
     const drop = body.drop || {};
-    const http = { ...w.staged.http, ...body.http };
-    for (const name of drop.http || []) delete http[name];
+    const merged = { ...w.staged.http, ...body.http };
+    for (const name of drop.http || []) delete merged[name];
     const live = dropLive({ ...w.staged.live, ...body.live }, drop.live || {});
-    w.staged = { live, http };
-    return w.staged;
+    w.staged = { live, http: merged };
+    return { live, http: reconcileHttp(merged, fields) };
   };
   const answer = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts) => {
     if (path === "/api/config/stage") {
       const body = JSON.parse(String(opts.body));
       w.stages.push(body);
-      return ok(applyStage(body));
+      return ok(await applyStage(body));
     }
     if (path === "/api/config/pending" && opts.method === "DELETE") {
       w.staged = { live: {}, http: {} };
       return ok(w.staged);
     }
-    if (path === "/api/config/pending") return ok(w.staged);
+    if (path === "/api/config/pending") {
+      return ok({ live: w.staged.live, http: reconcileHttp(w.staged.http, await servedFields(routes, w)) });
+    }
     const hit = routes && (await routes(path, opts, w));
     if (hit !== undefined) return hit;
     if (fallback) return fallback(w);
-    return ok(path === "/api/config/apply" ? { report: {} } : {});
+    return path === "/api/config/apply" ? ok({ report: {} }) : unrouted(path, opts);
   };
   env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const req = answer(path, opts);
@@ -173,9 +253,8 @@ export function stagingWire({ routes, fallback } = {}) {
 
 // Wait for a wire from `stagingWire` to go quiet: every request it has been
 // handed answered, and every continuation waiting on an answer run — including
-// one that fires a further request. Event-loop turns, never a duration, so a
-// suite using it pins WHAT a sequence concludes and not how long it took
-// (docs/testing.md rule 7). The fake answers immediately, so this settles in a
+// one that fires a further request.
+// The fake answers immediately, so this settles in a
 // couple of turns.
 //
 // What it guarantees, exactly: no request is outstanding AT THIS INSTANT. That
@@ -217,6 +296,6 @@ export function staticWire(staged = { live: {}, http: {} }, routes) {
   env.fetch = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     if (path === "/api/config/stage" || path === "/api/config/pending") return ok(staged);
     const hit = routes && (await routes(path, opts));
-    return hit === undefined ? ok({}) : hit;
+    return hit === undefined ? unrouted(path, opts) : hit;
   };
 }

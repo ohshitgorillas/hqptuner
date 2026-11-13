@@ -1,4 +1,4 @@
-// Rate/shaper conflicts, as alert-strip rows.
+// Rate/shaper conflicts, as alerts on the Shaping stage.
 //
 // The option lists gray a shaper the rate cannot reach (store/ui/options.js
 // grayShapersByRate), which closes one direction only: pick the rate first and
@@ -21,6 +21,7 @@
 import { computed } from "@preact/signals";
 import { metadata } from "../signals.js";
 import { effective } from "../resolve.js";
+import { field } from "../core/readings.js";
 import { optionsFor } from "../ui/options.js";
 import { schema } from "../schema.js";
 import { DSD_RATES, PCM_RATES, TIER } from "../schema/options.js";
@@ -105,14 +106,18 @@ function floorLabel(rates, floor) {
   return hit ? hit.label : "";
 }
 
-// The selected shaper's NAME. The config-form domain is the enum ID, and
-// `data/shapers.json` joins to the engine's enumerations by name (architecture
-// §2) — so the form's own option list is what turns one into the other.
+// The selected shaper's NAME. The engine reading carries it as served: its
+// value is a list index, never comparable with a form enum ID. Where the shown
+// value is not the engine's (a staged edit, or the file's), it is a config-form
+// enum ID, and `data/shapers.json` joins to the engine's enumerations by name —
+// so the form's own option list is what turns one into the other.
 /**
  * @param {string} key
  * @returns {string}
  */
 function shaperName(key) {
+  const served = field(key).value.name;
+  if (served) return served;
   const value = String(effective(key) ?? "");
   if (!value) return "";
   const hit = optionsFor("config", schema[key].field || "").find((o) => String(o.value) === value);
@@ -166,7 +171,7 @@ function familiesToJudge() {
 }
 
 /**
- * Rate/shaper conflicts as alert-strip rows, empty when the settings are consistent.
+ * Rate/shaper conflicts as alert lines (components/faceplate/AlertLines.js), empty when the settings are consistent.
  * SDM first — it is the one that stops output.
  */
 export const shaperAlerts = computed(() => familiesToJudge().map(conflict).filter(Boolean));

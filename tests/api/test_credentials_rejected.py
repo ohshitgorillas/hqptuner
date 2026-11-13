@@ -1,4 +1,4 @@
-"""Rejected hqplayerd management credentials, end to end (docs/testing.md).
+"""Rejected hqplayerd management credentials, end to end.
 
 The 8088 config lane needs authentication on every page; the 4321 control lane
 needs none. So a daemon that refuses the configured password stays *reachable*
@@ -7,8 +7,8 @@ the wire verified on 6.0.4). These cases run the app on both fakes at once: the
 threaded 4321 daemon plus the fake 8088 daemon whose credential verdict the test
 moves mid-run.
 
-Poll cycles are counted at the fake rather than waited for on the wall clock
-(rule 7): one cycle reads /config among its pages, so `_settle` spinning until
+Poll cycles are counted at the fake rather than waited for on the wall clock:
+one cycle reads /config among its pages, so `_settle` spinning until
 three cycles' worth of arrivals have landed is a fresh /config verdict whatever
 the ordering."""
 
@@ -19,7 +19,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import advance_app, app_manager, wait_for_api
+from apps import advance_app, app_manager, connection_stands, phase_is_ready, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from httpx import Response
@@ -94,7 +94,7 @@ def credential_client(tmp_path: Path) -> Iterator[CredClient]:
 
 
 def _connected(client: TestClient) -> None:
-    wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+    wait_for_api(client, connection_stands)
 
 
 def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: int = 20) -> None:
@@ -115,14 +115,15 @@ def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: i
 
 
 def _loaded(client: TestClient) -> None:
-    """Return once the app's startup load has finished: `ready` says the app has
-    loaded what a caller reads off it, and the settle `wait_for_api` starts with
-    leaves no load in flight, so no archive read of its own is still arriving.
+    """Return once the app's startup load has finished: the phase Ready says the
+    app has loaded what a caller reads off it, and the settle `wait_for_api`
+    starts with leaves no load in flight, so no archive read of its own is still
+    arriving.
 
-    `reachable` is the 4321 handshake, which turns true before the 8088 lane's
-    loads have run, so a case that counts archive fetches off its own request
-    has to wait for `ready`."""
-    wait_for_api(client, lambda c: bool(c.get("/api/health").json()["ready"]))
+    Reachable is the 4321 handshake, which stands before the 8088 lane's loads
+    have run, so a case that counts archive fetches off its own request has to
+    wait for Ready."""
+    wait_for_api(client, phase_is_ready)
 
 
 def _require_recorded_refusal(client: TestClient) -> None:
@@ -250,10 +251,12 @@ def test_a_persistent_apply_refused_for_credentials_keeps_the_staged_edit(
     assert client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
 
 
-def test_a_persistent_apply_refused_for_credentials_answers_code_no_credentials(
+#: The status the API gives the `credentials_refused` code.
+SERVICE_UNAVAILABLE = 503
+
+
+def test_a_persistent_apply_whose_fetch_meets_a_refused_credential_is_unavailable(
     credential_client: CredClient,
 ) -> None:
-    # a refusal met mid-pass is a failed request: the route lets `refuse(exc)`
-    # answer with the cause's code
     _, resp = _apply_refused_mid_pass(credential_client)
-    assert resp.json()["code"] == "no_credentials"
+    assert resp.status_code == SERVICE_UNAVAILABLE

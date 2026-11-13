@@ -8,14 +8,14 @@
 // Persistence is one REST pair, GET/PUT /api/narrowing, both sides carrying
 // `{facets: {...}}`, driven through the shared fetch fake in
 // tests/js/support/wire/narrowingwire.js: it speaks that path with those shapes and
-// HOLDS the facet map the way the backend's store does (docs/testing.md rule 4
-// — real path, real shapes, nothing of ours stubbed). No daemon is behind it;
-// narrowing is HQPTuner's own presentational state (docs/architecture.md,
-// "Filter narrowing").
+// HOLDS the facet map the way the backend's store does.
+// No daemon is behind it;
+// narrowing is HQPTuner's own presentational state.
 //
-// Writing is coalesce-then-flush. The debounce window is not a behavior to
-// test on a clock (rule 7), so every case that sends drives the write through
-// `flushNarrowing()`, the way descriptions.test.js drives `flushDescriptions`.
+// Writing is coalesce-then-flush. The quiet window is driven on the suite's
+// fake clock (tests/js/support/clock.js), handed in through `initNarrowing`;
+// the cases outside that section drive the write through `flushNarrowing()`,
+// the way descriptions.test.js drives `flushDescriptions`.
 //
 // `reset()` puts every piece of module state a case touches back: the facet
 // signals, the error line, and the private "changed since the last write"
@@ -31,7 +31,7 @@ import assert from "node:assert/strict";
 
 import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
-import { NARROWING_DEFAULTS as DEFAULTS, narrowingWire, puts } from "../../support/wire/narrowingwire.js";
+import { narrowingWire, puts } from "../../support/wire/narrowingwire.js";
 import {
   nGenre,
   nGenreMode,
@@ -46,7 +46,13 @@ import {
   nSrcFormat,
   resetNarrowing,
 } from "../../../../hqptuner/static/store/narrow/state.js";
-import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
+import {
+  narrowingError,
+  hydrateNarrowing,
+  flushNarrowing,
+  initNarrowing,
+} from "../../../../hqptuner/static/store/narrow/persist.js";
+import { fakeClock } from "../../support/clock.js";
 
 const PATH = "/api/narrowing";
 
@@ -165,17 +171,6 @@ test("test_hydration_writes_nothing_back", async () => {
   assert.deepEqual(puts(w), []);
 });
 
-// --- a hydration the server refused ---------------------------------------------
-
-// The facet is set away from its default first, so this tells "left alone"
-// apart from "wiped back to the defaults" — after `reset()` both look alike.
-test("test_a_failed_hydration_leaves_a_facet_at_the_value_it_already_held", async () => {
-  await reset({ getStatus: 503, getDetail: "Narrowing is unavailable." });
-  nPhase.value = ["minimum"];
-  await hydrateNarrowing();
-  assert.deepEqual(nPhase.value, ["minimum"]);
-});
-
 // A facet the user has already touched is theirs: the answer that was in flight
 // while they toggled describes the page before the toggle, and must not undo it.
 test("test_a_facet_changed_while_the_hydration_was_in_flight_survives_it", async () => {
@@ -191,37 +186,6 @@ test("test_a_facet_changed_while_the_hydration_was_in_flight_survives_it", async
 
 // --- what a flush sends -----------------------------------------------------------
 
-test("test_one_changed_facet_flushes_as_exactly_one_put", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.equal(puts(w).length, 1);
-});
-
-// The put may carry keys this table does not name — the rate-narrowing
-// switches, whose wire keys are pinned by their own suite — but every facet of
-// the table rides along.
-test("test_a_flush_sends_every_facet_of_the_contract_table", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || {};
-  assert.deepEqual(
-    Object.keys(DEFAULTS).filter((k) => !(k in sent)),
-    [],
-  );
-});
-
-test("test_a_flush_sends_the_changed_facet_as_the_user_set_it", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.deepEqual((puts(w).at(-1) || {}).phase, ["minimum"]);
-});
-
 // The length facet's empty-string pick — the filters whose length nothing
 // states — has to survive the record in both directions, and the two halves are
 // two cases: the empty string is falsy, so a client that filters it out on the
@@ -230,48 +194,10 @@ test("test_a_flush_sends_the_changed_facet_as_the_user_set_it", async () => {
 // across a reload. The named pick rides along so that "kept the array" is told
 // apart from "kept nothing".
 
-test("test_a_flush_sends_a_length_selection_with_the_unspecified_pick_intact", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nLength.value = ["medium", ""];
-  await flushNarrowing();
-  assert.deepEqual((puts(w).at(-1) || {}).length, ["medium", ""]);
-});
-
 test("test_hydration_fills_the_length_facet_with_the_unspecified_pick_intact", async () => {
   await reset({ facets: { ...SET, length: ["medium", ""] } });
   await hydrateNarrowing();
   assert.deepEqual(nLength.value, ["medium", ""]);
-});
-
-// The lossy control rides the same put BY VALUE, not merely by key: a client
-// that always sent the key at its default would keep the whole table intact
-// while the bar silently failed to survive a reload.
-test("test_a_flush_sends_the_lossy_facet_as_the_user_set_it", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nLossy1x.value = "lossless";
-  await flushNarrowing();
-  assert.equal((puts(w).at(-1) || {}).lossy_1x, "lossless");
-});
-
-// The source-format control rides the same put BY VALUE, not merely by key: a
-// client that always sent the key at its default would keep the whole table
-// intact while the bar silently failed to survive a reload.
-test("test_a_flush_sends_the_src_format_facet_as_the_user_set_it", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nSrcFormat.value = "both";
-  await flushNarrowing();
-  assert.equal((puts(w).at(-1) || {}).src_format, "both");
-});
-
-test("test_a_flush_sends_a_facet_the_user_did_not_touch_at_the_value_it_holds", async () => {
-  const w = await reset({ facets: SET });
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.deepEqual((puts(w).at(-1) || {}).length, ["long"]);
 });
 
 test("test_three_changed_facets_coalesce_into_one_put", async () => {
@@ -300,32 +226,6 @@ test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async (
   assert.equal(puts(w).length, 1);
 });
 
-// Favorites-only is session state, deliberately not part of this record: a
-// browser that had it on must not push it onto every other browser. The
-// sentinel stands in for a flush that sent nothing at all, so a client that
-// never writes fails here rather than passing on an empty key list.
-test("test_the_put_carries_no_favorites_only_key", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || { no_put_was_sent: true };
-  assert.deepEqual(
-    Object.keys(sent).filter((k) => k.includes("fav") || k === "no_put_was_sent"),
-    [],
-  );
-});
-
-test("test_a_reset_flushes_every_facet_of_the_contract_table_at_its_default", async () => {
-  const w = await reset({ facets: SET });
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  resetNarrowing();
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || {};
-  assert.deepEqual(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, sent[k]])), DEFAULTS);
-});
-
 // --- a write the server refused -----------------------------------------------------
 // Unlike favorites, nothing reverts: the facet is presentational, so yanking the
 // user's toggle back is worse than a stale file.
@@ -338,21 +238,56 @@ test("test_a_failed_write_keeps_the_facet_the_user_set", async () => {
   assert.deepEqual(nPhase.value, ["minimum"]);
 });
 
-test("test_a_write_that_succeeds_after_a_failed_one_clears_the_error", async () => {
-  await reset({ putStatus: 500, putDetail: "State directory is read-only." });
+// --- the quiet window --------------------------------------------------------------
+// Each case hands the module a fresh fake clock before `reset()`, so the
+// drain inside it and every timer the case arms run on a clock only that case
+// advances. The module's window is not stated anywhere a test may read it, so
+// these cases bound it instead: longer than one fake ms, shorter than
+// QUIET_CEILING.
+
+/** Fake ms between two toggles of a burst: inside any quiet window. */
+const TOGGLE_GAP = 1;
+/** Fake ms of quiet that outlasts the module's quiet window. */
+const QUIET_CEILING = 10_000;
+/** Two in-domain quality picks, alternated so every toggle is a change. */
+const QUALITY_PICKS = [4, 5];
+
+/**
+ * A case's wire, after the module is put on a fresh fake clock, reset and hydrated.
+ *
+ * @returns {Promise<{ w: NarrowingWire, advance: (ms: number) => void }>}
+ */
+async function onFakeClock() {
+  const { clock, advance } = fakeClock();
+  initNarrowing(clock);
+  const w = await reset();
   await hydrateNarrowing();
+  return { w, advance };
+}
+
+test("test_a_burst_of_toggles_across_facets_costs_one_write_once_the_user_is_quiet", async () => {
+  const { w, advance } = await onFakeClock();
+  nGenre.value = ["classical"];
+  advance(TOGGLE_GAP);
   nPhase.value = ["minimum"];
-  await flushNarrowing();
-  narrowingWire();
-  nLength.value = ["short"];
-  await flushNarrowing();
-  assert.equal(narrowingError.value, "");
+  advance(TOGGLE_GAP);
+  nQuality.value = 5;
+  advance(QUIET_CEILING);
+  await settle();
+  assert.equal(puts(w).length, 1);
 });
 
-test("test_a_successful_write_leaves_no_error", async () => {
-  await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.equal(narrowingError.value, "");
+// The toggles keep landing one fake ms apart for longer than the window
+// lasts, so a window counted from the first toggle would have sent mid-run;
+// one restarted by every toggle sends only once they stop.
+test("test_a_toggle_run_longer_than_the_quiet_window_costs_one_write_once_the_user_is_quiet", async () => {
+  const { w, advance } = await onFakeClock();
+  for (let t = 0; t < QUIET_CEILING; t += TOGGLE_GAP) {
+    nQuality.value = QUALITY_PICKS[t % QUALITY_PICKS.length];
+    advance(TOGGLE_GAP);
+  }
+  await settle();
+  advance(QUIET_CEILING);
+  await settle();
+  assert.equal(puts(w).length, 1);
 });

@@ -4,16 +4,15 @@
 //   settings.json   label + tooltip per control, keyed by tab group, each entry
 //                   citing the manual or readme section it was taken from
 //   filters.json    per-filter description, joined by the ENGINE's own filter
-//   shapers.json    name (architecture §3.1: enumerations are the sole authority
-//                   for names, static data joins by name)
+//   shapers.json    name
 //
 // Two pages rendering one control from two
 // different strings is how a UI ends up disagreeing with itself, so both read
 // from here and neither writes prose of its own.
 
+import { computed } from "@preact/signals";
 import { metadata } from "./signals.js";
-import { schema } from "./schema.js";
-import { notesVisible, plainNames } from "./ui/prefs.js";
+import { plate } from "./faceplate/plate.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.
@@ -23,8 +22,27 @@ import { notesVisible, plainNames } from "./ui/prefs.js";
  * @typedef {object} ControlProse
  *   One control's settings.json row.
  * @property {string} label
- * @property {string} tooltip
+ * @property {string} tooltip  the start of the paragraph
+ * @property {string} [more]  the rest of the paragraph, then any paragraphs after it, a blank line between each
  * @property {Record<string, string>} [options] per-VALUE prose (`desc: "config"`)
+ * @property {string} [default]  the engine option name HQPlayer ships as the setting
+ *
+ * @typedef {object} Fold
+ *   An explanation split by the plate: what reads in place and what waits behind "see more".
+ * @property {string} text    the first paragraph in place; "see more" follows it where `more` holds any
+ * @property {string[]} rest  the paragraphs in place after it, each its own
+ * @property {string[]} more  the paragraphs held behind "see more", none where nothing is held
+ *
+ * @typedef {object} Described
+ *   One control's prose as a surface shows it.
+ * @property {string} label
+ * @property {string} tooltip  the start of the paragraph, alone
+ * @property {Record<string, string> | undefined} options  per-VALUE prose (`desc: "config"`)
+ * @property {Fold} fold  the whole paragraph, split by the plate
+ * @property {string} [default]  the engine option name HQPlayer ships as the setting, where the row records one
+ *
+ * @typedef {Pick<ControlProse, "label" | "tooltip" | "options">} ValueProse  a control's prose, read for its per-VALUE
+ *   prose
  *
  * @typedef {object} OverlayEntry
  *   One filters.json / shapers.json row. This module reads the prose; the rate
@@ -49,17 +67,28 @@ import { notesVisible, plainNames } from "./ui/prefs.js";
  *   leaves arrive in a later phase, and a shape written before them would be a guess.
  */
 
+/** Whether the plate holds every explanation whole in place. */
+const inPlace = computed(() => plate.value.both);
+
 /**
- * One control's label and tooltip from settings.json, falling back to the key
- * itself and no tooltip.
+ * One control's label, tooltip and paragraph from settings.json, and the factory
+ * default its row records, falling back to the key itself, no tooltip and no default.
  *
  * @param {SchemaField} entry
  * @param {string} key
- * @returns {ControlProse}
+ * @returns {Described}
  */
 export function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
-  return g[entry.note || key] || { label: key, tooltip: "" };
+  /** @type {ControlProse} */
+  const row = g[entry.note || key] || { label: key, tooltip: "" };
+  return {
+    label: row.label,
+    tooltip: row.tooltip,
+    options: row.options,
+    fold: fold(row.tooltip, row.more || "", "", inPlace.value),
+    ...(row.default === undefined ? {} : { default: row.default }),
+  };
 }
 
 // Easy Mode's copy comes through the same door as every other string the UI
@@ -103,24 +132,6 @@ export function paragraphs(text) {
     .filter(Boolean);
 }
 
-// A card gate's note, addressed by control key, for that card's subtitle. The
-// subtitle is the same prose a row note carries, so it follows the same pref:
-// with the manual text switched off there is no subtitle either. Returns ''
-// rather than null so a call site can pass it
-// straight to Card (an empty subtitle renders nothing).
-/**
- * A card gate's tooltip for use as the card subtitle, empty when the manual text
- * pref is off.
- *
- * @param {string} key
- * @returns {string}
- */
-export function noteFor(key) {
-  if (!notesVisible.value) return "";
-  const entry = schema[key];
-  return entry ? describe(entry, key).tooltip : "";
-}
-
 // The overlays are keyed by the ENGINE's own name, which reaches us as the
 // selected option's label.
 /**
@@ -133,6 +144,18 @@ export function noteFor(key) {
 export function selectedLabel(options, value) {
   const opt = (options || []).find((o) => String(o.value) === String(value));
   return (opt && opt.label) || "";
+}
+
+/**
+ * The form value an option list carries under an engine name, "" when it carries none.
+ *
+ * @param {{ value: string | number | undefined, label: string }[]} options
+ * @param {string} name
+ * @returns {string}
+ */
+export function idFor(options, name) {
+  const hit = options.find((o) => o.label === name);
+  return hit === undefined || hit.value === undefined ? "" : String(hit.value);
 }
 
 // Filter join rules (data/filters.json _join_rules): exact -> alias -> strip a
@@ -172,25 +195,59 @@ const joinProse = (/** @type {(string | undefined)[]} */ ...parts) => parts.filt
 // `two_stage_note` belongs to the '-2s' NAME variant, so it is keyed by the
 // filter. `sdm_two_stage_note` describes what the engine does with this filter
 // when it feeds the SDM chain, so it is keyed by the CHAIN the control sits on:
-// the same filter is offered in both chains at once (four persistent dropdowns,
-// store/schema.js), and the sentence is only true of the SDM pair. It reads as
+// the same filter is offered in both chains at once (the PCM out and SDM out
+// tabs, components/faceplate/drawers/modes.js), and the sentence is only true of the SDM pair. It reads as
 // part of the filter's own description and so sits directly after it.
+/**
+ * @typedef {{ base: string, note: string }} ProseParts  a description's own prose and the two-stage note after it,
+ *   "" where the name is no '-2s' variant
+ */
+
 /**
  * @param {string} name
  * @param {Metadata} md
  * @param {boolean} sdm whether the control sits on the SDM chain
- * @returns {string}
+ * @returns {ProseParts}
  */
-function filterDescription(name, md, sdm) {
+function filterParts(name, md, sdm) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
-  if (!entry) return "";
-  // Simplified mode says nothing about the two-stage variant: its names drop the
-  // clause (store/plainnames.js), so both notes go with them and the description
-  // keeps the filter's own prose alone. Standard mode is unchanged.
-  const twoStageNotes = !plainNames.value;
-  const sdmNote = twoStageNotes && sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
-  return joinProse(entry.description, sdmNote, entry.notes, twoStageNotes && twoStage ? f.two_stage_note : "");
+  if (!entry) return { base: "", note: "" };
+  const sdmNote = sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
+  return { base: joinProse(entry.description, sdmNote, entry.notes), note: (twoStage && f.two_stage_note) || "" };
+}
+
+/** @param {ProseParts} p */
+const whole = (p) => joinProse(p.base, p.note);
+
+/**
+ * What of an explanation reads in place and what waits behind "see more". On a plate that holds everything nothing
+ * waits: the held part follows the lead, its first paragraph joined to it and each paragraph after its own. On a
+ * smaller plate the held part waits, one entry per paragraph, and only `inline` follows the lead.
+ *
+ * @param {string} lead    what always reads in place
+ * @param {string} held    what may wait, a blank line between its paragraphs
+ * @param {string} inline  what reads in place after the lead while `held` waits
+ * @param {boolean} all    whether the plate holds everything in place
+ * @returns {Fold}
+ */
+function fold(lead, held, inline, all) {
+  const paras = paragraphs(held);
+  if (!all) return { text: joinProse(lead, inline), rest: [], more: paras };
+  return { text: joinProse(lead, paras[0]), rest: paras.slice(1), more: [] };
+}
+
+/**
+ * The parts folded for a surface that can hold the note behind "see more": while it waits, the note's lead, its words
+ * before the first colon, reads in place after the prose.
+ *
+ * @param {ProseParts} p
+ * @returns {Fold}
+ */
+function heldBack(p) {
+  const colon = p.note.indexOf(":");
+  const lead = colon > 0 ? p.note.slice(0, colon) : "";
+  return fold(p.base, p.note, lead, inPlace.value);
 }
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
@@ -207,35 +264,6 @@ function shaperDescription(kind, name, md) {
   return e ? joinProse(e.description, e.notes) : "";
 }
 
-// Inline manual description for the current selection.
-//   desc = filter|sdm_filter|dither|modulator -> name-keyed prose from the
-//     metadata overlay (filters.json / shapers.json), joined by the selected
-//     option's label. filter vs sdm_filter names the chain the control sits on,
-//     the way dither vs modulator names the shaper database.
-//   desc = config -> per-value prose from this control's settings.json `options`
-//     map, keyed by the selected form value (integrator, noise filter, SDM/PCM
-//     conversion — enums whose meaning is per-value, not per-control).
-/**
- * The inline manual prose for a control's current selection, empty when the
- * control carries no `desc` source or nothing joins.
- *
- * @param {SchemaField} entry
- * @param {string | number | boolean | undefined} value
- * @param {{ value: string | number | undefined, label: string }[] | undefined} options absent on the non-list widgets
- * @param {ControlProse} meta
- * @returns {string}
- */
-export function selectionDescription(entry, value, options, meta) {
-  if (!entry.desc) return "";
-  if (entry.desc === "config") return (meta && meta.options && meta.options[String(value)]) || "";
-  const name = selectedLabel(options, value);
-  if (!name) return "";
-  const md = metadata.value || {};
-  if (entry.desc === "filter" || entry.desc === "sdm_filter")
-    return filterDescription(name, md, entry.desc === "sdm_filter");
-  return shaperDescription(entry.desc, name, md);
-}
-
 // Same joins, addressed by one option instead of the current selection — the
 // per-option hover tip in the combobox reads each row's prose through this.
 /**
@@ -244,15 +272,36 @@ export function selectionDescription(entry, value, options, meta) {
  *
  * @param {SchemaField} entry
  * @param {{ value: string | number | undefined, label: string }} option
- * @param {ControlProse} meta
+ * @param {ValueProse} meta
  * @returns {string}
  */
 export function optionDescription(entry, option, meta) {
-  if (!entry.desc) return "";
-  if (entry.desc === "config") return (meta && meta.options && meta.options[String(option.value)]) || "";
-  if (!option.label) return "";
+  return whole(optionParts(entry, option, meta));
+}
+
+/**
+ * The same prose as optionDescription, folded for a surface that can hold the two-stage note behind "see more".
+ *
+ * @param {SchemaField} entry
+ * @param {{ value: string | number | undefined, label: string }} option
+ * @param {ValueProse} meta
+ * @returns {Fold}
+ */
+export const optionProse = (entry, option, meta) => heldBack(optionParts(entry, option, meta));
+
+/**
+ * @param {SchemaField} entry
+ * @param {{ value: string | number | undefined, label: string }} option
+ * @param {ValueProse} meta
+ * @returns {ProseParts}
+ */
+function optionParts(entry, option, meta) {
+  if (!entry.desc) return { base: "", note: "" };
+  if (entry.desc === "config")
+    return { base: (meta && meta.options && meta.options[String(option.value)]) || "", note: "" };
+  if (!option.label) return { base: "", note: "" };
   const md = metadata.value || {};
   if (entry.desc === "filter" || entry.desc === "sdm_filter")
-    return filterDescription(option.label, md, entry.desc === "sdm_filter");
-  return shaperDescription(entry.desc, option.label, md);
+    return filterParts(option.label, md, entry.desc === "sdm_filter");
+  return { base: shaperDescription(entry.desc, option.label, md), note: "" };
 }

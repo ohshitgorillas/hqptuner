@@ -103,7 +103,7 @@ DeafVolumeClient = Callable[[str | None], Awaitable[ControlClient]]
 @pytest.fixture
 async def deaf_volume_client(daemon: DaemonFactory) -> AsyncIterator[DeafVolumeClient]:
     """Clients on daemons whose `Volume` is answered `result="OK"` but never
-    applied (the `_deaf` knob, protocol.md §6: OK is not proof), so `State` keeps
+    applied (the `_deaf` knob), so `State` keeps
     reporting the level the caller names however loud the write was — which is
     how a test says the readback disagrees with what was asked for.
 
@@ -133,37 +133,12 @@ def threaded_daemon_port() -> Iterator[int]:
     yield from spawn_threaded_daemon()
 
 
-@pytest.fixture
-def threaded_disabled_volume_port() -> Iterator[int]:
-    """Threaded daemon with volume control disabled — a Volume write is refused."""
-    yield from spawn_threaded_daemon({"_vol_enabled": "0"})
-
-
 # --- fake HTTP config daemon (port 8088 lane), implemented in fake_http ---
 
 
 @pytest.fixture
 def http_daemon() -> Iterator[dict[str, Any]]:
     yield from fake_http.spawn(fake_http.state())
-
-
-@pytest.fixture
-def stale_http_daemon() -> Iterator[dict[str, Any]]:
-    # serves the pre-restart archive for one backup read before catching up
-    yield from fake_http.spawn(fake_http.state(_lag=1))
-
-
-@pytest.fixture
-def clamping_http_daemon() -> Iterator[dict[str, Any]]:
-    # rewrites the startup volume into the volume range on every restore, so a
-    # field no apply ever stages comes back different from what was uploaded
-    yield from fake_http.spawn(fake_http.state(_clamps=True, defaults_volume="-60", volume_min="-40"))
-
-
-@pytest.fixture
-def dying_http_daemon() -> Iterator[dict[str, Any]]:
-    # accepts the restore, then goes unreachable and never returns
-    yield from fake_http.spawn(fake_http.state(_die=True))
 
 
 @pytest.fixture

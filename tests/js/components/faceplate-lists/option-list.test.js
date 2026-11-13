@@ -1,0 +1,289 @@
+// Rendered suite for hqptuner/static/components/faceplate/lists/OptionList.js with its columns and rows: the list a
+// chain picker opens over the body, drawn from the wire's enumeration. The rows a list draws and the one selected, the
+// pick a row's tap fires and the close that follows, sheet for a filter list and panel for a shaper list, the close
+// button a sheet's head draws and a panel's does not, a narrowed-out
+// option dropping its row, the Simplified outline's variant heads and the fold a tap or a DAC preference applies, a
+// modulator's rate floor badge, and the heart that stars a row through the favorites wire.
+//
+// Renders through preact-render-to-string; a tap is fired through the vnode seam (tests/js/support/vnodeseam.js). The
+// store is driven at the wire (tests/js/support/listsfixture.js) and the open list is the view's `openList` signal.
+// Rows are found by `role="option"` and their engine name (`data-v`), hearts by `data-fav`, variant heads by
+// `data-var`, the list itself and its close button by their test ids. Every string asserted is a fixture name, a test
+// id or a number derived from a fixture.
+//
+// Not reachable here: the sheet's height and the panel's parking at its picker, which measure the mounted plate, and
+// the tap outside a panel that closes it, a document listener. A browser run closes them.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-lists/option-list.test.js
+
+import test, { afterEach, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
+import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config, enums } from "../../../../hqptuner/static/store/signals.js";
+import { seedReadings } from "../../support/readings.js";
+import { hydrateFavorites } from "../../../../hqptuner/static/store/narrow/favorites.js";
+import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
+import { setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
+import { favoritesWire, puts, settle } from "../../support/wire/favoriteswire.js";
+import { renderTree } from "../../support/vnodeseam.js";
+import { attr, elements, hasAttr, text } from "../../support/markup.js";
+import { loadLists, resetLists } from "../../support/listsfixture.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+
+/** The test id of the button that closes a list. */
+const CLOSE_TESTID = "close-list";
+
+/** @type {string[]} */
+let picked = [];
+
+beforeEach(async () => {
+  favoritesWire();
+  resetLists();
+  await loadLists();
+  picked = [];
+});
+
+afterEach(async () => {
+  await flushNarrowing();
+});
+
+/**
+ * Open a key's list over the body with `value` running in its field; picks land in `picked`.
+ *
+ * @param {string} key
+ * @param {string} value
+ */
+function open(key, value) {
+  openList.value = { key, stage: key.endsWith("_nx") ? "nx" : "1x", value, pick: (v) => picked.push(v) };
+}
+
+/** Every element the list draws, in document order. @returns {MarkupElement[]} */
+const markup = () => elements(render(html`<${OptionList} />`)).sort((a, b) => a.start - b.start);
+
+/** The rows the list draws. */
+const rowEls = () => markup().filter((e) => attr(e, "role") === "option");
+
+/** The engine names of the rows the list draws, in order. */
+const rows = () => rowEls().map((e) => attr(e, "data-v"));
+
+/** The list's own element: the sheet, or the panel. */
+const sheet = () => markup().find((e) => attr(e, "data-testid") === "option-list");
+
+/** The test ids of the close buttons the list draws. */
+const closeButtons = () =>
+  markup()
+    .map((e) => attr(e, "data-testid"))
+    .filter((id) => id === CLOSE_TESTID);
+
+/** Put a `pcm_conversion` field with two options on the /config form, so its list has rows. */
+async function serveConversion() {
+  config.value = {
+    ...config.value,
+    fields: [
+      ...config.value.fields,
+      {
+        name: "pcm_conversion",
+        type: "select",
+        options: [
+          { value: "0", label: "traditional" },
+          { value: "9", label: "sinc-M" },
+        ],
+      },
+    ],
+  };
+  await seedReadings({ pcm_conversion: "0" });
+}
+
+/**
+ * Fire the handler of the first element vnode matching `pred`, or nothing when none matches.
+ *
+ * @param {(props: Record<string, unknown>) => boolean} pred
+ * @param {string} [handler]
+ * @param {unknown} [event]
+ */
+async function fire(pred, handler = "onClick", event = { stopPropagation: () => undefined }) {
+  const { seen } = renderTree(html`<${OptionList} />`);
+  const hit = seen.find((v) => typeof v.type === "string" && pred(v.props ?? {}));
+  const fn = /** @type {((e: unknown) => unknown) | undefined} */ (hit?.props[handler]);
+  if (fn) await fn(event);
+  await settle();
+}
+
+test("test_an_open_list_draws_a_row_for_each_option_its_enumeration_reports", () => {
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual(rows(), ["poly-sinc-gauss-long", "sinc-M", "IIR"]);
+});
+
+test("test_the_running_value_is_the_one_selected_row", () => {
+  open("sdm_filter_1x", "sinc-M");
+  const selected = rowEls().filter((e) => attr(e, "aria-selected") === "true");
+  assert.deepEqual(
+    selected.map((e) => attr(e, "data-v")),
+    ["sinc-M"],
+  );
+});
+
+test("test_tapping_a_row_hands_its_engine_name_to_the_pick", async () => {
+  open("sdm_filter_1x", "sinc-M");
+  await fire((p) => p.role === "option" && p["data-v"] === "IIR");
+  assert.deepEqual(picked, ["IIR"]);
+});
+
+test("test_tapping_a_row_closes_the_list", async () => {
+  open("sdm_filter_1x", "sinc-M");
+  await fire((p) => p.role === "option" && p["data-v"] === "IIR");
+  assert.equal(openList.value, null);
+});
+
+test("test_a_closed_list_is_marked_closed", () => {
+  const closed = sheet();
+  const mark = (/** @type {MarkupElement | undefined} */ e) => (e ? hasAttr(e, "data-closed") : null);
+  assert.equal(mark(closed), true);
+});
+
+test("test_an_open_list_is_not_marked_closed", () => {
+  open("sdm_filter_1x", "IIR");
+  const opened = sheet();
+  assert.equal(opened ? hasAttr(opened, "data-closed") : null, false);
+});
+
+test("test_a_narrowed_out_option_draws_no_row", () => {
+  setFacet("quality", 3);
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual(rows(), ["poly-sinc-gauss-long", "IIR"]);
+});
+
+const name = () => {
+  const row = rowEls().find((e) => attr(e, "data-v") === "IIR");
+  const first =
+    row &&
+    elements(row.html)
+      .filter((e) => e.name === "span")
+      .sort((a, b) => a.start - b.start)[0];
+  return first ? text(first) : null;
+};
+
+test("test_a_standard_row_names_the_engine_option", () => {
+  open("sdm_filter_1x", "IIR");
+  const standard = name();
+  assert.equal(standard, "IIR");
+});
+
+test("test_a_simplified_row_names_its_leaf", async () => {
+  open("sdm_filter_1x", "IIR");
+  await loadLists({ plain: true });
+  assert.equal(name(), "Leaf iir");
+});
+
+test("test_simplified_draws_one_head_for_each_variant_the_list_holds", async () => {
+  await loadLists({ plain: true });
+  open("sdm_filter_1x", "IIR");
+  const heads = markup().filter((e) => attr(e, "data-var") !== undefined);
+  assert.deepEqual(
+    heads.map((e) => text(e)),
+    ["Var A", "Var B"],
+  );
+});
+
+test("test_a_family_the_placement_does_not_name_still_lists_its_rows", async () => {
+  await loadLists({ plain: true });
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual([...rows()].sort(), ["IIR", "poly-sinc-gauss-long", "sinc-M"]);
+});
+
+test("test_tapping_a_variant_head_folds_its_rows", async () => {
+  await loadLists({ plain: true });
+  open("sdm_filter_1x", "IIR");
+  await fire((p) => p["data-var"] === "Var A");
+  assert.deepEqual([...rows()].sort(), ["IIR", "sinc-M"]);
+});
+
+test("test_an_r2r_dac_folds_the_additive_dither_rows", async () => {
+  await loadLists({ plain: true });
+  setDacType("r2r");
+  open("pcm_dither", "none");
+  assert.deepEqual([...rows()].sort(), ["NS9", "none"]);
+});
+
+test("test_a_hearts_tap_stars_its_filter_on_the_favorites_wire", async () => {
+  const w = favoritesWire();
+  open("sdm_filter_1x", "IIR");
+  await fire((p) => p["data-fav"] === "sinc-M");
+  assert.deepEqual(puts(w).at(-1), ["sinc-M"]);
+});
+
+test("test_a_starred_filter_draws_its_heart_pressed", async () => {
+  favoritesWire({ filters: ["IIR"] });
+  await hydrateFavorites();
+  open("sdm_filter_1x", "IIR");
+  const pressed = markup().filter((e) => attr(e, "data-fav") !== undefined && attr(e, "aria-pressed") === "true");
+  assert.deepEqual(
+    pressed.map((e) => attr(e, "data-fav")),
+    ["IIR"],
+  );
+});
+
+test("test_a_filter_row_carries_a_heart", () => {
+  const hearts = () => markup().filter((e) => attr(e, "data-fav") !== undefined).length;
+  open("sdm_filter_1x", "IIR");
+  const filters = hearts();
+  assert.equal(filters, 3);
+});
+
+/** How many hearts the list draws. */
+const heartCount = () => markup().filter((e) => attr(e, "data-fav") !== undefined).length;
+
+test("test_dither_rows_carry_no_heart_while_filter_rows_each_carry_one", () => {
+  open("pcm_dither", "none");
+  const dither = heartCount();
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual([dither, heartCount()], [0, rows().length]);
+});
+
+test("test_a_modulator_panel_draws_no_close_button", () => {
+  open("sdm_modulator", "ASDM5");
+  assert.deepEqual(closeButtons(), []);
+});
+
+test("test_a_dsd_processing_panel_draws_no_close_button", async () => {
+  await serveConversion();
+  open("pcm_conversion", "0");
+  assert.deepEqual(closeButtons(), []);
+});
+
+test("test_a_filter_sheet_draws_its_close_button", () => {
+  open("pcm_filter_1x", "poly-sinc-gauss-long");
+  assert.deepEqual(closeButtons(), [CLOSE_TESTID]);
+});
+
+/** The test id of the explicit state a list narrowed to nothing draws. */
+const EMPTY_TESTID = "list-empty";
+
+/** How many explicit empty states the list draws. */
+const emptyStates = () => markup().filter((e) => attr(e, "data-testid") === EMPTY_TESTID).length;
+
+test("test_a_filter_list_narrowed_to_nothing_draws_its_empty_state", () => {
+  setFacet("quality", 5);
+  open("sdm_filter_1x", "");
+  assert.equal(emptyStates(), 1);
+});
+
+test("test_a_modulator_list_narrowed_to_nothing_draws_its_empty_state", () => {
+  enums.value = { ...enums.value, shapers: [{ index: "0", value: "3", name: "ASDM7EC 512+fs" }] };
+  setFacet("modTier", ["256+"]);
+  open("sdm_modulator", "");
+  assert.equal(emptyStates(), 1);
+});
+
+test("test_a_list_opened_on_a_running_value_the_narrowing_excludes_draws_no_row_for_it", () => {
+  const RUNNING = "sinc-M";
+  setFacet("quality", 3);
+  open("sdm_filter_1x", RUNNING);
+  assert.deepEqual([...rows()].sort(), ["IIR", "poly-sinc-gauss-long"]);
+});

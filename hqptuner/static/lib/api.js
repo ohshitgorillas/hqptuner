@@ -1,5 +1,5 @@
-// Thin REST wrappers over the Phase 2/3 backend. Read endpoints that serve a
-// daemon snapshot wrap it as {stale, loaded_at, data}; health/metadata/pending
+// Thin REST wrappers over the backend. Read endpoints that serve a
+// daemon snapshot wrap it as {data}; health/metadata/pending
 // return their payload directly. Callers unwrap via `.data` where noted.
 
 // Every backend error carries FastAPI's `{"detail": "..."}` — the sentence that
@@ -100,9 +100,9 @@ function unexplained(path, status) {
 }
 
 // A refusal from our own backend also carries `code`, a stable identifier
-// beside the sentence (docs/architecture.md "API errors"). The sentence is for
-// showing; `status` and `code` are what a control branches on, so both ride on
-// the rejected error as properties instead of being fished back out of prose.
+// beside the sentence. The sentence is for showing; `status` and `code` are
+// what a control branches on, so both ride on the rejected error as properties
+// instead of being fished back out of prose.
 /** A non-OK answer from the backend: the sentence, the HTTP status, the body's code. */
 class ApiFailure extends Error {
   /**
@@ -161,6 +161,8 @@ async function getJSON(path) {
   return r.json();
 }
 
+// A 204 answer carries no body by definition, and reading one as JSON rejects,
+// so a write the backend answers with 204 resolves with nothing.
 /**
  * @param {string} path
  * @param {string} method
@@ -175,6 +177,7 @@ async function send(path, method, body) {
   }
   const r = await reach(path, opts);
   if (!r.ok) throw await failure(path, r);
+  if (r.status === 204) return undefined;
   return r.json();
 }
 
@@ -191,11 +194,17 @@ async function upload(path, field, file) {
   return r.json();
 }
 
+// The `?station=` a live snapshot call names, or nothing for the loaded station.
+// `""`, the unnamed default, is a station too, so it is sent rather than dropped.
+/** @param {string | undefined} station */
+const stationQuery = (station) => (station === undefined ? "" : `?station=${encodeURIComponent(station)}`);
+
 export const api = {
   health: () => getJSON("/api/health"),
   engine: () => getJSON("/api/engine"),
   applyEngine: (/** @type {unknown} */ body) => send("/api/engine", "POST", body),
   restore: (/** @type {File} */ file) => upload("/api/restore", "cfgfile", file),
+  stateImport: (/** @type {File} */ file) => upload("/api/state-import", "statefile", file),
   state: () => getJSON("/api/state"),
   status: () => getJSON("/api/status"),
   enumerations: () => getJSON("/api/enumerations"),
@@ -208,19 +217,33 @@ export const api = {
   stage: (/** @type {unknown} */ body) => send("/api/config/stage", "POST", body),
   discard: () => send("/api/config/pending", "DELETE"),
   apply: (/** @type {unknown} */ body) => send("/api/config/apply", "POST", body || {}),
-  // the LIVE view's whole write path: applied on the spot, readback-verified,
+  // the live controls' whole write path: applied on the spot, readback-verified,
   // never staged (store/live/write.js)
   live: (/** @type {Record<string, string>} */ fields) => send("/api/config/live", "POST", { fields }),
-  // Live snapshots — HQPTuner's own record, never the daemon's. A save takes no
-  // body: the backend snapshots the running engine itself, so the browser has
-  // nothing to send that the daemon has not already reported.
+  // Live snapshots — HQPTuner's own record, never the daemon's. A save sends, at most, which settings to keep,
+  // which stations to keep them under and the values the Snapshot builder edited; the backend snapshots the rest.
   livePresets: () => getJSON("/api/livepresets"),
-  liveSnapshot: () => getJSON("/api/livepresets/snapshot"),
   // `fields` names the settings the preset keeps; omitted, the backend keeps them all.
-  saveLivePreset: (/** @type {string} */ name, /** @type {string[] | undefined} */ fields) =>
-    send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields ? { fields } : undefined),
-  applyLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
-  deleteLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
+  // `stations` names the stations it is saved under; omitted, the loaded one. The
+  // `station` an apply or delete names is the one whose snapshot it means;
+  // omitted, the loaded one.
+  saveLivePreset: (
+    /** @type {string} */ name,
+    /** @type {string[] | undefined} */ fields,
+    /** @type {string[] | undefined} */ stations,
+    /** @type {Record<string, string> | undefined} */ values,
+  ) => {
+    const body = {
+      ...(fields ? { fields } : {}),
+      ...(stations ? { stations } : {}),
+      ...(values ? { values } : {}),
+    };
+    return send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT", fields || stations || values ? body : undefined);
+  },
+  applyLivePreset: (/** @type {string} */ name, /** @type {string | undefined} */ station) =>
+    send(`/api/livepresets/${encodeURIComponent(name)}/apply${stationQuery(station)}`, "POST"),
+  deleteLivePreset: (/** @type {string} */ name, /** @type {string | undefined} */ station) =>
+    send(`/api/livepresets/${encodeURIComponent(name)}${stationQuery(station)}`, "DELETE"),
   // Where HQPTuner dials and who it says it is. The read never answers the
   // password, only whether one is held; the write saves before it verifies, so
   // its 200 says the record landed and nothing about what the daemon makes of it.
@@ -253,19 +276,13 @@ export const api = {
   saveMatrixMode: (/** @type {string} */ name, /** @type {string} */ mode) =>
     send("/api/matrixmodes", "PUT", { name, mode }),
   refreshDevices: () => send("/api/config/refresh", "POST"),
-  setAutosave: (/** @type {boolean} */ enabled) => send("/api/autosave", "POST", { enabled }),
   // The high-frequency filter's auto-pilot. Write only: /api/status carries the flag on
   // every poll, because the backend switches it off by itself when the filter is set by hand.
   setAutopilot: (/** @type {boolean} */ enabled) => send("/api/autopilot", "POST", { enabled }),
-  profile: (/** @type {string} */ action, /** @type {string} */ name) =>
-    send(`/api/profile/${action}`, "POST", { name }),
   preset: (/** @type {string} */ name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
-  deletePreset: (/** @type {string} */ name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),
   autoeq: () => getJSON("/api/autoeq"),
   uploadFilter: (/** @type {File} */ file) => upload("/api/matrix/filter", "file", file),
-  matrixProfile: (/** @type {string} */ action, /** @type {string} */ name) =>
-    send("/api/matrix/profile", "POST", { action, name }),
-  volume: () => getJSON("/api/volume"),
+  matrixProfile: (/** @type {string} */ name) => send("/api/matrix/profile", "POST", { name }),
   setVolume: (/** @type {string | number} */ level) => send("/api/volume", "POST", { level: String(level) }),
   log: (/** @type {number} */ lines = 50) => getJSON(`/api/log?lines=${lines}`),
 };

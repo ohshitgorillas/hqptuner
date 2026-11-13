@@ -1,0 +1,196 @@
+// Behavioral suite for store/connpanel.js — what a save puts on the wire when the
+// panel was opened over a connection that already holds a password, and what
+// the panel then concludes the save did.
+//
+// `fetch` is faked at the real REST paths with the real response shapes, the
+// `health` signal is assigned the readings a poll would have delivered, and the
+// panel's own exported signals are assigned to state the situation.
+// The suite's fake clock (tests/js/support/clock.js) is handed in through `createConnPanel`,
+// so every "at N ms" below is a reading of that clock and never a
+// duration this suite spends; `settle()` turns the event loop rather than
+// waiting on one.
+//
+// Readings are fresh objects every time: writing the same reference to a signal
+// does not notify.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/connpanel-verdict.test.js
+
+import test, { afterEach } from "node:test";
+import assert from "node:assert/strict";
+
+import { health } from "../../../hqptuner/static/store/signals.js";
+import { createConnPanel } from "../../../hqptuner/static/store/connpanel.js";
+import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
+import { staticWire, ok } from "../support/wire/wire.js";
+import { fakeClock } from "../support/clock.js";
+
+/** The globals a wire fake installs a `fetch` on. */
+/** @type {{ fetch?: unknown }} */
+const env = globalThis;
+const REAL_FETCH = env.fetch;
+
+/** @typedef {Record<string, unknown>} Reading */
+
+// The health readings this suite drives with, in the shape /api/health serves.
+// `credentials_ok` is tri-state: null is the 8088 lane's silence.
+/** @type {Reading} */
+const SILENT = { phase: "Down", credentials_ok: null, address_found: null };
+/** @type {Reading} */
+const CONTROL_ONLY = { phase: "Reachable", credentials_ok: null, address_found: true };
+
+/** The fake clock the page reads, in milliseconds since the page loaded. */
+let fake = fakeClock();
+let panel = createConnPanel({ clock: fake.clock });
+/** @type {(() => void) | undefined} */
+let dispose;
+
+// Moves the fake clock on to `at` ms since the page loaded.
+/** @param {number} at */
+function moveTo(at) {
+  fake.advance(at - fake.clock.now());
+}
+
+afterEach(() => {
+  if (dispose) dispose();
+  dispose = undefined;
+  env.fetch = REAL_FETCH;
+});
+
+// A freshly loaded page: no reading seen, no verdict, panel closed, host field
+// holding the loopback address it opens with and not yet edited.
+/** @param {number} [at] */
+function start(at = 0) {
+  fake = fakeClock();
+  panel = createConnPanel({ clock: fake.clock });
+  moveTo(at);
+  health.value = null;
+  panelOpen.value = false;
+  panel.hostTouched.value = false;
+  panel.verdict.value = null;
+  panel.form.value = { host: "127.0.0.1", username: "", password: "", remember: false, hasPassword: false };
+  dispose = panel.initPanel();
+}
+
+// Turns of the event loop, never a duration: enough for the fake's immediate
+// answers and the store's continuations off them to have run.
+/**
+ * @param {number} [turns]
+ * @returns {Promise<void>}
+ */
+async function settle(turns = 8) {
+  for (let turn = 0; turn < turns; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+}
+
+// One health poll landing at `at` ms.
+/**
+ * @param {Reading} fields
+ * @param {number} at
+ * @returns {void}
+ */
+function reading(fields, at) {
+  moveTo(at);
+  health.value = { ...fields };
+}
+
+// The REST fake: discovery answering nobody, the saved record GET
+// /api/connection serves — `has_password` says whether the install already
+// holds one — and a 200 on the POST carrying the lane the route reached, with
+// the body recorded for the case to read.
+/**
+ * @param {{ hasPassword?: boolean, lane?: string }} [answers]
+ * @returns {Record<string, unknown>[]}
+ */
+function wire({ hasPassword = false, lane = "ok" } = {}) {
+  /** @type {Record<string, unknown>[]} */
+  const posts = [];
+  staticWire(undefined, (path, opts) => {
+    if (path === "/api/discover") return ok([]);
+    if (path === "/api/connection" && opts.method === "POST") {
+      posts.push(JSON.parse(String(opts.body)));
+      return ok({ host: "10.0.0.9", username: "tuner", remember: false, has_password: true, lane });
+    }
+    if (path === "/api/connection") {
+      return ok({ host: "10.0.0.9", username: "tuner", remember: false, has_password: hasPassword });
+    }
+    return undefined;
+  });
+  return posts;
+}
+
+// What the save asked the route to do with the password: the value it sent, or
+// `undefined` where it sent no `password` key at all and left the held one be.
+/**
+ * @param {Record<string, unknown>} body
+ * @returns {unknown}
+ */
+function sentPassword(body) {
+  return Object.prototype.hasOwnProperty.call(body, "password") ? body.password : undefined;
+}
+
+// --- what a save does with the password field -------------------------------
+
+/**
+ * @typedef {{ name: string, held: boolean, typed: string, sent: unknown }} SaveCase
+ */
+
+/** @type {SaveCase[]} */
+const SAVES = [
+  {
+    name: "test_a_typed_password_over_a_held_password_sends_what_was_typed",
+    held: true,
+    typed: "s3cret",
+    sent: "s3cret",
+  },
+];
+
+for (const kase of SAVES) {
+  test(kase.name, async () => {
+    start();
+    const posts = wire({ hasPassword: kase.held });
+    panel.openPanel();
+    await settle();
+    panel.form.value = { ...panel.form.value, host: "10.0.0.9", username: "tuner", password: kase.typed };
+    await panel.submitConnection();
+    assert.equal(sentPassword(posts[0] ?? {}), kase.sent);
+  });
+}
+
+// --- what the panel concludes the save did ----------------------------------
+
+/**
+ * @typedef {{ name: string, host: string, lane: string, reading: Reading | null, at: number, verdict: string }} SaidCase
+ */
+
+/** @type {SaidCase[]} */
+const SAID = [
+  {
+    name: "test_a_silent_lane_one_second_after_an_accepted_save_is_still_connecting",
+    host: "10.0.0.9",
+    lane: "ok",
+    reading: SILENT,
+    at: 1000,
+    verdict: "connecting",
+  },
+  {
+    name: "test_a_reachable_daemon_after_a_save_the_route_reported_refused_says_refused",
+    host: "10.0.0.9",
+    lane: "refused",
+    reading: CONTROL_ONLY,
+    at: 0,
+    verdict: "refused",
+  },
+];
+
+for (const kase of SAID) {
+  test(kase.name, async () => {
+    start();
+    wire({ lane: kase.lane });
+    panel.openPanel();
+    await settle();
+    panel.form.value = { ...panel.form.value, host: kase.host, username: "tuner", password: "s3cret" };
+    await panel.submitConnection();
+    if (kase.reading) reading(kase.reading, kase.at);
+    await settle();
+    assert.equal(panel.verdict.value, kase.verdict);
+  });
+}

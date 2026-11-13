@@ -1,13 +1,12 @@
 """What `apply_live` reports for volume when HQPlayer refuses the `State` readback that follows the `Volume` write.
 
 The daemon is the support fake with `State` in its `_error` knob: `Volume` is answered `result="OK"` and applied, and
-every `State` is answered `result="Error"` with the fake's `_error_text` as the element's own text (docs/protocol.md
-§6). The command log is read to confirm the refused `State` came after the `Volume` write, so the refusal is the
-readback's and not some earlier read's.
+every `State` is answered `result="Error"` with the fake's `_error_text` as the element's own text. The command log
+is read to confirm the refused `State` came after the `Volume` write, so the refusal is the readback's and not some
+earlier read's.
 
-The report row's `error` sentence is owner copy and is not asserted (docs/testing.md rule 9). What is asserted is the
-refusal text the test put on the wire: that the volume row carries HQPlayer's words unchanged, which a row reporting
-a readback mismatch has no way to carry.
+What is asserted is the refusal text the test put on the wire: that the volume row carries HQPlayer's words unchanged,
+which a row reporting a readback mismatch has no way to carry.
 """
 
 import pytest

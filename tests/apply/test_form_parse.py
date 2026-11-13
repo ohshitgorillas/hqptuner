@@ -1,7 +1,4 @@
-"""Form parser behavior against a captured live 6.0.4 /config page.
-
-Policy: docs/testing.md — one condition per test, behavior only.
-"""
+"""Form parser behavior against a captured live 6.0.4 /config page."""
 
 import re
 from pathlib import Path
@@ -9,9 +6,10 @@ from pathlib import Path
 import pytest
 from narrow import present
 
-from hqptuner.conf import fixedvol, presetconf
 from hqptuner.conf.formparse import MATRIX_ROW_RE, grouped_fields, parse_config_form
 from hqptuner.conf.httpforms import FormField
+from hqptuner.fields import query
+from hqptuner.fields.model import Attr, Codec
 
 FIXTURE = Path(__file__).parent.parent / "support" / "fixtures" / "config-form-6.0.4.html"
 _HTML = FIXTURE.read_text()
@@ -19,24 +17,24 @@ _PARSED = parse_config_form(_HTML)
 _FIELDS = {f["name"]: f for f in _PARSED["fields"] if f["name"] is not None}
 
 # Every /config field the persistent write path can target, derived from
-# presetconf rather than hand-listed — a hand-kept subset (this was 16 of 48)
-# stops covering the fields added after someone last remembered to widen it.
+# the field register rather than hand-listed: a hand-kept subset stops covering
+# the fields added after someone last remembered to widen it.
 # The offline half of the version canary: this catches a parser regression
 # against the frozen 6.0.4 capture, test_live_forms catches the daemon moving
-# under us. post_*/matrix_* live on the /matrix form, not this one.
-OWNED_FIELDS = {
+# under us. post_*/matrix_* live on the /matrix form, not this one, and the
+# asio/wasapi elements belong to a Windows daemon, whose form a Linux capture lacks.
+_LOCAL_BACKENDS = ("asio", "wasapi")
+_FORM_ATTRIBUTES = {
     name
-    for name in set(presetconf.FIELD_MAP) | {presetconf.NET_DEVICE, fixedvol.FIXED_ENABLED, fixedvol.FIXED_LEVEL}
-    if not name.startswith(("post_", "matrix_"))
+    for name, location in query.located().items()
+    if isinstance(location, Attr) and location.tag not in _LOCAL_BACKENDS
 }
+_FORM_CODECS = {query.kept_at(codec) for codec in (Codec.NET_DEVICE, Codec.FIXED_ENABLED, Codec.FIXED_LEVEL)}
+OWNED_FIELDS = {name for name in _FORM_ATTRIBUTES | _FORM_CODECS if not name.startswith(("post_", "matrix_"))}
 
 
 def test_all_owned_persistent_controls_are_parsed() -> None:
     assert set(_FIELDS) >= OWNED_FIELDS
-
-
-def test_select_reports_the_selected_option() -> None:
-    assert _FIELDS["backend"]["value"] == "network"
 
 
 def test_select_carries_every_option() -> None:
@@ -53,19 +51,6 @@ def test_number_field_carries_max_constraint() -> None:
 
 def test_number_field_carries_step_constraint() -> None:
     assert _FIELDS["gain_comp"]["step"] == 0.1
-
-
-@pytest.mark.parametrize(
-    ("name", "expected"),
-    [("fixed_volume_enabled", False), ("volume_fixed", True)],
-    ids=["unchecked", "checked"],
-)
-def test_a_checkbox_parses_checked_as_true_and_unchecked_as_false(name: str, *, expected: bool) -> None:
-    assert _FIELDS[name]["value"] is expected
-
-
-def test_text_field_reports_current_value() -> None:
-    assert _FIELDS["title"]["value"] == "Opal"
 
 
 def test_profile_list_includes_the_default_base_configuration() -> None:

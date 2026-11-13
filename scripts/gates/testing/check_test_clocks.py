@@ -13,7 +13,7 @@ above zero and below SMALL is flagged. Every such knob in the tree is either a c
 never reaches, at seconds, or a deadline the code waits out, at a fraction of a
 second; the value is what separates them.
 
-``tests/e2e/`` is excluded, where a real clock is allowed by ``docs/testing.md``.
+``tests/e2e/`` is excluded, where a real clock is allowed.
 
 A per-test duration threshold cannot see either pattern: a ten millisecond poll
 spread over seventy call sites lifts no test over any threshold, and a deadline
@@ -31,7 +31,7 @@ from pathlib import Path
 #: Seconds below which a real deadline is a wait rather than a ceiling.
 SMALL = 0.5
 
-#: The tree where a real clock is allowed, by docs/testing.md.
+#: The tree where a real clock is allowed.
 CARVE_OUT = "tests/e2e/"
 
 
@@ -115,7 +115,7 @@ def check(names: list[str]) -> int:
     if problems:
         print(
             f"\n{len(problems)} real clock(s) under tests/. A poll waits on a condition and a deadline"
-            " comes from a seam the test controls; docs/testing.md rule 7 is the rule."
+            " comes from a seam the test controls; no test outside tests/e2e/ waits on wall clock."
         )
         return 1
     return 0

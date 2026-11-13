@@ -1,4 +1,4 @@
-"""Matrix profile operations (matrix-spec.md "Profiles") — the lane behind ``POST /api/matrix/profile``.
+"""Matrix profile operations — the lane behind ``POST /api/matrix/profile``.
 
 One lane, and it is the live one: 4321 ``MatrixSetProfile`` switches the running
 matrix with zero engine reload and playback undisturbed. A profile is a whole
@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 
 @dataclass(frozen=True)
@@ -33,10 +33,11 @@ class MatrixProfileSwitch:
     active: str
 
 
-async def switch_profile(mgr: ConnectionManager, name: str) -> MatrixProfileSwitch:
+async def switch_profile(mgr: LaneManager, name: str) -> MatrixProfileSwitch:
     """Live switch + State readback + form resync. Empty name = ``[Default]``."""
     client = mgr.require_control()
     await client.set_matrix_profile(name)
-    mgr.readings.state = await client.get_state()
+    state = await client.get_state()
+    mgr.readings.take_engine(mgr.phase.standing.generation, state=state)
     await mgr.refresh_http_forms()
-    return MatrixProfileSwitch(active=mgr.readings.state.get("matrix_profile", ""))
+    return MatrixProfileSwitch(active=state.get("matrix_profile", ""))

@@ -7,13 +7,13 @@
 //
 // Everything a scenario needs is stated at the wire the store reads from — the
 // /api/state, /api/enumerations, /api/config and /api/metadata payloads carried
-// by the exported signals. No store function is stubbed (docs/testing.md rule 4).
+// by the exported signals.
 //
 // Two facts drive the shape of the fixtures:
 //
 //   * The engine answers for the chain it has LOADED and nothing else, so the
 //     dormant family's rate and shaper come from the running configuration
-//     (`file`, which already carries LIVE's overrides) and its option list from
+//     (`file`, which already carries the live lane's overrides) and its option list from
 //     the daemon's own /config form. `reset()` therefore always states BOTH, and
 //     always states them in agreement: the engine's pin is the same tier as the
 //     configuration's limit, and the engine's shaper is the same name as the
@@ -21,18 +21,18 @@
 //     which source the rate/shaper fit reads, which is store/live's contract and
 //     is pinned in liverate.test.js / livechain.test.js, not here.
 //   * Shaper names are the engine's, and the constraint file joins to them BY
-//     NAME (architecture §3.1/§7.10) — so the floors below are keyed by the names
+//     NAME — so the floors below are keyed by the names
 //     support/chainenums.js puts on both the enum side and the form side, with
 //     the enum ID differing from the list index throughout.
 
 import { config, enums, engineState, engineStatus, metadata } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "./wire/wire.js";
+import { fieldReading, seedReadings } from "./readings.js";
 import { PCM_FILTERS, PCM_SHAPERS, SDM_FILTERS, SDM_SHAPERS, JUNK, formField, FORM, LISTS } from "./chainenums.js";
 
 // Tier menu members, 48k side — a menu value names the TIER, never the
-// frequency (settings-classification §Rate per-family).
+// frequency.
 export const DSD64 = "3072000";
 export const DSD512 = "24576000";
 export const DSD1024 = "49152000";
@@ -78,8 +78,8 @@ const META = ({ sdm = {}, pcm = {} }) => ({
   shapers: { pcm_dithers: overlay(pcm), sdm_modulators: overlay(sdm) },
 });
 
-// `<RatesItem index rate/>` — no name and no value, index 0 meaning auto
-// (protocol.md §4/§6). The index a rate lands on is never its value.
+// `<RatesItem index rate/>` — no name and no value, index 0 meaning auto.
+// The index a rate lands on is never its value.
 /** @param {...string} hz */
 const rateItems = (...hz) => ["0", ...hz].map((rate, i) => ({ index: String(i), rate }));
 
@@ -138,7 +138,7 @@ export async function reset(scenario = {}) {
   staticWire({ live: {}, http: {} });
   const loaded = chain === "sdm";
   // The same pick in the two domains it is reported in: `State` gives the list
-  // index, the configuration form the enum ID (protocol.md §4).
+  // index, the configuration form the enum ID.
   const picked = {
     dither: PCM_SHAPERS[Number(shaper)].value,
     modulator: SDM_SHAPERS[Number(shaper)].value,
@@ -163,25 +163,62 @@ export async function reset(scenario = {}) {
     mode: { name: MODE_NAME[mode] },
   };
   metadata.value = META(floors);
+  /** @type {Record<string, string>} */
+  const running = { ...FORM, ...picked };
   config.value = {
     fields: [
-      ...Object.entries({ ...FORM, ...picked }).map(([name, value]) => formField(name, value, LISTS[name])),
+      ...Object.keys(running).map((name) => {
+        const { options } = formField(name, running[name], LISTS[name]);
+        return { name, options };
+      }),
       // The two rate LIMITS, as the daemon's own form carries them: the PCM
       // family's is `defaults_samplerate`, the SDM family's `defaults_bitrate`.
-      { name: "defaults_samplerate", value: pcmRate },
-      { name: "defaults_bitrate", value: sdmRate },
+      { name: "defaults_samplerate" },
+      { name: "defaults_bitrate" },
     ],
-    file: {
-      mode: FILE_MODE[mode],
-      ...FORM,
-      ...picked,
-      defaults_samplerate: pcmRate,
-      defaults_bitrate: sdmRate,
-    },
-    active: "",
-    profiles: null,
   };
-  liveErrors.value = {};
-  liveBusy.value = "";
   await discardAll();
+  await seedReadings({
+    mode: fieldReading(FILE_MODE[mode], {
+      show: "file",
+      lane: "restore",
+      engine: fieldReading(mode, { name: MODE_NAME[mode] }).engine,
+    }),
+    ...Object.fromEntries(
+      Object.entries(running).map(([name, id]) => [name, chainReading(name, id, chain, engineState.value)]),
+    ),
+    defaults_samplerate: fieldReading(pcmRate, { show: "file", lane: "restore" }),
+    defaults_bitrate: fieldReading(sdmRate, { show: "file", lane: "restore" }),
+  });
+}
+
+/** Which State attribute reports each chain field, and the chain it sits on. */
+/** @type {Record<string, { attr: string, chain: "pcm" | "sdm" }>} */
+const CHAIN_FIELDS = {
+  filter1x: { attr: "filter1x", chain: "pcm" },
+  filter: { attr: "filterNx", chain: "pcm" },
+  dither: { attr: "shaper", chain: "pcm" },
+  oversampling1x: { attr: "filter1x", chain: "sdm" },
+  oversampling: { attr: "filterNx", chain: "sdm" },
+  modulator: { attr: "shaper", chain: "sdm" },
+};
+
+/**
+ * One chain field's served reading: on the loaded chain the
+ * engine's list index under its enumerated name is shown beside the file's enum
+ * ID; off it, the engine half is null and the file's enum ID is shown.
+ *
+ * @param {string} name
+ * @param {string} id the running configuration's enum ID
+ * @param {"pcm" | "sdm" | null} loadedChain
+ * @param {Record<string, unknown>} state
+ */
+function chainReading(name, id, loadedChain, state) {
+  const { attr, chain } = CHAIN_FIELDS[name];
+  const file = fieldReading(id, { show: "file" }).file;
+  if (chain !== loadedChain) return fieldReading(id, { show: "file", lane: "live" });
+  const index = String(state[attr]);
+  const list = LISTS[name];
+  const item = list.find((i) => i.index === index);
+  return fieldReading(index, { name: item ? item.name : index, lane: "live", file });
 }

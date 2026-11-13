@@ -139,17 +139,13 @@ def _profile_body_span(xml: bytes, name: str) -> tuple[int, int]:
     return m.end(), close
 
 
-def matrix_scope(xml: bytes, profile: str | None) -> bytes:
-    """Return the bytes a matrix-scoped reader should read.
-
-    That is the named profile's body in its synthetic wrapper, or ``xml`` whole when no profile is active.
+def matrix_scope(xml: bytes, profile: str) -> bytes:
+    """Return the bytes a matrix-scoped reader should read: the named profile's body in its synthetic wrapper.
 
     The read side of ``scoped_edit``, and the reason a verify diff compares like
     with like — intended and realized both run through this, so a profile-scoped
     write is proven where it actually landed rather than against the matrix it
     deliberately did not touch.
     """
-    if not profile:
-        return xml
     start, close = _profile_body_span(xml, profile)
     return _SCOPE_OPEN + xml[start:close] + _SCOPE_CLOSE

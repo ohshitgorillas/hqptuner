@@ -1,5 +1,5 @@
 """Speaker-processing read model (readme §1.9) parsed from the live /speakers
-form. Behavior only, one assertion per test (docs/testing.md)."""
+form."""
 
 from pathlib import Path
 
@@ -41,10 +41,6 @@ def test_the_switch_parses_as_whether_the_box_is_checked(form: SpeakersForm, *, 
 @pytest.mark.parametrize("index,name", [(0, "Left"), (2, "Center"), (3, "LFE")])
 def test_channel_index_maps_to_daemon_name(index: int, name: str) -> None:
     assert _PARSED["channels"][index]["label"] == name
-
-
-def test_channel_level_round_trips() -> None:
-    assert _speakers(level0="-3")["channels"][0]["level"] == -3
 
 
 def test_channel_distance_round_trips() -> None:

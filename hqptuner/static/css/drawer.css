@@ -1,0 +1,302 @@
+/* Stage drawer: a sheet out of the rail's right edge, over the page only.
+   Rail, header, engine row and Setting Switcher stay in view. Tabs = the parts of one stage.
+   Every drawer setting is restart-lane, so it stages (dirty dot on its tab).
+   left = rail + rail gap + rule, so the drawer starts at the rule's right edge.
+   The wipe moves only the clip's right edge. Open, the other three edges reach one drawer past the box, so a popover
+   inside shows whole over the header, rail or Setting Switcher; its right edge stays put, where popovers already stop. */
+.drawer{position:absolute;top:0;bottom:0;left:calc(var(--body-rail) + var(--rail-gap) + var(--hair));right:0;z-index:4;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));border-left:var(--hair) solid var(--line-2);box-shadow:inset var(--hair) 0 0 var(--highlight-lo);
+  clip-path:inset(-100% 0 -100% -100%);transition:clip-path var(--wipe)}
+.drawer[data-closed]{clip-path:inset(0 100% 0 0);pointer-events:none}
+.drawer.snap{transition:none}   /* closing because another drawer opens (or the body swaps): no second wipe */
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}}
+
+.dhead{height:var(--dhead-h);flex-shrink:0;display:flex;align-items:center;gap:var(--sp-7);padding:0 var(--sp-6) 0 var(--sp-9);border-bottom:var(--hair) solid var(--line)}
+.dhead .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title-lg);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+/* Head, right end: [Discard  Apply ▾] | ×. Discard and the split apply button sit together as one group (the builders'
+   Discard / Save grammar: .btn.sm); a hairline and an even 14px either side set close apart (no misclicks); close
+   matches the buttons' 34px height and keeps the same 12px from the drawer's edge. The group shows while the open tab
+   holds a restart setting or edits are staged; its buttons live only with staged edits. The split body runs Apply or
+   Apply & save; its ▾ key, a glass key face, opens the menu that switches which, parked under the key. */
+.apply{display:flex;align-items:center;gap:var(--sp-4);height:var(--ctl-h-sm);padding-right:var(--sp-7);border-right:var(--hair) solid var(--line)}
+.apply .btn.sm{height:var(--ctl-h-sm)}
+.apply .aapply{background:var(--raised);box-shadow:var(--raised-shadow);border-color:var(--line-2)}   /* the act: raised over Discard's flat face */
+.apply .aapply:disabled{background:var(--plate-2);box-shadow:none}
+.asplit{position:relative;display:flex;align-items:center}
+.asplit .aapply{border-radius:var(--r-2) 0 0 var(--r-2)}
+.asplit .akey{width:var(--key-w-sm);padding:0;border-left:0;border-radius:0 var(--r-2) var(--r-2) 0;background:var(--key);box-shadow:none;color:var(--acc-dim);font-family:var(--f-body);line-height:1}
+.asplit .akey[aria-expanded="true"]{color:var(--acc)}
+.asplit .pop.amenu{left:auto;right:0;top:calc(100% + var(--sp-3))}
+.dhead .round.dx{width:var(--ctl-h-sm);height:var(--ctl-h-sm);font-size:var(--fs-glyph-sm)}
+.pop.amenu{width:auto;min-width:var(--menu-min)}   /* check menu (the builders' Stations menus): the pipelines menu's rows (.pmrow), the checked ones ticked */
+.amenu .pmrow::before{content:"";width:var(--fold-mark);flex-shrink:0;text-align:center;color:var(--acc)}
+.amenu .pmrow[aria-checked="true"]::before{content:"✓"}
+.dtabs button{position:relative;height:var(--ctl-h-sm);font-size:var(--fs-5);padding:0 var(--sp-7)}
+.dtabs button.dirty::after,.bandsl[data-dirty]::after{content:"";position:absolute;top:var(--dot-inset);right:var(--dot-inset);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+.dhead .t{position:relative}
+.dhead .t.dirty::after{content:"";position:absolute;top:var(--sp-1);right:calc(-1 * var(--sp-5));width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+
+.dpanel{flex-grow:1;min-height:0;overflow-y:auto;padding:var(--sp-1) var(--sp-2) var(--sp-5) var(--sp-9);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+/* A panel holding a block is a column. A block keeps its own height, so the panel's spare height falls below the last
+   row; a block that fills the height left declares its own grow where it is styled. */
+.dpanel:has(>.dblock){display:flex;flex-direction:column}
+.dblock{display:flex;flex-direction:column;flex:none;min-height:0}
+
+/* Backend groups: only the active backend's rows show. Combo shows every group, each under its own subhead. */
+.begrp{display:flex;flex-direction:column}
+.dsec{display:flex;align-items:center;gap:var(--sp-7);padding:var(--sp-7) 0 var(--sp-1)}
+.drawer:not(.combo) .dsec{display:none}
+.dsec .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+.dsec .ln{flex-grow:1;height:var(--hair);background:var(--line)}
+
+/* Row: control column | manual copy. .drow-full stacks them (wide controls like the rate dial). */
+.drow{display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);align-items:start;padding:var(--sp-4) 0;border-bottom:var(--hair) solid var(--row-rule)}
+.drow-full{grid-template-columns:minmax(0,1fr);gap:var(--sp-4) 0}
+.dpanel>.drow:last-child,.begrp .drow:last-child{border-bottom:0}
+.dpanel>.drow+.begrp,.begrp+.begrp{border-top:var(--hair) solid var(--row-rule)}
+.drow .ctl{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
+.drow .ctl>.seg{align-self:flex-start}
+/* A stack: one row's control and gray reason under the stack's label line, one over the other. */
+.dstk{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
+.dstk>.seg{align-self:flex-start}
+/* A list key's nameplate in place of its select: the page's face at the page plate's height. */
+.drow .ctl>button.vfd.cplate{width:100%;height:var(--cplate-h);padding:var(--sp-2) var(--sp-10) var(--sp-1) var(--sp-6)}
+.drow .seg:not(.mini) button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-6);white-space:nowrap}
+.drow .man{padding-top:var(--hair);max-width:none;line-height:1.45}
+
+.num{display:flex;align-items:center;gap:var(--sp-5)}
+.num .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);line-height:var(--lh-text)}
+.num .h{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.act{display:flex;align-items:center;gap:var(--sp-6)}
+
+/* ── Output device picker ────────────────────────────────────────────────
+   Engine strings split on ": ". Network = host: card: interface; ALSA = card: interface.
+   Button shows the card big, host · interface small; the list groups by host (ALSA: by card). */
+.devpick{position:relative}
+.devbtn{width:100%;height:var(--cplate-h);flex-direction:row;align-items:center;gap:var(--sp-5);padding:0 var(--sp-6);cursor:pointer;text-align:left}
+.devbtn .tx{display:flex;flex-direction:column;gap:var(--sp-1);min-width:0;flex-grow:1}
+.devbtn .v{font-family:var(--f-body);font-size:var(--fs-5);font-weight:var(--fw-medium);line-height:var(--lh-text)}
+.devbtn .l{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.devbtn .ar{color:var(--acc-dim);font-size:var(--fs-2);flex-shrink:0}
+.devlist{position:absolute;left:0;top:calc(100% + var(--sp-3));width:var(--devlist-w);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);padding:var(--sp-3);z-index:6;display:flex;flex-direction:column;gap:var(--sp-1)}
+.devlist .gh{display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-4) var(--sp-1);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.devlist .gh:first-child{padding-top:var(--sp-1)}
+.devlist .gh .ln{flex-grow:1;height:var(--hair);background:var(--line)}
+.devrow{display:grid;grid-template-columns:var(--devlamp-col) minmax(0,1fr);align-items:center;gap:var(--sp-1) var(--sp-6);padding:var(--sp-3) var(--sp-5);border:0;border-radius:var(--r-2);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.devrow:hover{background:var(--hover)}
+.devrow.cur{background:var(--acc-lo);box-shadow:inset var(--stroke) 0 0 var(--acc)}
+.devrow .lamp{width:var(--lamp-d-sm);height:var(--lamp-d-sm);grid-row:1/3}
+.devrow .m{font-size:var(--fs-5);font-weight:var(--fw-medium);line-height:1.25}
+.devrow.cur .m{color:var(--acc)}
+.devrow .d{grid-column:2;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:1.3}
+
+/* ── Rate dial ───────────────────────────────────────────────────────────
+   Tuner band scale. Tiers are octaves, so evenly spaced; each shows its 44.1k and 48k member.
+   Amber needle = limit (drag snaps, tap a tier, arrow keys). Green lamp = rate playing now.
+   Hatched = device announced it cannot carry that tier; grayed, never blocked.
+   Layers (components/faceplate/drawers/output/RateDial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
+.dial{position:relative;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
+/* The drawing's box: the glass's full width at its own aspect (set inline from the viewBox), so the glass is as tall as
+   the drawing and a wider drawer scales the whole printing up. Each band is its own slider: a transparent region over
+   its half of the drawing. */
+.dwg{position:relative;width:100%}
+.bandsl{position:absolute;top:0;bottom:0;touch-action:none}
+.bandsl:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:calc(-1 * var(--stroke));border-radius:var(--r-2)}
+/* Band legends (engraved, over a bracket spanning the band) + bezel seam at the 32x|64x family boundary.
+   Both bands always live: mode never grays a band. */
+.dial .legend{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-3);fill:var(--ink-2);line-height:var(--lh-eng)}
+.dial .bl{fill:none;stroke:var(--ink-3);stroke-width:1}
+.dial .seam .sd{stroke:var(--shade);stroke-width:2}
+.dial .seam .sl{stroke:var(--highlight);stroke-width:1;opacity:var(--op-1)}
+
+.dial svg{display:block}
+/* A glass halo clears the needle and the hatch round the frequency lines and the unavailable note. Only unspaced text
+   takes one: an engine may paint letter-spaced text glyph by glyph, stroke then fill, so each glyph's halo would cover
+   its neighbor. The band titles and tier names are letter-spaced, so each sits on a glass knockout instead
+   (KnockedText.js), painted over every mark beneath it. */
+.dial .freq,.dial .note{paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-2);stroke-linejoin:round}
+.dial .knock{fill:var(--glass)}
+.dial .hatch line{stroke:var(--hatch);stroke-width:3}
+.dial .rule{stroke:var(--line-2);stroke-width:1}
+.dial .minor{stroke:var(--edge);stroke-width:1}
+.dial .major{stroke:var(--ink-3);stroke-width:1.5}
+.dial .tier{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-1);fill:var(--ink-2);line-height:var(--lh-eng)}
+/* Every tier prints both its rates in every mode. Under Auto all of them read lit; under a picked family the other
+   family's rates step back to the plain ink, still on the glass, the needle's tier included. Unavailable, needle and
+   pin inks below win over the lit ink. */
+.dial .freq{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--ink);line-height:var(--lh-text)}
+.dial .freq.apart{fill:var(--ink-2)}
+.dial .note{font-family:var(--f-body);font-style:italic;font-size:var(--fs-2);fill:var(--ink-2);line-height:var(--lh-text)}
+.dial .unav .major{stroke:var(--edge)}
+.dial .unav .tier,.dial .unav .freq{fill:var(--ink-4)}
+.dial .sel .tier,.dial .sel .freq{fill:var(--acc)}
+.dial .sel .freq.apart:not(.pf){fill:var(--ink-2)}
+.dial .playing{fill:var(--ok);filter:drop-shadow(0 0 var(--sp-1) var(--ok))}
+.dial .needle{fill:var(--acc);filter:drop-shadow(0 0 var(--sp-2) var(--acc))}
+/* Pin picker (Allow pinned rates On): a drawer segment at the right end of the Rate row's label line, its buttons the
+   drawer's segment height and one width, the widest option's. The pinned rate: its frequency line in accent inside an
+   accent box, apart from the needle's tier printing and the playing lamp. */
+.drow .seg.ratepin{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;margin-left:auto}
+.dial .pinned .pinbox{fill:none;stroke:var(--acc);stroke-width:1}
+.dial .pinned .pf{fill:var(--acc)}
+.dial .ndl{transition:transform var(--needle)}
+.dial.drag .ndl{transition:none}
+@media (prefers-reduced-motion:reduce){.dial .ndl{transition:none}}
+
+/* Manual copy in a row: the row's own paragraph. optMan adds every option with its manual copy as a list
+   spanning the whole row under control and copy. Selected option lit (amber token, bright text, amber edge);
+   tapping an option selects it. */
+.drow .man p{margin:0}
+/* Drawer intro (schema {intro}): the lead over a tab's rows, full width, body ink; links to the drawers it names. */
+.dintro{margin:0;padding:var(--sp-4) 0 var(--sp-5);border-bottom:var(--hair) solid var(--row-rule);font-size:var(--fs-4);line-height:1.5;color:var(--ink);max-width:var(--measure-drawer)}
+.optlist{grid-column:1/-1;display:flex;flex-direction:column;gap:var(--hair);margin-top:var(--sp-5)}
+.optrow{display:grid;grid-template-columns:var(--optkey-w) minmax(0,1fr);gap:0 var(--sp-5);align-items:baseline;padding:var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-5);border:0;border-left:var(--stroke) solid transparent;border-radius:0 var(--r-2) var(--r-2) 0;background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-4);line-height:1.45;text-align:left;cursor:pointer}
+.optrow:hover{background:var(--hover)}
+.optrow code{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.optrow.cur{background:var(--acc-lo);border-left-color:var(--acc);color:var(--ink)}
+.optrow.cur code{color:var(--acc)}
+
+/* Engine-enum segments (HF filter: none, 20k … 8x): the engine's own tokens, so mono and case kept, like <code>. */
+.seg.enum button{font-family:var(--f-mono);font-weight:var(--fw-medium);font-size:var(--fs-4);letter-spacing:0;text-transform:none;padding:0 var(--sp-5);line-height:var(--lh-text)}
+
+/* Paragraph copy for a row holding several sub-settings: each paragraph opens with its sub-setting's label. */
+.drow .man p+p{margin-top:var(--sp-2)}
+.drow .man b{color:var(--ink);font-weight:var(--fw-semi)}
+
+/* Grouped controls in one row (Volume: Fixed level switch + level; Range min / max / startup). Item labels sit above. */
+.cgrp{display:flex;align-items:flex-end;gap:var(--sp-7);flex-wrap:wrap}
+.ci{display:flex;flex-direction:column;gap:var(--sp-2)}
+.ci .cl{font-size:var(--fs-cl);color:var(--ink-2)}
+.cgrp input.vfd{width:var(--slx-num-w)}
+
+/* Gray: a control its gray reason disables (owner copy under the row's controls). */
+.grayed{opacity:var(--op-1)}
+.grayed button,.grayed input{cursor:not-allowed}
+.gr{font-size:var(--fs-3);color:var(--ink-2);font-style:italic;line-height:1.4}
+
+/* Choice: vertical radio lines spanning the row (Volume: Fixed volume Off | Manual | Auto). Each line = radio, name,
+   its detail control (grayed, never hidden, until picked) | its manual paragraph. Picked line lit like the HF list. */
+.chlist{grid-column:1/-1;display:flex;flex-direction:column;gap:0;margin-top:0}
+.chline{display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);align-items:start;padding:var(--sp-1) 0 var(--sp-1) var(--sp-5);margin-left:calc(-1 * var(--sp-6));border-left:var(--stroke) solid transparent;border-radius:0 var(--r-2) var(--r-2) 0}
+.chline.cur{background:var(--acc-lo);border-left-color:var(--acc)}
+.chline .man{color:var(--ink-2);line-height:1.45;padding-top:var(--hair)}
+.chline.cur .man{color:var(--ink)}
+.chl{display:flex;align-items:center;gap:var(--sp-6);min-height:var(--ctl-h)}
+.chline .man:empty{display:none}
+.chline[data-v="off"] .chl{min-height:var(--ctl-h-sm)}
+.chn{display:flex;align-items:baseline;gap:var(--sp-4);width:var(--chn-w);flex-shrink:0;cursor:pointer}
+.chn b{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink-2)}
+.chline.cur .chn b{color:var(--acc)}
+.chn .s{font-size:var(--fs-3);color:var(--ink-2)}
+.radio{width:var(--check);height:var(--check);flex-shrink:0;border-radius:var(--r-round);border:var(--hair) solid var(--shade);background:var(--glass);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade);cursor:pointer;padding:0;display:grid;place-items:center}
+.radio[aria-checked="true"]::after{content:"";width:var(--radio-dot);height:var(--radio-dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+.radio:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--stroke)}
+
+/* ── Volume range bar (Volume drawer, Range tab) ─────────────────────────────
+   A shared dBFS axis on tuner glass. Amber = the settings (Min/Max brackets, Startup pin, reachable span);
+   ink-2 = loudness bounds (reference only, set in the Loudness drawer); green = live playback volume (a readout,
+   like the rate dial's playing lamp). Heavy ticks at 0 and −3 dBFS. */
+.dblock[data-block="range"]{display:flex;flex-direction:column;gap:var(--sp-4);padding-top:var(--sp-5)}
+.vrwell{background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-3) 0 var(--sp-1)}
+.vrbar{display:block;width:100%;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none}
+.vrbar .trk{fill:var(--track)}
+.vrbar .span{fill:var(--acc-dim)}
+.vrbar .brk{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linejoin:miter;filter:drop-shadow(0 0 var(--sp-1) var(--acc-glow))}
+.vrbar .pin{fill:var(--glass);stroke:var(--acc);stroke-width:2;filter:drop-shadow(0 0 var(--sp-1) var(--acc-glow))}
+.vrbar .act{stroke:var(--acc-rim)}
+.vrbar .lband{fill:var(--ink-2);opacity:var(--op-2)}
+.vrbar .paren{fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
+.vrbar .needle line{stroke:var(--ok);stroke-width:2;filter:drop-shadow(0 0 var(--sp-1) var(--ok))}
+.vrbar .needle circle{fill:var(--ok)}
+.vrbar .tk{stroke:var(--ink-3);stroke-width:1}
+.vrbar .tk.major{stroke:var(--ink-2)}
+.vrbar .tk.strong{stroke:var(--ink);stroke-width:2}
+.vrbar .tl{font-family:var(--f-mono);font-size:var(--fs-2);fill:var(--ink-2);line-height:var(--lh-text)}
+.vrbar .bub{font-family:var(--f-mono);font-size:var(--fs-3);font-weight:var(--fw-semi);fill:var(--acc);paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-3);stroke-linejoin:round;line-height:var(--lh-text)}
+
+.vrrow{display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);align-items:start;padding:var(--sp-4) 0}
+.vrrow+.vrrow{border-top:var(--hair) solid var(--row-rule)}
+.vrctl{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0}
+.vrboxes{display:flex;flex-direction:column;gap:var(--sp-3)}
+.vrbox{display:flex;align-items:center;gap:var(--sp-4)}
+.vrbox .cl{font-size:var(--fs-cl);color:var(--ink-2);width:var(--box-l)}
+.vrbox input.vfd{width:var(--vrange-num-w)}
+.vrbox .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);line-height:var(--lh-text)}
+.vrkey{flex-shrink:0;overflow:visible}
+.vrkey .brk{fill:none;stroke:var(--acc);stroke-width:2}
+.vrkey .pin{fill:var(--glass);stroke:var(--acc);stroke-width:1.6}
+.vrkey .paren{fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
+.vrkey .nl{stroke:var(--ok);stroke-width:2}
+.vrkey .nd{fill:var(--ok)}
+/* Read-only readouts beside the boxes: Playback (live, bright ink: a readout here, not the control), loudness bounds (reference,
+   ink-2: set in the Loudness drawer). Same box geometry as the inputs so the stack stays one column. */
+.vrbox .ro{box-sizing:border-box;width:var(--vrange-num-w);height:var(--ctl-h);flex-direction:row;align-items:center;justify-content:flex-end;padding:0 var(--sp-5);font-size:var(--fs-6);font-weight:var(--fw-medium);color:var(--ink-2)}
+.vrbox .ro.live{color:var(--ink)}   /* live playback: a bright readout (its key and needle are the green lamp); amber = settings */
+.vrboxes.inl{flex-direction:row;gap:var(--sp-9)}
+.vrboxes.inl .cl{width:auto}
+.vrloud .fh{gap:var(--sp-8)}
+.xref{align-self:flex-start;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--acc);text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-2);line-height:var(--lh-eng)}
+.xref[aria-disabled="true"]{cursor:not-allowed}
+/* Inline in a line of copy (gray reason, note, meter state; Xref.js): the line's own height, upright. */
+:is(.gr,.spsdm,.mnone p,.mnote,.dintro) .xref{font-size:var(--fs-cl);font-style:normal;line-height:inherit;white-space:nowrap;text-underline-offset:var(--sp-1)}
+.grayed-range .vrwell,.grayed-range .vrboxes{opacity:var(--op-1)}
+.grayed-range .vrbar{cursor:not-allowed}
+
+/* Band tag on a family-only row (Format tab): the same engraved name as the rate dial's band legend. */
+.fh .band{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-2);letter-spacing:var(--ls-3);color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-band);align-self:center}
+
+/* The picked option's line (drawer/Rows.js), full width under its row on an accent rail. */
+.optman{margin:0 0 0 calc(-1 * var(--sp-6));padding:var(--sp-1) var(--sp-5);border-left:var(--stroke) solid var(--acc);border-radius:0 var(--r-2) var(--r-2) 0;background:var(--acc-lo);font-size:var(--fs-4);line-height:1.45;color:var(--ink)}
+.optman code{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);line-height:var(--lh-text)}
+
+/* Output, both tabs: copy closer (overflow rule). At 300px the channel count sits beside its segment and DAC bits'
+   label takes one line. */
+:is(#output-p-format,#output-p-device) .drow:not(.drow-full){grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10)}
+#output-p-format .drow:not(.drow-full) input.vfd{height:var(--ctl-h-sm)}   /* Channels and DAC bits: the segments' height */
+#output-p-format .drow,#output-p-device .drow{padding:var(--sp-2) 0}   /* rhythm one step tighter (as the Matrix engine drawer) */
+#output-p-format .fh{flex-wrap:wrap;row-gap:0}   /* a long sub drops under its label, never splits it */
+#output-p-format .fh b{white-space:nowrap}
+
+/* Alert line (alerts.js): pinned under a drawer's head, one line per alert, in a glass
+   well. crit --bad, warn --warn, advice ink-2; never the accent. The row that fixes it reads in the alert's color, the glyph
+   before its label. The plate's own lines (.dalert.pline) sit in the same well under the top bar, clear of the rule below. */
+.dalert{display:flex;flex-direction:column;gap:var(--sp-1);flex-shrink:0;margin:var(--sp-3) 0 0;padding:var(--sp-2) var(--sp-5);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well)}
+.dalert.pline{margin-bottom:var(--sp-3)}
+.aline{display:grid;grid-template-columns:var(--apod-mark) minmax(0,1fr);gap:0 var(--sp-3);margin:0;font-family:var(--f-body);font-size:var(--fs-4);line-height:var(--lh-text);color:var(--ink-2)}
+.aline .ag{text-align:center}
+.aline[data-sev="crit"]{color:var(--bad)}
+.aline[data-sev="warn"]{color:var(--warn)}
+/* A line that lists settings: one row each under the sentence, the value in the readout face. */
+.aline .aitems{grid-column:2;display:flex;flex-direction:column;gap:var(--sp-1);margin-top:var(--sp-2)}
+.aline .av{font-family:var(--f-mono);line-height:inherit}
+/* A line that takes a tap: a button drawn as the line, lit under the pointer as a popover row. */
+button.aline{width:100%;padding:0;border:0;border-radius:var(--r-2);background:none;text-align:left;font-weight:inherit;letter-spacing:inherit;cursor:pointer}
+button.aline:hover{background:var(--hover)}
+.drow[data-alert="crit"] > .ctl > .fh > b{color:var(--bad)}
+.drow[data-alert="warn"] > .ctl > .fh > b{color:var(--warn)}
+.drow[data-alert] > .ctl > .fh > b::before{content:"⚠ "}
+.pop.alnote{width:var(--notepop-w);gap:var(--sp-4)}
+.pop.alnote .aline{line-height:1.45}
+
+/* Stage drawers with output-mode tabs (components/faceplate/drawers/modes.js): PCM out | SDM out; the mode that isn't
+   running carries `idle` inside its tab, small. */
+.mtabs button{display:inline-flex;align-items:center;gap:var(--sp-4)}
+.mtabs button .cst{font-size:var(--fs-2);letter-spacing:var(--ls-2);color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-tag)}
+.mnote{margin:var(--sp-3) 0 0;padding:var(--sp-4) 0 0;border-top:var(--hair) solid var(--row-rule);font-size:var(--fs-4);color:var(--ink-2);line-height:var(--lh-text)}
+/* Mode drawer section header (Resampling, SDM out: PCM sources | DSD sources): the combo drawer's backend subhead grammar. */
+.msec{display:flex;align-items:center;gap:var(--sp-7);padding:var(--sp-5) 0 var(--sp-1)}
+.msec .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+.msec .ln{flex-grow:1;border-top:var(--hair) solid var(--line-2)}
+
+/* The generic drawer's grammar: the picked option's line under a plain row, a tab's status word, the idle
+   mode drawer, the text box, and the Range block's wrapper. */
+.drow .optfull{grid-column:1/-1;margin-top:var(--sp-2)}
+.dtabs button{display:inline-flex;align-items:center;gap:var(--sp-4)}
+.dtabs .cst:empty{display:none}
+.dtabs .cst{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-tag)}
+.drawer.idle .dhead{background:repeating-linear-gradient(135deg,var(--hatch-head) 0 var(--sp-1),transparent var(--sp-1) var(--sp-4))}
+.drawer.idle .dtabs .cst{color:var(--ink);border-color:var(--ink-2)}
+.drawer.idle .dpanel{background:var(--pop);box-shadow:inset 0 0 0 var(--hair) var(--line)}
+input.vfd.txt{width:100%;text-align:left;font-size:var(--fs-5);font-weight:var(--fw-regular)}
+.vrange{display:contents}
+.vrrow .man p{margin:0}

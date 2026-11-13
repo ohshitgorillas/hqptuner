@@ -1,0 +1,5 @@
+"""A module with one routing table and one table holding settings as values."""
+
+ROUTES = {"@A@": "live", "@B@": "restore"}
+
+PICKS = {"first": "@A@", "second": "@B@"}

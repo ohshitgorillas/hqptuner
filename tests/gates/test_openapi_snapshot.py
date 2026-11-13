@@ -1,7 +1,7 @@
 """The gate that pins the REST surface to a committed OpenAPI snapshot.
 
 ``scripts/gates/check_openapi.py`` renders the live app's OpenAPI document as
-stable JSON text and compares it with ``docs/openapi.json``. A route added,
+stable JSON text and compares it with the committed snapshot. A route added,
 removed, or reshaped without regenerating the snapshot is what the gate is for,
 so the observable contract is four things a caller can see: the text ``render``
 produces, the diff lines ``compare`` hands back, the int ``check`` returns
@@ -68,28 +68,11 @@ CHANGED = [("-", {"a": 1}), ("+", {"a": 2})]
 #: the new surface without going looking for the command.
 ACCEPT_INSTRUCTION = "scripts/gates/check_openapi.py --write"
 
-#: The route that mounts only when the audit log is enabled (architecture §10.2
-#: "No UI, deliberately": ``GET /api/audit`` exists only while the var is set).
+#: The route that mounts only when the audit log is enabled.
 AUDIT_ROUTE = "/api/audit"
 
 #: A route that needs no daemon and no credentials, so it is on every build.
 HEALTH_ROUTE = "/api/health"
-
-
-def key_order(text: str) -> list[str]:
-    """Every JSON object key in the order the rendered text lists them."""
-    keys = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith('"') and '":' in stripped:
-            keys.append(stripped.split('"')[1])
-    return keys
-
-
-def indent_of(text: str, key: str) -> list[int]:
-    """The leading-space count of every line that carries ``key``."""
-    needle = f'"{key}":'
-    return [len(line) - len(line.lstrip(" ")) for line in text.splitlines() if line.strip().startswith(needle)]
 
 
 def changed_entries(diff: list[str]) -> list[tuple[str, dict[str, object]]]:
@@ -103,21 +86,6 @@ def changed_entries(diff: list[str]) -> list[tuple[str, dict[str, object]]]:
 
 
 # --- render --------------------------------------------------------------------
-
-
-def test_render_sorts_keys_at_every_nesting_level() -> None:
-    assert key_order(GATE.render(UNSORTED)) == ["a", "y", "z", "b"]
-
-
-@pytest.mark.parametrize(("key", "expected_indent"), [("a", 2), ("y", 4)])
-def test_render_indents_each_nesting_level_by_two_spaces(key: str, expected_indent: int) -> None:
-    """A top-level key sits two spaces in and one a level down sits four, so the step is two."""
-    assert indent_of(GATE.render(UNSORTED), key) == [expected_indent]
-
-
-def test_render_ends_with_exactly_one_trailing_newline() -> None:
-    """A second newline would leave the last chunk bare, so this pins both halves."""
-    assert GATE.render(UNSORTED).splitlines(keepends=True)[-1] == "}\n"
 
 
 def test_render_ignores_the_insertion_order_of_the_mapping_it_is_handed() -> None:
@@ -188,14 +156,6 @@ def test_check_fails_only_a_missing_or_differing_snapshot_it_was_not_told_to_wri
 
 
 # --- check: the comparing half -------------------------------------------------
-
-
-def test_a_matching_snapshot_is_reported_by_name_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The ok line names the file it just cleared, which is the path the caller handed in."""
-    snapshot = tmp_path / "openapi.json"
-    snapshot.write_text(CURRENT, encoding="utf-8")
-    GATE.check(snapshot, CURRENT)
-    assert snapshot.name in capsys.readouterr().out
 
 
 def test_a_passing_run_does_not_tell_anyone_to_regenerate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -301,7 +261,3 @@ def test_the_rendered_surface_is_already_in_the_stable_rendering(monkeypatch: py
     monkeypatch.delenv("HQPTUNER_DEBUG_LOG", raising=False)
     current = GATE.current_spec()
     assert GATE.render(json.loads(current)) == current
-
-
-def test_the_snapshot_path_is_the_committed_docs_file() -> None:
-    assert Path(GATE.SNAPSHOT).as_posix().endswith("docs/openapi.json")

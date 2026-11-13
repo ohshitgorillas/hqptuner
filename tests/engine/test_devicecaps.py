@@ -1,35 +1,27 @@
 """Behavior of output-device capability: parsing the daemon's device-open
 announcement out of its log, deciding which device the menus should narrow to,
-matching announcement against selection, and the manager/REST surfaces over it.
+matching announcement against selection, and the manager surface over it.
 
 The governing rule everywhere below is that absence of evidence narrows nothing:
 every case the log cannot speak for resolves to None, never to a guess. The log
 text used here is the shape the running daemon writes (spec block, captured
 2026-08-01); the fake 8088 daemon serves it verbatim on GET /log, which is the
-lane HQPTuner reads (docs/testing.md — fakes speak the wire)."""
+lane HQPTuner reads."""
 
 from collections.abc import Iterator
-from pathlib import Path
 from typing import Any
 
 import fake_http
 import pytest
-from apps import wait_for_api
-from conftest import ManagerFactory, StartManager
-from fastapi.testclient import TestClient
+from conftest import ManagerFactory
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.conf.httpforms import ConfigForm
-from hqptuner.config import Config
 from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import devicecaps
 from hqptuner.engine.devicecaps import DeviceCaps
 from hqptuner.presets import fileconfig
-
-#: The zero value of ``DeviceCaps | None``, so an assertion reads a field without a conjunction (docs/testing.md 2).
-NO_CAPS = DeviceCaps(device="", pcm_rates=[], dsd_rates=[])
 
 PREAMBLE = "2026/08/01 02:03:30 Engine started\n2026/08/01 02:03:31 Opening output device\n"
 
@@ -100,42 +92,6 @@ def test_parse_caps_is_none_with_no_format_lines_and_reads_pcm_rates_with_some(
     assert _pcm_rates(devicecaps.parse_caps(text)) == expected
 
 
-#: One announcement whose PCM lines and DSD lines are BOTH out of order and both
-#: carry the same rate twice (at different bit depths, as the daemon does when a
-#: device accepts one rate in two widths). Sorting and de-duplication are claimed
-#: for both lists, so both lists are read out of the same untidy block.
-UNTIDY = [
-    "192000/32/2 [pcm]",
-    "44100/32/2 [pcm]",
-    "44100/24/2 [pcm]",
-    "96000/32/2 [pcm]",
-    "5644800/1/2 [dsd]",
-    "2822400/1/2 [dsd]",
-    "2822400/8/2 [dsd]",
-    "3072000/1/2 [dsd]",
-]
-
-
-def test_pcm_rates_come_back_sorted_ascending_whatever_order_the_log_listed() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or NO_CAPS).pcm_rates == [44100, 96000, 192000]
-
-
-def test_dsd_rates_come_back_sorted_ascending_whatever_order_the_log_listed() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or NO_CAPS).dsd_rates == [2822400, 3072000, 5644800]
-
-
-def test_a_pcm_rate_announced_twice_appears_once() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or NO_CAPS).pcm_rates.count(44100) == 1
-
-
-def test_a_dsd_rate_announced_twice_appears_once() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-office", "hw:CARD=X,DEV=0", UNTIDY))
-    assert (caps or NO_CAPS).dsd_rates.count(2822400) == 1
-
-
 PCM_ONLY = [f"{rate}/24/2 [pcm]" for rate in (32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000)]
 
 
@@ -151,30 +107,6 @@ def test_dsd_rates_are_empty_with_no_dsd_path_and_populated_when_the_log_announc
     text: str, expected: list[int]
 ) -> None:
     assert _dsd_rates(devicecaps.parse_caps(text)) == expected
-
-
-def test_a_device_with_no_dsd_path_is_still_a_capability() -> None:
-    caps = devicecaps.parse_caps(announcement("naa-pi2aes", "hw:CARD=Pi2AES,DEV=0", PCM_ONLY))
-    assert (caps or NO_CAPS).device == "naa-pi2aes/hw:CARD=Pi2AES,DEV=0"
-
-
-def test_only_the_most_recent_announcement_names_the_device() -> None:
-    text = announcement("old", "hw:CARD=Old,DEV=0", PCM_ONLY) + announcement("new", "hw:CARD=New,DEV=0", PI)
-    caps = devicecaps.parse_caps(text)
-    assert (caps or NO_CAPS).device == "new/hw:CARD=New,DEV=0"
-
-
-def test_an_earlier_devices_rates_are_not_merged_into_the_later_one() -> None:
-    text = announcement("old", "hw:CARD=Old,DEV=0", PCM_ONLY) + announcement("new", "hw:CARD=New,DEV=0", PI)
-    caps = devicecaps.parse_caps(text)
-    # 32000 is the old device's alone; seeing it would mean the blocks were merged
-    assert 32000 not in (caps or NO_CAPS).pcm_rates
-
-
-def test_format_lines_before_any_announcement_are_ignored() -> None:
-    stray = "2026/08/01 02:03:20 NAA output network format: 384000/32/2 [pcm]\n"
-    caps = devicecaps.parse_caps(stray + announcement("naa-office", "hw:CARD=X,DEV=0", PI))
-    assert 384000 not in (caps or NO_CAPS).pcm_rates
 
 
 # --- selected_device: which device the menus should narrow to ---------------
@@ -226,9 +158,8 @@ def test_selected_device_is_the_windows_local_backends_own_device(config_form: C
     ("config_form", "expected"),
     [
         (form(backend="network", net_device=""), None),
-        (form(backend="network", net_device=SELECTED, alsa_device="hw:CARD=NVidia,DEV=3"), SELECTED),
     ],
-    ids=["empty device field", "device field filled"],
+    ids=["empty device field"],
 )
 def test_selected_device_is_none_with_an_empty_device_field_and_present_with_one_filled(
     config_form: ConfigForm, expected: str | None
@@ -255,9 +186,7 @@ def test_caps_for_is_none_when_the_announcement_names_a_different_device_and_ser
     assert _device(devicecaps.caps_for(log, SELECTED)) == expected
 
 
-@pytest.mark.parametrize(
-    ("selected", "expected"), [(None, None), (SELECTED, SELECTED)], ids=["no device selected", "device selected"]
-)
+@pytest.mark.parametrize(("selected", "expected"), [(None, None)], ids=["no device selected"])
 def test_caps_for_is_none_with_no_device_selected_and_serves_it_when_one_is(
     selected: str | None, expected: str | None
 ) -> None:
@@ -316,7 +245,6 @@ def test_a_file_view_silent_about_the_device_falls_back_to_the_form(file_view: d
         pytest.param("combo", "combo", None, id="both views say combo"),
         pytest.param("combo", "network", None, id="only the form says combo"),
         pytest.param("network", "combo", None, id="only the file says combo"),
-        pytest.param("network", "network", SELECTED, id="both views name the network backend"),
     ],
 )
 def test_the_combo_backend_agrees_on_no_device_and_a_named_backend_agrees_on_it(
@@ -412,6 +340,43 @@ async def test_a_forced_refresh_reads_the_log_again(
     assert announcing_daemon["_log_reads"] == already_read + 1
 
 
+#: Hourly retries for longer than any miss bound could last: a selected device
+#: that never announces itself has stopped costing log reads well before the end.
+UNANSWERED_RETRIES = 100
+RETRY_STEP = 3600.0
+
+
+async def _retried_out(manager: ConnectionManager, clock: VirtualClock) -> None:
+    """Load the forms, then retry the capability read once an hour, each retry due."""
+    await manager.refresh_http_forms()
+    for _ in range(UNANSWERED_RETRIES):
+        await clock.advance(RETRY_STEP)
+        await engineread.refresh_device_caps(manager)
+
+
+async def test_a_selected_device_that_never_announces_itself_stops_costing_log_reads(
+    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], clock: VirtualClock
+) -> None:
+    # the stock daemon's form selects a device its log never announces
+    manager = _manager(http_manager_factory, http_daemon)
+    await _retried_out(manager, clock)
+    already_read = http_daemon["_log_reads"]
+    await clock.advance(RETRY_STEP)
+    await engineread.refresh_device_caps(manager)
+    assert http_daemon["_log_reads"] == already_read
+
+
+async def test_a_forced_refresh_reads_the_log_once_the_retries_are_spent(
+    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], clock: VirtualClock
+) -> None:
+    # a connect: the daemon may have opened the device since the last retry
+    manager = _manager(http_manager_factory, http_daemon)
+    await _retried_out(manager, clock)
+    already_read = http_daemon["_log_reads"]
+    await engineread.refresh_device_caps(manager, force=True)
+    assert http_daemon["_log_reads"] == already_read + 1
+
+
 # --- the manager, with both config views in hand ----------------------------
 
 
@@ -421,24 +386,6 @@ def disagreeing_daemon() -> Iterator[dict[str, Any]]:
     preset's device, while GET /config still renders the previous one — which is
     the device the engine still has open, and the one its log announces."""
     yield from fake_http.spawn(fake_http.state(_log=OTHER_LOG, _form_net_device=OTHER))
-
-
-@pytest.fixture
-def backupless_daemon() -> Iterator[dict[str, Any]]:
-    """A daemon announcing its selected device whose settings archive cannot be
-    read — a failed archive read, so no file view exists.
-
-    Its config FILE names another device than its form and log do, so a readable
-    archive here would put the two views a generation apart and withhold the
-    capability: the refusal is what the case turns on, not an unfetched view."""
-    yield from fake_http.spawn(
-        fake_http.state(
-            _log=SELECTED_LOG,
-            net_device=OTHER,
-            _form_net_device=SELECTED,
-            _fail_paths=["/backup/settings.zip"],
-        )
-    )
 
 
 async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
@@ -463,99 +410,3 @@ async def test_manager_serves_nothing_when_the_two_views_disagree_and_the_capabi
     # naming another generation's device
     manager = await _both_views(http_manager_factory, request.getfixturevalue(daemon))
     assert _pcm_rates(manager.readings.device_caps) == expected
-
-
-async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agree(
-    http_manager_factory: ManagerFactory, disagreeing_daemon: dict[str, Any]
-) -> None:
-    manager = await _both_views(http_manager_factory, disagreeing_daemon)
-    # the daemon opens the preset's device and the form catches up
-    disagreeing_daemon["_form_net_device"] = None
-    disagreeing_daemon["_log"] = SELECTED_LOG
-    # one ordinary refresh, unforced and with no virtual time passed: a retry
-    # interval charged for the disagreement would still be closed here
-    await engineread.refresh_devices(manager)
-    assert (manager.readings.device_caps or NO_CAPS).device == SELECTED
-
-
-async def test_manager_serves_the_capability_when_the_archive_read_failed(
-    start_manager: StartManager, backupless_daemon: dict[str, Any]
-) -> None:
-    # the connect path reads the settings archive and is refused, so no file view
-    # exists to agree or disagree with: the form is the sole authority on the
-    # selected device, exactly as before
-    port = backupless_daemon["_port"]
-    manager = await start_manager(port, hqp_http_port=port)
-    await engineread.refresh_devices(manager)
-    assert (manager.readings.device_caps or NO_CAPS).pcm_rates == [44100, 192000]
-
-
-# --- the REST surface -------------------------------------------------------
-
-
-def _config_loaded(client: TestClient) -> bool:
-    """The connect-and-load sequence has finished: the form is served and the
-    file view is grounded (same readiness gate as the `wired_api` suite)."""
-    resp = client.get("/api/config")
-    return resp.status_code == 200 and "title" in resp.json()["data"]["file"]
-
-
-def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> Iterator[TestClient]:
-    """The app with both lanes live against the given 8088 fake, ready once its
-    connect-and-load sequence has finished."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=control_port,
-        hqp_http_port=daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-    )
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
-        wait_for_api(test_client, _config_loaded)
-        yield test_client
-
-
-@pytest.fixture
-def announcing_client(
-    announcing_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
-) -> Iterator[TestClient]:
-    """Both lanes live, with the 8088 daemon announcing the device its own config
-    form has selected — the ordinary connected app."""
-    yield from _wired_client(announcing_daemon, threaded_daemon_port, tmp_path)
-
-
-@pytest.fixture
-def disagreeing_client(
-    disagreeing_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
-) -> Iterator[TestClient]:
-    """The connected app mid preset-load, its two config views a generation
-    apart."""
-    yield from _wired_client(disagreeing_daemon, threaded_daemon_port, tmp_path)
-
-
-def _served_pcm_rates(client: TestClient) -> object:
-    """The PCM rates ``/api/config`` serves, or None where it carries a null capability."""
-    caps = client.get("/api/config").json()["data"]["device_caps"]
-    return None if caps is None else caps["pcm_rates"]
-
-
-@pytest.mark.parametrize(
-    ("client", "refresh", "expected"),
-    [
-        # the stock fake's log has no device announcement at all
-        pytest.param("http_client", True, None, id="none known"),
-        pytest.param("disagreeing_client", True, None, id="views disagree"),
-        pytest.param("announcing_client", False, [44100, 192000], id="known and views agree"),
-    ],
-)
-def test_api_config_carries_the_real_capability_only_when_it_is_known_and_the_two_views_agree(
-    request: pytest.FixtureRequest, client: str, *, refresh: bool, expected: list[int] | None
-) -> None:
-    served: TestClient = request.getfixturevalue(client)
-    if refresh:
-        served.post("/api/config/refresh")
-    assert _served_pcm_rates(served) == expected

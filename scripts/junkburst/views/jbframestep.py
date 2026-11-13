@@ -32,7 +32,7 @@ FRAME_STEP_SHARE_CUTS = (0.3, 0.5, 0.7)
 
 
 def per_hz_level(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
-    """Per frame: one band's power normalised to per-Hz, in dB, or ``None`` when the band is off the burst's grid."""
+    """Per frame: one band's power normalized to per-Hz, in dB, or ``None`` when the band is off the burst's grid."""
     span = band_bins(grid, lo_hz, hi_hz)
     level = band_level_db(frames, grid, lo_hz, hi_hz)
     if span is None or level is None:

@@ -104,7 +104,7 @@ export function rateLimited(name, fam) {
 
 // Filter a filter-field option list by the active facets. Options whose name
 // carries no facet data pass through — narrowing hides only what it can
-// positively exclude. `current` is never hidden. The apodizing check reads the
+// positively exclude. The apodizing check reads the
 // dropdown's STAGE switch (1x or Nx): on "only", full-apodizing filters pass;
 // ½-apodizing ones pass only on "half".
 // Each entry reads "facet not engaged, or the filter passes it", so an unset
@@ -247,10 +247,9 @@ export function favOnlyModulators(options) {
   return options.filter((o) => stars.has(o.label));
 }
 
-// The active selection snapshot. Number() on quality — the raw signal in
-// narrowingActive and this can disagree: a non-numeric value reads as active in
-// the bar but narrows nothing. Apod and lossy read the dropdown's STAGE
-// switch; `field` only selects the ratio family (pcm vs sdm).
+// The active selection snapshot. Number() on quality, so a non-numeric value
+// narrows nothing. Apod and lossy read the dropdown's STAGE switch; `field`
+// only selects the ratio family (pcm vs sdm).
 /**
  * @param {string} stage "1x" | "nx"
  * @param {string} field

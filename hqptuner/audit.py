@@ -24,15 +24,15 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from functools import partial
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from hqptuner import audit_narrow, audit_types
+from hqptuner.clock import utc_now
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
     from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -49,8 +49,6 @@ WHAT = "the audit log"
 #: Field names whose value never reaches the log, at any depth.
 _REDACT_KEYS = frozenset({"password", "secret", "token"})
 _REDACTED = "***"
-
-_DEFAULT_NOW = partial(datetime.now, UTC)
 
 
 @dataclass(frozen=True)
@@ -130,7 +128,7 @@ class AuditLog:
         path: Path | None,
         *,
         max_bytes: int = DEFAULT_MAX_BYTES,
-        now: Callable[[], datetime] = _DEFAULT_NOW,
+        now: Callable[[], datetime] = utc_now,
     ) -> None:
         """Fix where records land, the size at which the file rolls and the clock ``ts`` is read from.
 
@@ -292,7 +290,7 @@ class AuditLog:
     def preset_write(self, name: str, trigger: str, size: int, digest: str, *, overwrote: bool) -> None:
         """Record a preset snapshot being written, naming the ``trigger`` that wrote it.
 
-        Several paths write presets — an explicit save, auto-save, a profile fan-out, the migration — and they
+        Several paths write presets — an explicit save, a profile fan-out, the migration — and they
         produce otherwise identical records, so the trigger is what answers "which of those overwrote mine". The
         snapshot itself is too large to keep, hence ``size`` and ``digest`` rather than the XML.
         """
@@ -325,20 +323,12 @@ class AuditLog:
         """
         self._write("active.set", {"name": name, "previous": previous})
 
-    def autosave_set(self, *, enabled: bool, previous: bool) -> None:
-        """Record the auto-save setting being changed, keeping what it was.
-
-        While it is on, every successful apply silently overwrites the active preset, so when that overwriting
-        started is the fact that explains a run of unexplained ``preset.write`` records.
-        """
-        self._write("autosave.set", {"enabled": enabled, "previous": previous})
-
     def autopilot_set(self, source: str, *, enabled: bool, previous: bool) -> None:
         """Record auto-pilot's switch moving, naming the ``source`` that moved it.
 
-        Four paths write it — the switch itself, a manual junk-filter write, a live-snapshot apply and a config-preset
-        load — and the store keeps only the resulting value, so without the source a user who finds auto-pilot off
-        has no way to tell which of them did it.
+        Three paths write it — the switch itself, a manual junk-filter write and a config-preset load — and the store
+        keeps only the resulting value, so without the source a user who finds auto-pilot off has no way to tell which
+        of them did it.
         """
         self._write("autopilot.set", {"source": source, "enabled": enabled, "previous": previous})
 
@@ -368,6 +358,10 @@ class AuditLog:
         them by name, size and digest is all that survives to tell one restore from another.
         """
         self._write("restore.upload", {"filename": filename, "size": size, "digest": digest})
+
+    def state_upload(self, filename: str, size: int, digest: str) -> None:
+        """Record a state archive arriving for import, by name, size and digest, before any store is written."""
+        self._write("state.upload", {"filename": filename, "size": size, "digest": digest})
 
     def volume_write(self, source: str, want: str, readback: str | None, *, ok: bool) -> None:
         """Record one volume write, naming the ``source`` that made it.

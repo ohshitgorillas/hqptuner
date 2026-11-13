@@ -2,29 +2,33 @@
 
 The preset store, the parked filter uploads, and the settings-archive
 persistence (the pre-apply disk copy) form one self-contained collaborator.
-The daemon-driving operations delegate to the preset lane with the manager;
+The daemon-driving operations are the preset lane's, called with the manager;
 this class owns the state.
 """
 
 import json
 import logging
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from hqptuner.conf import matrixpayload, matrixprofiles, presetconf, xmledit
 from hqptuner.errors import HQPTunerError
-from hqptuner.lanes import settle
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
-from hqptuner.presets import presetlane
+from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.filterpark import PARK_DIR, FilterPark
+from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.presets import PresetError, PresetStore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.config import Config
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.presets import PresetManager
+    from hqptuner.presets.store.signed import Signature
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +80,17 @@ class BackupBeforeRestoreFailedError(BackupFailedError):
         )
 
 
+class BackupBeforeImportFailedError(BackupFailedError):
+    """The pre-import state backup failed while about to replace HQPTuner's own stores from a state file."""
+
+    def __init__(self, *, directory: Path) -> None:
+        """Render the import-specific wording, naming the backup directory."""
+        super().__init__(
+            "The backup before importing state failed, so nothing was changed. "
+            f"Check free space and permissions on {directory}, then try again."
+        )
+
+
 @dataclass(frozen=True)
 class PresetAftermath:
     """What an applied restore did to the stored presets: the staged profile fan-out.
@@ -87,13 +102,13 @@ class PresetAftermath:
     fanout: dict[str, str]
 
 
-async def after_restore(
-    mgr: "ConnectionManager", persistent: RestoreResult | None, http_fields: dict[str, str]
+def after_restore(
+    mgr: "PresetManager", persistent: RestoreResult | None, http_fields: dict[str, str]
 ) -> PresetAftermath:
     """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
 
-    An empty fan-out unless the restore converged. It restarted the daemon, so every live reading
-    belongs to the process it replaced — and the auto-save that follows reads exactly those.
+    An empty fan-out unless the restore converged. A converged restore restarts the daemon, so every live reading
+    taken before it describes the process the restart replaced.
     The parked filter files it carried live on the daemon now.
     Backfill runs BEFORE the fan-out: it migrates profiles saved earlier, and the user's own
     save is the write that should land last on any preset both touch. A refused apply fans out
@@ -101,7 +116,6 @@ async def after_restore(
     """
     if persistent is None or persistent.outcome is not RestoreOutcome.APPLIED:
         return PresetAftermath({})
-    await settle.resync_engine_state(mgr)
     ops = mgr.presetops
     ops.clear_parked_filters()
     ops.backfill_profiles()
@@ -124,7 +138,7 @@ def _failure_code(exc: Exception) -> str:
 class PresetOps:
     """The manager's preset store, filter park, and settings-archive persistence as one collaborator."""
 
-    def __init__(self, cfg: "Config", mgr: "ConnectionManager") -> None:
+    def __init__(self, cfg: "Config", mgr: "PresetManager") -> None:
         """Open the store and filter park from ``cfg``'s directories, with no migration run."""
         self._cfg = cfg
         self._mgr = mgr
@@ -140,10 +154,19 @@ class PresetOps:
         # (store.matrixmode). Here for the same reason auto-pilot's state is: it
         # is keyed by preset name, so a preset delete is what takes an entry out.
         self.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
+        # The live snapshots (store.live), a book keyed by station, and a station
+        # is a preset: the book learns the stations from this store, and a preset
+        # delete is what takes a station's snapshots out.
+        self.live_presets = LivePresetStore(cfg.live_preset_file, stations=self.store.names)
+        # Held across a state import's clear-and-write, never across an await: the import runs on the threadpool.
+        self.write_lock = threading.Lock()
         self._filters = FilterPark(cfg.backup_dir / PARK_DIR, cfg.hqp_home)
-        self._migrated = False
+        # Whether this process has run the import of the daemon's own data/cfgs presets (presetlane.migrate_once).
+        self.migrated = False
+        # preset_profiles' read model: each preset's file signature beside the profile names parsed from it.
+        self._profiles: dict[str, tuple[Signature, list[str]]] = {}
 
-    # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
+    # --- convolution uploads (store.filterpark) ----------------------------------
 
     @property
     def filter_max_bytes(self) -> int:
@@ -162,7 +185,7 @@ class PresetOps:
         """Discard every parked upload, called once an apply has shipped them to the daemon."""
         self._filters.clear()
 
-    # --- matrix-profile fan-out (matrix-spec.md "Profiles") ----------------
+    # --- matrix-profile fan-out --------------------------------------------
 
     def fanout_profiles(self, edits: dict[str, str]) -> dict[str, str]:
         """Apply the staged profile verbs' fan-out targets to stored presets.
@@ -175,8 +198,8 @@ class PresetOps:
         target never blocks another. Delete runs before save per preset, the
         same rename ordering the config edit uses.
         """
-        save_value = edits.get(matrixprofiles.MATRIX_PROFILE_SAVE)
-        delete_value = edits.get(matrixprofiles.MATRIX_PROFILE_DELETE)
+        save_value = edits.get(query.kept_at(Codec.PROFILE_SAVE))
+        delete_value = edits.get(query.kept_at(Codec.PROFILE_DELETE))
         save_to = matrixprofiles.save_targets(save_value) if save_value else []
         delete_name, delete_from = matrixpayload.parse_delete(delete_value) if delete_value else ("", [])
         results: dict[str, str] = {}
@@ -198,7 +221,7 @@ class PresetOps:
                 results[preset] = _failure_code(exc)
         return results
 
-    def backfill_profiles(self) -> dict[str, str]:
+    def backfill_profiles(self) -> None:
         """Backfill every stored preset's chain-less profiles from that preset's own live matrix.
 
         The applied config gets this in ``presetconf.apply_edits``; a stored
@@ -207,35 +230,40 @@ class PresetOps:
         the preset is loaded.
 
         Each preset is filled from ITS OWN ``<matrix>`` — a speaker preset must
-        never inherit a headphone preset's chain. Returns {preset: "ok" | error
-        code}, carrying only the presets actually written; a preset that needed
-        no change is absent, and one bad preset never blocks another.
+        never inherit a headphone preset's chain. Only a preset that needed a
+        change is written; a preset that fails is logged with its error code,
+        and one bad preset never blocks another.
         """
-        results: dict[str, str] = {}
         for preset in self.store.names():
             try:
                 xml = self.store.read(preset)
                 filled = matrixprofiles.backfill_profile_chains(xml)
                 if filled != xml:
                     self.store.save(preset, filled, trigger="backfill")
-                    results[preset] = "ok"
             except (PresetError, xmledit.GroundingError, OSError) as exc:
-                results[preset] = _failure_code(exc)
-        return results
+                log.warning("profile backfill failed for preset %r: %s", preset, _failure_code(exc))
 
     def preset_profiles(self) -> dict[str, list[str]]:
         """Each stored preset's saved matrix-profile names, sorted.
 
-        This is the read model behind the save/delete target pickers.
+        This is the read model behind the save/delete target pickers. A preset's list is re-parsed only when its
+        file's signature moved since the last call, and a preset no longer stored drops out of what is held.
         """
-        out: dict[str, list[str]] = {}
+        held: dict[str, tuple[Signature, list[str]]] = {}
         for name in self.store.names():
+            entry = self._profiles.get(name)
+            sig: Signature = None
             try:
+                sig = self.store.signature(name)
+                if entry is not None and entry[0] == sig:
+                    held[name] = entry
+                    continue
                 profiles = json.loads(matrixprofiles.read_profiles(self.store.read(name)))
             except (PresetError, OSError, ValueError):
                 profiles = {}
-            out[name] = sorted(profiles)
-        return out
+            held[name] = (sig, sorted(profiles))
+        self._profiles = held
+        return {name: entry[1] for name, entry in held.items()}
 
     # --- backup persistence ------------------------------------------------
 
@@ -269,6 +297,19 @@ class PresetOps:
         except OSError as exc:
             raise BackupBeforeRestoreFailedError(directory=self._cfg.backup_dir) from exc
 
+    def import_state(self, carried: stateimport.Carried) -> list[str]:
+        """Save the pre-import backup, then clear the active pointer and replace each store ``carried`` holds.
+
+        Raises ``BackupBeforeImportFailedError`` when the backup cannot be written, before anything else is written.
+        The clear and the writes run under ``write_lock``. Returns the names of the stores replaced, sorted.
+        """
+        try:
+            stateimport.save_backup(self._cfg)
+        except OSError as exc:
+            raise BackupBeforeImportFailedError(directory=self._cfg.backup_dir) from exc
+        with self.write_lock:
+            return stateimport.replace_stores(self._cfg, carried, self.store)
+
     def _write_backup(self, data: bytes) -> Path:
         """Write the pre-apply settings backup to disk, returning its path.
 
@@ -290,30 +331,3 @@ class PresetOps:
     async def backup(self) -> bytes:
         """Return the daemon's current settings archive (a zip) for download."""
         return await self._mgr.require_http().backup()
-
-    # --- preset lane (presetlane) — thin delegators over the store + restore ---
-
-    def presets(self) -> presetlane.PresetListing:
-        """Return the stored preset options plus the active name, shaped for the frontend's preset field."""
-        return presetlane.listing(self._mgr)
-
-    async def load_preset(self, name: str) -> presetlane.PresetActivation:
-        """Restore the stored preset ``name`` onto the daemon's working config and mark it active."""
-        return await presetlane.load(self._mgr, name)
-
-    async def save_preset(self, name: str) -> presetlane.PresetSaveResult:
-        """Snapshot the daemon's running config into the store as preset ``name`` and mirror it to ``data/cfgs``."""
-        return await presetlane.save(self._mgr, name)
-
-    async def delete_preset(self, name: str) -> presetlane.PresetDeleted:
-        """Remove preset ``name`` from the store and drop its mirror on the daemon."""
-        return await presetlane.delete(self._mgr, name)
-
-    async def migrate_once(self, active_hint: str | None = None) -> None:
-        """Import the daemon's own ``data/cfgs`` presets into the store, at most once per process and only over HTTP."""
-        if self._migrated or self._mgr.http_client is None:
-            return
-        self._migrated = True
-        imported = await presetlane.migrate(self._mgr, active_hint)
-        if imported:
-            log.info("migrated presets into store: %s", ", ".join(imported))

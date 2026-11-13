@@ -5,6 +5,9 @@ the install keeps, the debug log and its rolled sibling, and the in-memory log
 lines it is handed. Every case builds real files under ``tmp_path`` and a
 `Config` whose store fields point there, then reads the returned bytes back as
 a zip.
+
+The archive never carries the hqplayerd password from the saved connection
+record, in any member, whatever shape the record on disk is in.
 """
 
 import io
@@ -14,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from state_import import store_config
 
 from hqptuner.config import Config
 from hqptuner.presets.store.export import state_archive
@@ -35,15 +39,8 @@ DIR_STORES = [("backup_dir", "backups"), ("preset_dir", "presets")]
 #: Every store name, the top-level member names a store can occupy.
 STORE_NAMES = {name for _, name in FILE_STORES + DIR_STORES}
 
-#: A connection record as one install saved it, password included.
-SAVED_HOST = "10.0.0.5"
-CONNECTION_RECORD = {"host": SAVED_HOST, "username": "u", "password": "s3cret", "remember": True}
-
 #: The debug log's own name, deliberately unlike any store or `hqptuner.log`.
 DEBUG_LOG_NAME = "engine-debug.txt"
-
-#: In-memory log lines handed to the export.
-LOG_LINES = ["first line of the log", "second line of the log", "third line"]
 
 
 def config_at(state: Path, debug_log: Path | None = None) -> Config:
@@ -99,12 +96,6 @@ def test_a_file_inside_a_store_directory_is_archived_under_its_path_relative_to_
     assert members(state_archive(cfg, [])).get(member) == content
 
 
-def test_the_archived_connection_record_survives_with_its_password_blanked(tmp_path: Path) -> None:
-    cfg = config_at(tmp_path / "state")
-    write(cfg.connection_file, json.dumps(CONNECTION_RECORD).encode())
-    assert json_member(state_archive(cfg, []), "connection.json") == {**CONNECTION_RECORD, "password": ""}
-
-
 def test_parked_filter_uploads_are_left_out_of_the_backups(tmp_path: Path) -> None:
     cfg = config_at(tmp_path / "state")
     write(cfg.backup_dir / "pre-apply-settings.zip", b"backup")
@@ -124,13 +115,42 @@ def test_the_debug_log_and_its_rolled_sibling_are_archived_under_their_basenames
     assert members(state_archive(cfg, [])).get(filename) == expected
 
 
-def test_the_log_lines_are_archived_one_per_line_as_hqptuner_log(tmp_path: Path) -> None:
-    cfg = config_at(tmp_path / "state")
-    archived = members(state_archive(cfg, LOG_LINES)).get("hqptuner.log", b"")
-    assert archived.decode().splitlines() == LOG_LINES
-
-
 def test_stores_missing_from_disk_are_absent_from_the_archive(tmp_path: Path) -> None:
     cfg = config_at(tmp_path / "state")
     write(cfg.favorites_file, b'{"filters": []}')
     assert store_member_names(state_archive(cfg, [])) == {"favorites.json"}
+
+
+#: The password value written into each record, distinctive enough that finding it in the archive is unambiguous.
+CANARY = "hqp-pw-7c1e94d2"
+
+#: A favorites store written beside each record, so a case sees the export acted on the same install.
+FAVORITES_MARKER = b'{"filters": ["export-ran-5b8e"]}'
+
+#: Connection records as they can stand on disk, each carrying CANARY as the password.
+RECORDS = [
+    pytest.param(
+        f'{{"host": "192.0.2.10", "username": "admin", "password": "{CANARY}"}}'.encode(),
+        id="json-object",
+    ),
+    pytest.param(f'[{{"password": "{CANARY}"}}]'.encode(), id="json-array"),
+    pytest.param(f'{{"password": "{CANARY}"'.encode(), id="not-json"),
+]
+
+
+def members_holding(archive: bytes, needle: bytes) -> set[str]:
+    """Every member of the zip whose bytes carry ``needle``."""
+    with zipfile.ZipFile(io.BytesIO(archive)) as opened:
+        return {name for name in opened.namelist() if needle in opened.read(name)}
+
+
+@pytest.mark.parametrize("record", RECORDS)
+def test_the_archive_carries_the_favorites_store_but_no_member_carries_the_connection_password(
+    tmp_path: Path, record: bytes
+) -> None:
+    cfg = store_config(tmp_path)
+    write(cfg.connection_file, record)
+    write(cfg.favorites_file, FAVORITES_MARKER)
+    archive = state_archive(cfg, [])
+    holding = (members_holding(archive, FAVORITES_MARKER), members_holding(archive, CANARY.encode()))
+    assert holding == ({"favorites.json"}, set())

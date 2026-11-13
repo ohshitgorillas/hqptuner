@@ -11,12 +11,11 @@ typed, slashes and all, and a path segment would make the route's shape depend o
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from hqptuner.api.deps import Mgr
+from hqptuner.api.deps import Mgr, matrix_modes_of
 from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.presets import names
 from hqptuner.presets.store.matrixmode import (
     InvalidPresetNameError,
-    MatrixModeStore,
     validate_mode,
 )
 
@@ -44,11 +43,6 @@ class MatrixModeBody(BaseModel):
     mode: str
 
 
-def _store(request: Request) -> MatrixModeStore:
-    store: MatrixModeStore = request.app.state.matrix_modes
-    return store
-
-
 @router.get("/matrixmodes")
 def matrix_modes(request: Request) -> dict[str, dict[str, str]]:
     """Every stored Matrix-tab mode, keyed by preset name.
@@ -56,7 +50,7 @@ def matrix_modes(request: Request) -> dict[str, dict[str, str]]:
     409 when the store on disk is stamped newer than this HQPTuner reads — an empty map would be a lie about a file
     that is there and full, and would put the user on the wrong half of the tab.
     """
-    return {"presets": _store(request).read()}
+    return {"presets": matrix_modes_of(request).read()}
 
 
 @router.put("/matrixmodes")
@@ -69,7 +63,7 @@ def save_matrix_mode(body: MatrixModeBody, request: Request, manager: Mgr) -> di
     404 on a name the preset store does not carry: a mode keyed to no preset is one nothing will ever read back. The
     mode is judged before the name, so a request that is wrong in both ways is still told what is storable.
     """
-    store = _store(request)
+    store = matrix_modes_of(request)
     validate_mode(body.mode)
     name = names.validate_name(body.name, InvalidPresetNameError, "preset")
     if name not in manager.presetops.store.names():

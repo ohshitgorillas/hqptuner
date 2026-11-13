@@ -1,5 +1,5 @@
 // Apply-report summarization: turns the backend's apply report into the
-// {ok, text} pair the apply pill and the pending bar both render.
+// {ok, text} verdict store/signals.js holds as `lastApply`.
 //
 // Pure apart from the names: its one store import is the wire-key label
 // lookup, which reads the static control catalog and the loaded /api/metadata
@@ -14,7 +14,7 @@ import { engineStopped, liveFailureText, wireLabel } from "./ui/wirelabels.js";
 // ("2 staged" -> "Applied 1 change") undercounts the real changes.
 /**
  * @typedef {object} Verdict
- *   What the apply pill and the pending bar render. `text` is the sentence the
+ *   One apply's verdict (store/signals.js `lastApply`). `text` is the sentence the
  *   reader gets and is the owner's to reword; `code` names WHICH outcome this
  *   is, and the fields beside it carry the parts the sentence interpolates. An
  *   apply has two axes — what the apply itself did, and how its preset save went
@@ -34,7 +34,7 @@ import { engineStopped, liveFailureText, wireLabel } from "./ui/wirelabels.js";
  * @property {string} [endpoint] the output endpoint that was absent (endpoint-missing)
  * @property {string} [preset] the preset switched to, or saved into
  * @property {number} [changes] staged edits the apply carried
- * @property {string} [save] "ok" | "warned", absent when nothing was saved; a failed save is a refusal
+ * @property {string} [save] "ok", absent when nothing was saved; a failed save is a refusal
  *
  * @typedef {object} LiveResult
  *   One live setter's outcome (writer.py, readback-verified).
@@ -58,9 +58,8 @@ import { engineStopped, liveFailureText, wireLabel } from "./ui/wirelabels.js";
  * @property {{ net_device?: { want: string | null } }} [unfixable] `want` is null when the report cannot name the device
  *
  * @typedef {object} SaveResult
- *   A save that reached the store; one that did not is a refusal. A WARNED save is still a save.
+ *   A save that reached the store; one that did not is a refusal.
  * @property {string} name
- * @property {string} [warning]
  *
  * @typedef {object} ApplyReport
  *   The whole apply report (core/applyops).
@@ -69,10 +68,9 @@ import { engineStopped, liveFailureText, wireLabel } from "./ui/wirelabels.js";
  * @property {PersistentResult} [persistent]
  *
  * @typedef {object} ApplyAnswer
- *   What POST /api/config/apply answers with: the report, and the preset save or auto-save beside it.
+ *   What POST /api/config/apply answers with: the report, and the preset save beside it.
  * @property {ApplyReport} report
  * @property {SaveResult} [saved]
- * @property {SaveResult | null} [autosaved]
  */
 
 /**
@@ -121,7 +119,7 @@ function namedCause(p) {
   // `error` is optional on the report generally, so this reads it rather than
   // asserting it: a refusal that somehow arrived without its sentence falls
   // through to the generic paths, which is a worse caption but never an empty one.
-  if (p.code === "no_credentials" && p.error) return failure("persist-credentials", p.error);
+  if (p.code === "credentials_refused" && p.error) return failure("persist-credentials", p.error);
   return null;
 }
 
@@ -208,10 +206,7 @@ function success(sw, count) {
   };
 }
 
-// The save lane's outcome, appended to what the apply itself did. A WARNED save
-// is still a save: the preset is on disk and only hqplayerd's own mirror of it is
-// behind, so it reads as a success carrying the caveat rather than a failure —
-// reporting it as failed is what sent a user hunting for a preset already there.
+// The save lane's outcome, appended to what the apply itself did.
 /**
  * @param {Verdict} base what the apply itself did
  * @param {SaveResult} [saved] absent when the apply saved no preset
@@ -220,11 +215,10 @@ function success(sw, count) {
 function savedSummary(base, saved) {
   if (!saved) return base;
   const { text } = base;
-  const caveat = saved.warning ? ` — ${saved.warning}` : "";
   return {
     ...base,
-    text: `${text} · saved to "${saved.name}"${caveat}`,
-    save: saved.warning ? "warned" : "ok",
+    text: `${text} · saved to "${saved.name}"`,
+    save: "ok",
     preset: saved.name,
   };
 }

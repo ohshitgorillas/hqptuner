@@ -1,0 +1,139 @@
+# Testing policy — binding for all contributors, human or agent
+
+Violations rejected in review even if tests pass.
+
+## Core rules
+
+1. **Test behavior and intent, never implementation.** Test asserts observable contract: given this input / wire traffic, public API yields this result. Refactor preserves behavior but breaks test = test defective. Module layout, private helpers, internal state, call sequences, log text — all off-limits.
+
+2. **One assertion per test.** Each test asserts one condition (`assert` statement or one `pytest.raises` block). Failure names one broken behavior. Case sweeps use `@pytest.mark.parametrize` — one condition per generated case — never assert-in-a-loop or assertion stacks. A boolean conjunction is one assertion per operand, and `all()` or `any()` over a generator is an unparametrized sweep.
+
+   Strict mypy runs over `tests/`, so a test may narrow an optional with one guard assert, `assert x is not None` or `assert isinstance(x, T)`, followed by exactly one claim. No other narrowing is legal: not the `(x or {})` fallback, not `cast`, not `type: ignore`, and not `pytest.fail` in a helper. filepawl's `claims` gate counts the claims and its `detours` gate reports the other narrowings; `scripts/gates/testing/check_test_assertions.py` and `eslint-rules/assertion-shape.js` report the conjunction, root-only.
+
+3. **Public API only.** Tests exercise same surface a caller would. No reaching into `_private` attributes, no monkeypatching internals. filepawl's `private` gate reports the reach.
+
+4. **Fakes speak wire protocol; mocks of our own code forbidden.** To test 4321 client, run fake daemon speaking real XML over real socket (including documented protocol quirks: split frames, bare `&`, double-escaped entities). Never stub client's own methods to test client.
+
+5. **Anchor on stable contract facts, not golden dumps.** Compare specific fields with known meaning (`channels min == 2`), never whole-structure equality against snapshot — snapshots re-assert implementation back at itself, break on harmless change.
+
+6. **Test names state behavior**: `test_<behavior in plain words>` — `test_checked_checkbox_parses_true`, not `test_parse_2`.
+
+7. **No test waits on wall clock.** Retry/verify/poll loop tested for how many passes it makes and what it concludes — never how long it takes. So production code paces itself through injectable clock, suite virtualizes it.
+   - **The manager, its lanes and its background loops pace on the manager's clock**, `mgr.clock` (`hqptuner/clock.py`), handed to `ConnectionManager` and `create_app` at construction — never `asyncio.sleep` or `time.monotonic` directly. A lane waiting on an outcome uses `clock.sleep` or `clock.wait`; a background loop idling between passes uses `clock.pace` and is started with `clock.spawn`; the metering reader takes `pace` from it at construction. New code does not reach for a module-level clock.
+   - **The discovery sweep paces on the same `Clock`**, handed in through `discover`'s `clock` argument; a test hands in a `VirtualClock` there. The interval between reads is `hqptuner.engine.discovery.POLL`, so a window is stated in poll intervals rather than in seconds.
+   - **Tests hand in `VirtualClock`** (`tests/support/virtual_clock.py`) through the constructor, never a patch. Its time jumps to the earliest deadline only when every task it knows is waiting on it and one of them waits on an outcome; background `pace` alone never moves it, so a running poll loop sits still. `wait_for_api` and `VirtualClock.advance` count poll passes, never seconds. One clock per app: each `TestClient` runs its own event loop.
+   - **Fake servers tear down promptly.** `fake_http.spawn` runs its listener thread on a loop of `server.handle_request()` with no timeout, parked in `select` between requests; teardown clears the listening flag, then opens one loopback connection to the port to wake the blocked call so the thread sees the flag cleared and returns. Any new threaded fake uses `fake_http.spawn`, passing its own `handler` where the dict-driven default does not fit.
+   - **E2E exception, `e2e`-marked tests only.** The browser suite drives the app in a subprocess, so there is no seam to inject a clock through and nothing to virtualize. There the rule is narrower: fixed sleeps stay forbidden, bounded condition-polls are allowed — a `wait_for_selector` / `wait_for_function` / `Locator.wait_for` with a timeout, or an equivalent bounded poll for a non-DOM condition. The timeout is a ceiling on a condition, never a duration anything is expected to take. The offline suite is unaffected: it keeps the full rule and the virtual clock.
+
+   Reason: real sleeps dominate suite wall time. Test reintroducing wall-clock wait is defective even when it passes.
+   - **Gated, four ways**: `scripts/gates/testing/check_suite_time.py` holds the offline suite's time, its wall time less the seconds its main thread sat waiting for a CPU (recorded by `scripts/pytest_plugins/run_stamp.py`, so a busy host does not move it), to a bar that a green run never raises: a faster green run lowers it to that run's time, over 5 s slower fails and escalates to the owner (`--accept` records it as the bar), 10 s or more slower is rejected outright.
+
+     Each branch keeps its own bar; a branch with none is judged against the bar of the recorded branch nearest it in history, fewest commits on `HEAD` not on it first, then fewest on it not on `HEAD`, and its first pass records the faster of its time and that bar as its own; with no bar anywhere, the first green run seeds one. Every run deletes the bars of branches that no longer exist.
+
+     `scripts/pytest_plugins/suite_deadline.py` holds a run to that 10 s bar while it is still going, extended by the run's CPU-wait: past it, every thread's stack is dumped and the run exits 1, so a hung suite fails instead of hanging.
+
+     `scripts/clock_probe.py` records each real-clock timeout that ran out during a test, as the timeout the code asked for, and `scripts/gates/testing/check_clock_waits.py` refuses any test with one, on every machine.
+
+     `scripts/idle_probe.py` records each test's wall time less its CPU time less the seconds every thread of the process waited for a CPU, summed across the test from samples at its start, either side of its call and at its end so a fixture's thread alive across the call is counted, and `scripts/gates/testing/check_idle.py` keeps each test's latest passing reading per branch, a refused reading not recorded, and refuses any test whose reading rises more than 40 ms over its previous one or, with no previous one, exceeds 40 ms.
+
+     That reading counts every delay a shared runner adds, so it gates on the development host only (CI runs `make check IDLE_GATE=off`), where it catches the waits the clock probe cannot see.
+
+     `scripts/gates/testing/check_test_clocks.py` reads the source instead of the clock: a `time.sleep` or `asyncio.sleep` on anything but the literal `0`, and a `timeout` or `*_timeout` given a literal between zero and 0.5 s, fail it outside `tests/e2e/`.
+
+8. **New tests must bite.** A test written for new or changed behavior must fail against the pre-change code — a test that is green both with and without the change constrains nothing, however well-shaped it looks to the mechanical gates. Bite is checked by a red run: implementation reverted to HEAD (tests kept), new tests re-run, red expected.
+
+   Assertion failure is the only result that proves bite. A collection or import error proves the test names a symbol that does not exist yet, which every test of a new surface does regardless of what it asserts; it is not weak evidence, it is no evidence. Where the surface is new and no red run can say anything, the obligation is discharged statically instead: the plan names the null stub each test fails — the module present, exports named, every function returning its zero value — and mutation testing is what checks it later.
+
+   Tests with no pre-change state to fail against — characterization of existing behavior, tests accompanying a pure refactor — are exempt, and the exemption is stated in the hand-back rather than assumed silently; mutation testing (below) covers those over time.
+
+9. **A test asserts only strings it put on the wire itself, wire identifiers, and numbers derived from wire data. Every string born inside `hqptuner/` is copy.** Source or `data/`, makes no difference: labels, headings, blurbs, hints, tooltips, status lines, error text, a picker's option list, a curated list's order and its count are owner-owned data, reworded at will.
+
+   The test: to know this literal, would the writer have to read `hqptuner/`? Then it is copy, and it stays out of the assertion and out of the DOM selector. A device name the fixture handed in is wire data and may be asserted; the sentence the app wraps around it may not.
+
+   Wire identifiers — engine names, option values, config attributes, JSON keys, state-bearing CSS classes (rule 11), error codes — are contract, and pinning those is correct. Consequences:
+   - **Error text is copy.** Exceptions and API errors carry a code; tests match the type plus the code, never the message. `pytest.raises(match=...)` and `error.includes(...)` are legal only for a wire identifier (`match="alsa_dop"`), never a sentence.
+   - **Rendered text is copy.** Assert classes, attributes, `data-*` state, disabled flags, values and numbers; text only where it is a wire identifier or a number.
+   - **`data/*.json`, and any vendored or built blob the app serves, never supplies an expected value.** Join and lookup mechanics are tested against fixtures under `tests/support/fixtures/`; a check that the owner's data is well-formed is a gate under `scripts/gates/`, not a behavior test.
+   - **A curated count is copy, like a curated order.** The number of presets is data; the number of channels the engine reported is contract.
+   - Where a selector would need a sentence, add a `data-testid`. If nothing meaningful survives removing the wording, delete the test instead of leaving a tautology. `scripts/gates/testing/check_no_copy_assertions.py` and its eslint peer catch the mechanical shape; the principle is what review checks.
+
+10. **A test discriminates, or it is a tautology.** The question a test answers is not "does the code do something" but "which of these two implementations am I looking at". An assertion the wrong implementation also satisfies constrains nothing, and it costs the same to run and maintain as one that does. The shapes that fail this, all of them common and all of them green:
+    - **Asserting one call's absolute output.** A single input with a single expected value is a lookup-table entry, and a table is exactly the wrong implementation the suite exists to exclude. Assert a relation between two observations, or make the surrounding set of tests carry two distinct expected values on the same surface.
+    - **Asserting existence instead of value.** Truthiness, `is not None`, a type check, a length, a key's presence. Legal only where existence *is* the contract and the value is genuinely unbounded. Such a site is an entry in `[tool.filepawl.existence.exempt]` in `pyproject.toml` with its reason, owner-approved like every exemption; filepawl's `existence` gate reports every other existence-only assertion.
+    - **Asserting a value the absent feature also produces.** `0`, `None`, `""`, `[]`, `False`, the default the fixture already carried. If the expected value equals the zero value, the test passes against a feature that was never written.
+    - **Asserting the fix's own mechanism.** A new helper was called, a new flag is set, a new field exists. That is rule 1; it reads as discrimination because the mechanism is new, and it breaks on the first refactor while catching no defect.
+    - **Round-tripping a writer through its own reader.** Both halves wrong in the same direction pass. Pin one half against a value the fixture supplied, not against the other half.
+    - **Restating the implementation's arithmetic.** A test computing the expected number the same way the code does asserts that Python is deterministic. Write the number.
+
+    The check is mechanical: name an implementation that fails the assertion and one that passes it, both plausible. If the failing one is only "the feature is absent", the test pins nothing beyond presence. Where the unit is pure mathematics this check has no repair — every numeric assertion restates an identity the implementation was derived from — so such a module is pinned against an external reference oracle committed as fixtures, not against a plan.
+
+11. **A test guards against a bug, never against a change of mind.** Before a test is kept, write the bug report its failure would file. "Preset list came back unsorted" is a bug; "preset list is no longer alpha, mike, zulu" is a diff. If the only way to turn the test red is for the owner or a forker to decide differently, it pins a decision: reshape it into the invariant the decision serves, or delete it. The shapes:
+    - **The instance instead of the invariant.** Assert the property the design promises, at two inputs where the property does work: sorted, unique, one per option, inside the wrapper. Never the literal the current design emits.
+    - **Styling as contract.** A class or attribute that carries state (`active`, `off`, `disabled`, `data-*`, a `data-testid`) is contract. A class or wrapper that only selects a stylesheet rule is design, and so is nesting order unless the nesting is the behavior. Rule 9's "CSS classes" means the first kind.
+    - **A default as an absolute.** The owner's default for a knob is a decision. Test its role: an unset facet reads as the default, a written one overrides it. HQPlayer's own defaults are wire facts and may be pinned.
+    - **A sibling status code.** Which 4xx a refusal returns is contract only where a client branches on it or the OpenAPI snapshot carries it; otherwise pin the `code` and the status class.
+    - **Formatting.** Rounding, key order, indentation, the string form of a number, unless a wire demands it.
+
+    The tell: a value the test's own fixture put on the wire may be asserted back verbatim; a value the design chose is not the fixture's and is not asserted absolutely. Rule 10 asks for two distinct expected values on a surface; satisfy it with two inputs to the invariant, never two design literals.
+
+12. **A test costs.** Run time, maintenance, and every reader's time. A test that constrains nothing another test does not already constrain is deleted; deletion is a review outcome, not a coverage regression. Two tests where one cannot fail without the other are one test. Each test earns its place by the wrong implementation it kills. A test written to reach a line is rule 1 by another route: a line unreachable through the contract is dead, or the surface is wrong. Fix the code.
+
+13. **Fakes answer from tables, never from logic.** A fake that derives its reply by the algorithm the code uses is a second implementation, wrong together with the first. The test writes the table.
+
+14. **Helpers return values.** No `assert` lives outside a `test_*` function. A helper returns the evidence and the test asserts it; a fixture that must refuse to run raises. The gate reports an assert in any module-level function that is not a test.
+
+15. **Lowest lane.** A behavior is tested at the lowest lane that observes it: pure function, then store, then REST, then rendered component, then browser. An e2e test a unit test already covers is deleted.
+
+16. **No environment coupling.** No test reads hostname, locale, timezone, cwd, HOME or a fixed port. Rule 7 covers the clock; this covers the rest.
+
+17. **One unit, one result.** A decision lives in a function whose return value is the decision; an orchestrator executes decisions and does not make them. A function returns one type on every path: a typed result (dataclass or enum), not a dict whose keys differ by branch, and not a bool carrying two meanings. New behavior that cannot name the one value its test will assert is split before it is written.
+
+## Speed is a correctness property
+
+The offline suite exists to be run on every commit. A test that waits on a wall clock is defective whatever it covers and whatever it passes, and it is struck on sight. Coverage is not a defense. What it pinned is re-pinned fast through the ordinary spec lane, or it stays unpinned. The owner strikes it directly and needs no spec lane to do it.
+
+No design reason survives this. Where production paces on a real clock, the test injects a seam or it does not exist.
+
+## Markers
+
+- Default suite offline and deterministic; must pass on machine with no hqplayerd.
+- Tests needing real daemon marked `@pytest.mark.live`, must be read-only against it. Everything write-shaped runs against fakes — permanently: live tests never write to production daemon.
+- Browser end-to-end tests live in `tests/e2e/` and carry `e2e`, applied for them by that package's `conftest.py` — do not write `pytestmark`. They drive a real headless chromium against a real `python -m hqptuner` subprocess wired to the same wire fakes the offline suite uses, so they write freely: nothing they touch is the production daemon. Deselected from `make test`, `make test-live`, the pre-commit pytest hook and mutmut; run them with `make test-e2e`. `make check` does not include them. Rule 2 still holds, and the assertion gate counts `assert` statements only — playwright's `expect()` counts zero, so locators do the waiting and each test makes exactly one plain `assert`.
+- A `skip` or `xfail` decorator on a test, or any skip whose reason is that the test is broken, flaky or unfinished, is a gate exemption: owner-approved, in `EXEMPT`, reason naming the condition that removes it. A skip on an environment or data precondition the reason names (`importorskip`, an unreachable daemon, an empty shipped mapping) is this section's own mechanism, not an exemption.
+
+## Mutation testing
+
+Periodic health check on the suite itself. **Not part of `make check`, not in pre-commit, never a merge gate** — it takes hours and its output is a reading exercise, not a pass/fail.
+
+`mutmut` breaks the code on purpose, one edit at a time — flips a comparison, drops a call, swaps a constant — and reruns the offline suite against each break. A mutant the suite fails on is *killed*: some test noticed. A mutant that **survives** is a line no test constrains, so the code there could be wrong and everything would still be green. That is the one question the assertion-count gate cannot ask: those gates check that a test is shaped right, never that it could fail.
+
+```
+make mutate                              # whole package, hours
+make mutate MUTATE='hqptuner.presets.store.presets.*'  # one module, minutes; glob, matched with fnmatch
+```
+
+Scope and pytest arguments live in `pyproject.toml` under `[tool.mutmut]`: `hqptuner/` minus `static/` (the frontend is JS), suite run as `-m "not live and not e2e"` so a mutation run never reaches the daemon. Working copies land in the gitignored `mutants/`. `mutmut browse` walks survivors interactively; `mutmut show <mutant>` prints one diff.
+
+Reading the result: a survivor is a question, not a defect. Three honest answers — the behavior is untested and wants a test; the mutated line has no observable effect and the mutant is equivalent, so nothing is owed; or the line is dead and should go. Chasing a score is how a suite fills with tests written to kill mutants rather than to state behavior, which is rule 1 violated with extra steps. Run it when a module's coverage is in doubt, not on a schedule.
+
+## Frontend
+
+Seven core rules are language-independent, bind JS suite identically. Runner is node's built-in `node --test`, via `make test-js`.
+
+- **One assertion per test enforced, not merely asked for.** `eslint-rules/one-assertion-per-test.js` is peer of `scripts/gates/testing/check_test_assertions.py`. Does not look inside nested functions, so assertion wrapped in helper or `.then()` callback counts as **zero** and is flagged. Deliberate: gate you defeat by moving assert into function is not a gate. Keep assert at call site — if helper builds condition, have it return `[ok, message]` and spread into one `assert.ok(...)`. The `assertion-shape` rule reads the shape of the one assertion the count rule counts, root-only.
+- **Fakes go at wire, never over our own code.** Components and stores driven by assigning exported signals and faking `globalThis.fetch` on real REST paths (`hqptuner/static/lib/api.js`) with real response shapes. No store function ever stubbed.
+- **Components render through `preact-render-to-string`.** Assertions on rendered output — state-bearing classes, attributes, `data-*` state, and text only where it is a wire identifier or a number (rule 9) — never internal flags.
+
+### Harness facts, learned the hard way
+
+- **Module-level signals persist for life of test file.** Reset *every* source signal a test touches, not just ones that case cares about, or tests pass alone and fail in sequence. `staged` is private — clear with `await discardAll()`.
+- **Writing same object reference to signal does not notify.** Every simulated poll must be fresh object.
+- **SSR escapes HTML entities** (`"` becomes `&quot;`, `&` becomes `&amp;`) and emits empty-string attribute **bare** — empty `title` renders as ` title`, never empty quoted pair. Decode before asserting on user-visible text.
+- **Substring-matching a class name needs delimiter** — `class="vr-tick-label"` matches naive `vr-tick` needle.
+- **`node --test` rejects bare directory argument** here; pass explicit file list.
+- **Cache-busting query suffix silently destroys a file's coverage.** Node keys coverage by URL, then groups by path with the query stripped and keeps the last entry per path. Test reaching second module instance through `?v=2`-style suffix therefore overwrites real instance's coverage with load-only one's, and file reports near-zero functions however well tested. Use `<name>.fresh-<tag>.js` convention `tests/js/support/vendor-resolve.js` provides instead.
+- Uncontrolled inputs (`NumberBox`, `TextBox`) sync by ref in `useEffect`, which never runs under SSR, so their *value* not observable server-side. Their `min`/`max`/`step` are.
+
+### Branches that cannot be reached
+
+Several component branches gated behind module-private signals written only from event handlers, which SSR never fires. **Do not export a private signal to reach one, do not test through it.** Document gap in suite header instead. Pointer-driven cases that genuinely need a browser belong to playwright hand-back protocol, not unit test. A documented gap names what would close it.

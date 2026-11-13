@@ -1,10 +1,10 @@
-"""Score three no-gate, per-raw-frame readings over the labelled corpus: the fold step, the edge step, the plateau.
+"""Score three no-gate, per-raw-frame readings over the labeled corpus: the fold step, the edge step, the plateau.
 
-The edge step is a swept 1 kHz-band fall, not a fixed fold, and the plateau spread is read above whichever edge
-that frame found. ``jbframeonly.py`` tables what is scored here.
+The edge step is a swept 1 kHz-band fall, and the plateau spread is read above whichever edge that frame
+found. ``jbframeonly.py`` tables what is scored here.
 
-Unlike candidate FS in ``jbframestep.py`` this carries no lit gate: every raw frame of every steady headline block is
-read, whether or not anything sits above the fold. A track's in-track time is its burst's ``position_s`` plus the
+No lit gate applies: every raw frame of every steady headline block is read, whether or not anything sits above the
+fold. A track's in-track time is its burst's ``position_s`` plus the
 frame's own elapsed time since that burst's first frame, so bursts of the same track pool onto one timeline.
 """
 
@@ -152,9 +152,9 @@ def steady_bursts() -> list[dict[str, str]]:
     tracks = load_tracks()
     by_album, by_track = load_labels()
     stamps = sorted(p.stem for p in DER.glob("*.npy"))
-    labelled = [s for s in stamps if owner_label(s, tracks, by_album, by_track) is not None]
-    graded, duplicates = collapse_overlaps(labelled)
-    print(f"derived={len(stamps)} labelled={len(labelled)} duplicates={len(duplicates)} graded={len(graded)}")
+    labeled = [s for s in stamps if owner_label(s, tracks, by_album, by_track) is not None]
+    graded, duplicates = collapse_overlaps(labeled)
+    print(f"derived={len(stamps)} labeled={len(labeled)} duplicates={len(duplicates)} graded={len(graded)}")
     out = []
     for stamp in graded:
         row = tracks.get(stamp, {})

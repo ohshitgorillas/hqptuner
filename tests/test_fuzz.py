@@ -9,7 +9,10 @@ which is not a package, so it is loaded by path — the same pattern
 
 import importlib.util
 import io
+import shutil
+import socket
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
@@ -75,3 +78,76 @@ def test_gated_raises_state_unavailable_error_for_apply_when_state_route_fails(f
         pytest.raises(fuzz.StateUnavailableError),
     ):
         fuzz.Run(client, io.StringIO()).gated(attack)
+
+
+#: This checkout's bracket script, copied into each miniature repo so a lookup that
+#: asks the script itself resolves the root exactly as an operator's run would.
+ABUSE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "abuse.sh"
+
+#: An image recipe in the repo's shape, naming one store under ``/state``.
+RECIPE = "FROM python:3.12-slim\nENV HQPTUNER_TALLY_FILE=/state/tally.json \\\n    HQPTUNER_LISTEN_HOST=0.0.0.0\n"
+
+#: What ``abuse.sh open`` writes to ``abuse/current``: the run's stamp, then the newest audit seq.
+OPEN_RUN = "20261012T080000Z 41\n"
+
+#: The host lines ``hqpcreds`` carries beside the abuse root, in its ``NAME=value`` shape.
+CHROMIUM_LINE = "HQPTUNER_CHROMIUM=/usr/bin/chromium"
+USERNAME_LINE = "HQPTUNER_HQP_USERNAME=hqplayer"
+
+#: The state root ``hqpcreds`` names, and the one the environment override names.
+HOST_ROOT = "host-root"
+OVERRIDE_ROOT = "override-root"
+
+
+@pytest.fixture
+def dead_api(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Point the bracket's API knob at a loopback port that is held but never listened on."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as held:
+        held.bind(("127.0.0.1", 0))
+        monkeypatch.setenv("HQPTUNER_ABUSE_API", f"http://127.0.0.1:{held.getsockname()[1]}")
+        yield
+
+
+def with_open_run(tmp_path: Path, name: str) -> Path:
+    """A state root under ``tmp_path`` holding an open run, as ``abuse.sh open`` leaves it."""
+    root = tmp_path / name
+    (root / "abuse").mkdir(parents=True)
+    (root / "abuse" / "current").write_text(OPEN_RUN, encoding="utf-8")
+    return root
+
+
+def miniature_repo(tmp_path: Path, host_root: Path | None) -> Path:
+    """A repo root with the bracket script and a ``Dockerfile``, plus an ``hqpcreds``
+    naming ``host_root`` between two other host lines unless it is None."""
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    if not ABUSE_PATH.is_file():
+        raise FixtureError(reason=f"no abuse script at {ABUSE_PATH}")
+    shutil.copy2(ABUSE_PATH, repo / "scripts" / "abuse.sh")
+    (repo / "Dockerfile").write_text(RECIPE, encoding="utf-8")
+    if host_root is not None:
+        creds = f"{CHROMIUM_LINE}\nHQPTUNER_ABUSE_STATE={host_root}\n{USERNAME_LINE}\n"
+        (repo / "hqpcreds").write_text(creds, encoding="utf-8")
+    return repo
+
+
+@pytest.mark.parametrize(
+    ("host_root", "override", "found"),
+    [(HOST_ROOT, None, HOST_ROOT), (HOST_ROOT, OVERRIDE_ROOT, OVERRIDE_ROOT), (None, OVERRIDE_ROOT, OVERRIDE_ROOT)],
+    ids=["hqpcreds names the root", "the override outranks hqpcreds", "the override, no hqpcreds"],
+)
+@pytest.mark.usefixtures("dead_api")
+def test_open_bracket_finds_the_run_open_under_the_state_root_abuse_sh_resolves(
+    fuzz: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    host_root: str | None,
+    override: str | None,
+    found: str,
+) -> None:
+    repo = miniature_repo(tmp_path, None if host_root is None else with_open_run(tmp_path, host_root))
+    monkeypatch.delenv("HQPTUNER_ABUSE_STATE", raising=False)
+    if override is not None:
+        monkeypatch.setenv("HQPTUNER_ABUSE_STATE", str(with_open_run(tmp_path, override)))
+    assert fuzz.open_bracket(repo) == tmp_path / found / "abuse" / "current"

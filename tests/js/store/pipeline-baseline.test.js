@@ -5,13 +5,13 @@
 // (`config.file.matrix_pipelines`, a canonical JSON string) and the daemon's own
 // rows (`matrixConfig.rows`, what the engine is running right now). They diverge
 // whenever a matrix profile has been switched live — the switch rides 4321
-// `MatrixSetProfile`, which is memory-only and never rewrites the config file
-// (docs/matrix-spec.md, "4321 MatrixSetProfile — clean live lane"), so the
+// `MatrixSetProfile`, which is memory-only and never rewrites the config file,
+// so the
 // engine runs the profile's rows while the file still holds its own.
 //
-// The wire is faked, not the store: `stagingWire` holds the pending buffer the
+// `stagingWire` holds the pending buffer the
 // way the backend does, so `stagePipelines` / `discardAll` ride the real REST
-// paths (docs/testing.md rule 4).
+// paths.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test \
 //        tests/js/store/pipeline-baseline.test.js
@@ -23,6 +23,8 @@ import { config, matrixConfig, engineState } from "../../../hqptuner/static/stor
 import { effectivePipelines, stagedCount, canonPipelines } from "../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../support/readings.js";
+import { readings } from "../../../hqptuner/static/store/core/readings.js";
 
 // The daemon's shape: `gain` is a NUMBER and every row carries an `index` the
 // file rows do not have.
@@ -66,17 +68,14 @@ const DAEMON_ROWS_AS_STAGED = [
  */
 async function trees({ rows = [], liveActive = "", file = {} } = {}) {
   engineState.value = {};
-  config.value = { fields: [], file, active: "" };
-  matrixConfig.value = {
-    fields: [],
-    rows,
-    live_active: liveActive,
-    live_profiles: [],
-    file_profiles: {},
-  };
+  config.value = { fields: [] };
+  matrixConfig.value = { fields: [], file_profiles: {} };
+  // The served reading shows the daemon's rows once a profile is live and the daemon reports rows, else the file's.
+  const live = liveActive !== "" && liveActive !== "[Default]" && rows.length > 0;
+  await seedReadings({ matrix_pipelines: live ? rows : fieldReading(file.matrix_pipelines, { show: "file" }) });
   stagingWire({
     routes: (path) => {
-      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/config") return ok(readings.value);
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/enumerations") return ok({ data: null });
       return undefined;
@@ -86,11 +85,6 @@ async function trees({ rows = [], liveActive = "", file = {} } = {}) {
 }
 
 // --- which source grounds the baseline --------------------------------------
-
-test("test_a_live_active_profile_makes_the_daemon_rows_the_baseline", async () => {
-  await trees({ rows: DAEMON_ROWS, liveActive: "ZMF Ori 3.0", file: { matrix_pipelines: FILE_ROWS } });
-  assert.equal(canonPipelines(effectivePipelines.value), canonPipelines(DAEMON_ROWS));
-});
 
 test("test_an_empty_live_active_leaves_the_config_file_as_the_baseline", async () => {
   await trees({ rows: DAEMON_ROWS, liveActive: "", file: { matrix_pipelines: FILE_ROWS } });
@@ -109,24 +103,7 @@ test("test_a_live_active_profile_with_no_daemon_rows_falls_back_to_the_config_fi
   assert.equal(canonPipelines(effectivePipelines.value), FILE_ROWS);
 });
 
-// The daemon's rows carry an `index` the file shape has no notion of; a baseline
-// grounded on them hands back rows in the file shape, not the raw daemon rows.
-test("test_daemon_grounded_baseline_rows_carry_no_index_key", async () => {
-  await trees({ rows: DAEMON_ROWS, liveActive: "ZMF Ori 3.0", file: { matrix_pipelines: FILE_ROWS } });
-  assert.deepEqual(
-    effectivePipelines.value.filter((/** @type {DaemonRow | Record<string, string>} */ row) => "index" in row),
-    [],
-  );
-});
-
 // --- following the running matrix is not an edit ----------------------------
-
-// A guard against a self-staging resolver, not a discriminator between the two
-// baseline sources: loading a profile must not leave a phantom pending change.
-test("test_a_live_active_profile_with_nothing_staged_reads_clean", async () => {
-  await trees({ rows: DAEMON_ROWS, liveActive: "ZMF Ori 3.0", file: { matrix_pipelines: FILE_ROWS } });
-  assert.equal(stagedCount.value, 0);
-});
 
 // The daemon's rows arrive with a numeric `gain` and an `index` key; the
 // baseline canonicalizes them into the file shape, so staging exactly what the

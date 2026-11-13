@@ -1,33 +1,29 @@
 # HQPTuner: an improved configuration interface for HQPlayer Embedded
 
-An enhanced configuration interface for HQPlayer Embedded.
+A polished and enhanced configuration interface for HQPlayer Embedded.
 
 [Discord](https://discord.gg/9ncNefPXnV)
-
-![The Output tab during DSD512 playback](docs/images/hqptuner-output-green.png)
-
-*The Output tab, upsampling a CD-quality file to DSD512 using the poly-sinc-ext2-long filter. The filter list is shown expanded in Simplified mode, converting the list of confusing filter shorthand into plain English. The list has also been narrowed to only show apodizing filters rated 3/5 or greater quality.*
 
 ## Inspiration
 
 HQPlayer is, in my humble opinion, the best deal in all of high-end digital audio, with two caveats:
 1. Hitting the highest rates requires significant expenditure on hardware that is not getting any cheaper.
-2. The minimalist, brtutalist UI makes learning and using the program more difficult than it needs to be.
+2. The minimalist, brtutalist UI makes learning and using the program more difficult than it needs to be: HQPlayer isn't hard, it just _looks_ hard.
 
-The second point is the inspiration for HQPTuner: where the stock UI expects users to arrive with a full understanding of the features and their settings by reading and re-reading the manual, HQPTuner instead puts the manual's knowledge where the decision is being made: in the UI, next to the feature.
+The second point is the inspiration for HQPTuner: it's not just that the UI holds HQPlayer's usability back, but that there is so much _great_ and untapped UI/UX potential under the surface.
 
-HQPTuner also adds a ton of convenience features as well! Let's take filter narrowing as an example: this is one of HQPTuner's flagship features and I think the one thing most badly missing from the default UI.
+Let's take filter narrowing as an example. This is one of HQPTuner's flagship features and I think the one thing most badly missing from the default UI.
 
-The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 65 filters named in shorthand like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what any of the jargon means), find one that seems appropriate based on what you do know, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The interface won't tell you. There's a wealth of information in the manual, including which filters are apodizing, so you do your best to scroll through pages of filter tables to cross reference apodizing with something that fits your genre. From there, you're asked to decide between, say, `poly-sinc-ext2-xla`, `poly-sinc-gauss-xl`, `sinc-M`, `sinc-MG`, `sinc-Mx`, and others. How do you decide among them if you don't know what an "extended frequency response" is? What does "extreme roll-off and attenuation" imply? Roll-off of what? What's being attenuated? What on earth does "Gauss" or "half-band"—or "Gaussian half-band" for that matter—actually mean?
+The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 66 filters with baffling names like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what any of the jargon means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The interface won't tell you. There's a wealth of information in the manual, including which filters are apodizing, so you do your best to scroll through pages of filter tables to cross reference apodizing with something that fits your genre. From there, you're asked to decide between, say, `poly-sinc-ext2`, `poly-sinc-xtr-short-lp-2s`, `sinc-M`, `sinc-MG`, `sinc-MGa`, `sinc-Mx`, and others. How do you decide among them if you don't know what an "extended frequency response" is or what "extreme roll-off and attenuation" means? What on earth does "Gauss" or "half-band"—or "Gaussian half-band" for that matter—actually mean?
 
 Filter science is a complex and nuanced topic that will take most people several passes to grasp… and none of it is required to use HQPTuner.
 
 Here's the HQPTuner approach to selecting a filter:
-1. **Easy Mode** offers a jargon-free way to select from among the best filters in the program, and a few curiosities as well. Start with The Perfect Ten, aka the program's defaults, which are genuinely amazing filters that work for all content.
+1. **Filter Presets** offer a jargon-free way to select from among the best filters in the program, and a few curiosities as well.
 2. If you're brave enough to face the jargon of the full filter list, HQPTuner's **Simplified options** mode translates HQPlayer's shorthand into plain English: filters are organized into families and classes with short descriptions of each, then separated by what makes a filter unique within its class. For example, `poly-sinc-gauss-long` becomes Polyphase sinc family, Gaussian class, Long linear phase. Yes, it's still filter jargon, but at least it's _legible_ filter jargon! Hold your mouse over a filter to see its full description and list of qualities from the manual.
 3. Use the **Narrowing system** to cut the list down to only filters appropriate for your genre and tastes. Your list goes from 60+ to a handful in just a few clicks.
-4. If you still can't decide, use the **Setting Switcher** in Live mode to try two filters side-by-side!
-5. When you find a sound you love, store it as a Live Snapshot and/or use the Favorites toggle to save it for later.
+4. If you still can't decide, use the **Setting Switcher** to try two filters side-by-side!
+5. When you find a sound you love, store it as a Snapshot and/or use the Favorites toggle to save it for later.
 
 In short, whether you're brand new to HQPlayer or an experienced user tired of the default UI, HQPTuner makes HQPlayer's configuration easier, more flexible, and better looking.
 
@@ -35,15 +31,11 @@ In short, whether you're brand new to HQPlayer or an experienced user tired of t
 
 HQPTuner offers the following features and improvements over the stock web configuration UI.
 
-**1. Option names in plain English.** HQPTuner offers "Simplified" option types, converting the list of baffling filter shorthand like `poly-sinc-hb-xs-2s` into the "Extra-short two-stage option within the Half-band variants of the Polyphase Sinc filter family". Filters are sorted by family (Analog-style, Conventional, Polyphase Sinc, Interpolation, Pure Sinc, and Misc), optionally categorized by variant class (e.g., "Extreme roll-off and attenuation" or "Extended frequency response"), then by their distinguishing features within that class, e.g., phase and length. This makes it vastly simpler to parse the filter list into reasonable choices. Yes, those choices are still filter jargon, but at least it's legible filter jargon!
+**1. Option names in plain English.** HQPTuner offers "Simplified" option types, converting the list of baffling filter shorthand like `poly-sinc-hb-xs-2s` into the "Extra-short two-stage option within the Half-band class of the Polyphase Sinc filter family".
 
-**2. Filter narrowing.** The manual's knowledge folded into the filter lists, so 80 opaque names narrow to the few that fit in a few clicks. Save the filters you keep coming back to with the Favorites toggle.
+**2. Filter narrowing.** The manual's knowledge folded into the filter lists, so 66+ opaque names narrow to the few that fit in a few clicks. Save the filters you keep coming back to with the Favorites toggle.
 
-**3. Easy Mode.** Jargon-free filter selection. Nine curated presets, no prior knowledge required: pick one, nudge Emphasis toward Space or Transients, and hit Play. Tiles name and describe their filters, error correction levels, and relative resource consumption ("cost").
-
-![Easy Mode with the Lifelike preset selected](docs/images/hqptuner-easy-amber.png)
-
-*Easy Mode, with the Lifelike preset selected. The Lossless/Lossy switch at the top swaps in filters optimized for lossy sources, and the Emphasis knob on a tile chooses between linear and minimum phase.*
+**3. Filter Presets.** Jargon-free filter selection. Curated presets, no prior knowledge required: pick one, nudge Emphasis toward Space or Transients, and hit Play.
 
 **4. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style.
 
@@ -51,26 +43,18 @@ HQPTuner offers the following features and improvements over the stock web confi
 
 The above five features are my flagships, but the following benefits are offered as well:
 
-* **Surface the manual's knowledge**: Every feature has its manual's description printed right underneath it. This can be converted to hover tips for those who prefer a cleaner interface.
-* **More sensible organization**: Settings are organized into four tabs: Output, Volume, Matrix, and System. Stop wondering where to find a certain feature.
+* **Surface the manual's knowledge**: Every feature has its manual's description printed somewhere nearby.
+* **Small surface area**: The entire interface can fit on tablets as small as an iPad Mini with no scroll bars.
+* **More sensible organization**: The main features are always on the page; other settings are organized into drawers, opened from the rail that draws the signal chain.
 * **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the output rate menu.
 * **Idiot proofing**: Only see options that are appropriate for the settings you're running. Don't waste time trying to figure out the best Integrator if you're only outputting PCM. Running DSD512? Modulators that only work at DSD1024 are grayed out.
-* **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots.
+* **Full matrix pipeline editing**: Visual signal-flow editing of matrix DSP pipelines, organized into routing blocks and output channels with a stage editor for every plugin type and live response plot.
 * **Live response plots**: Crossfeed, loudness, and matrix pipelines all render their frequency response as you adjust them — and EQ bands are draggable dots right on the plot, REW-style.
 * **Live volume control**: For those who rely on HQPlayer for volume adjustment.
-* **LIVE mode**: A switch at the top drops the tabs for a single page of everything the running engine can change in place — mode, both filter chains, dither, modulator, volume, matrix profile. No Apply: each control writes when you change it. Save the lot as a **live snapshot** and load it back in one click.
 * **Exposes more options**: Critical hardware acceleration options like multicore DSP, CUDA mode, and E-core modes are all exposed and explained.
 * **Consistent behavior**: No unexpected profile switches or surprise default profile loads; HQPTuner always comes back with the settings you sent.
-* **Log tail in the browser**: The daemon's log, right in the System tab.
+* **Log tail in the browser**: The daemon's log can always be found in Settings, or can be brought up with a custom hotkey.
 * **Customizable accent color**: Choose from one of four presets, or roll your own with a hex code.
-
-![The Volume tab](docs/images/hqptuner-volume-blue.png)
-
-*The Volume tab shown with volume-adaptive loudness enabled. A response plot below tracks the boost live with the volume knob above, while the Range slider visualizes the limits, loudness bounds, and current level.*
-
-![LIVE mode](docs/images/hqptuner-live-amber.png)
-
-*LIVE mode concatenates every setting the engine can change live on one rearrangeable page. Settings apply immediately upon selection. Live snapshots allow the user to switch all settings on the page in a single click.*
 
 ## Drawbacks of HQPTuner
 
@@ -91,14 +75,14 @@ HQPTuner is a single small Python backend plus a no-build-step web frontend. It 
 * **Control API (TCP 4321)** — live, restart-free settings (filters, dither/modulator, mode, rate, volume, matrix profile switching) plus status and enumerations. The running engine is the sole authority for filter/modulator names and IDs; HQPTuner never trusts shipped lists.
 * **HTTP configuration interface (TCP 8088, Digest auth)** — persistent settings. Every change — including the ones the daemon's config form never exposed (CUDA offload, multicore DSP, E-core allocation, blocks/cycle) — goes through a backup → surgical `hqplayerd.xml` edit → `POST /restore` cycle; the daemon self-restarts (~5.6 s), and HQPTuner rides that out and verifies by readback.
 
-Edits are staged in a pending-changes bar showing the live/restart split before you apply. Presets are full-config XML snapshots stored and managed by HQPTuner itself (the daemon's native profile subsystem proved unreliable), mirrored into the daemon's own config directory so the stock UI stays populated.
+In each drawer, live settings apply as you change them; settings that restart the engine wait, marked with a dot on their tab, until you press Apply. Stations are full-config XML copies stored and managed by HQPTuner itself, mirrored into the daemon's own config directory so the stock UI stays populated.
 
 Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate) are extracted once from the HQPlayer manual into JSON and joined against the live engine's enumerations by name at runtime. The headphone EQ library is a pinned, vendored snapshot of [AutoEq](https://github.com/jaakkopasanen/AutoEq) (MIT).
 
 ## Requirements
 
-* A running HQPlayer **Embedded** daemon
-* The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
+* A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
+* The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and stations. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
 * Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR a Mac running macOS 15 or later, OR a PC running Windows on x64 or Arm64, OR Python v3.12+
 
 ## Install & run
@@ -128,7 +112,7 @@ Then start the Docker daemon:
 sudo systemctl enable --now docker
 ```
 
-Create a new folder for HQPTuner, e.g., `~/hqptuner`. You'll also need to make the folder `~/hqptuner/state/` yourself, which holds backups and presets. If Docker creates it, it will end up owned by root.
+Create a new folder for HQPTuner, e.g., `~/hqptuner`. You'll also need to make the folder `~/hqptuner/state/` yourself, which holds backups and stations. If Docker creates it, it will end up owned by root.
 
 ```sh
 mkdir -p ~/hqptuner/state && cd ~/hqptuner
@@ -181,7 +165,7 @@ HQPTuner starts right away, and again at every boot. Open `http://yourserverIP:8
 
 To update, install the newer package the same way. To set anything from the configuration reference below, run `sudo systemctl edit hqptuner` and add an `Environment=` line under `[Service]`.
 
-Presets, backups and settings are kept in `/var/lib/hqptuner`, and removing the package leaves them there. On Debian and Ubuntu, `sudo apt purge hqptuner` asks whether to delete them. On Fedora, RHEL and AlmaLinux, delete the folder by hand.
+Stations, backups and settings are kept in `/var/lib/hqptuner`, and removing the package leaves them there. On Debian and Ubuntu, `sudo apt purge hqptuner` asks whether to delete them. On Fedora, RHEL and AlmaLinux, delete the folder by hand.
 
 The packages need systemd and glibc 2.28 or newer: Debian 12, Ubuntu 22.04, RHEL 8, or anything later.
 
@@ -193,7 +177,7 @@ Launching HQPTuner puts an icon in the menu bar and opens the UI in your default
 
 The menu bar icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
 
-To update, quit HQPTuner and drag the newer app into Applications. Presets, backups and settings are kept in `~/Library/Application Support/HQPTuner`, and deleting the app leaves them there.
+To update, quit HQPTuner and drag the newer app into Applications. Stations, backups and settings are kept in `~/Library/Application Support/HQPTuner`, and deleting the app leaves them there.
 
 ### Windows app
 
@@ -205,11 +189,11 @@ Launching HQPTuner from the Start Menu puts an icon in the notification area and
 
 The icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
 
-To update, quit HQPTuner and run the newer installer. Presets, backups and settings are kept in `%LOCALAPPDATA%\HQPTuner`, and uninstalling leaves them there.
+To update, quit HQPTuner and run the newer installer. Stations, backups and settings are kept in `%LOCALAPPDATA%\HQPTuner`, and uninstalling leaves them there.
 
 ### From a clone (no Docker)
 
-Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.
+Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`. New worktrees initialize the submodule on their own once the post-checkout hook is installed with `pre-commit install --hook-type post-checkout -c .pre-commit-post-checkout.yaml --allow-missing-config`.
 
 ```sh
 python3 -m venv .venv
@@ -235,9 +219,11 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_HQP_PASSWORD` | `password` | Management password; default is hqplayerd's stock credential |
 | `HQPTUNER_HQP_HOME` | `/var/lib/hqplayer/home` | hqplayerd's data/home directory on the daemon host (uploaded convolution impulses land here) |
 | `HQPTUNER_FILTER_MAX_BYTES` | `33554432` | Largest convolution filter upload accepted (32 MiB); uploads parked between applies are capped at 256 MiB in total |
-| `HQPTUNER_LISTEN_HOST` | `127.0.0.1` | HQPTuner bind address. The Windows and macOS apps set it to `0.0.0.0`, as the Linux service and the container do |
+| `HQPTUNER_STATE_MAX_BYTES` | `67108864` | Largest state upload accepted (64 MiB), and the most its stores may unpack to |
+| `HQPTUNER_LISTEN_HOST` | `127.0.0.1` | HQPTuner bind address |
 | `HQPTUNER_LISTEN_PORT` | `8090` | HQPTuner port |
 | `HQPTUNER_POLL_INTERVAL` | `2.0` | Status poll cadence (s) |
+| `HQPTUNER_STATUS_INTERVAL` | `1.0` | Status-only read cadence between polls while playing (s) |
 | `HQPTUNER_ALARM_THRESHOLD` | `15.0` | Seconds unreachable before alarm |
 | `HQPTUNER_REQUEST_TIMEOUT` | `5.0` | Per-request timeout (s) |
 | `HQPTUNER_DISCOVERY_TIMEOUT` | `3.0` | How long `GET /api/discover` waits for daemons to answer (s) |
@@ -245,10 +231,10 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_DISCOVERY_TARGET` | `239.192.0.199` | Where discovery sends its datagram; HQPlayer's multicast group by default, or a host address on a network that drops multicast. `host:port` overrides the port |
 | `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
-| `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned preset store |
-| `HQPTUNER_LIVE_PRESET_FILE` | `state/live-presets.json` | The LIVE view's saved setting combos, one JSON file |
+| `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned station store |
+| `HQPTUNER_LIVE_PRESET_FILE` | `state/live-presets.json` | Snapshots, the live settings saved under each station, one JSON file |
 | `HQPTUNER_FAVORITES_FILE` | `state/favorites.json` | Starred filter names, one JSON file shared by every browser |
-| `HQPTUNER_AUTOPILOT_FILE` | `state/autopilot.json` | The high-frequency filter's auto-pilot: whether it is on and which config presets carry it |
+| `HQPTUNER_AUTOPILOT_FILE` | `state/autopilot.json` | The high-frequency filter's auto-pilot: whether it is on and which stations carry it |
 | `HQPTUNER_DEBUG_LOG` | unset (off) | Path to the append-only event log. Unset means no file and no records. Set it to record every durable write — staged edits, applies, profile writes, preset writes — as JSON Lines, e.g. `/state/audit.jsonl` in the container |
 | `HQPTUNER_JUNKCAL_DIR` | unset (off) | Directory for the junk-filter detector's calibration capture. Unset means no files. Set it to write one JSON Lines file per playback period while Nx content plays, one row every 15 s with the detector's verdict and the noise-floor spectrum above 13 kHz, e.g. `/state/junkcal` in the container |
 | `HQPTUNER_LOG_LEVEL` | `INFO` | Level for ordinary prose logging. A level name, not a number; an unparseable value falls back to `INFO` rather than refusing to start |
@@ -261,4 +247,4 @@ Bug reports and contributions are welcome and encouraged. See `CONTRIBUTING.md` 
 
 ## License
 
-[MIT](LICENSE). The Control API implementation is derived from Jussi Laako's official `hqp-control` utility source, itself MIT-licensed, with attribution. The vendored headphone EQ database is from [AutoEq](https://github.com/jaakkopasanen/AutoEq) (MIT).
+[MIT](LICENSE). The Control API implementation is derived from Jussi Laako's official `hqp-control` utility source, itself MIT-licensed, with attribution. The vendored headphone EQ database is from [AutoEq](https://github.com/jaakkopasanen/AutoEq) (MIT). The Aurora spectrum style's shader is ported from [cava](https://github.com/karlstav/cava)'s `northern_lights.frag` (MIT).

@@ -1,0 +1,103 @@
+/* Faceplate primitives: lamps, legends, VFD glass, segments, buttons, tags, text blocks.
+   Every region stylesheet builds on these; none of them know about layout. */
+
+/* Lamps: round indicator. .on = green, .bad = red. .big = bezeled engine-row lamp. */
+.lamp{width:var(--lamp-d);height:var(--lamp-d);border-radius:var(--r-round);background:var(--lamp-off);border:var(--hair) solid var(--lamp-rim);box-shadow:var(--lamp-well);flex-shrink:0}
+.lamp.on{background:var(--ok);box-shadow:0 0 var(--sp-3) var(--ok),inset 0 0 var(--sp-1) var(--glint)}
+.lamp.bad{background:var(--bad);box-shadow:0 0 var(--sp-3) var(--bad),inset 0 0 var(--sp-1) var(--glint)}
+.lamp.big{position:relative;width:var(--lamp-d-big);height:var(--lamp-d-big);border:var(--stroke) solid var(--line-2);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade),0 0 0 var(--hair) var(--lamp-rim)}
+.lamp.big.on{border-color:var(--ok-rim)}
+.lamp.big.bad{border-color:var(--bad-rim)}
+@property --lit{syntax:"<number>";inherits:true;initial-value:0}
+.lamp.big::after{content:"";position:absolute;inset:0;border-radius:var(--r-round);background:color-mix(in oklab,var(--bad) calc(var(--lit) * var(--lamp) * 100%),transparent);box-shadow:0 0 calc(var(--sp-1) + var(--sp-6) * var(--lit) * var(--lamp)) color-mix(in oklab,var(--bad) calc(var(--lit) * var(--lamp) * 70%),transparent);animation-duration:var(--lamp-decay);animation-timing-function:ease-out;animation-iteration-count:1}
+.lamp.big.flash-0::after{animation-name:lamp-flash-even}
+.lamp.big.flash-1::after{animation-name:lamp-flash-odd}
+@keyframes lamp-flash-even{0%{--lit:0}8%{--lit:1}100%{--lit:0}}
+@keyframes lamp-flash-odd{0%{--lit:0}8%{--lit:1}100%{--lit:0}}
+@media (prefers-reduced-motion:reduce){.lamp.big.flash-0::after,.lamp.big.flash-1::after{animation-name:none;--lit:1}}
+
+/* Backlit legend: the word itself is the light (tuner TUNED/STEREO style). Distinct from round lamps. */
+.legend{display:inline-flex;align-items:center;height:var(--legend-h);padding:0 var(--sp-5);box-sizing:border-box;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:inset 0 var(--hair) var(--sp-2) var(--shade);font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-dead);white-space:nowrap;line-height:var(--lh-eng)}
+.legend.on{color:var(--ok);text-shadow:0 0 var(--sp-3) var(--ok-glow),0 0 var(--hair) var(--ok)}
+.legend.bad{color:var(--bad);text-shadow:0 0 var(--sp-3) var(--bad-glow),0 0 var(--hair) var(--bad)}
+
+/* VFD glass: amber readout window. .l = small label, .v = value. Also the skin for selects, number inputs, picker buttons. */
+.vfd{box-sizing:border-box;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-2) var(--sp-5);font-family:var(--f-mono);color:var(--acc);display:flex;flex-direction:column;justify-content:center;gap:0;min-width:0;line-height:var(--lh-text)}
+/* Window label: one size everywhere. lh 1.1 fits label + value in one --ctl-h window. */
+.vfd .l{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);color:var(--ink-2);text-transform:uppercase;line-height:1.1}
+.vfd .v{font-size:var(--fs-4);font-weight:var(--fw-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vfd.dim{color:var(--ink-2)}   /* auto / idle value: neutral ink, not dim amber (text never darker than ink-2) */
+.stale .vfd{color:var(--ink-2)}   /* a value shown while its form's readback is pending or its last read failed: neutral ink */
+/* The ▾ is two --chev halves, --sp-6 in from the right edge; the text keeps --sp-5 clear of it. */
+select.vfd{appearance:none;-webkit-appearance:none;height:var(--ctl-h);line-height:var(--ctl-h);font-size:var(--fs-5);padding:0 calc(var(--sp-6) + 2 * var(--chev) + var(--sp-5)) 0 var(--sp-6);cursor:pointer;width:100%;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-6) - var(--chev)) 50%,calc(100% - var(--sp-6)) 50%;background-size:var(--chev) var(--chev);background-repeat:no-repeat}
+input.vfd{height:var(--ctl-h);width:var(--num-w);font-size:var(--fs-6);font-weight:var(--fw-medium);text-align:right;padding:0 var(--sp-5);color:var(--acc);-moz-appearance:textfield}
+input.vfd::-webkit-inner-spin-button{opacity:var(--op-1)}
+/* Native list popups: family headers (optgroup) ink-2, options the window's amber, on glass. Never inherit a window's
+   neutral / dim ink (rate pin on Auto). */
+select optgroup{background:var(--glass);color:var(--ink-2);font-style:normal}
+select option{background:var(--glass);color:var(--acc)}
+
+/* Segmented switch. Exactly one button carries .on. Size variants live with the region that uses them. */
+.seg{display:inline-flex;border:var(--hair) solid var(--shade);border-radius:var(--r-2);overflow:hidden;background:var(--glass);box-shadow:inset 0 var(--hair) var(--sp-2) var(--shade)}
+.seg button{height:var(--ctl-h);padding:0 var(--sp-7);border:0;border-right:var(--hair) solid var(--seam);background:transparent;color:var(--ink-2);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-5);letter-spacing:var(--ls-1);text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
+.seg button:last-child{border-right:0}
+.seg button.dirty{position:relative}   /* an option holding a staged edit */
+.seg button.dirty::after{content:"";position:absolute;top:var(--dot-inset);right:var(--dot-inset);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+.seg button.on{background:var(--acc);color:var(--on-acc)}
+.stale .seg button.on{background:var(--ink-2)}   /* a lit value shown while its form's readback is pending or its last read failed: neutral fill */
+.seg .su{text-transform:none;letter-spacing:0}   /* unit inside a seg option: case kept */
+.seg.mini button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-3);letter-spacing:var(--ls-1)}
+/* View / navigation pick (drawer tabs, meter views, which input / page / plot): ink on a lifted key with an accent
+   foot. The solid accent fill is only for a setting's value, so the accent stays scarce. */
+.seg.view button.on,.dtabs button[aria-selected="true"],.opb.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 calc(-1 * var(--stroke)) 0 var(--acc)}
+
+/* Raised push button. aria-expanded="true" = its popover is open. */
+.btn{height:var(--ctl-h);padding:0 var(--sp-7);border-radius:var(--r-2);border:var(--hair) solid var(--line-2);background:var(--raised);color:var(--ink);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-5);letter-spacing:var(--ls-1);text-transform:uppercase;cursor:pointer;box-shadow:var(--raised-shadow);white-space:nowrap;line-height:var(--lh-eng)}
+a.btn,label.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}   /* a <button> centers its own text */
+.btn[aria-expanded="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
+.btn:disabled{color:var(--ink-2);background:var(--plate-2);box-shadow:none;cursor:default}
+.btn.hb{height:var(--ctl-h-hdr);padding:0 var(--sp-5);font-size:var(--fs-4)}   /* header row */
+.btn.sm{height:var(--ctl-h-sm);font-size:var(--fs-4)}                  /* popover footers */
+.btn.xs{height:var(--ctl-h-xs);font-size:var(--fs-4);flex-shrink:0}  /* inline row actions */
+
+/* Round raised button (gear, volume ±, drawer close). */
+.round{width:var(--ctl-h);height:var(--ctl-h);border-radius:var(--r-round);border:var(--hair) solid var(--line-2);background:var(--raised);color:var(--ink-2);cursor:pointer;box-shadow:var(--raised-shadow)}
+.round.gear{display:inline-flex;align-items:center;justify-content:center;margin-left:var(--sp-3)}
+.round.vbtn{color:var(--ink);font-size:var(--fs-glyph-vol);line-height:1;font-family:var(--f-body)}
+.round.dx{font-size:var(--fs-glyph);line-height:1;font-family:var(--f-body);flex-shrink:0}
+
+/* Removable tag (an active narrowing): the `b` inside it removes it. */
+.tag{display:inline-flex;align-items:center;gap:var(--sp-3);height:var(--tag-h);padding:0 var(--sp-4);border:var(--hair) solid var(--line-2);border-radius:calc(var(--tag-h) / 2);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap}
+.tag b{color:var(--ink-2);font-weight:var(--fw-medium);cursor:pointer}
+
+.chk{display:inline-flex;align-items:center;gap:var(--sp-4);font-size:var(--fs-4);color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.chk input{width:var(--check);height:var(--check);margin:0;accent-color:var(--acc)}
+
+/* Field head: <b>label</b> + optional .s subtitle. */
+.fh{display:flex;align-items:baseline;gap:var(--sp-5)}
+.fh b{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink)}
+.fh .s{font-size:var(--fs-3);color:var(--ink-2)}
+
+/* Manual copy block. Full manual / owner / engine text only; never paraphrased. <code> = engine enum. */
+.man{font-size:var(--fs-4);line-height:1.5;color:var(--ink-2);max-width:var(--measure)}
+.man code{font-family:var(--f-mono);color:var(--ink);font-size:var(--fs-3);line-height:var(--lh-text)}
+.lede{font-size:var(--fs-4);color:var(--ink-2);font-style:italic;max-width:var(--measure-lede);line-height:1.5}
+.cap{font-size:var(--fs-3);color:var(--ink-2);line-height:1.4}
+.adv{font-size:var(--fs-3);color:var(--ink-2);font-style:italic}
+
+/* "↻ restart" mark: setting or station that needs an engine restart. It keeps its own gap from the words it sits beside, on either side. */
+.rs{margin-inline:var(--sp-2);font-family:var(--f-mono);font-size:inherit;color:var(--ink-2);letter-spacing:0;text-transform:none;font-weight:var(--fw-regular);line-height:inherit}
+.fh > .rs{margin-inline-start:0}   /* a flex head already gaps its children */
+/* Dirty dot after a label: a staged row, device or rate dial dots its row's label, a staged volume box its own label, a
+   rail stage, snapshot or station fold its name. */
+.drow[data-dirty] > .ctl > .fh > b::after,
+.drow > .ctl > .fh:has(~ .devpick[data-dirty]) > b::after,
+.drow > .ctl > .fh:has(~ .dial[data-dirty]) > b::after,
+.vrbox:has(> input.vfd[data-dirty]) > .cl::after,
+.brh.dirty .sn::after,
+.st.bst.dirty .n::after,
+.st.dirty .n > .stg{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+/* `… see more` ending prose shown short: a link-styled button opening the held-back prose in a note popover. */
+.seemore{border:0;padding:0;background:none;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
+.seemore:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1);border-radius:var(--r-1)}

@@ -214,7 +214,7 @@ def test_a_tone_keeps_its_corner_off_the_block(junk_db: float, seen: Corners) ->
     assert _verdict_corners(_with_a_27k_tone(_junk_over_music(junk_db))) == seen
 
 
-# --- the spur: persistent tones over their own neighbourhood ----------------------
+# --- the spur: persistent tones over their own neighborhood ----------------------
 
 
 def _with_tones(*tones: tuple[int, float]) -> Levels:

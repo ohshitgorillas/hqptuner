@@ -3,9 +3,9 @@
 //
 // A preset is a whole hqplayerd config, so which transducer it is for is a
 // property of that preset. hqplayerd re-serializes its config from its own model
-// and would drop an attribute of ours (docs/matrix-spec.md:31), so the choice
+// and would drop an attribute of ours, so the choice
 // lives in HQPTuner's own sidecar, keyed by preset NAME — the stable join key
-// (docs/architecture.md §3.1) — and reaches the client over one REST pair,
+// — and reaches the client over one REST pair,
 // GET/PUT /api/matrixmodes.
 //
 // The map is read ONCE, when the store module loads, the way favorites and
@@ -19,7 +19,7 @@
 // under `hqptuner.dspMode` still answers "what side was I last on", for a preset
 // with no entry and for the moments there is no preset at all.
 //
-// The wire is faked, never a store function (docs/testing.md rule 4): it speaks
+// The wire fake speaks
 // the real paths with the real shapes, HOLDS the map the way the backend's store
 // does, and records the PUT bodies it is handed. Which preset the view follows is
 // driven the way the app drives it — `config.active` for the applied one,
@@ -37,6 +37,7 @@ import { config, matrixConfig, pendingPreset } from "../../../../hqptuner/static
 import { stagedCount } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { useStorage, dropStorage } from "../../support/storage.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -49,7 +50,56 @@ const UNRECORDED = "Attic"; // in the picker, absent from the map
 
 // One ordinary daemon field, carried by every config this file assigns so that
 // an edit staged against it keeps its baseline across a change of preset.
-const FIELDS = [{ name: "volume_max", value: "-3" }];
+const FIELDS = [{ name: "volume_max" }];
+
+/** The lifecycle generation every config reading in this file is stamped with. */
+const GEN = 1;
+
+/**
+ * Every value the staging wire holds, by field name, whichever lane it went to.
+ *
+ * @returns {Record<string, unknown>}
+ */
+function stagedByName() {
+  /** @type {Record<string, unknown>} */
+  const flat = { ...W.staged.http };
+  for (const [name, value] of Object.entries(W.staged.live)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) Object.assign(flat, value);
+    else flat[name] = value;
+  }
+  return flat;
+}
+
+/**
+ * The config reading's fields as the backend serves them: the
+ * ordinary field and the matrix config's crossfeed fields, each carrying
+ * whatever the staging wire holds for it, every other staged name besides, and
+ * the applied preset as the read-only `active_preset` field.
+ *
+ * @param {string} active
+ */
+function servedFields(active) {
+  const staged = stagedByName();
+  const base = { volume_max: -3, post_bauer_enabled: "1", post_bauer_preset: "default" };
+  /** @type {Record<string, unknown>} */
+  const fields = {};
+  for (const name of new Set([...Object.keys(base), ...Object.keys(staged)])) {
+    const value = name in base ? base[/** @type {keyof typeof base} */ (name)] : null;
+    fields[name] = fieldReading(value, {
+      generation: GEN,
+      staged: name in staged ? staged[name] : null,
+      lane: "restore",
+      show: "file",
+      restarts: true,
+      bounds: typeof value === "number" ? { min: -40, max: 0, step: 1 } : null,
+    });
+  }
+  fields.active_preset = { value: active, readonly: true };
+  return fields;
+}
+
+/** The applied preset the backend reports; `reset()` and `lookAt()` move it. */
+let applied = "";
 
 /** The map as the backend holds it before anything in this file writes. @type {Record<string, string>} */
 const PRISTINE = { [SPK]: "speakers", [HP]: "headphones" };
@@ -74,6 +124,7 @@ const GETS = [];
 /** @type {StagingWire} */
 const W = stagingWire({
   routes: (path, opts) => {
+    if (path === "/api/config") return ok({ generation: GEN, fields: servedFields(applied) });
     if (path !== PATH) return undefined;
     const method = opts.method || "GET";
     if (method !== "PUT") {
@@ -87,7 +138,12 @@ const W = stagingWire({
   },
 });
 
-const { matrixMode, setMatrixMode } = await import("../../../../hqptuner/static/store/matrix/mode.js");
+const { matrixMode, hydrateMatrixModes } = await import("../../../../hqptuner/static/store/matrix/mode.js");
+
+// The load-time read is the app's boot calling the module's hydrate, the way
+// the favorites suites hydrate theirs; it runs once, here, for the whole file.
+await hydrateMatrixModes();
+await quiesce(W);
 
 /**
  * Put the module back to a stated starting state: the config naming the applied
@@ -111,32 +167,35 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
   for (const name of Object.keys(MODES)) delete MODES[name];
   Object.assign(MODES, PRISTINE);
   pendingPreset.value = null;
-  config.value = { fields: FIELDS, file: {}, active, profiles: null };
-  matrixConfig.value = {
-    fields: [
-      { name: "post_bauer_enabled", value: "1" },
-      { name: "post_bauer_preset", value: "default" },
-    ],
-    rows: [],
-  };
+  applied = active;
+  config.value = { fields: FIELDS };
+  await seedReadings(servedFields(active), GEN);
+  matrixConfig.value = { fields: [{ name: "post_bauer_enabled" }, { name: "post_bauer_preset" }] };
   await discardAll();
   pendingPreset.value = pending;
   matrixMode.value = mode;
   await quiesce(W);
+  await seedReadings(servedFields(active), GEN);
   PUTS.length = 0;
 }
 
 /**
  * Make `name` the applied preset the view follows, the way the app does — a
  * FRESH config object, since writing the same reference to a signal does not
- * notify.
+ * notify — and the config reading that names it as `active_preset`.
+ *
+ * Once the wire is quiet the reading is served again, as the backend re-reads
+ * after an accepted write, so anything the switch staged shows in the count.
  *
  * @param {string} name
  * @returns {Promise<void>}
  */
 async function lookAt(name) {
-  config.value = { fields: FIELDS, file: {}, active: name, profiles: null };
+  applied = name;
+  config.value = { fields: FIELDS };
+  await seedReadings(servedFields(name), GEN);
   await quiesce(W);
+  await seedReadings(servedFields(name), GEN);
 }
 
 // --- the preset carries the choice ------------------------------------------------
@@ -149,13 +208,6 @@ test("test_looking_at_a_preset_recorded_as_speakers_puts_the_tab_on_speakers", a
 
 test("test_looking_at_a_preset_recorded_as_headphones_puts_the_tab_on_headphones", async () => {
   await reset({ mode: "speakers" });
-  await lookAt(HP);
-  assert.equal(matrixMode.value, "headphones");
-});
-
-test("test_a_preset_takes_its_own_recorded_mode_and_not_the_one_before_it", async () => {
-  await reset({ mode: "speakers" });
-  await lookAt(SPK);
   await lookAt(HP);
   assert.equal(matrixMode.value, "headphones");
 });
@@ -212,66 +264,7 @@ test("test_looking_at_a_preset_with_no_recorded_mode_leaves_speakers_alone", asy
 
 // --- the hand-driven switcher records the choice ----------------------------------------
 
-test("test_switching_by_hand_records_the_new_mode_for_the_preset_being_looked_at", async () => {
-  await reset({ mode: "speakers", active: SPK });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.deepEqual(PUTS.at(-1), { name: SPK, mode: "headphones" });
-});
-
-test("test_switching_by_hand_sends_exactly_one_put", async () => {
-  await reset({ mode: "speakers", active: SPK });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.equal(PUTS.length, 1);
-});
-
-// Every click records, including one on the half already displayed: that is how
-// a preset with no recorded mode gets bound to the side it opened on. A store
-// that skipped the write when the requested mode matches the current one leaves
-// that preset unbound for ever, and no case that flips sides can see it.
-test("test_clicking_the_half_already_displayed_still_records_it", async () => {
-  await reset({ mode: "speakers", active: UNRECORDED });
-  await setMatrixMode("speakers");
-  await quiesce(W);
-  assert.deepEqual(PUTS.at(-1), { name: UNRECORDED, mode: "speakers" });
-});
-
-test("test_switching_by_hand_records_the_choice_against_a_previewed_preset", async () => {
-  await reset({ mode: "speakers", active: HP, pending: SPK });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.deepEqual(PUTS.at(-1), { name: SPK, mode: "headphones" });
-});
-
 // --- nothing to key the choice to ----------------------------------------------------------
-
-test("test_switching_by_hand_with_no_preset_being_looked_at_records_nothing", async () => {
-  await reset({ mode: "speakers", active: "" });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.deepEqual(PUTS, []);
-});
-
-test("test_switching_by_hand_with_no_preset_being_looked_at_still_moves_the_tab", async () => {
-  await reset({ mode: "speakers", active: "" });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.equal(matrixMode.value, "headphones");
-});
-
-// With no preset to key the choice to, the browser's own memory is all there is:
-// the click still has to leave the last-used side behind, or a reload with no
-// preset lands the user back on the other half.
-test("test_switching_by_hand_with_no_preset_being_looked_at_still_remembers_the_side", async () => {
-  const storage = useStorage();
-  await reset({ mode: "speakers", active: "" });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  const stored = storage.getItem(MODE_KEY);
-  dropStorage();
-  assert.equal(stored, "headphones");
-});
 
 // --- the map is read once, when the module loads ---------------------------------------
 // Nothing polls it: a choice made in another browser turns up on reload, not by
@@ -316,6 +309,7 @@ async function loadCopy(tag, fetchImpl) {
   env.fetch = fetchImpl;
   const copy = new URL(`../../../../hqptuner/static/store/matrix/mode.fresh-${tag}.js`, import.meta.url).href;
   const loaded = await import(copy);
+  await loaded.hydrateMatrixModes();
   await quiesce(W);
   env.fetch = saved;
   return loaded;

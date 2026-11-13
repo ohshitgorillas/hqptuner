@@ -75,7 +75,7 @@ def widths(excess: Sequence[float], thresh: float) -> list[int]:
 
 
 def _dead_result() -> dict[str, Any]:
-    """Return the full ``analyse`` shape for a dead row, with every reading field its empty value."""
+    """Return the full ``analyze`` shape for a dead row, with every reading field its empty value."""
     return {
         "dead": True,
         "floor": float("nan"),
@@ -91,7 +91,7 @@ def _dead_result() -> dict[str, Any]:
     }
 
 
-def analyse(row: dict[str, Any]) -> dict[str, Any] | None:
+def analyze(row: dict[str, Any]) -> dict[str, Any] | None:
     """Return the current spur rule and candidate variants' readings for one stored row."""
     spectrum = row.get("spectrum") or []
     if not spectrum:
@@ -158,7 +158,7 @@ def main() -> int:
     dead: defaultdict[str, int] = defaultdict(int)
     out: list[str] = []
     for name, lineno, row in load():
-        res = analyse(row)
+        res = analyze(row)
         if res is None:
             continue
         label = str((row.get("verdict") or {}).get("filter", "none"))

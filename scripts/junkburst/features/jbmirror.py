@@ -10,7 +10,7 @@ from jbmask import DECILES, MASK_SWEEP_ALBUM_LEVEL, MASK_SWEEP_CANDIDATE, SWEEP_
 from jbthresholds import best_threshold, calls_fake
 
 if TYPE_CHECKING:
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 
 #: The candidate the mirror section grades, and the ratio line its veto forces real at.
@@ -122,7 +122,7 @@ def mirror_tables(
     return mirror_deciles(kept_m), mirror_albums(kept_m, row_key_of), grades
 
 
-def mirror_section(run: LabelledRun) -> list[str]:
+def mirror_section(run: LabeledRun) -> list[str]:
     """Return the report's mirror section: M's deciles, its per-album table, then M alone and G or M."""
     cand, other = MIRROR_CANDIDATE, MASK_SWEEP_CANDIDATE
     intro = (

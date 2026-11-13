@@ -1,0 +1,289 @@
+// Option lists, free of the DOM: what the hover tip says and where it lands beside its row, where a panel parks at its
+// picker, how the narrowed list groups into families and variants, which placement columns survive narrowing, how the
+// Standard style fills its columns in engine order, and which marks a window's key explains.
+
+import { clamp } from "../../lib/coerce.js";
+import { ON_PLATE } from "./place.js";
+
+/**
+ * An option's narrowing facets (filters).
+ *
+ * @typedef {object} Facets
+ * @property {number | null} [q]
+ * @property {string[]} genre
+ * @property {string[]} focus
+ * @property {string} phase
+ * @property {string} len
+ * @property {boolean} adaptive
+ * @property {"full" | "half" | null} apod
+ * @property {boolean} [hires]
+ * @property {boolean} up
+ * @property {string | null} [ratio]
+ * @property {string | null} [ratioPcm]
+ * @property {string | null} [ratioSdm]
+ */
+
+/**
+ * One option as the data lists it.
+ *
+ * @typedef {object} Opt
+ * @property {string} v
+ * @property {string} fam
+ * @property {string | null} var
+ * @property {string} leaf
+ * @property {string} d
+ * @property {string} [d2]
+ * @property {Facets} [f]
+ * @property {number} [gen]
+ * @property {string} [tier]
+ * @property {boolean} [def]  HQPlayer's factory default for the setting
+ * @property {boolean} [disabled]  a modulator the SDM output rate in force cannot run: listed, never picked
+ */
+
+/** A mark a window's key explains: apodizing, half apodizing, quality, favorite, factory default. @typedef {"apod" | "half" | "quality" | "fav" | "default"} KeyMark */
+
+/** Facet labels by facet key, then by option value: the narrowing bar's own words. @typedef {Record<string, Record<string, string>>} Labels */
+
+/** A size in layout px. @typedef {{w: number, h: number}} Size */
+
+/**
+ * One column of the custom placement: `split` gives its one family two columns of named variants; `title` heads a column
+ * of several families; `then` adds a titled block under the column's families.
+ *
+ * @typedef {object} Placement
+ * @property {string[]} fams
+ * @property {string} [title]
+ * @property {string[][]} [split]
+ * @property {{title: string, fams: string[]}} [then]
+ */
+
+/**
+ * A placement column after narrowing. A split names its family and the variants present in each half, and is a band
+ * (two columns under one header) while both halves have rows. A stack lists the families present, and its `then` block
+ * when any of that block's families is.
+ *
+ * @typedef {{kind: 'split', fam: string, halves: string[][], band: boolean}
+ *   | {kind: 'stack', title: string | undefined, fams: string[], then: {title: string, fams: string[]} | null}} Column
+ */
+
+/** @type {Record<string, string>} */
+const RATIO = { integer: "Integer", "2x": "2x", "1:1": "1:1", any: "Any" };
+const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
+const MARGIN = 12;
+
+/**
+ * A ratio in the narrowing bar's words, else as given.
+ *
+ * @param {string} r
+ * @returns {string}
+ */
+const ratioName = (r) => RATIO[r] ?? r;
+
+/**
+ * The Length row's value: the length named, marked adaptive when it adapts (the adaptive label alone without a length).
+ *
+ * @param {Facets} f
+ * @param {Labels} facet
+ * @returns {string}
+ */
+function lengthText(f, facet) {
+  if (!f.adaptive) return facet.length[f.len];
+  return f.len ? `${facet.length[f.len]}, adaptive` : facet.length.adaptive;
+}
+
+/**
+ * The Ratio row's value: the one ratio, else the PCM and SDM ratios given ('' = none).
+ *
+ * @param {Facets} f
+ * @returns {string}
+ */
+function ratioText(f) {
+  if (f.ratio != null) return ratioName(f.ratio);
+  return [f.ratioPcm != null && `PCM ${ratioName(f.ratioPcm)}`, f.ratioSdm != null && `SDM ${ratioName(f.ratioSdm)}`]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/**
+ * The facet rows in order: each label, whether an option's facets have it, and its value.
+ *
+ * @type {[string, (f: Facets) => boolean, (f: Facets, facet: Labels) => string][]}
+ */
+const ROWS = [
+  ["Quality", (f) => f.q != null, (f) => `${f.q}/5`],
+  ["Genre", (f) => f.genre.length > 0, (f, facet) => f.genre.map((g) => facet.genre[g] ?? g).join(", ")],
+  ["Focus", (f) => f.focus.length > 0, (f, facet) => f.focus.map((g) => facet.focus[g] ?? g).join(", ")],
+  ["Phase", (f) => !!f.phase, (f, facet) => facet.phase[f.phase] ?? f.phase],
+  ["Length", (f) => !!(f.len || f.adaptive), lengthText],
+  ["Ratio", (f) => !!ratioText(f), ratioText],
+];
+
+/**
+ * The tip's facet rows in the narrowing bar's words, [label, value]; an option without facets has its Generation row.
+ *
+ * @param {Opt} o
+ * @param {Labels} facet
+ * @returns {[string, string][]}
+ */
+export function tipRows(o, facet) {
+  const f = o.f;
+  if (!f) return o.gen && ORD[o.gen] ? [["Generation", ORD[o.gen]]] : [];
+  return ROWS.filter(([, has]) => has(f)).map(([label, , value]) => [label, value(f, facet)]);
+}
+
+/**
+ * The tip's boolean chips.
+ *
+ * @param {Opt} o
+ * @returns {string[]}
+ */
+export const tipChips = (o) =>
+  o.f
+    ? [
+        o.f.apod === "half" ? "Half apodizing" : o.f.apod === "full" ? "Apodizing" : "",
+        o.f.up ? "Upsample only" : "",
+      ].filter(Boolean)
+    : [];
+
+/**
+ * What the tip says: the raw engine name while Simplified hides it (null in Standard), the manual prose (Standard's own
+ * where it differs), the facet rows and the chips.
+ *
+ * @param {Opt} o
+ * @param {boolean} std   option style Standard
+ * @param {Labels} facet
+ * @returns {{name: string | null, text: string | undefined, rows: [string, string][], chips: string[]}}
+ */
+export function tipContent(o, std, facet) {
+  return { name: std ? null : o.v, text: std ? o.d2 || o.d : o.d, rows: tipRows(o, facet), chips: tipChips(o) };
+}
+
+/**
+ * The tip's corner beside its row's column, in layout px from its containing block's corner (`origin`, the plate's own
+ * by default): right of the column when there's room, else left; its top on the row, clamped inside the plate.
+ *
+ * @param {{col: {x: number, w: number}, rowY: number, tip: Size, plate: Size, origin?: import("./place.js").Origin}} o
+ *   the column's plate x and width, the row's plate y
+ * @returns {{left: number, top: number}}
+ */
+export function tipAt({ col, rowY, tip, plate, origin = ON_PLATE }) {
+  const right = col.x + col.w + 10;
+  const x = right + tip.w <= plate.w - MARGIN ? right : Math.max(MARGIN, col.x - tip.w - 10);
+  const y = clamp(rowY - 4, MARGIN, plate.h - MARGIN - tip.h);
+  return { left: Math.round(x - origin.x), top: Math.round(y - origin.y) };
+}
+
+/**
+ * The panel's corner on the plate, parked at its picker: left edges aligned, below it when it fits, else above, else as
+ * low as the plate allows; centered when no picker shows. Clamped inside the plate.
+ *
+ * @param {{panel: Size, trigger: {x: number, y: number, h: number} | null, plate: Size}} o   the picker's plate corner
+ *   and height
+ * @returns {{left: number, top: number}}
+ */
+export function parkAt({ panel, trigger, plate }) {
+  let x = (plate.w - panel.w) / 2,
+    y = (plate.h - panel.h) / 2;
+  if (trigger) {
+    x = trigger.x;
+    const below = trigger.y + trigger.h + 6,
+      above = trigger.y - panel.h - 6;
+    y = below + panel.h <= plate.h - MARGIN ? below : above >= MARGIN ? above : plate.h - MARGIN - panel.h;
+  }
+  return {
+    left: Math.round(clamp(x, MARGIN, plate.w - MARGIN - panel.w)),
+    top: Math.round(Math.max(MARGIN, y)),
+  };
+}
+
+/**
+ * The list as families → groups (variant, or '' for none) → options, each in first-appearance order.
+ *
+ * @param {Opt[]} opts
+ * @returns {Map<string, Map<string, Opt[]>>}
+ */
+export function groupTree(opts) {
+  /** @type {Map<string, Map<string, Opt[]>>} */
+  const fams = new Map();
+  for (const o of opts) {
+    let g = fams.get(o.fam);
+    if (!g) fams.set(o.fam, (g = new Map()));
+    const v = o.var ?? "";
+    let rows = g.get(v);
+    if (!rows) g.set(v, (rows = []));
+    rows.push(o);
+  }
+  return fams;
+}
+
+/**
+ * The placement's columns after narrowing: families the list lacks drop, and a column left with none drops. A split
+ * family's variants that no half names land in its last half, so no row the list holds goes undrawn.
+ *
+ * @param {Placement[]} place
+ * @param {Map<string, Map<string, Opt[]>>} fams
+ * @returns {Column[]}
+ */
+export function columns(place, fams) {
+  /** @type {Column[]} */
+  const out = [];
+  for (const c of place) {
+    const fs = c.fams.filter((f) => fams.has(f));
+    const more = c.then ? c.then.fams.filter((f) => fams.has(f)) : [];
+    if (!fs.length && !more.length) continue;
+    if (c.split) {
+      const fam = fs[0];
+      const vs = fams.get(fam) ?? new Map();
+      const named = new Set(c.split.flat());
+      const halves = c.split.map((names) => names.filter((v) => vs.has(v)));
+      halves[halves.length - 1].push(...[...vs.keys()].filter((v) => !named.has(v)));
+      out.push({ kind: "split", fam, halves, band: halves.every((half) => half.length > 0) });
+      continue;
+    }
+    out.push({
+      kind: "stack",
+      title: c.title,
+      fams: fs,
+      then: c.then && more.length > 0 ? { title: c.then.title, fams: more } : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Standard: the narrowed list in engine order, down column after column. Each column holds ceil(full list / columns)
+ * rows, so the full list fills them evenly and a narrowed one reflows from the top of the first.
+ *
+ * @param {Opt[]} opts
+ * @param {{total: number, cols: number, order: string[]}} o   the full list's length, the column count, the engine order
+ * @returns {Opt[][]}
+ */
+export function flatColumns(opts, { total, cols, order }) {
+  const per = Math.ceil(total / cols);
+  /** @param {string} v */
+  const idx = (v) => {
+    const i = order.indexOf(String(v));
+    return i < 0 ? Infinity : i;
+  };
+  const list = [...opts].sort((a, b) => idx(a.v) - idx(b.v));
+  const out = [];
+  for (let i = 0; i < list.length; i += per) out.push(list.slice(i, i + per));
+  return out;
+}
+
+/** The marks a filter list's key always explains. @type {KeyMark[]} */
+const FILTER_KEY = ["apod", "half", "quality", "fav"];
+
+/**
+ * The marks a window's key explains, in order: a filter list's own four, then the factory default whenever a row the
+ * window draws carries it. An empty key is not drawn.
+ *
+ * @param {boolean} filters  a filter list
+ * @param {Opt[]} drawn  the rows the window draws: narrowed, and none of a folded group's
+ * @returns {KeyMark[]}
+ */
+export function keyMarks(filters, drawn) {
+  /** @type {KeyMark[]} */
+  const own = filters ? FILTER_KEY : [];
+  return drawn.some((o) => o.def) ? [...own, "default"] : own;
+}

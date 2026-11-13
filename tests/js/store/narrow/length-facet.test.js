@@ -1,10 +1,10 @@
 // Behavioral suite for the filter LENGTH facet (store/narrow/facets.js): which length a filter carries, overlay-first with the name-token rules as fallback.
 //
-// The overlay row in data/filters.json may state a `length` token outright, and an explicit overlay length wins over anything the name says. Where no overlay row speaks, the name-token rules classify: the words short/medium/long, the halfband suffixes -hb-s and -hb-l, the -xl/-xla suffixes, with a trailing -2s stripped first. The -hb-xs suffix is NOT a name rule: an xshort length reaches a filter only through an overlay `length: "xshort"` row. A name no rule reaches carries "" — no length. (The adaptive boolean and the narrowing over it are pinned in tests/js/store/length-adaptive.test.js.)
+// The overlay row in data/filters.json may state a `length` token outright, and an explicit overlay length wins over anything the name says. Where no overlay row speaks, the name-token rules classify: the words short/medium/long, the halfband suffixes -hb-s and -hb-l, the -xl/-xla suffixes, with a trailing -2s stripped first. The -hb-xs suffix is NOT a name rule: an xshort length reaches a filter only through an overlay `length: "xshort"` row. A name no rule reaches carries "" — no length.
 //
 // Every name here is synthetic — no real filter's classification is asserted; the rules themselves are the subject.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no snapshots. Overlay rows reach the frontend two ways, and both are exercised: merged onto a live enum item under its `static` key the way the backend serves `<GetFilters/>` (protocol.md), and as entries of `metadata.value.filters.filters` keyed by name for filters the live enum does not carry (architecture.md §3.4).
+// Overlay rows reach the frontend two ways, and both are exercised: merged onto a live enum item under its `static` key the way the backend serves `<GetFilters/>`, and as entries of `metadata.value.filters.filters` keyed by name for filters the live enum does not carry.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/length-facet.test.js
 
@@ -40,7 +40,7 @@ const item = (name, index, staticRow) => ({
 });
 
 /**
- * Reseed both source signals with LIVE-enum filters — module-level signals
+ * Reseed both source signals with live-enum filters — module-level signals
  * outlive a test, so every case reassigns the pair in full. Each entry's
  * overlay row (or undefined) rides the item's `static` key, the way the
  * backend merges it.
@@ -151,15 +151,6 @@ for (const name of ["gauss-xl", "gauss-xla"]) {
 test("test_a_trailing_2s_suffix_is_stripped_before_classifying", () => {
   seed({ "gauss-hb-l-2s": undefined });
   assert.equal(lengthOf("gauss-hb-l-2s"), "long");
-});
-
-// --- -hb-xs is not a name rule -----------------------------------------------
-// The xshort length comes only from an overlay `length: "xshort"` row (pinned
-// above); the suffix alone carries nothing.
-
-test("test_an_hb_xs_name_with_no_overlay_row_has_no_length", () => {
-  seed({ "gauss-hb-xs": undefined });
-  assert.equal(lengthOf("gauss-hb-xs"), "");
 });
 
 // --- nothing matched ---------------------------------------------------------

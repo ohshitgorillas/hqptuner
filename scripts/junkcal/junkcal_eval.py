@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Score a junk-filter classifier against the labelled junkcal fixture corpus.
+"""Score a junk-filter classifier against the labeled junkcal fixture corpus.
 
 Every kept row under ``tests/support/fixtures/junkcal/`` is handed to a classifier on its own
 and the returned filter name is compared with the filter that row's own statistics in
@@ -15,8 +15,7 @@ row's own statistics support by the fixture's splits: the filter whose corner si
 expects ``none``, a spur-absent row included.
 
 The 20k rule reads one closed block's frames, and a fixture row stores a windowed minimum
-spectrum and no frames, so no row here can produce a record and none is scored on 20k. The 20k
-corpus is the burst corpus of ``docs/junk-filter-autopilot-resource-20k.md`` §2.
+spectrum and no frames, so no row here can produce a record and none is scored on 20k.
 
 ``--classifier`` takes a dotted path. A callable is used as it stands and must accept one row
 and return a filter name. A module is adapted: its ``classify`` is called on the row's own

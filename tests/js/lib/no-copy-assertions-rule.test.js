@@ -1,5 +1,5 @@
 // Behavioral suite for eslint-rules/no-copy-assertions.js, the frontend peer of
-// scripts/gates/testing/check_no_copy_assertions.py (docs/testing.md rule 9).
+// scripts/gates/testing/check_no_copy_assertions.py.
 //
 // The rule is driven through ESLint's Linter on invented source text, never
 // RuleTester: RuleTester's assertions are internal, and the one-assertion gate
@@ -91,7 +91,17 @@ test("a literal handed to a plain-identifier call is input, one handed to a memb
   ]);
 });
 
-test("seeds imported from under tests cover a literal composed of them, and nothing else covers it", () => {
+const inTestsImport = 'import { SLOPE } from "./support/harness.js";';
+const composed = '  assert.equal(a, "A gentle slope. Rarely useful.");';
+const extraWord = '  assert.equal(b, "A gentle slope. Rarely useful indeed.");';
+const outsideSeed = '  assert.equal(c, "Beyond the fence.");';
+
+/**
+ * A suite root holding a seed module under tests and one outside it, and the lint input twice: `seeded` imports the
+ * seed under tests, `unseeded` drops that import.
+ * @returns {{ root: string, seeded: string[], unseeded: string[] }}
+ */
+function seedFixture() {
   const root = suiteRoot();
   mkdirSync(join(root, "outside"), { recursive: true });
   writeFileSync(
@@ -99,10 +109,6 @@ test("seeds imported from under tests cover a literal composed of them, and noth
     'export const SLOPE = "A gentle slope.";\nexport const RARE = "Rarely useful.";\n',
   );
   writeFileSync(join(root, "outside", "seed.js"), 'export const FAR = "Beyond the fence.";\n');
-  const inTestsImport = 'import { SLOPE } from "./support/harness.js";';
-  const composed = '  assert.equal(a, "A gentle slope. Rarely useful.");';
-  const extraWord = '  assert.equal(b, "A gentle slope. Rarely useful indeed.");';
-  const outsideSeed = '  assert.equal(c, "Beyond the fence.");';
   const seeded = [
     ...PREAMBLE,
     inTestsImport,
@@ -114,11 +120,35 @@ test("seeds imported from under tests cover a literal composed of them, and noth
     "});",
   ];
   const unseeded = seeded.filter((line) => line !== inTestsImport);
-  assert.deepEqual(
-    [reportedLines(seeded, root), reportedLines(unseeded, root)],
-    [
-      [lineOf(seeded, extraWord), lineOf(seeded, outsideSeed)],
-      [lineOf(unseeded, composed), lineOf(unseeded, extraWord), lineOf(unseeded, outsideSeed)],
-    ],
-  );
+  return { root, seeded, unseeded };
+}
+
+test("with the seed import a literal composed of the seeds is not reported", () => {
+  const { root, seeded } = seedFixture();
+  assert.equal(reportedLines(seeded, root).filter((line) => line === lineOf(seeded, composed)).length, 0);
+});
+
+test("a literal adding a word to the imported seeds is reported once", () => {
+  const { root, seeded } = seedFixture();
+  assert.equal(reportedLines(seeded, root).filter((line) => line === lineOf(seeded, extraWord)).length, 1);
+});
+
+test("a seed imported from outside tests does not cover its literal, which is reported once", () => {
+  const { root, seeded } = seedFixture();
+  assert.equal(reportedLines(seeded, root).filter((line) => line === lineOf(seeded, outsideSeed)).length, 1);
+});
+
+test("without the seed import a literal composed of the seeds is reported once", () => {
+  const { root, unseeded } = seedFixture();
+  assert.equal(reportedLines(unseeded, root).filter((line) => line === lineOf(unseeded, composed)).length, 1);
+});
+
+test("without the seed import a literal adding a word to the seeds is reported once", () => {
+  const { root, unseeded } = seedFixture();
+  assert.equal(reportedLines(unseeded, root).filter((line) => line === lineOf(unseeded, extraWord)).length, 1);
+});
+
+test("without the seed import a literal matching the outside seed is reported once", () => {
+  const { root, unseeded } = seedFixture();
+  assert.equal(reportedLines(unseeded, root).filter((line) => line === lineOf(unseeded, outsideSeed)).length, 1);
 });

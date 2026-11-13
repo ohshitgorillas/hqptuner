@@ -1,4 +1,4 @@
-"""Narrowing's wire shape: the facet map as it arrives on the wire, and the type guards that narrow it.
+"""Narrowing's wire shape: the facet map as it arrives on the wire, and the functions that narrow a raw map to it.
 
 ``FacetInput`` and the narrowing functions below judge only *shape* — is this a string, an int, a list of strings —
 never a facet's own domain, which the narrowing store judges.
@@ -6,7 +6,9 @@ never a facet's own domain, which the narrowing store judges.
 
 from __future__ import annotations
 
-from typing import TypedDict, TypeGuard
+from typing import TypedDict
+
+from hqptuner.shape.guards import is_bool, is_int, is_str, is_str_list
 
 
 class FacetInput(TypedDict, total=False):
@@ -33,23 +35,6 @@ class FacetInput(TypedDict, total=False):
     src_format: str
 
 
-def _is_str(value: object) -> TypeGuard[str]:
-    return isinstance(value, str)
-
-
-def _is_int(value: object) -> TypeGuard[int]:
-    """Return whether ``value`` is a real ``int``, excluding ``bool``: ``True`` is an ``int``, not a quality step."""
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
-def _is_bool(value: object) -> TypeGuard[bool]:
-    return isinstance(value, bool)
-
-
-def _is_str_list(value: object) -> TypeGuard[list[str]]:
-    return isinstance(value, list) and all(isinstance(item, str) for item in value)
-
-
 def _facet_input_selects(raw: dict[object, object]) -> FacetInput:
     """Narrow the first half of ``FacetInput``'s members: genre through length.
 
@@ -58,25 +43,25 @@ def _facet_input_selects(raw: dict[object, object]) -> FacetInput:
     """
     facets: FacetInput = {}
     genre = raw.get("genre")
-    if _is_str_list(genre):
+    if is_str_list(genre):
         facets["genre"] = genre
     genre_mode = raw.get("genre_mode")
-    if _is_str(genre_mode):
+    if is_str(genre_mode):
         facets["genre_mode"] = genre_mode
     quality = raw.get("quality")
-    if _is_int(quality):
+    if is_int(quality):
         facets["quality"] = quality
     focus = raw.get("focus")
-    if _is_str_list(focus):
+    if is_str_list(focus):
         facets["focus"] = focus
     focus_mode = raw.get("focus_mode")
-    if _is_str(focus_mode):
+    if is_str(focus_mode):
         facets["focus_mode"] = focus_mode
     phase = raw.get("phase")
-    if _is_str_list(phase):
+    if is_str_list(phase):
         facets["phase"] = phase
     length = raw.get("length")
-    if _is_str_list(length):
+    if is_str_list(length):
         facets["length"] = length
     return facets
 
@@ -88,25 +73,25 @@ def _facet_input_toggles(raw: dict[object, object]) -> FacetInput:
     """
     facets: FacetInput = {}
     hide_limited = raw.get("hide_limited")
-    if _is_str(hide_limited):
+    if is_str(hide_limited):
         facets["hide_limited"] = hide_limited
     odd_rate_only = raw.get("odd_rate_only")
-    if _is_bool(odd_rate_only):
+    if is_bool(odd_rate_only):
         facets["odd_rate_only"] = odd_rate_only
     downsafe_only = raw.get("downsafe_only")
-    if _is_bool(downsafe_only):
+    if is_bool(downsafe_only):
         facets["downsafe_only"] = downsafe_only
     apod_1x = raw.get("apod_1x")
-    if _is_str(apod_1x):
+    if is_str(apod_1x):
         facets["apod_1x"] = apod_1x
     apod_nx = raw.get("apod_nx")
-    if _is_str(apod_nx):
+    if is_str(apod_nx):
         facets["apod_nx"] = apod_nx
     lossy_1x = raw.get("lossy_1x")
-    if _is_str(lossy_1x):
+    if is_str(lossy_1x):
         facets["lossy_1x"] = lossy_1x
     src_format = raw.get("src_format")
-    if _is_str(src_format):
+    if is_str(src_format):
         facets["src_format"] = src_format
     return facets
 

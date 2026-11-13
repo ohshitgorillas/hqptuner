@@ -8,9 +8,10 @@ from contextlib import AbstractAsyncContextManager
 
 from fastapi import FastAPI
 
+from hqptuner.api.push import PushFeed
+from hqptuner.clock import Clock
 from hqptuner.config import Config
 from hqptuner.core import autopilotops, junkcal
-from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, host_is_unchosen
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
@@ -41,9 +42,7 @@ async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: Conne
     if not host_is_unchosen(record):
         return
     try:
-        answered = await probe(
-            cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout, deadline=manager.clock
-        )
+        answered = await probe(cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout, clock=manager.clock)
     except (OSError, ControlError):
         return
     cfg.hqp_host = answered.address
@@ -67,8 +66,9 @@ async def _finish(task: asyncio.Task[None], grace: float, clock: Clock) -> None:
 def make_lifespan(
     cfg: Config,
     manager: ConnectionManager,
+    feed: PushFeed,
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
-    """Build the lifespan handler bound to the app's manager and config.
+    """Build the lifespan handler bound to the app's manager, config and push feed.
 
     The 8088 client is read off the manager at shutdown rather than captured here: a runtime credential change
     installs a new one, and a captured client would leave the live one open and close one nobody is using.
@@ -79,32 +79,36 @@ def make_lifespan(
         # Before the poll loop and the metering reader, both of which read the host as it stands now.
         await _adopt_alias(cfg, app.state.connections, manager)
         task = manager.clock.spawn(manager.run())
-        # junk-filter advisor's metering reader — best-effort alongside the poll
-        # loop; an absent 4322 stream just means "no recommendation". Switched off
-        # entirely, nothing is constructed and nothing ever connects.
+        # The page's push stream recomputes off the manager's edges and never reads the daemon itself.
+        push_task = manager.clock.spawn(feed.run(manager.clock, manager.changed))
+        # The metering reader feeds the meters and the junk-filter advisor — best-effort
+        # alongside the poll loop; an absent 4322 stream just means nothing to show.
+        # Switched off entirely, nothing is constructed and nothing ever connects.
         reader: MeteringReader | None = None
         metering_task: asyncio.Task[None] | None = None
         # The high-frequency filter's auto-pilot acts on that reader's verdict, so it
-        # runs exactly where the reader does and nowhere else: with metering off there
-        # is nothing for it to read and nothing it could honestly decide.
+        # runs only where the reader does and the advisor is offered: with metering off
+        # there is nothing for it to read and nothing it could honestly decide.
         autopilot_task: asyncio.Task[None] | None = None
         # The calibration capture reads the same verdict and writes files only.
         junkcal_task: asyncio.Task[None] | None = None
-        if cfg.metering_enabled and cfg.advisor_enabled:
+        if cfg.metering_enabled:
             reader = MeteringReader(
-                cfg.hqp_host,
-                cfg.hqp_metering_port,
+                (cfg.hqp_host, cfg.hqp_metering_port),
                 lambda: context_from(manager),
-                pace=manager.clock.pace,
-                monotonic=manager.clock.monotonic,
+                clock=manager.clock,
+                timeout=cfg.request_timeout,
+                advisor=cfg.advisor_enabled,
             )
             manager.metering = reader
             metering_task = manager.clock.spawn(reader.run())
+        if reader is not None and cfg.advisor_enabled:
             autopilot_task = manager.clock.spawn(autopilotops.run(manager, cfg.poll_interval))
             if cfg.junkcal_dir is not None:
                 junkcal_task = manager.clock.spawn(junkcal.run(manager, cfg.junkcal_dir))
         yield
         manager.stop()
+        await _finish(push_task, 0, manager.clock)
         if junkcal_task is not None:
             await _finish(junkcal_task, 0, manager.clock)
         if autopilot_task is not None:

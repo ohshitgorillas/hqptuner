@@ -12,7 +12,6 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       # Full history, not a shallow clone: the CSS gates enumerate their inputs
       # with `git ls-files`.
@@ -40,16 +39,40 @@ jobs:
           .venv/bin/pip install -e ".[dev]"
           npm ci
 
-      # The offline half of the suite only: `make check` selects -m "not live",
-      # and no hqplayerd exists here to serve the live-marked tests. The idle
-      # gate counts every delay a shared runner adds, so it runs on the
-      # development host only; the clock-wait gate judges real-clock waits here.
-      - name: make check
-        run: make check IDLE_GATE=off
+      - name: lint
+        run: make lint lint-js
+
+      # The offline suite only: the pytest line deselects the live-marked and
+      # e2e-marked tests. No hqplayerd exists here to serve the live-marked
+      # ones, and the e2e job below runs the e2e-marked ones. It is the
+      # `pytest-offline` recipe line, so the accepted coverage command runs
+      # here and writes .coverage.json.
+      - name: pytest (offline)
+        run: PYTHONPATH=scripts:scripts/pytest_plugins:$PYTHONPATH .venv/bin/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=json:.coverage.json -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov-report=term-missing --junitxml=.pytest-junit.xml
+
+      # The gates of `make test` over the reports the step above wrote, without
+      # a second suite run (-o skips the pytest-offline recipe). The idle gate
+      # counts every delay a shared runner adds, so it runs on the development
+      # host only; the clock-wait gate judges real-clock waits here.
+      - name: test gates
+        run: make -o pytest-offline test IDLE_GATE=off
+
+      - name: python coverage
+        run: node .github/cadence/coverage-report-check.mjs --format python --report .coverage.json
+
+      - name: javascript tests and coverage
+        run: >-
+          node --experimental-test-coverage
+          --test-coverage-exclude='tests/**'
+          --test-coverage-exclude='**/vendor/**'
+          --test-coverage-lines=95
+          --test-coverage-branches=90
+          --test-coverage-functions=85
+          --import ./tests/js/support/vendor-resolve.js
+          --test tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:

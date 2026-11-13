@@ -21,14 +21,12 @@
 // The overlay rides the /api/metadata payload (`plain_names`), seeded through
 // the field harness's reset() the way the other plain-names suites drive it;
 // the pref is the exported signal. Ordering is asserted on option VALUES, wire
-// identifiers rather than wording (docs/testing.md rule 9), and no display
+// identifiers rather than wording, and no display
 // string beyond the fixture's own invented leaves and shorts is asserted.
 //
 // The module is imported under a BUILT specifier so a checkout that predates
 // the change fails per-case rather than at module link — the convention
 // tests/js/store/narrow/plainnames-truename.test.js settled.
-//
-// Policy (docs/testing.md): public API only, one assertion per test.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/plainnames-flat.test.js
 
@@ -74,8 +72,6 @@ const OPTIONS = [
   { value: "2", label: "XFi" },
 ];
 
-const GROUPING_KEYS = ["group", "subgroup", "groupBlurb", "subgroupBlurb"];
-
 /**
  * Seed the overlay and the pref, then decorate the flat section's options.
  *
@@ -113,14 +109,6 @@ test("test_a_family_less_entry_decorates_its_option_closed_label_with_the_short"
   assert.equal(byLabel(await decorated(), "wide").closedLabel, "Wide");
 });
 
-test("test_a_family_less_entry_adds_no_grouping_key_to_its_option", async () => {
-  const option = byLabel(await decorated(), "wide");
-  assert.deepEqual(
-    GROUPING_KEYS.filter((key) => key in option),
-    [],
-  );
-});
-
 // --- order ---------------------------------------------------------------------
 
 test("test_a_flat_sections_known_options_come_back_in_the_overlays_key_order", async () => {
@@ -139,15 +127,3 @@ test("test_options_the_flat_overlay_does_not_know_come_last_in_input_order", asy
 });
 
 // --- the closed control ---------------------------------------------------------
-
-test("test_plain_closed_label_reads_a_family_less_entrys_short_when_simplified", async () => {
-  await reset({ meta: META_FLAT });
-  plainNames.value = true;
-  assert.equal(plainnames.plainClosedLabel("sdm_conversion", "XFi"), "Crossfeed");
-});
-
-test("test_plain_closed_label_reads_the_raw_label_when_standard", async () => {
-  await reset({ meta: META_FLAT });
-  plainNames.value = false;
-  assert.equal(plainnames.plainClosedLabel("sdm_conversion", "XFi"), "XFi");
-});

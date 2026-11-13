@@ -3,13 +3,14 @@
 // `writeSet` (what to stage when a tile is clicked) and `matchPreset` (which
 // tile the current field values light up).
 //
-// Values here are filter NAMES, never enum ids: the running engine is the sole
-// authority for ids and ordering, and static data joins by name (architecture
-// §2). The caller resolves a name to that field's id for the field it stages.
+// Values here are filter NAMES, never enum ids. The caller resolves a name to
+// that field's id for the field it stages.
 //
 // Prose — titles, descriptions, notes, knob labels — is deliberately absent.
 // It lives in `hqptuner/data/easy-presets.json`, keyed by preset id and knob id,
 // so that owner-approved copy is edited in one place and never here.
+
+import { familyOf } from "../../model/family.js";
 
 /**
  * @typedef {object} Knob
@@ -19,7 +20,7 @@
  * @property {string[]} options
  * @property {Record<string, string>} [when] sibling positions required for this knob to be offered
  * @property {boolean} [whenHires] offered only while the filter the tile names is a hi-res one
- * @property {boolean} [card] set once on the card rather than on each tile; its position reaches every tile that takes it
+ * @property {boolean} [card] offered on no tile: it rests at its default, and stands elsewhere only where the running filters match another of its positions
  * @property {boolean} [inert] a VIEW fact, never declared in the table: the tile shows this knob but will not take a move (store/easy/easyoffer.js)
  *
  * @typedef {object} Preset
@@ -58,9 +59,9 @@ const EMPHASIS_HIRES = { ...EMPHASIS, whenHires: true };
 
 // Lossy material is a knob rather than a tile of its own: the lossy filters are
 // the same presets aimed at material damaged by its encoder rather than by its
-// mastering. Lossless rests, because most material is lossless. A CARD knob: the
-// source is a fact about what is playing, not about a preset, so it is set once
-// on the card (store/easy/easyview.js) and every tile that takes it follows.
+// mastering. Lossless rests, because most material is lossless. A CARD knob: no
+// control moves it, so every tile that takes it rests at Lossless, and it reads
+// Lossy only where the filters the engine runs match a lossy row.
 //
 // On the flagships the knob picks how the two fields are filled. Lossless puts
 // the standard filter on 1x and the hi-res filter on Nx, so the engine takes
@@ -161,7 +162,7 @@ const FILTERS = {
   },
   purist: { "": "poly-sinc-gauss-halfband" },
   // The lossy rows put one name on both fields, unlike their lossless
-  // neighbours. The family has no separate base-rate member for the 1x field:
+  // neighbors. The family has no separate base-rate member for the 1x field:
   // these are hi-res filters whose own recommendation starts at 4x, and lossy
   // material is what they are for whatever rate it arrives at.
   "damage-control": {
@@ -200,7 +201,7 @@ const FILTERS = {
  * @returns {string}
  */
 function chainName(value, chain) {
-  return typeof value === "string" ? value : value[chain === "sdm" ? "sdm" : "pcm"];
+  return typeof value === "string" ? value : value[familyOf(chain)];
 }
 
 /**
@@ -341,7 +342,7 @@ export function writeSet(presetId, outputMode, knobs = {}) {
  * @returns {string}
  */
 export function filterFor(presetId, outputMode, knobs = {}, nx = false) {
-  const chain = outputMode === "sdm" ? "sdm" : "pcm";
+  const chain = familyOf(outputMode);
   const keys = KEYS[chain];
   return writeSet(presetId, chain, knobs)[nx ? keys.nx : keys.x1] || "";
 }

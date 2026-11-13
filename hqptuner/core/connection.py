@@ -151,7 +151,7 @@ def build_http_client(cfg: Config) -> HttpConfigClient | None:
     """Build the 8088 configuration client for ``cfg``, or None when either credential is missing.
 
     One builder for both paths — app construction and a runtime save — so the rule "no credentials, no 8088 lane"
-    (architecture section 3) is stated once.
+    is stated once.
     """
     if not cfg.hqp_username or not cfg.hqp_password:
         return None

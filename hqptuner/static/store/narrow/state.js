@@ -5,8 +5,8 @@
 // when it passes the facets, so what the menu shows is exactly the batch the
 // facets describe. Nothing is lost by that — dismissing the dropdown without
 // picking a row leaves the selection where it was, and the closed control still
-// names it (components/controls/Combobox.js `valueLabel`).
-import { signal, computed } from "@preact/signals";
+// names it.
+import { signal } from "@preact/signals";
 import { nFavOnly } from "./favorites.js";
 
 export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] = any)
@@ -79,49 +79,14 @@ export const LOSSY_1X_DEFAULT = "both";
 export const nLossy1x = signal(LOSSY_1X_DEFAULT);
 
 // Source format is the one facet that narrows no dropdown: it discloses the DSD
-// Sources subsections of the two chain cards rather than filtering options.
+// sources rows under the two chains rather than filtering options.
 // Those subsections carry no facet data — only the four filter dropdowns do
 // (store/schema.js `narrow:`) — so this never reaches narrowmatch. It lives here
-// anyway because it is a narrow-bar control: it belongs to the same reset, the
-// same active state and the same store as the facets beside it. Values: "pcm"
-// (the DSD sections stay shut) and "both".
+// anyway because it is a narrow-bar control: it belongs to the same reset and
+// the same store as the facets beside it. Values: "pcm" (the DSD sections stay
+// shut) and "both".
 export const SRC_FORMAT_DEFAULT = "pcm";
 export const nSrcFormat = signal(SRC_FORMAT_DEFAULT);
-
-// "narrowing is on" = the facets differ from their defaults, not merely that
-// some facet is set. Every switch defaults to its own neutral value, so a fresh
-// bar narrows nothing and reads as inactive. The whole switch row answers here
-// rather than term by term below, which keeps that predicate under the
-// complexity gate as the row grows.
-function switchesEngaged() {
-  return nApod1x.value !== APOD_1X_DEFAULT || nApodNx.value !== APOD_NX_DEFAULT || nLossy1x.value !== LOSSY_1X_DEFAULT;
-}
-
-/** Whether any facet that actually narrows a dropdown differs from its default. */
-export const filterNarrowingActive = computed(
-  () =>
-    !!(
-      nGenre.value.length ||
-      nQuality.value !== QUALITY_DEFAULT ||
-      nFocus.value.length ||
-      nPhase.value.length ||
-      nLength.value.length ||
-      nHideLimited.value !== RATE_RULE_DEFAULT ||
-      nOddRateOnly.value ||
-      nDownsafeOnly.value ||
-      nFavOnly.value ||
-      switchesEngaged()
-    ),
-);
-
-// Two predicates, because the bar renders in two places and source format only
-// means something in one of them. The Live view's chain cards have no DSD
-// Sources subsection for it to open (components/live/View.js ChainBody), so its
-// bar drops the control and reads filterNarrowingActive — otherwise a facet set
-// on the Output tab would raise a Reset button in Live with nothing on the page
-// to explain it. Every other facet narrows dropdowns both bars render, so the
-// split stops here.
-export const narrowingActive = computed(() => filterNarrowingActive.value || nSrcFormat.value !== SRC_FORMAT_DEFAULT);
 
 /** Clear every narrow-bar facet, putting the per-stage switches back to their defaults rather than blank. */
 export function resetNarrowing() {

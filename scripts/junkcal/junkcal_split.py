@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Cut every junkcal capture into one file per labelled album, so no file ever mixes two albums again.
+"""Cut every junkcal capture into one file per labeled album, so no file ever mixes two albums again.
 
 A capture file is a listening period, not an album: ``tests/support/fixtures/junkcal/labels.json`` records, for every
 album, the capture it came from (``source``), how many rows it runs (``rows``) and the timestamp of its first kept
-row. Any scorer that reads a capture as one labelled unit is reading a label the fixture never gave it.
+row. Any scorer that reads a capture as one labeled unit is reading a label the fixture never gave it.
 
 This writes, into the capture directory:
 

@@ -8,8 +8,8 @@ request shape — so every route the spec declares is fuzzed.
 Each attack also carries the class that decides how carefully it may be sent
 (``classify``): ``read``, ``stage``, ``apply``, ``live``, ``store`` or ``never``.
 The class is worked out from the route template, never from the path a name has
-already been substituted into, because ``/api/preset/{name}`` writes the store
-and ``/api/preset/fuzz-ab12`` would otherwise look like an ordinary route.
+already been substituted into, because ``/api/livepresets/{name}`` writes the store
+and ``/api/livepresets/fuzz-ab12`` would otherwise look like an ordinary route.
 """
 
 from dataclasses import dataclass, field
@@ -21,7 +21,7 @@ BIG_ARRAY = 2000
 RACE_WIDTH = 4
 RACE_CATEGORY = 6
 
-NEVER = {"/api/backup", "/api/restore", "/api/autosave"}
+NEVER = {"/api/backup", "/api/restore"}
 APPLY = {"/api/config/apply", "/api/engine", "/api/speakers"}
 LIVE = {"/api/config/live", "/api/volume", "/api/matrix/profile", "/api/livepresets/{name}/apply"}
 STAGE = {"/api/config/stage", "/api/config/pending", "/api/config/refresh", "/api/matrix/filter"}
@@ -31,8 +31,6 @@ STORE = {
     "/api/matrixmodes",
     "/api/descriptions",
     "/api/livepresets/{name}",
-    "/api/preset/{name}",
-    "/api/profile/{action}",
     "/api/autopilot",
 }
 
@@ -182,7 +180,7 @@ def name_attacks(method: str, template: str, params: list[dict[str, Any]]) -> li
     return out
 
 
-def fixed_attacks(name: str) -> list[Attack]:
+def fixed_attacks() -> list[Attack]:
     """Return the attacks no schema describes: the sequences, the oversized bodies, and the bounded races."""
     edit = {"http": {"filter1x": "1"}}
     stage, pending, apply = "/api/config/stage", "/api/config/pending", "/api/config/apply"
@@ -195,8 +193,6 @@ def fixed_attacks(name: str) -> list[Attack]:
         Attack(4, "DELETE", pending, "stage then discard then apply, step 2", "stage"),
         Attack(4, "POST", apply, "stage then discard then apply, step 3", "apply", body={}),
         Attack(4, "POST", apply, "apply twice, step 2", "apply", body={}),
-        Attack(4, "DELETE", f"/api/preset/{name}", "delete then use, step 1", "store"),
-        Attack(4, "GET", f"/api/preset/{name}", "delete then use, step 2", "read"),
         Attack(5, "POST", stage, f"staged buffer of {BIG_MAP_KEYS} fields", "stage", body=big),
         Attack(5, "POST", filters, "long field name on the upload route", "stage", raw=upload),
     ]
@@ -233,7 +229,7 @@ def generate(spec: dict[str, Any], cap: int, name: str) -> list[Attack]:
     out: list[Attack] = []
     ops = operations(spec)
     for method, template, operation in ops:
-        path = template.replace("{name}", name).replace("{action}", "load")
+        path = template.replace("{name}", name)
         declared = {m for m, t, _ in ops if t == template}
         schema = json_schema(operation)
         klass = classify(method, template)
@@ -242,4 +238,4 @@ def generate(spec: dict[str, Any], cap: int, name: str) -> list[Attack]:
             out += [Attack(1, method, path, note, klass, body=body) for body, note in pairs]
         out += shape_attacks(method, template, path, declared, has_body=schema is not None)
         out += name_attacks(method, template, operation.get("parameters", []))[:cap]
-    return out + fixed_attacks(name)
+    return out + fixed_attacks()

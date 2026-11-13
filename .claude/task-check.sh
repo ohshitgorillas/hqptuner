@@ -21,7 +21,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."   # repo root (.claude/.. )
 
-# No apostrophes in these messages: bash honours quotes inside ${var:?word},
+# No apostrophes in these messages: bash honors quotes inside ${var:?word},
 # so one would swallow everything up to the next apostrophe.
 TRIGGER="${HQPTUNER_REBUILD_TRIGGER:?set HQPTUNER_REBUILD_TRIGGER to the rebuild trigger path for this host}"
 RESULT="${HQPTUNER_REBUILD_RESULT:?set HQPTUNER_REBUILD_RESULT to the rebuild result path for this host}"

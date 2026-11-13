@@ -9,13 +9,17 @@ __pycache__/
 .coverage
 .coverage.json
 .pytest-junit.xml
+# when the last run started, written by scripts/pytest_plugins/run_stamp.py and judged by scripts/gates/testing/check_fresh_reports.py
+.pytest-run.json
 # last green run's wall time, the bar scripts/gates/testing/check_suite_time.py holds the suite to
 .suite-time*.json
-# per-test idle, written by scripts/idle_probe.py and judged by scripts/gates/check_idle.py
+# per-test idle, written by scripts/idle_probe.py and judged by scripts/gates/testing/check_idle.py
 .idle-probe.json
-# the smallest idle each test has been measured at, the record that gate converges
+# each test's latest idle, one file per branch, the record that gate judges the next run against
+.idle-last*.json
+# an idle record no gate reads
 .idle-min.json
-# per-test expired real-clock timeouts, written by scripts/clock_probe.py and judged by scripts/gates/check_clock_waits.py
+# per-test expired real-clock timeouts, written by scripts/clock_probe.py and judged by scripts/gates/testing/check_clock_waits.py
 .clock-probe.json
 htmlcov/
 
@@ -32,8 +36,8 @@ docs/agent-failures.md
 docs/official/
 
 # EQ Assistant research papers — copyrighted, not redistributable.
-# Fetched by hand where automated retrieval failed; cited in docs/eq-assistant/SOURCES.md
-# and read from these local copies. Keep them, never commit them.
+# Fetched by hand where automated retrieval failed and read from these local
+# copies. Keep them, never commit them.
 docs/eq-assistant/*.pdf
 
 # EQ Assistant working checklist — churns every session, local for now
@@ -104,6 +108,8 @@ mutants/
 # throwaway node scratch scripts (EQ tuning sessions and the like) — never
 # shipped, and eslint skips them for the same reason
 *.mjs
+# the coverage report check CI runs, copied unmodified from Cadence's template
+!.github/cadence/coverage-report-check.mjs
 
 # LaTeX user guide, sources and build alike — it documents the wizard feature
 # and lands when that does
@@ -133,3 +139,18 @@ apod-log.tsv
 
 # metering probe scratch at the repo root: throwaway probes against the 4322 stream
 /.meter_probe*
+
+# owner test-drive notes at the repo root
+/todo.txt
+
+# Cadence's joined run record - local diagnostics only, one machine's routing/provider/worker events
+.planning/trace.jsonl
+.planning/trace.1.jsonl
+
+# ...and Cadence's per-tool-call read record, the generation ITS rotation leaves behind, and that rotation's claim files and killed-mid-rotation temps
+.planning/reads.jsonl
+.planning/reads.1.jsonl
+.planning/reads.1.jsonl.claim
+.planning/reads.1.jsonl.claim.*
+.planning/reads.jsonl.rotate.*
+.planning/reads.1.jsonl.evict.*

@@ -4,14 +4,13 @@ Two answers are unreadable: one that arrives whole and does not parse as XML, an
 finishes, a document opened and fed line after line with its end tag never sent. Either way the report names the
 command HQPTuner sent, since nothing else tells the reader which exchange went wrong.
 
-The sentence around the command is owner copy and is not asserted (docs/testing.md rule 9). What is asserted is
-the wire name of the command, which the test put on the wire itself. Neither hostile answer carries either
-command's name, so the name can only reach the report from the request.
+What is asserted is the wire name of the command, which the test put on the wire itself. Neither hostile answer
+carries either command's name, so the name can only reach the report from the request.
 
 The daemons here are raw sockets, since the shared fake answers only well-formed frames. Each one closes the
 connection once it has said all it will say, so every read the client makes ends on data or on the close, and the
 client waits on a `VirtualDeadline` that is never silenced, so no real timer runs. A client that stopped
-recognising either answer reads the close and fails at once rather than waiting out a timeout.
+recognizing either answer reads the close and fails at once rather than waiting out a timeout.
 """
 
 import asyncio

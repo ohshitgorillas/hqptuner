@@ -1,0 +1,12 @@
+{ "findings": [
+  { "file": ".planning/phases/5/PLAN-3.md",
+    "line": 53,
+    "severity": "high",
+    "claim": "The planned law for reaching a changed delay is pure proportional decay, so the playhead never finishes reaching the delay. The plan's own claims (D-01 'until a raised/lowered delay is reached', AC2 'reaches the new target', new claims 3 and 4 'then at wall speed again', claim 1's 'where no changed delay is left to reach') need it to finish, and the only fix, a snap threshold, is a second constant the plan forbids (line 53, and the grep Verify at line 62).",
+    "failure_scenario": "The speed is 1 + r/CATCH_UP_MS, where r is the part of the changed delay still to reach. The playhead's gain over wall speed is r/CATCH_UP_MS per ms, so dr/dt = -r/C and r(t) = r0*exp(-t/500). Lower the delay by 1000 ms: after 5 s, r is still about 0.045 ms and the speed is about 1.00009, so it is never 'at wall speed again', and claim 1's exact-dt equality never applies again. Claim 3 or 4 then fails by assertion on the planned code, which line 75's rule treats as a finding with no planned resolution. The alternative is that the test writer adds a tolerance, or the pacer adds an epsilon that breaks 'no constant besides CATCH_UP_MS'. PLAN.md line 111 already notes this: 'A pure proportional law never reaches the target, so AC1 and AC3 could not hold.'" },
+  { "file": ".planning/phases/5/PLAN.md",
+    "line": 23,
+    "severity": "medium",
+    "claim": "The phase's plan set contradicts itself. PLAN.md's must-be-true lines (the playhead closes the lag to the target, never moves past it from at or behind it, and stands at the target after a restart) are made false by PLAN-3 Task 1 under the revised D-01, yet no plan marks them superseded. CONTEXT D-03 (line 24, 'follows the target again') and D-04 (line 25, 'the target') still use the target that PLAN-3 line 35 says D-01 abolishes, while PLAN-3 states 'D-02 to D-05 bind as written'.",
+    "failure_scenario": "/cad-verify checks every plan's truths. Once PLAN-3 lands, PLAN.md line 25's 'never moves past the target from at or behind it' is false by design: PLAN-3 line 59 overturns moves_past_the_target_from_at_or_behind_it, and a wall-speed playhead passes newest-end-less-delay in every gap. Likewise, D-03 as written ('then follows the target again') is false under PLAN-3's method, which follows no target. So the verifier either reports the phase as failing locked decisions it honors, or must pick between contradictory binding texts without a recorded supersession." }
+] }

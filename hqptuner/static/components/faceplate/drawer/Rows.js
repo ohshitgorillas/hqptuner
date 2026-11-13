@@ -1,0 +1,267 @@
+// A drawer tab's body items. A row names a catalog key (store/schema.js): its control column (label head, control, gray
+// reason) beside the setting's paragraph, the label head carrying the restart mark when the key restarts the engine,
+// then, under it, every option with its line (`optMan`) or a select's picked option's line. A stack is several rows
+// under one label line: each row's control and gray reason stacked one over the other, each row's paragraphs in order
+// beside them. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
+// resolution, the gray reason from the schema's own rule; a control writes through setControl(), by the key's lane.
+// Beside rows: a field and a choice (Field.js, Choice.js), a section header, a read-only note, a backend group shown by
+// the schema's backend, an intro, and a block the caller passes in by name.
+// A row or stack marks its values stale while the drawer's own form waits on its readback after a write, or after its
+// last read failed.
+
+import { html } from "../../../lib/dom.js";
+import { schema as catalog } from "../../../store/schema.js";
+import { describe } from "../../../store/prose.js";
+import { isDirty } from "../../../store/resolve.js";
+import { grayReason } from "../../../store/ui/graying.js";
+import { setControl } from "../../../store/actions.js";
+import {
+  formRestarts,
+  formStale,
+  groupShown,
+  restartLane,
+  rowLines,
+  rowShown,
+} from "../../../store/faceplate/drawer.js";
+import { alertsNow } from "../../../store/faceplate/alerts.js";
+import { worseBlink } from "../../../model/shell/alerts.js";
+import { drawsSelect, drowClass, grayLine, keyControl, labelHead } from "./controls.js";
+import { field } from "./Field.js";
+import { choice } from "./Choice.js";
+import { Xref } from "../Xref.js";
+import { folded } from "../SeeMore.js";
+
+/** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
+/** @typedef {import("../../../store/faceplate/drawer.js").BodyItem} BodyItem */
+/** @typedef {import("../../../store/faceplate/drawer.js").RowSpec} RowSpec */
+/** @typedef {import("../../../store/faceplate/drawer.js").GroupItem} GroupItem */
+/** @typedef {import("../../../store/faceplate/drawer/grammar.js").StackSpec} StackSpec */
+/** @typedef {import("../../../store/faceplate/drawer.js").BlockItem} BlockItem */
+/** @typedef {import("../../../store/faceplate/drawer.js").IntroPart} IntroPart */
+/** @typedef {import("../../../store/faceplate/drawer.js").NoteLine} NoteLine */
+/** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
+/** @typedef {import("../../../store/prose.js").Described} Described */
+/** @typedef {Record<string, (props: { schema: DrawerSchema, here: XrefHere }) => unknown>} Blocks */
+
+/**
+ * Every option under the row with its line, the effective one current; tapping another stages it.
+ *
+ * @param {RowSpec} spec
+ * @param {string} label
+ */
+const optList = (spec, label) => html`
+  <div class="optlist" role="list" aria-label=${`${label} options`}>
+    ${rowLines(spec.key, spec.options).map(
+      (l) => html`
+        <button
+          type="button"
+          class=${l.cur ? "optrow cur" : "optrow"}
+          role="listitem"
+          data-v=${l.value}
+          aria-current=${String(l.cur)}
+          onClick=${() => (l.cur ? undefined : setControl(spec.key, l.value))}
+        >
+          <code>${l.label}</code><span>${l.man}</span>
+        </button>
+      `,
+    )}
+  </div>
+`;
+
+/**
+ * A select's picked option's line, full width under the row, as the prose folds it: its first paragraph, then `see
+ * more` where any are held back, which opens them, then those in place after it; nothing unless its options carry
+ * lines.
+ *
+ * @param {RowSpec} spec
+ * @param {SchemaField} entry
+ * @param {XrefHere} here
+ */
+function pickedLine(spec, entry, here) {
+  if (!drawsSelect(entry.widget)) return null;
+  const lines = rowLines(spec.key, spec.options);
+  const cur = lines.some((l) => l.man) ? lines.find((l) => l.cur) : undefined;
+  if (!cur) return null;
+  const head = html`<code>${cur.label}</code>`;
+  const id = `pick-${here.drawer}-${spec.key}`;
+  return html`<div class="optfull">${folded({ head, fold: cur.fold, id, label: cur.label, cls: "optman" })}</div>`;
+}
+
+/**
+ * A row's paragraphs as the prose folds them: the first, then `see more` where any are held back, which opens them,
+ * then those in place after it.
+ *
+ * @param {RowSpec} spec
+ * @param {Described} prose
+ * @param {string} label
+ * @param {XrefHere} here
+ */
+function rowProse(spec, prose, label, here) {
+  return folded({ head: null, fold: prose.fold, id: `more-${here.drawer}-${spec.key}`, label });
+}
+
+/**
+ * The worst alert lit in the drawer on any of `keys`, on the tab's chain or on none.
+ *
+ * @param {string[]} keys
+ * @param {XrefHere} here  the drawer and tab the keys are drawn on
+ */
+const keysAlert = (keys, here) =>
+  (alertsNow.value.drawers.get(here.drawer)?.rows ?? [])
+    .filter((r) => keys.includes(r.label) && (!r.chain || r.chain === here.tab))
+    .reduce((/** @type {string | undefined} */ cur, r) => worseBlink(cur, r.sev), undefined);
+
+/**
+ * Whether any of `keys` is staged, as a row's `data-dirty`.
+ *
+ * @param {string[]} keys
+ */
+const dirtyAttr = (keys) => (keys.some((k) => isDirty(k)) ? "" : undefined);
+
+/**
+ * A row's parts under its label line: its label, its control then its gray reason, and its paragraphs.
+ *
+ * @param {RowSpec} spec
+ * @param {SchemaField} entry
+ * @param {XrefHere} here  the drawer and tab the row is drawn on
+ */
+function rowParts(spec, entry, here) {
+  const { key } = spec;
+  const prose = describe(entry, key);
+  const label = spec.label ?? prose.label;
+  const gray = grayReason(key);
+  const control = keyControl({ key, entry, label, off: !!gray, options: spec.options, hint: spec.hint });
+  return {
+    label,
+    ctl: html`${control} ${grayLine(entry.quietGray ? "" : gray, here)}`,
+    man: rowProse(spec, prose, label, here),
+  };
+}
+
+/**
+ * One row; nothing for an unknown key or a row not shown on its tab.
+ *
+ * @param {RowSpec} spec
+ * @param {XrefHere} here  the drawer and tab the row is drawn on
+ * @param {boolean} stale  whether its values are marked stale
+ */
+function row(spec, here, stale) {
+  const entry = catalog[spec.key];
+  if (!entry || !rowShown(spec, here.tab)) return null;
+  const { key } = spec;
+  const { label, ctl, man } = rowParts(spec, entry, here);
+  const head = labelHead(label, { sub: spec.sub, band: spec.band, restarts: restartLane(key) });
+  return html`
+    <div class=${drowClass(stale)} data-k=${key} data-dirty=${dirtyAttr([key])} data-alert=${keysAlert([key], here)}>
+      <div class="ctl">${head} ${ctl}</div>
+      <div class="man">${man}</div>
+      ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry, here)}
+    </div>
+  `;
+}
+
+/**
+ * A stack: its label line, then each shown row's control and gray reason one over the other, each under its row's key,
+ * and each shown row's paragraphs in order beside them; nothing while none of its rows is shown.
+ *
+ * @param {StackSpec} spec
+ * @param {XrefHere} here  the drawer and tab the stack is drawn on
+ * @param {boolean} stale  whether its values are marked stale
+ */
+function stack(spec, here, stale) {
+  const rows = spec.stack.filter((r) => catalog[r.key] && rowShown(r, here.tab));
+  if (rows.length === 0) return null;
+  const keys = rows.map((r) => r.key);
+  const parts = rows.map((r) => rowParts(r, catalog[r.key], here));
+  const head = labelHead(spec.label, { band: spec.band, restarts: keys.some((k) => restartLane(k)) });
+  return html`
+    <div class=${drowClass(stale)} data-dirty=${dirtyAttr(keys)} data-alert=${keysAlert(keys, here)}>
+      <div class="ctl">${head} ${parts.map((p, i) => html`<div class="dstk" data-k=${keys[i]}>${p.ctl}</div>`)}</div>
+      <div class="man">${parts.map((p) => p.man)}</div>
+    </div>
+  `;
+}
+
+/**
+ * A section header: its title, then a rule to the right edge.
+ *
+ * @param {string} text
+ * @param {string} cls
+ */
+const secHead = (text, cls) => html`<div class=${cls}><span class="t">${text}</span><span class="ln"></span></div>`;
+
+/**
+ * A backend's rows and stacks under its header, hidden unless the schema names its backend or `combo`.
+ *
+ * @param {DrawerSchema} schema
+ * @param {GroupItem} g
+ * @param {XrefHere} here  the drawer and tab the group is drawn on
+ * @param {boolean} stale  whether its rows' values are marked stale
+ */
+const group = (schema, g, here, stale) => html`
+  <div class="begrp" data-be=${g.group} hidden=${!groupShown(schema, g.group)}>
+    ${secHead(g.label, "dsec")} ${g.rows.map((r) => ("stack" in r ? stack(r, here, stale) : row(r, here, stale)))}
+  </div>
+`;
+
+/**
+ * One part of an intro: its text, or a place's name as the link there, plain when it names no place.
+ *
+ * @param {IntroPart} p
+ */
+const introPart = (p) => {
+  if (typeof p === "string") return p;
+  return p.to ? html`<${Xref} to=${p.to} label=${p.label} />` : p.label;
+};
+
+/**
+ * An intro paragraph; a place's name in it is the link there.
+ *
+ * @param {string | IntroPart[]} intro
+ */
+function introPara(intro) {
+  const parts = typeof intro === "string" ? [intro] : intro;
+  return html`<p class="dintro">${parts.map(introPart)}</p>`;
+}
+
+/**
+ * A read-only note: what its function reads now, then the link to the place it names.
+ *
+ * @param {NoteLine} n
+ */
+const noteLine = (n) => (typeof n === "string" ? n : html`${n.text} <${Xref} to=${n.to} />`);
+
+/**
+ * A block, the component the caller passed under its name mounted inside.
+ *
+ * @param {DrawerSchema} schema
+ * @param {BlockItem} it
+ * @param {Blocks} blocks
+ * @param {XrefHere} here  the drawer and tab the block is drawn on
+ */
+function block(schema, it, blocks, here) {
+  const Block = blocks[it.block];
+  return html`<div class="dblock" data-block=${it.block}>
+    ${Block ? html`<${Block} schema=${schema} here=${here} />` : null}
+  </div>`;
+}
+
+/**
+ * One body item of a tab, told apart by the key it carries.
+ *
+ * @param {DrawerSchema} schema
+ * @param {BodyItem} it
+ * @param {Blocks} blocks
+ * @param {string} tab  the tab the item sits on
+ */
+export function item(schema, it, blocks, tab) {
+  const here = { drawer: schema.id, tab };
+  if ("row" in it) return row(it.row, here, formStale(schema));
+  if ("field" in it) return it.field.when && !it.field.when() ? null : field(it.field, here, formRestarts(schema));
+  if ("choice" in it) return choice(it.choice, here);
+  if ("head" in it) return secHead(it.head, "msec");
+  if ("note" in it) return html`<p class="mnote">${noteLine(it.note())}</p>`;
+  if ("group" in it) return group(schema, it, here, formStale(schema));
+  if ("intro" in it) return introPara(it.intro);
+  return block(schema, it, blocks, here);
+}

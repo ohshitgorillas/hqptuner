@@ -1,97 +1,156 @@
-// The METER spectrogram's history: a run of slices, each the power average of
-// SLICE_FRAMES feed frames, laid along the time axis by the frame time the feed
-// says those frames cover. Playback time is what both the spectrogram and the
-// apodizing strip above it are drawn on, so neither the page's poll cadence nor
-// its clock has any say in where a slice lands. A track change clears the
-// apodizing history (store/apodhistory.js), and the slices with it; nothing
-// else does.
+// The spectrogram's history: a run of slices, each the power average of the
+// feed frames it covers, placed in playback by those frames' own stamps: a
+// slice starts at its first frame's `at` and ends where its last frame ends. A
+// frame that begins a break empties the history and starts a fresh slice. A
+// track change empties the apodizing history (store/apodhistory.js), and an
+// empty apodizing history clears the slices.
 //
-// A slice keeps every channel's bands and their power-average sum, so the
-// channel picker redraws the whole history. A slice keeps the band centres and
-// Nyquist it was measured at, so a change of source rate mid-history leaves the
-// older slices drawn at their own frequencies.
+// The range drawn is the slices inside the window whose right edge is the
+// playhead (store/meter/playhead.js), found by sliceRange
+// (model/gauges/slicerange.js); nothing is drawn while it is null. The raster
+// picks the channel and places each slice by its stamp against that edge.
+// The apodizing strip's right edge is that same playhead, and has none while it
+// is null.
+//
+// A slice keeps every channel's levels and their power-average sum, so the
+// channel picker redraws the whole history, each as ROWS rows from 0 Hz to the
+// slice's own Nyquist, one byte a row at the raster's ROW_STEP_DB
+// (lib/spectroraster.js) below full scale, which ROW_MAX holds at the feed's
+// floor: slices of different source rates in one history are each drawn at
+// their own frequencies.
 import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
-import { apodBins, apodVisibleBins } from "../apodhistory.js";
-import { apodWindow, meterChannel } from "../ui/prefs.js";
+import { clamp } from "../../lib/coerce.js";
+import { ROW_STEP_DB } from "../../lib/spectroraster.js";
+import { dbToPower, powerToDb } from "../../lib/units.js";
+import { bandRows, pickBins } from "../../model/gauges/meter/meter.js";
+import { sliceRange } from "../../model/gauges/slicerange.js";
+import { apodBins } from "../apodhistory.js";
+import { apodWindow } from "../ui/prefs.js";
+import { playhead } from "./playhead.js";
 
-// About two hours of slices, the reach of the apodizing history's own cap.
-const MAX_SLICES = 36000;
-// Feed frames per slice.
-const SLICE_FRAMES = 5;
+// The shortest slice, playback ms, as fine as the 30 s window's pixel columns,
+// and the playback the history keeps, ms, the widest window.
+const FINE_MS = 25;
+const FINE_SPAN_MS = 300000;
+// Rows a slice keeps from 0 Hz to its Nyquist.
+const ROWS = 480;
+const ROW_MAX = 250;
 
-/** @typedef {import("./feed.js").Geometry} Geometry */
-/** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
+/** @typedef {import("../../model/gauges/meter/meter.js").FrameGeometry} Geometry */
+/** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /**
- * @typedef {{ ms: number, centres: number[], nyquist: number, channels: Float32Array[], sum: Float32Array }} Slice
- *   One slice: the frame time it covers, the band layout it was measured at,
- *   and its band levels in dB, per channel and summed across channels.
- */
-
-const slices = signal(/** @type {Slice[]} */ ([]));
-
-/** @type {Float64Array[] | null} */
-let power = null;
-let count = 0;
-let frameMs = 0;
-/** @type {Geometry | null} */
-let held = null;
-
-const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
-const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
-
-/** Drop the slice being accumulated. */
-function dropPartial() {
-  power = null;
-  count = 0;
-  frameMs = 0;
-}
-
-/** Close the slice being accumulated onto the history. */
-function closeSlice() {
-  if (!power || !count || !held) return;
-  const n = count;
-  const sum = new Float64Array(power[0].length);
-  power.forEach((ch) => ch.forEach((p, k) => (sum[k] += p)));
-  const m = power.length;
-  /** @type {Slice} */
-  const done = {
-    ms: frameMs,
-    centres: held.centres,
-    nyquist: held.nyquist,
-    channels: power.map((ch) => Float32Array.from(ch, (p) => toDb(p / n))),
-    sum: Float32Array.from(sum, (p) => toDb(p / (n * m))),
-  };
-  const next = slices.peek().concat([done]);
-  slices.value = next.length > MAX_SLICES ? next.slice(next.length - MAX_SLICES) : next;
-  dropPartial();
-}
-
-/**
- * Fold one feed frame into the slice being accumulated. A frame whose layout
- * differs from the slice's starts the slice again.
+ * One slice: where it starts and how long it lasts, the Nyquist its rows reach, and its rows per channel and summed
+ * across channels.
  *
- * @param {Geometry | null} geo
- * @param {Array<{ bands: number[] }>} channels
- * @param {number} ms the frame time the feed frame covers
+ * @typedef {object} Slice
+ * @property {number} at  playback, ms: where its first frame starts
+ * @property {number} ms  playback, ms: from `at` to where its last frame ends
+ * @property {number} nyquist  Hz
+ * @property {Uint8Array[]} channels
+ * @property {Uint8Array} sum
  */
-export function addSpectrumFrame(geo, channels, ms) {
-  if (!geo || !channels.length) return;
-  if (geo !== held) {
-    held = geo;
-    dropPartial();
+/**
+ * The slice in hand: power per bin per channel, the frames folded into it, and where they start and end.
+ *
+ * @typedef {object} Partial
+ * @property {Float64Array[]} power
+ * @property {number} count
+ * @property {number} at  playback, ms: where its first frame starts
+ * @property {number} end  playback, ms: where its last frame ends
+ */
+
+/**
+ * The closed slices, oldest first, in a plain array grown and trimmed in place and replaced on a clear; `version` bumps
+ * on each change.
+ *
+ * @type {Slice[]}
+ */
+let slices = [];
+/** @type {Partial | null} */
+let hand = null;
+
+// Bumps on every close and clear, so what reads the history reads it again.
+const version = signal(0);
+
+/**
+ * Bins as a slice's rows: each row's band level (bandRows), one byte a ROW_STEP_DB step below full scale.
+ *
+ * @param {Float32Array} bins  dBFS
+ * @returns {Uint8Array}
+ */
+function rowsOf(bins) {
+  const levels = bandRows(bins, ROWS);
+  return Uint8Array.from(levels, (db) => clamp(Math.round(-db / ROW_STEP_DB), 0, ROW_MAX));
+}
+
+/**
+ * Close the slice in hand onto the history, and drop the slices that start more than FINE_SPAN_MS of playback before
+ * the newest one ends.
+ *
+ * @param {Partial} p
+ * @param {Geometry} geo
+ */
+function closeSlice(p, geo) {
+  const n = p.count;
+  const ms = p.end - p.at; // playback, ms
+  /** @type {MeterFrame} */
+  const mean = {
+    channels: p.power.map((ch) => ({ peak: 0, rms: 0, bins: Float32Array.from(ch, (pw) => powerToDb(pw / n)) })),
+    ms,
+  };
+  slices.push({
+    at: p.at,
+    ms,
+    nyquist: geo.nyquist,
+    channels: mean.channels.map((ch) => rowsOf(ch.bins)),
+    sum: rowsOf(pickBins(mean, "sum")),
+  });
+  while (p.end - slices[0].at > FINE_SPAN_MS) slices.shift();
+  hand = null;
+}
+
+/**
+ * Fold one frame into the slice in hand, starting one where there is none or its layout differs, and close it once
+ * its frames cover FINE_MS of playback by their stamps.
+ *
+ * @param {Geometry} geo
+ * @param {MeterFrame["channels"]} channels
+ * @param {number} at  playback, ms: where the frame starts
+ * @param {number} end  playback, ms: where the frame ends
+ * @returns {boolean} whether a slice closed
+ */
+function fold(geo, channels, at, end) {
+  const width = channels[0].bins.length;
+  if (!hand || hand.power.length !== channels.length || hand.power[0].length !== width) {
+    hand = { power: channels.map(() => new Float64Array(width)), count: 0, at, end };
   }
-  const width = channels[0].bands.length;
-  if (!power || power.length !== channels.length || power[0].length !== width) {
-    power = channels.map(() => new Float64Array(width));
-    count = 0;
-    frameMs = 0;
-  }
-  const acc = power;
-  channels.forEach((ch, c) => ch.bands.forEach((db, k) => (acc[c][k] += toPower(db))));
-  count++;
-  frameMs += ms;
-  if (count >= SLICE_FRAMES) closeSlice();
+  const p = hand;
+  channels.forEach((ch, c) => ch.bins.forEach((db, k) => (p.power[c][k] += dbToPower(db))));
+  p.count++;
+  p.end = end;
+  if (p.end - p.at < FINE_MS) return false;
+  closeSlice(p, geo);
+  return true;
+}
+
+/** Empty the history and its slice in hand. */
+function clearHistory() {
+  slices = [];
+  hand = null;
+  version.value = version.peek() + 1;
+}
+
+/**
+ * Fold one feed frame into the history. A frame that begins a break empties the history first.
+ *
+ * @param {MeterFrame} frame
+ */
+export function addSpectrumFrame(frame) {
+  const { geo, channels, at, ms } = frame;
+  if (!geo || !channels.length || at === undefined) return;
+  if (frame.break) clearHistory();
+  if (fold(geo, channels, at, at + ms)) version.value = version.peek() + 1;
 }
 
 /** @type {(() => void) | null} */
@@ -106,45 +165,32 @@ let dispose = null;
 export function initSpectrogram() {
   if (dispose) return dispose;
   const registered = effect(() => {
-    if (apodBins.value.length) return;
-    if (slices.peek().length) slices.value = [];
-    dropPartial();
+    if (!apodBins.value.length) clearHistory();
   });
   dispose = registered;
   return registered;
 }
 
-/**
- * One slice's levels in the picked channel: the sum, or that channel's bands,
- * falling back to the sum where the slice has no such channel.
- *
- * @param {Slice} slice
- * @param {string} pick
- */
-function levelsOf(slice, pick) {
-  return pick === "sum" ? slice.sum : slice.channels[Number(pick)] || slice.sum;
-}
+const span = computed(() => windowSpan(apodWindow.value));
 
 /**
- * The cells the spectrogram draws, oldest first: the newest slices whose frame
- * times fit `span`, walked back from the right edge, in the picked channel.
+ * The part of the history the spectrogram draws: `slices[lo..hi)`, the slices inside the strip's window whose right
+ * edge, `edge`, is the playhead (playback, ms). None, and no edge, while the playhead is null. `slices` is the history
+ * itself, read in place, never copied.
  *
- * @param {Slice[]} all
- * @param {number} span window width in milliseconds
- * @param {string} pick
- * @returns {Cell[]}
+ * @typedef {{ slices: Slice[], lo: number, hi: number, edge: number | null }} SpectrogramRange
  */
-export function visibleCells(all, span, pick) {
-  let used = 0;
-  let i = all.length;
-  while (i > 0 && used + all[i - 1].ms <= span) {
-    used += all[i - 1].ms;
-    i--;
-  }
-  return all.slice(i).map((s) => ({ ms: s.ms, centres: s.centres, nyquist: s.nyquist, slices: [levelsOf(s, pick)] }));
+
+/** @returns {SpectrogramRange} */
+function drawnRange() {
+  version.value;
+  const edge = playhead.value;
+  if (edge === null) return { slices, lo: 0, hi: 0, edge: null };
+  return { slices, ...sliceRange(slices, span.value, edge), edge };
 }
 
-/** The cells the spectrogram draws across the strip's window. */
-export const spectrogramCells = computed(() =>
-  visibleCells(slices.value, windowSpan(apodVisibleBins.value, apodWindow.value), meterChannel.value),
-);
+/** The part of the history the spectrogram draws, read again when the history, the playhead or the window moves. */
+export const spectrogramRange = computed(drawnRange);
+
+/** Playback, ms: the apodizing strip's right edge, the playhead; null while the playhead is null. */
+export const stripEnd = computed(() => playhead.value);

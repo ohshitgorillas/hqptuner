@@ -1,0 +1,400 @@
+// The chain rail's stages, decided from what runs and never from a staged edit: railStages decides them from a plain
+// running picture, railNow reads that picture off the store. The rate stage is lit only while the output rate differs
+// from the source rate: through a running PCM resampling filter other than none on PCM to PCM, PCM to SDM and DSD to PCM,
+// and through the SDM to SDM conversion on a remodulated DSD source, whatever the filter. It reads Resampling only while
+// lit on a resampling path, Rate conversion otherwise. Direct SDM runs none of the processing stages, and the rate stage
+// and Shaping leave the chain while it plays. The HF stage is lit only for content its filter acts on, judged against
+// the source rate (DSD at rate / 64), never the output rate.
+
+import { computed } from "@preact/signals";
+import { engineStatus, stable, volumeShown } from "../signals.js";
+import { runningValue, formFieldName, effectivePipelines } from "../resolve.js";
+import { schema } from "../schema.js";
+import { optionsFor } from "../ui/options.js";
+import { hiddenStages } from "../ui/prefs.js";
+import { items, stateOf, sourceIsNx } from "../live/derive.js";
+import { matrixActiveProfile } from "../matrix/profiles.js";
+import { loudnessApplied } from "../matrix/loudness.js";
+import { speakers } from "../matrix/speakers.js";
+import { structuralBlock } from "../xfeed/mode.js";
+import { passesThrough } from "../../model/shell/pipelines.js";
+import { modeName } from "../../model/gauges/crossfeed.js";
+import { rateStage } from "../../model/shell/conversion.js";
+import { actsOn, contentRate } from "../../model/shell/hf-reach.js";
+import { playbackPath, runningChain, outputIsSdm } from "./path.js";
+import { volumeNow } from "./volume.js";
+import { truthy } from "../../lib/coerce.js";
+import { hz } from "../../lib/units.js";
+
+/**
+ * @typedef {import("./path.js").Path} Path
+ * @typedef {import("./path.js").Transport} Transport
+ * @typedef {"on" | "pause" | "off"} Lamp  a rail lamp: lit, paused or unlit
+ * @typedef {{ samplerate?: string, bits?: string, channels?: string }} Metadata  the `<metadata>` child's attributes read here
+ * @typedef {{ active_rate?: string, active_bits?: string, active_channels?: string }} Status  the Status-frame attributes read here
+ * @typedef {object} Conversion  the running filters and shaper by engine name, and the running DSD settings by label
+ * @property {string} filter1x
+ * @property {string} filterNx
+ * @property {string} shaper
+ * @property {string} noise    noise filter
+ * @property {string} decim    decimation filter
+ * @property {string} integ    remodulator integrator
+ * @property {string} sdmconv  SDM to SDM conversion
+ * @typedef {object} Running  what runs, as the rail reads it
+ * @property {Path} path
+ * @property {"pcm" | "sdm"} chain  the chain whose filters and shaper run
+ * @property {"1x" | "nx"} stage  the side of the filter split the source rate falls on
+ * @property {boolean} direct  Direct SDM as the daemon runs it
+ * @property {Metadata} metadata
+ * @property {Status} status
+ * @property {string} hf  the running HF filter's engine name, `none` when it is off
+ * @property {Conversion} conv
+ * @property {boolean} matrix  the matrix engine runs
+ * @property {string} profile
+ * @property {number} pipelines
+ * @property {boolean} working  the running pipelines do work, not every one a unity copy of a channel to itself
+ * @property {"structural" | "bauer" | null} crossfeed  the crossfeed that runs: a structural block in the pipelines,
+ *   the Bauer switch, or none
+ * @property {boolean} loudness
+ * @property {number} applied  whole percent of the loudness shelving applied
+ * @property {boolean} correction
+ * @property {string} model  the running DAC correction model
+ * @property {string} volume  the level as the rail prints it, with the pin's word while one holds it
+ * @property {boolean} speakers
+ * @property {string[]} hidden  the stages the preferences hide
+ * @typedef {{ id: string, level: number, name: string, value: string, on: boolean, hidden: boolean, byp: boolean }} RailStage
+ * @typedef {{ value: string, on: boolean }} Reading  one stage's value and lamp
+ * @typedef {{ dsdInPath: boolean, dsd: string, offChain: boolean, rateOn: boolean, resamples: boolean, resampling: string, shaping: string }} Paths
+ */
+
+const DASH = "—";
+
+/** The rail's stages in signal order: level 0 a top stage, 1 a Matrix engine part. */
+const CHAIN = [
+  { id: "source", level: 0, name: "Source" },
+  { id: "hf", level: 0, name: "HF filter" },
+  { id: "dsd", level: 0, name: "DSD Processing" },
+  { id: "matrix", level: 0, name: "Matrix engine" },
+  { id: "pipelines", level: 1, name: "DSP pipelines" },
+  { id: "crossfeed", level: 1, name: "Crossfeed" },
+  { id: "loudness", level: 1, name: "Loudness" },
+  { id: "resampling", level: 0, name: "Resampling" },
+  { id: "speakers", level: 0, name: "Speakers" },
+  { id: "correction", level: 0, name: "DAC correction" },
+  { id: "volume", level: 0, name: "Volume" },
+  { id: "shaping", level: 0, name: "Shaping" },
+  { id: "output", level: 0, name: "Output" },
+];
+
+/** The rate stage's name wherever it is not lit by a resampling filter. */
+const RATE_CONVERSION = "Rate conversion";
+
+/** The ids of the stages after Shaping, in signal order. */
+export const AFTER_SHAPING = CHAIN.slice(CHAIN.findIndex((s) => s.id === "shaping") + 1).map((s) => s.id);
+
+/** Crossfeed's implementations as the rail names them. */
+export const XF_MODES = [
+  { v: "off", label: "Off" },
+  { v: "bauer", label: "Bauer" },
+  { v: "structural", label: "Structural" },
+];
+
+/** The stages that leave the chain under Direct SDM. */
+const OFF_CHAIN = ["resampling", "shaping"];
+
+/** The processing stages a Direct SDM path does not run; DSD Processing goes by its own path rule. */
+const BYPASSED_BY_DIRECT = [
+  "hf",
+  "volume",
+  "matrix",
+  "pipelines",
+  "crossfeed",
+  "loudness",
+  "resampling",
+  "shaping",
+  "correction",
+];
+
+/**
+ * A rate as the rail prints it: the frequency, never a DSD multiplier.
+ *
+ * @param {string | undefined} rate
+ * @returns {string}
+ */
+function fmtRate(rate) {
+  const n = Number(rate);
+  return n ? hz(n, 3) : DASH;
+}
+
+/**
+ * A channel count as the rail appends it to a stream, nothing when the count is absent or not a positive whole number.
+ *
+ * @param {string | undefined} count
+ * @returns {string}
+ */
+function fmtChannels(count) {
+  const n = Number(count);
+  return Number.isInteger(n) && n > 0 ? ` / ${n} ch` : "";
+}
+
+/**
+ * The incoming stream: its rate, bit depth and channel count, a bare dash with no stream.
+ *
+ * @param {Metadata} md
+ * @returns {string}
+ */
+function sourceLabel(md) {
+  if (!md.samplerate) return DASH;
+  return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit${fmtChannels(md.channels)}`;
+}
+
+/**
+ * The output depth the rail prints: the one the Status frame reports, 1 bit on a DSD rate where it reports none.
+ *
+ * @param {Status} st
+ * @returns {string}
+ */
+function outputDepth(st) {
+  const bits = Number(st.active_bits);
+  if (bits) return ` / ${bits}bit`;
+  return outputIsSdm(st) ? " / 1bit" : "";
+}
+
+/**
+ * The output: its rate, the depth the Status frame reports (1 bit on a DSD rate where it reports none) and its
+ * channel count, a bare dash with no rate.
+ *
+ * @param {Status} st
+ * @returns {string}
+ */
+function outputLabel(st) {
+  const rate = st.active_rate;
+  if (!Number(rate)) return DASH;
+  return `${fmtRate(rate)}${outputDepth(st)}${fmtChannels(st.active_channels)}`;
+}
+
+/**
+ * A running /config or /matrix dropdown by its option's label, the raw value where no option matches, "" when unset.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
+function configLabel(key) {
+  const raw = runningValue(key);
+  if (raw === undefined || raw === "") return "";
+  const entry = schema[key];
+  const hit = optionsFor(entry.optionsFrom || "", formFieldName(entry)).find(
+    (/** @type {OptionItem} */ o) => String(o.value) === String(raw),
+  );
+  return hit ? hit.label : String(raw);
+}
+
+/**
+ * DSD Processing, the rate stage and Shaping for what plays. DSD Processing names what it runs for the running chain:
+ * on PCM the noise filter and the decimation filter, on SDM the integrator, or Direct.
+ *
+ * @param {Running} r
+ * @returns {Paths}
+ */
+function conversion(r) {
+  const { conv } = r;
+  const sdm = r.direct ? "Direct" : conv.integ;
+  return {
+    dsdInPath: r.path === "sdm-sdm" || r.path === "dsd-pcm",
+    dsd: r.chain === "pcm" ? `${conv.noise} · ${conv.decim}` : sdm,
+    offChain: r.path === "direct",
+    ...rateStage(
+      { run: r.chain, path: r.path, stage: r.stage },
+      { from: r.metadata.samplerate, to: r.status.active_rate },
+      conv,
+    ),
+    shaping: conv.shaper,
+  };
+}
+
+/** The paths whose source is a DSD bitstream. */
+const DSD_SOURCE_PATHS = ["dsd-pcm", "sdm-sdm", "direct"];
+
+/**
+ * Whether the engaged HF filter acts on the content playing: none, or no filter, never does.
+ *
+ * @param {Running} r
+ * @returns {boolean}
+ */
+const hfActs = (r) =>
+  r.hf !== "" && r.hf !== "none" && actsOn(r.hf, contentRate(r.metadata.samplerate, DSD_SOURCE_PATHS.includes(r.path)));
+
+/**
+ * A Matrix engine part: lit while it is engaged and the matrix engine runs.
+ *
+ * @param {Running} r
+ * @param {boolean} engaged
+ * @param {string} value
+ * @returns {Reading}
+ */
+const part = (r, engaged, value) => ({ value, on: engaged && r.matrix });
+
+/**
+ * A lit stage's value: the source and output describe a stream, and the rest name what runs. A stage switched off
+ * has none.
+ *
+ * @type {Record<string, (r: Running, p: Paths) => Reading>}
+ */
+const READ = {
+  source: (r) => ({ value: r.path === "idle" ? DASH : sourceLabel(r.metadata), on: true }),
+  hf: (r) => {
+    const on = hfActs(r);
+    return { value: on ? r.hf : "", on };
+  },
+  dsd: (_r, p) => ({ value: p.dsd, on: true }),
+  matrix: (r) => ({ value: r.profile, on: r.matrix }),
+  pipelines: (r) => part(r, r.working, `${r.pipelines} active`),
+  crossfeed: (r) => part(r, r.crossfeed !== null, r.crossfeed ? (modeName(XF_MODES, r.crossfeed) ?? "") : ""),
+  loudness: (r) => part(r, r.loudness, `${r.applied}% applied`),
+  resampling: (_r, p) => ({ value: p.resampling, on: p.rateOn }),
+  correction: (r) => part(r, r.correction, r.correction ? r.model || "[none]" : ""),
+  volume: (r) => ({ value: r.volume, on: true }),
+  shaping: (_r, p) => ({ value: p.shaping, on: true }),
+  speakers: (r) => ({ value: "", on: r.speakers }),
+  output: (r) => ({ value: r.path === "idle" ? DASH : outputLabel(r.status), on: true }),
+};
+
+/**
+ * The rail's stages for what runs, in signal order: each one's value and lamp, whether it is hidden (by the
+ * preferences, or off the chain under Direct SDM) and whether this track's path bypasses it.
+ *
+ * @param {Running} r
+ * @returns {RailStage[]}
+ */
+export function railStages(r) {
+  const p = conversion(r);
+  const direct = r.path === "direct";
+  return CHAIN.map((s) => ({
+    ...s,
+    ...READ[s.id](r, p),
+    name: s.id === "resampling" && !p.resamples ? RATE_CONVERSION : s.name,
+    hidden: r.hidden.includes(s.id) || (p.offChain && OFF_CHAIN.includes(s.id)),
+    byp: (direct && BYPASSED_BY_DIRECT.includes(s.id)) || (s.id === "dsd" && !p.dsdInPath),
+  }));
+}
+
+/**
+ * A stage's lamp on the rail. Playing, it reads lit while the stage runs, and unlit while the stage is off, bypassed by
+ * the playing path or darkened by an alert. Paused, the Source lamp alone reads paused. Off, every lamp is unlit.
+ *
+ * @param {RailStage} st
+ * @param {boolean} dead  the alerts darken the stage
+ * @param {Transport} transport
+ * @returns {Lamp}
+ */
+export function railLamp(st, dead, transport) {
+  if (transport === "paused") return st.id === "source" ? "pause" : "off";
+  return transport === "playing" && st.on && !st.byp && !dead ? "on" : "off";
+}
+
+/**
+ * What the rail prints under a stage's name: its value while its lamp reads lit, nothing otherwise.
+ *
+ * @param {RailStage} st
+ * @param {boolean} dead  the alerts darken the stage
+ * @param {Transport} transport
+ * @returns {string}
+ */
+export const railValue = (st, dead, transport) => (railLamp(st, dead, transport) === "on" ? st.value : "");
+
+const POLY_SINC = "poly-sinc-";
+
+/**
+ * A rail value in the parts it may wrap between: a poly-sinc filter's family prefix and the rest, anything else whole.
+ *
+ * @param {string} value
+ * @returns {string[]}
+ */
+export const railBreak = (value) =>
+  value.startsWith(POLY_SINC) && value.length > POLY_SINC.length ? [POLY_SINC, value.slice(POLY_SINC.length)] : [value];
+
+/**
+ * The engine name of the enumeration item at the list index State reports for one attribute, "" when there is none.
+ *
+ * @param {string} key
+ * @param {string} attr
+ * @returns {string}
+ */
+export function nameAt(key, attr) {
+  const at = stateOf(attr);
+  const hit = items(key).find((o) => String(o.index) === String(at));
+  return hit ? hit.name : "";
+}
+
+/** Whether the running pipelines do work, not every one a unity copy of a channel to itself. */
+const pipelinesWork = computed(() => !effectivePipelines.value.every(passesThrough));
+
+/** Whether a structural crossfeed block is installed in the running pipelines. */
+const structuralRuns = computed(() => !!structuralBlock(effectivePipelines.value));
+
+/**
+ * The crossfeed that runs: a structural block in the running pipelines, else the Bauer switch, else none.
+ *
+ * @returns {Running["crossfeed"]}
+ */
+function crossfeedNow() {
+  if (structuralRuns.value) return "structural";
+  return truthy(runningValue("crossfeed_enabled")) ? "bauer" : null;
+}
+
+/**
+ * What runs now, read off the engine's reports, the daemon's running forms and the browser's preferences.
+ *
+ * @returns {Running}
+ */
+export const railNow = () => running.value;
+
+/** The Status and metadata attributes the rail prints. */
+const SHOWN_METADATA = ["samplerate", "bits", "channels"];
+const SHOWN_STATUS = ["active_rate", "active_bits", "active_channels"];
+
+/**
+ * The listed attributes of a Status or metadata block, those it carries.
+ *
+ * @param {Record<string, string> | undefined} block
+ * @param {string[]} names
+ * @returns {Record<string, string>}
+ */
+const attributes = (block, names) =>
+  Object.fromEntries(names.filter((n) => block?.[n] !== undefined).map((n) => [n, /** @type {string} */ (block?.[n])]));
+
+/** What runs now, held to one object while the rail would print the same. @type {{ readonly value: Running }} */
+const running = stable(() => {
+  const s = engineStatus.value || {};
+  const spk = /** @type {{ enabled?: boolean } | null} */ (speakers.value);
+  return {
+    path: playbackPath(),
+    chain: runningChain(),
+    stage: sourceIsNx() ? "nx" : "1x",
+    direct: truthy(runningValue("direct_sdm")),
+    metadata: attributes(s.metadata, SHOWN_METADATA),
+    status: attributes(s.status, SHOWN_STATUS),
+    hf: nameAt("junk_filters", "filter_junk"),
+    conv: {
+      filter1x: nameAt("filters", "filter1x"),
+      filterNx: nameAt("filters", "filterNx"),
+      shaper: nameAt("shapers", "shaper"),
+      noise: configLabel("noise_filter"),
+      decim: configLabel("pcm_conversion"),
+      integ: configLabel("sdm_integrator"),
+      sdmconv: configLabel("sdm_conversion"),
+    },
+    matrix: truthy(runningValue("matrix_enabled")),
+    profile: matrixActiveProfile.value,
+    pipelines: effectivePipelines.value.length,
+    working: pipelinesWork.value,
+    crossfeed: crossfeedNow(),
+    loudness: truthy(runningValue("loudness_enabled")),
+    applied: loudnessApplied(),
+    correction: truthy(runningValue("dac_correction_enabled")),
+    model: configLabel("dac_correction_profile"),
+    volume: volumeShown.value == null ? "" : volumeNow().rail,
+    speakers: !!(spk && spk.enabled),
+    hidden: hiddenStages.value,
+  };
+});

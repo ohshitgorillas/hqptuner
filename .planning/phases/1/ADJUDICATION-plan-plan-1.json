@@ -1,0 +1,36 @@
+{
+  "phase": "1",
+  "trigger": "plan",
+  "discriminator": "plan-1",
+  "round": 1,
+  "base": "a79dbac7",
+  "head": "a79dbac7",
+  "base_id": "a79dbac72352e7d5e7b77be2c174d351d1e930be",
+  "head_id": "a79dbac72352e7d5e7b77be2c174d351d1e930be",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/1/PLAN.md",
+      "line": 41,
+      "severity": "high",
+      "claim": "Task 1's testing scope says the presetWire fake holds the book the way the backend does, so the re-read book can show the record on its old station and on the ticked one. That is false: the fake ignores the PUT's stations and the DELETE's ?station, so outcome (a) cannot pass after the correct fix.",
+      "failure_scenario": "Look at tests/js/support/wire/livepresetwire.js:139-155. storeSave writes the record only to w.presets, the loaded station (\"Day\" in shell.test.js beforeEach), and storeDelete filters w.presets whatever station the query names. The file's header comment also says a ?station= query does not change which preset a path names. Take outcome (a) with cur=Warm@Day and save(saving(\"Warm\", [\"Night\"])) after the fixed write. The re-read book's Night still lists only [\"Quiet\"], because the fake put Warm on Day. So the planned assertion 'holds it on the ticked one' stays red against correct code. The test writer can then only drop that assertion or edit the shared fake, and that fake is not in Task 1's Files list. The plan also offers this same fake as the evidence for success criterion 2 (the saved snapshot is on the station it was saved to), so criterion 2 has no real cover from this test.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "45a839ad",
+      "citation_missing": true,
+      "base_id": "a79dbac72352e7d5e7b77be2c174d351d1e930be",
+      "head_id": "a79dbac72352e7d5e7b77be2c174d351d1e930be"
+    }
+  ]
+}

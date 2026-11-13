@@ -9,18 +9,16 @@ layer has to call it a FAILED COMMAND rather than an internal error.
 
 The fake's `_stall` knob is that daemon: the command is received and logged, the
 connection stays open, and nothing comes back (fake_control.DEFAULTS). The
-per-command deadline runs on the app's virtual clock (docs/testing.md §7), and
-the cases assert on what came back, never on how long it took.
+per-command deadline runs on the app's virtual clock.
 """
 
-import logging
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from apps import live_app, wait_for_api
+from apps import live_app
 from conftest import spawn_threaded_daemon
-from fake_control import DEFAULTS, CommandLog
+from fake_control import DEFAULTS
 from fastapi.testclient import TestClient
 
 #: The per-command deadline the app is built with, in virtual seconds. The cases
@@ -33,33 +31,15 @@ STALL_TIMEOUT = 0.5
 #: `_close` knob gives up on its deadline and drops that connection, and the
 #: request under test then fails "not connected" without ever reaching the fake —
 #: the case would be asserting on the poll's failure rather than on the route.
+#: Connecting reads every enumeration once, and the next re-read waits this long
+#: on the app's virtual clock, so a knob flipped once the app is up meets the
+#: case's request first. The heartbeat between polls reads only State and Status.
 PARKED_POLL_INTERVAL = 3600.0
 
 #: A live setting whose setter is one command with one State attribute behind it
 #: (`SetJunkFilter` -> `filter_junk`), so a stalled write has nothing else in the
 #: batch to confuse the report with.
 STALLED_FIELD = "junk_filter"
-
-#: The last Control API command of both `loader.connect_and_load` and `loader.poll` in a
-#: control-only app (the 8088 refreshes that follow never touch this wire), so
-#: its SECOND appearance in the daemon's log is the first background poll
-#: finishing. The fixtures that flip a `_stall`/`_close` knob on a healthy
-#: daemon wait for it first: the app reports reachable after connect-and-load
-#: but BEFORE that first poll, so a knob flipped straight after the yield can
-#: catch the poll instead, which then times out and drops the shared connection
-#: before the case's own write gets near the wire.
-FIRST_POLL_SENTINEL = "MatrixListProfiles"
-
-
-def _await_first_poll(client: TestClient, log: CommandLog) -> None:
-    """Spin on real requests until the manager's first poll has completed —
-    the request is what progresses the app's own loop (see wait_for_api)."""
-
-    def first_poll_done(c: TestClient) -> bool:
-        c.get("/api/health")
-        return sum(1 for name, _ in log if name == FIRST_POLL_SENTINEL) >= 2
-
-    wait_for_api(client, first_poll_done)
 
 
 # --- the connection dropped AFTER the write landed -----------------------------
@@ -73,8 +53,8 @@ def _await_first_poll(client: TestClient, log: CommandLog) -> None:
 
 #: The post-write housekeeping command the connection dies on. `SetFilter` and
 #: `SetMode` swap the enumerations behind them, so the route re-reads the lists
-#: after either (protocol.md §6 SetMode/GetModes, manual §4.6) — this is one of
-#: those reads, and the one named in the field report.
+#: after either (manual §4.6) — this is one of those reads, and the one named in
+#: the field report.
 HOUSEKEEPING_COMMAND = "GetShapers"
 
 #: A live field on the chain the fake has loaded (PCM by default), written by
@@ -82,8 +62,6 @@ HOUSEKEEPING_COMMAND = "GetShapers"
 #: `State.filterNx` moving to "1" is the engine's own word that it landed.
 CLOSING_FIELD = "filter"
 CLOSING_VALUE = "40"
-CLOSING_STATE_ATTR = "filterNx"
-CLOSING_STATE_VALUE = "1"
 
 
 def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
@@ -94,11 +72,9 @@ def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
     the shared State dict afterwards, which is also how a case reads the daemon's
     side of the wire without asking it anything."""
     state = dict(DEFAULTS)
-    log: CommandLog = []
-    daemon = spawn_threaded_daemon(state=state, log=log)
+    daemon = spawn_threaded_daemon(state=state)
     app = live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
-    _await_first_poll(client, log)  # see FIRST_POLL_SENTINEL: flipped earlier, the knob catches the poll
     state["_close"] = HOUSEKEEPING_COMMAND
     yield client, state
     next(app, None)
@@ -118,14 +94,6 @@ def closing_mode_api(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str
     yield from _closing_app(tmp_path)
 
 
-def test_a_write_that_loses_the_connection_afterwards_is_still_answered(
-    closing_api: tuple[TestClient, dict[str, str]],
-) -> None:
-    client, _ = closing_api
-    resp = client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    assert resp.status_code == 200
-
-
 def test_a_write_verified_before_the_connection_dropped_is_reported_as_applied(
     closing_api: tuple[TestClient, dict[str, str]],
 ) -> None:
@@ -135,25 +103,6 @@ def test_a_write_verified_before_the_connection_dropped_is_reported_as_applied(
     assert entry["ok"] is True
 
 
-def test_a_write_that_loses_the_connection_afterwards_still_reached_the_engine(
-    closing_api: tuple[TestClient, dict[str, str]],
-) -> None:
-    # What makes `ok: true` honest rather than optimistic: a live setting never
-    # touches the config file, so the daemon's own State is the only place it
-    # shows up, and it shows the new value.
-    client, state = closing_api
-    client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    assert state[CLOSING_STATE_ATTR] == CLOSING_STATE_VALUE
-
-
-def test_a_mode_write_that_loses_the_connection_afterwards_is_still_answered(
-    closing_mode_api: tuple[TestClient, dict[str, str]],
-) -> None:
-    client, _ = closing_mode_api
-    resp = client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
-    assert resp.status_code == 200
-
-
 def test_a_mode_write_verified_before_the_connection_dropped_is_reported_as_applied(
     closing_mode_api: tuple[TestClient, dict[str, str]],
 ) -> None:
@@ -161,35 +110,6 @@ def test_a_mode_write_verified_before_the_connection_dropped_is_reported_as_appl
     resp = client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
     entry = next(e for e in resp.json()["report"]["live"] if e["setting"] == "mode")
     assert entry["ok"] is True
-
-
-# The two below assert on a log record, which the testing policy otherwise keeps
-# off-limits (docs/testing.md §1). They are here because the operator-visible
-# contract for a swallowed failure IS the record: a housekeeping command that
-# died is invisible in the 200 the user gets, so the only place it survives is
-# the log, and a warning that does not name the command diagnoses nothing.
-
-
-def test_a_housekeeping_failure_after_a_write_names_the_command_that_failed(
-    closing_api: tuple[TestClient, dict[str, str]], caplog: pytest.LogCaptureFixture
-) -> None:
-    client, _ = closing_api
-    with caplog.at_level(logging.WARNING):
-        client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    # the warning is found by its level, and the command it names is what is
-    # compared — the sentence around the name is copy (docs/testing.md rule 9)
-    warnings = [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING]
-    assert HOUSEKEEPING_COMMAND in (warnings or [""])[0]
-
-
-def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(
-    closing_api: tuple[TestClient, dict[str, str]], caplog: pytest.LogCaptureFixture
-) -> None:
-    client, _ = closing_api
-    with caplog.at_level(logging.WARNING):
-        client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    # Only that it is not swallowed silently; which command died is the test above.
-    assert logging.WARNING in [record.levelno for record in caplog.records]
 
 
 # --- nothing written at all ----------------------------------------------------

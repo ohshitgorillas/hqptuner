@@ -62,19 +62,26 @@
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/changelog-style.py"
           }
         ]
-      },
-      {
-        "matcher": "Read|Bash|Grep|Glob|WebFetch|WebSearch|Agent|Write|Edit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/read-volume.py"
-          }
-        ]
       }
     ]
   },
   "enabledPlugins": {
-    "filepawl@filepawl": true
+    "filepawl@filepawl": true,
+    "triviajudge@triviajudge": false,
+    "cadence@cadence": true
+  },
+  "extraKnownMarketplaces": {
+    "filepawl": {
+      "source": {
+        "source": "github",
+        "repo": "ohshitgorillas/filepawl"
+      }
+    },
+    "triviajudge": {
+      "source": {
+        "source": "github",
+        "repo": "ohshitgorillas/triviajudge"
+      }
+    }
   }
 }

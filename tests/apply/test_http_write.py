@@ -1,7 +1,6 @@
 """HTTP config write side (POST /config, profile CRUD, backup) against a real
-HTTP server on a real socket — no transport injection, no mock of our client
-(docs/testing.md rule 4). The server records each request so tests can assert
-what actually went over the wire."""
+HTTP server on a real socket. The server records each request so tests can
+assert what actually went over the wire."""
 
 from collections.abc import AsyncIterator, Iterator
 from http.server import BaseHTTPRequestHandler
@@ -17,13 +16,6 @@ BACKUP_BLOB = b"BACKUP-BLOB"
 
 def _handler(captured: list[tuple[str, str]]) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
-        def do_POST(self) -> None:
-            length = int(self.headers.get("Content-Length", "0"))
-            captured.append((self.path, self.rfile.read(length).decode()))
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"OK")
-
         def do_GET(self) -> None:
             captured.append((self.path, ""))
             if self.path == "/backup/settings.zip":  # only the real backup route serves the blob
@@ -58,14 +50,6 @@ async def http_client(
     client = HttpConfigClient("127.0.0.1", port, "u", "p")
     yield client, captured
     await client.aclose()
-
-
-async def test_post_profile_load_hits_the_load_route(
-    http_client: tuple[HttpConfigClient, list[tuple[str, str]]],
-) -> None:
-    client, captured = http_client
-    await client.post_profile("load", profile="Speakers")
-    assert captured[0][0] == "/config/profile/load"
 
 
 async def test_backup_returns_the_daemon_bytes(

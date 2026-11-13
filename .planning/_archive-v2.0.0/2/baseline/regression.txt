@@ -1,0 +1,14 @@
+Phase 2 full-suite regression check (Plan 7 Task 3)
+rebuild/integrate HEAD 3e90a6169f76248cbfe6069c307ea495d06d21a8
+command: PYTHONPATH=$(pwd) scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test --test-concurrency=8 tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js
+(the Plan 1 baseline command, base.txt; run once; no coverage flag)
+exit=0 log=/tmp/gate-node-L0OIisBn.log
+# tests 4882
+# pass 4882
+# fail 0
+# canceled 0
+# skipped 0
+# todo 0
+# duration_ms 5391.563819
+failing tests: none
+Against the baseline (failures.log, 195 failures of 4904 tests): no failure remains and no new failure appears. The 22 fewer tests than the baseline are the 28 cases the owner retired under C1, C2 and C3 in ceb112e9 and the polling cases 8287314d and cb5d5d42 removed (all matched in audit.md section 3), less the 6 tests ba04762f added for nameOf.

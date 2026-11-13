@@ -1,0 +1,274 @@
+// Rendered suite for hqptuner/static/components/faceplate/builders/SnapshotBuilder.js: the body of rail, hairline and
+// page; the page's title row with Delete only on a saved record, Discard and Save following the state, and the close
+// going back to the chain; the head's name window, stations menu and caption; the confirm line only while a question is
+// asked, its first button answering and its second canceling; the rows closing the page; Delete asking and Save with
+// no name refusing.
+//
+// Driven at the wire, as tests/js/components/faceplate-builders/rail.test.js is: the engine on `engineState` and
+// `enums`, the stations and the loaded one on `config`, the book on `liveBook`; the record being edited, its staged
+// edits, the confirm line's question and the refusal are the shell's `cur`, `staged`, `ask` and `refused`, and the body
+// on the plate is the view's `body`. Taps and typing are fired through the renderer's vnode seam, since
+// render-to-string fires no events; a control the page draws itself is found by walking its own vnode tree in document
+// order, the close as the title row's one button that is not a `btn`. Every name asserted is the fixture's own.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-builders/builder.test.js
+
+import { test, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { SnapshotBuilder } from "../../../../hqptuner/static/components/faceplate/builders/SnapshotBuilder.js";
+import { cur, staged, ask, refused } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
+import { editNow } from "../../../../hqptuner/static/store/faceplate/builders/snapshot.js";
+import { body, openStage, openList, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config, engineState, engineStatus, enums } from "../../../../hqptuner/static/store/signals.js";
+import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
+import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
+import { elements, attr, hasAttr, text } from "../../support/markup.js";
+import { renderTree } from "../../support/vnodeseam.js";
+import { every, inside, kids, vcls, isV, descend, fire } from "../../support/rendered/treewalk.js";
+import { formField } from "../../support/chainenums.js";
+import { seedReadings } from "../../support/readings.js";
+
+/** @typedef {import("../../../../hqptuner/static/model/builders/snapshot.js").Edit} Edit */
+/** @typedef {{ index: string, value: string, name: string }} EnumItem */
+
+/** @type {EnumItem[]} */
+const PCM_FILTERS = [
+  { index: "0", value: "40", name: "poly-sinc-gauss-long" },
+  { index: "1", value: "41", name: "sinc-M" },
+];
+/** @type {EnumItem[]} */
+const PCM_SHAPERS = [
+  { index: "0", value: "5", name: "NS9" },
+  { index: "1", value: "6", name: "TPDF" },
+];
+
+/** A fresh book: Headphones holds Desk and Bed, Speakers one. */
+const book = () => ({
+  Speakers: { S01: { chain: "pcm", fields: { mode: "pcm", filter1x: "40" }, names: {} } },
+  Headphones: {
+    Desk: { chain: "pcm", fields: { mode: "pcm", filter1x: "40", dither: "6" }, names: {} },
+    Bed: { chain: "pcm", fields: { filter1x: "41" }, names: {} },
+  },
+});
+
+/** Write one idle PCM engine onto the wire-side signals, Headphones loaded. */
+async function wire() {
+  engineState.value = { state: "0", active_chain: "pcm", filter1x: "1", filterNx: "0", shaper: "0", adaptive: "1" };
+  engineStatus.value = {};
+  enums.value = { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
+  const chain = [
+    formField("filter1x", "40", PCM_FILTERS),
+    formField("filter", "41", PCM_FILTERS),
+    formField("dither", "6", PCM_SHAPERS),
+  ];
+  config.value = {
+    fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
+  };
+  await seedReadings({
+    mode: "pcm",
+    ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
+    active_preset: { value: "Headphones", readonly: true },
+    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
+  });
+}
+
+const DESK = { st: "Headphones", name: "Desk" };
+const BED = { st: "Headphones", name: "Bed" };
+const FRESH = { st: "Headphones", name: NEW };
+
+//: A question the confirm line is handed, and a name typed into the name window.
+const QUESTION = "Lounge already holds this one";
+const TYPED = "Lounge";
+
+/**
+ * Desk's edit renamed, staged so the record reads dirty.
+ *
+ * @returns {Edit}
+ */
+const renamed = () => ({
+  name: "Desk2",
+  stations: ["Headphones"],
+  inc: new Set(["mode"]),
+  vals: { mode: "pcm", adaptive: "1", pcm: {}, sdm: {} },
+});
+
+/** Stage Desk's renamed edit. */
+const dirtyDesk = () => {
+  staged.value = new Map([[keyOf(DESK), renamed()]]);
+};
+
+beforeEach(async () => {
+  await wire();
+  liveBook.value = book();
+  staged.value = new Map();
+  cur.value = DESK;
+  ask.value = null;
+  refused.value = false;
+  body.value = "snapshots";
+  openStage.value = null;
+  openList.value = null;
+  openPopover.value = null;
+});
+
+const tree = () => html`<${SnapshotBuilder} />`;
+
+// --- markup ------------------------------------------------------------------------------------------------------
+
+/** Every element of one render of the builder. */
+const drawn = () => elements(render(tree()));
+
+/** The first `name.cls…` of one render. @param {string} name @param {...string} cls */
+const one = (name, ...cls) => every(drawn(), name, ...cls)[0];
+
+/** The title row's small buttons, in document order. */
+const titleButtons = () => every(inside(one("div", "btitle")), "button", "btn", "sm");
+
+/** Whether the title row's Discard is disabled. */
+const discardOff = () => {
+  const b = titleButtons().at(-2);
+  return b && hasAttr(b, "disabled");
+};
+
+/** Whether the title row's Save is disabled. */
+const saveOff = () => {
+  const b = titleButtons().at(-1);
+  return b && hasAttr(b, "disabled");
+};
+
+/** The name window's input. */
+const nameInput = () => every(inside(one("label", "vfd", "bname")), "input", "bnin")[0];
+
+/** The value the name window shows. */
+const nameShown = () => {
+  const box = nameInput();
+  return box && attr(box, "value");
+};
+
+/** The head's caption. */
+const caption = () => every(inside(one("div", "bhead")), "div", "bcap")[0];
+
+/** The confirm lines drawn. */
+const askLines = () => every(drawn(), "div", "bask").filter((e) => attr(e, "role") === "alert");
+
+// --- vnodes ------------------------------------------------------------------------------------------------------
+
+/** The first vnode of one render that is a host `name.cls…`. @param {string} name @param {...string} cls */
+const vone = (name, ...cls) => renderTree(tree()).seen.find((v) => isV(v, name, ...cls));
+
+/** The title row's small buttons' vnodes, in document order. */
+const vtitleButtons = () => descend(vone("div", "btitle")).filter((v) => isV(v, "button", "btn", "sm"));
+
+/** The title row's close: its one button that is not a `btn`. */
+const vclose = () => descend(vone("div", "btitle")).filter((v) => v.type === "button" && !vcls(v).includes("btn"))[0];
+
+/** Type `value` into the name window. @param {string} value */
+const typeName = (value) => {
+  const box = descend(vone("label", "vfd", "bname")).find((v) => isV(v, "input", "bnin"));
+  const target = { value };
+  return fire(box, "onInput", { target, currentTarget: target });
+};
+
+/** Put the fixture's question on the confirm line. */
+const asking = () => {
+  ask.value = {
+    text: QUESTION,
+    onConfirm: () => {},
+  };
+};
+
+// --- the title row -----------------------------------------------------------------------------------------------
+
+test("test_the_title_row_carries_delete_on_a_saved_record", () => {
+  assert.equal(titleButtons().length, 3);
+});
+
+test("test_the_title_row_carries_no_delete_on_a_new_record", () => {
+  cur.value = FRESH;
+  assert.equal(titleButtons().length, 2);
+});
+
+test("test_discard_is_disabled_while_the_edit_is_clean", () => {
+  assert.equal(discardOff(), true);
+});
+
+test("test_save_is_disabled_on_a_clean_saved_record", () => {
+  assert.equal(saveOff(), true);
+});
+
+test("test_tapping_close_from_the_snapshots_shows_the_chain", async () => {
+  await fire(vclose());
+  assert.equal(body.value, "chain");
+});
+
+test("test_tapping_close_from_settings_shows_the_chain", async () => {
+  await fire(vclose());
+  body.value = "settings";
+  await fire(vclose());
+  assert.equal(body.value, "chain");
+});
+
+test("test_tapping_delete_asks_to_remove_the_record_edited", async () => {
+  cur.value = BED;
+  await fire(vtitleButtons()[0]);
+  assert.equal(ask.value?.text.includes("Bed"), true);
+});
+
+test("test_tapping_save_with_no_name_refuses", async () => {
+  cur.value = FRESH;
+  await fire(vtitleButtons().at(-1));
+  assert.equal(refused.value, true);
+});
+
+// --- the head ----------------------------------------------------------------------------------------------------
+
+test("test_the_name_window_shows_the_saved_records_name", () => {
+  assert.equal(nameShown(), "Desk");
+});
+
+test("test_the_name_window_shows_the_staged_edits_name", () => {
+  dirtyDesk();
+  assert.equal(nameShown(), "Desk2");
+});
+
+test("test_typing_a_name_renames_the_edit", async () => {
+  await typeName(TYPED);
+  assert.equal(editNow().name, TYPED);
+});
+
+test("test_typing_a_name_clears_the_refusal", async () => {
+  cur.value = FRESH;
+  refused.value = true;
+  await typeName(TYPED);
+  assert.equal(refused.value, false);
+});
+
+test("test_the_caption_holds_the_refusal_while_refused", () => {
+  refused.value = true;
+  assert.equal(every(inside(caption()), "span", "bref").length, 1);
+});
+
+test("test_the_caption_holds_no_refusal_while_idle", () => {
+  assert.equal(every(inside(caption()), "span", "bref").length, 0);
+});
+
+// --- the confirm line --------------------------------------------------------------------------------------------
+
+test("test_the_confirm_line_shows_while_a_question_is_asked", () => {
+  asking();
+  assert.equal(askLines().length, 1);
+});
+
+test("test_the_confirm_line_is_absent_while_nothing_is_asked", () => {
+  assert.equal(askLines().length, 0);
+});
+
+test("test_the_confirm_line_shows_the_question_asked", () => {
+  asking();
+  const said = kids(askLines()[0])
+    .filter((k) => k.name !== "button")
+    .map(text);
+  assert.deepEqual(said, [QUESTION]);
+});

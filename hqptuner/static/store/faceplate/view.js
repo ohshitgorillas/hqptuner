@@ -1,0 +1,117 @@
+// What the faceplate shows: the window it is fitted to, which body is on the plate, which stage's drawer is open, which
+// option list is open over the body, which popover is open, whether the connection panel is up and the frequency span
+// of the page's Source spectrum. One drawer, one list and one popover at a time. The gear and the builders swap the
+// whole body; the header, the engine row and the bottom bar stay.
+
+import { signal } from "@preact/signals";
+import { FREQ_SPANS } from "../../model/gauges/meter/meter.js";
+
+/** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
+
+/**
+ * An option list as a chain picker opens it: the catalog key whose list shows, the stage narrowing reads, the value
+ * running in that field, what a pick does with the option value picked, and the id of the element a panel parks at
+ * when it is not the key's own picker.
+ *
+ * @typedef {object} ListRequest
+ * @property {string} key
+ * @property {"1x" | "nx"} stage
+ * @property {string} value
+ * @property {(value: string) => unknown} pick
+ * @property {string} [anchor]
+ * @property {string} [omit]
+ */
+
+/** The body on the plate. @type {{ value: Body }} */
+export const body = signal(/** @type {Body} */ ("chain"));
+
+/** The rail stage whose drawer is open, or null. @type {{ value: string | null }} */
+export const openStage = signal(/** @type {string | null} */ (null));
+
+/** The open popover's id, or null. @type {{ value: string | null }} */
+export const openPopover = signal(/** @type {string | null} */ (null));
+
+/** The option list open over the body, or null. @type {{ value: ListRequest | null }} */
+export const openList = signal(/** @type {ListRequest | null} */ (null));
+
+/** Whether the connection panel is up. */
+export const panelOpen = signal(false);
+
+/** The page's Source spectrum's frequency span, one of FREQ_SPANS; every page load opens at the whole band. */
+export const freqSpan = signal("full");
+
+/**
+ * Set the page spectrum's frequency span. A value outside FREQ_SPANS is ignored.
+ *
+ * @param {string} v
+ * @returns {void}
+ */
+export function setFreqSpan(v) {
+  if (FREQ_SPANS.includes(v)) freqSpan.value = v;
+}
+
+/**
+ * Swap the body: the one picked, or back to the chain when it already shows. The open drawer and popover close.
+ *
+ * @param {Body} name
+ */
+export function showBody(name) {
+  body.value = body.value === name ? "chain" : name;
+  openStage.value = null;
+  openList.value = null;
+  openPopover.value = null;
+}
+
+/**
+ * A rail stage's tap: its drawer opens in place of any other, or closes when it is the open one.
+ *
+ * @param {string} id
+ */
+export function toggleStage(id) {
+  openStage.value = openStage.value === id ? null : id;
+  openList.value = null;
+  openPopover.value = null;
+}
+
+/**
+ * A chain picker's tap: its list opens over the body, refilled from any other picker's, or closes when it is the one
+ * already open, the same key from the same anchor. A popover over the list closes with it.
+ *
+ * @param {ListRequest} req
+ */
+export function openOptionList(req) {
+  const cur = openList.value;
+  openList.value = cur?.key === req.key && cur.anchor === req.anchor ? null : req;
+  openPopover.value = null;
+}
+
+/**
+ * A popover trigger's tap: its popover opens in place of any other, or closes when it is the open one.
+ *
+ * @param {string} id
+ */
+export function togglePopover(id) {
+  openPopover.value = openPopover.value === id ? null : id;
+}
+
+/**
+ * Escape: the open popover closes; with none open, the open connection panel does; with neither, the open list does;
+ * then the open drawer; with nothing open, the body returns to the chain.
+ */
+export function closeTop() {
+  if (openPopover.value !== null) openPopover.value = null;
+  else if (panelOpen.value) panelOpen.value = false;
+  else if (openList.value !== null) openList.value = null;
+  else if (openStage.value !== null) openStage.value = null;
+  else body.value = "chain";
+}
+
+/**
+ * A click anywhere on the document: the open popover closes unless the click landed in a popover or on its trigger,
+ * each of which carries `data-pop`. A target that left the document mid-click belonged to something that re-rendered.
+ *
+ * @param {{ closest: (selector: string) => unknown, isConnected: boolean }} target
+ */
+export function closeOutside(target) {
+  if (openPopover.value !== null && target.isConnected && !target.closest("[data-pop]")) openPopover.value = null;
+}

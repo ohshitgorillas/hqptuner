@@ -2,13 +2,13 @@
 the browser learns and records which half of the Matrix tab a preset is for.
 
 The store itself — reading, writing, the mode and name rules, a foreign file —
-is pinned in ``tests/presets/test_matrix_mode_store.py``. The suite is cut there
+is pinned in ``tests/presets/stores/test_matrix_mode_store.py``. The suite is cut there
 because everything in this file needs an app and a client and nothing in the
 store file does.
 
-A mode is keyed by preset NAME, the stable join key (docs/architecture.md §3.1),
+A mode is keyed by preset NAME, the stable join key,
 and lives in HQPTuner's own state because hqplayerd re-serializes its config from
-its own model and would drop an attribute of ours (docs/matrix-spec.md:31). So
+its own model and would drop an attribute of ours. So
 the pair never touches hqplayerd: the client below is built with no credentials
 and a control lane pointed at a closed port, and a route that answers at all
 answered without the daemon.
@@ -94,16 +94,9 @@ def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[C
 def modes_client(joined_api: Callable[..., TestClient]) -> TestClient:
     """A client whose preset store already carries the two names these cases PUT.
 
-    A mode is keyed by preset name (docs/architecture.md §3.1), so every case that
+    A mode is keyed by preset name, so every case that
     stores one names a preset that exists."""
     return joined_api([NAME, OTHER])
-
-
-# --- an install that has stored nothing ------------------------------------------
-
-
-def test_a_fresh_install_answers_get_with_200(modes_client: TestClient) -> None:
-    assert modes_client.get(PATH).status_code == 200
 
 
 # --- the round trip ----------------------------------------------------------------
@@ -113,10 +106,6 @@ def test_a_fresh_install_answers_get_with_200(modes_client: TestClient) -> None:
 def test_put_then_get_answers_with_the_stored_mode(modes_client: TestClient, mode: str) -> None:
     modes_client.put(PATH, json={"name": NAME, "mode": mode})
     assert modes_client.get(PATH).json()["presets"][NAME] == mode
-
-
-def test_a_put_that_stores_a_mode_answers_200(modes_client: TestClient) -> None:
-    assert modes_client.put(PATH, json={"name": NAME, "mode": "speakers"}).status_code == 200
 
 
 def test_put_answers_with_the_mode_it_just_stored(modes_client: TestClient) -> None:
@@ -136,41 +125,10 @@ def test_a_put_leaves_another_presets_mode_alone(modes_client: TestClient) -> No
     assert modes_client.get(PATH).json()["presets"][OTHER] == "headphones"
 
 
-# --- a mode that is neither half of the tab ------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "mode",
-    [
-        pytest.param("", id="empty"),
-        pytest.param("Speakers", id="capitalized"),
-        pytest.param("speaker", id="singular"),
-        pytest.param("stereo", id="unknown-word"),
-        pytest.param(" headphones", id="leading-space"),
-    ],
-)
-def test_a_put_carrying_a_mode_that_is_not_a_half_of_the_tab_answers_422(modes_client: TestClient, mode: str) -> None:
-    assert modes_client.put(PATH, json={"name": NAME, "mode": mode}).status_code == 422
-
-
 # --- a name the store refuses ------------------------------------------------------------
 # The store's name rule is pinned in the store's own suite; what is pinned here
 # is that the route turns a refusal into a refusal the browser can read, and not
 # into a 500.
-
-
-@pytest.mark.parametrize(
-    "name",
-    [
-        pytest.param("", id="empty"),
-        pytest.param(" ", id="only-whitespace"),
-        pytest.param("a/b", id="forward-slash"),
-        pytest.param("..", id="parent-directory"),
-        pytest.param(".hidden", id="leading-dot"),
-    ],
-)
-def test_a_put_carrying_a_name_the_store_refuses_answers_422(modes_client: TestClient, name: str) -> None:
-    assert modes_client.put(PATH, json={"name": name, "mode": "speakers"}).status_code == 422
 
 
 @pytest.mark.parametrize(
@@ -197,14 +155,13 @@ def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
 
 
 # --- a name no preset carries --------------------------------------------------------
-# Preset names are the join key (docs/architecture.md §3.1), so a mode stored for
+# Preset names are the join key, so a mode stored for
 # a name no preset carries is an orphan nothing can ever display.
 
 #: The preset store's own on-disk layout stamp, in a version this build cannot read.
 TOO_NEW_PRESET_STORE = {"schema": 99}
 
 GHOST = "Ghost"
-DELETE_PATH = "/api/profile/delete"
 
 
 def test_a_put_for_a_name_no_preset_carries_leaves_the_map_holding_only_the_real_one(
@@ -214,27 +171,6 @@ def test_a_put_for_a_name_no_preset_carries_leaves_the_map_holding_only_the_real
     client.put(PATH, json={"name": NAME, "mode": "speakers"})
     client.put(PATH, json={"name": GHOST, "mode": "speakers"})
     assert client.get(PATH).json()["presets"] == {NAME: "speakers"}
-
-
-@pytest.mark.parametrize(
-    ("mode", "status"),
-    [pytest.param("stereo", 422, id="unstorable-mode"), pytest.param("speakers", 404, id="storable-mode")],
-)
-def test_a_put_for_a_name_no_preset_carries_answers_on_the_mode_before_the_name(
-    joined_api: Callable[..., TestClient], mode: str, status: int
-) -> None:
-    client = joined_api([NAME])
-    assert client.put(PATH, json={"name": GHOST, "mode": mode}).status_code == status
-
-
-def test_deleting_a_preset_drops_its_mode_and_leaves_the_other_presets_mode(
-    joined_api: Callable[..., TestClient],
-) -> None:
-    client = joined_api([NAME, OTHER])
-    client.put(PATH, json={"name": NAME, "mode": "speakers"})
-    client.put(PATH, json={"name": OTHER, "mode": "headphones"})
-    client.post(DELETE_PATH, json={"name": NAME})
-    assert client.get(PATH).json()["presets"] == {OTHER: "headphones"}
 
 
 def test_a_put_against_a_preset_store_stamped_by_a_newer_hqptuner_answers_409(

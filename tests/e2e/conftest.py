@@ -45,11 +45,10 @@ next test. Tests must not assume a pristine engine; assert on the transition
 they caused, not on absolute starting values.
 
 The exception is the server's own mutable state, which `clean_slate` puts back
-to where the session started before every test: the staged-edit buffer, the
-auto-save flag, and any preset a test saved. That state reaches the browser
-through fetches the app makes AFTER its first render, so a test that inherits it
-cannot ask "is anything staged" (or "is auto-save on") of a freshly loaded page
-without racing the answer — the leak surfaces as a helper timing out, not as an
+to where the session started before every test: the staged-edit buffer and any
+preset a test saved. That state reaches the browser through fetches the app
+makes AFTER its first render, so a test that inherits it cannot ask "is anything
+staged" of a freshly loaded page without racing the answer — the leak surfaces as a helper timing out, not as an
 assertion failing. Anything else server-side a new test learns to mutate belongs
 in that fixture too.
 
@@ -75,14 +74,12 @@ Typical use
         page.locator("[data-testid='apply']").click()
         assert any(name == "SetFilter" for name, _ in stack.control_log)
 
-Controls are addressed by machine identity, never by the words on them
-(`docs/testing.md` rule 9): `data-testid` on the shell chrome, `data-k` on every
-field wrapper, `data-v` on every option row. Locating a control by its caption
-pins copy the owner may reword at will.
+Controls are addressed by machine identity: `data-testid` on the shell chrome,
+`data-k` on every field wrapper, `data-v` on every option row.
 """
 
+import http.client
 import json
-import os
 import urllib.parse
 import urllib.request
 from collections.abc import Iterator
@@ -92,6 +89,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api", reason="playwright is required for the browser e2e suite")
 
+from chromium import launch
 from playwright.sync_api import Browser, Page, sync_playwright
 
 from e2e.support import stack as stack_support
@@ -100,11 +98,28 @@ HERE = Path(__file__).parent
 
 #: pytest finds the hook below by name, never by reference; naming it here is
 #: what tells a static dead-code sweep it is live.
-__all__ = ["browser", "clean_slate", "page", "pytest_collection_modifyitems", "session_start", "stack"]
+__all__ = [
+    "browser",
+    "clean_slate",
+    "page",
+    "pytest_collection_modifyitems",
+    "session_archive",
+    "session_start",
+    "stack",
+]
 
 #: Ceiling on one reset call. Generous — the app is on loopback and answering
 #: already, so a reset that takes this long is a hang worth failing on.
 RESET_TIMEOUT = 10.0
+
+#: The form field `POST /api/state-import` takes the archive under, and the file
+#: name the reset uploads it as.
+STATE_FIELD = "statefile"
+STATE_FILENAME = "e2e-session-start-state.zip"
+
+#: The multipart boundary around that upload: a run of characters a zip of the
+#: stores does not carry.
+STATE_BOUNDARY = "e2e-clean-slate-7f3a9c41d2b8"
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -130,26 +145,26 @@ def _call(url: str, method: str, payload: dict[str, object] | None = None) -> ob
     return json.loads(body) if body else None
 
 
-def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
-    """The pieces of server state a test can leave behind: named presets, auto-save, and live snapshots.
+def _server_state(base_url: str) -> tuple[set[str], set[str]]:
+    """The pieces of server state a test can leave behind: named presets and live snapshots.
 
-    Config presets and auto-save read from `/api/config` because that is the
-    response the frontend itself grounds the preset picker and the auto-save
-    toggle in, so what this sees is what a page would load. Live snapshots are a
-    separate store with their own endpoint, `/api/livepresets`, so they are read
-    from there — a live snapshot a test saves never shows up under `/api/config`.
+    Config presets read from `/api/config` because that is the response the
+    frontend itself grounds the preset picker in, so what this sees is what a
+    page would load. Live snapshots are a separate store with their own
+    endpoint, `/api/livepresets`, so they are read from there — a live snapshot
+    a test saves never shows up under `/api/config`.
     """
-    empty: tuple[set[str], bool, set[str]] = (set(), False, set())
+    empty: tuple[set[str], set[str]] = (set(), set())
     config = _call(f"{base_url}/api/config", "GET")
     if not isinstance(config, dict):
         return empty
-    data = config["data"]
-    if not isinstance(data, dict):
+    fields = config["fields"]
+    if not isinstance(fields, dict):
         return empty
-    profiles = data.get("profiles")
+    profiles = fields.get("profiles")
     if not isinstance(profiles, dict):
         return empty
-    options = profiles["options"]
+    options = profiles["value"]["options"]
     livepresets = _call(f"{base_url}/api/livepresets", "GET")
     if not isinstance(livepresets, dict):
         return empty
@@ -160,11 +175,11 @@ def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
     # deletable, so it never belongs in the set that gets diffed for cleanup.
     presets = {str(option["value"]) for option in options if isinstance(option, dict) and option.get("value")}
     names = {str(record["name"]) for record in live if isinstance(record, dict)}
-    return presets, bool(data.get("autosave")), names
+    return presets, names
 
 
 @pytest.fixture(scope="session")
-def session_start(stack: stack_support.Stack) -> tuple[set[str], bool, set[str]]:
+def session_start(stack: stack_support.Stack) -> tuple[set[str], set[str]]:
     """What the server held before any test ran — the state `clean_slate` returns it to.
 
     Captured rather than assumed empty: the app imports the daemon's own presets
@@ -173,28 +188,80 @@ def session_start(stack: stack_support.Stack) -> tuple[set[str], bool, set[str]]
     return _server_state(stack.base_url)
 
 
+def _raw(base_url: str, method: str, path: str, body: bytes | None = None, content_type: str | None = None) -> bytes:
+    """Send one call whose body is not JSON to the running stack and return the raw answer, raising on a non-2xx."""
+    conn = http.client.HTTPConnection(urllib.parse.urlsplit(base_url).netloc, timeout=RESET_TIMEOUT)
+    try:
+        conn.request(method, path, body=body, headers={"Content-Type": content_type} if content_type else {})
+        response = conn.getresponse()
+        answer = response.read()
+    finally:
+        conn.close()
+    if response.status // 100 != 2:
+        raise _ResetRefusedError(route=path, status=response.status, body=answer)
+    return answer
+
+
+class _ResetRefusedError(RuntimeError):
+    """A call `clean_slate` makes to put the server back was refused, so the next test would inherit leavings."""
+
+    def __init__(self, *, route: str, status: int, body: bytes) -> None:
+        super().__init__(f"{route} refused the reset: {status} {body!r}")
+
+
+class _ResetIncompleteError(RuntimeError):
+    """The session-start state import left a preset as a test had it."""
+
+    def __init__(self, *, presets: set[str]) -> None:
+        super().__init__(f"after the import the server still holds presets {sorted(presets)}")
+
+
+def _import_state(base_url: str, archive: bytes) -> None:
+    """Upload `archive` to `POST /api/state-import`, the way the settings page's state import sends a file."""
+    head = (
+        f"--{STATE_BOUNDARY}\r\n"
+        f'Content-Disposition: form-data; name="{STATE_FIELD}"; filename="{STATE_FILENAME}"\r\n'
+        "Content-Type: application/zip\r\n\r\n"
+    ).encode()
+    body = head + archive + f"\r\n--{STATE_BOUNDARY}--\r\n".encode()
+    _raw(base_url, "POST", "/api/state-import", body, f"multipart/form-data; boundary={STATE_BOUNDARY}")
+
+
+@pytest.fixture(scope="session")
+def session_archive(stack: stack_support.Stack) -> bytes:
+    """The server's own stores as `GET /api/state-export` served them before any test ran.
+
+    Importing it back replaces the preset store, so it is how `clean_slate`
+    drops a preset a test saved. An export carries only a preset store the
+    server has written, so the "(no preset)" switch writes it first: the switch
+    adds no preset and sends the daemon no restore.
+    """
+    _call(f"{stack.base_url}/api/config/apply", "POST", {"switch_to": ""})
+    return _raw(stack.base_url, "GET", "/api/state-export")
+
+
 @pytest.fixture(autouse=True)
-def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], bool, set[str]]) -> None:
+def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], set[str]], session_archive: bytes) -> None:
     """Put the server back to its session-start state, so no test inherits another's leavings."""
     base = stack.base_url
     # Also releases the filter uploads parked against those staged edits.
     _call(f"{base}/api/config/pending", "DELETE")
-    presets, autosave, live = _server_state(base)
-    started_with, autosave_at_start, live_at_start = session_start
-    if autosave != autosave_at_start:
-        _call(f"{base}/api/autosave", "POST", {"enabled": autosave_at_start})
-    for name in sorted(presets - started_with):
-        _call(f"{base}/api/preset/{urllib.parse.quote(name, safe='')}", "DELETE")
+    presets, live = _server_state(base)
+    started_with, live_at_start = session_start
+    if presets - started_with:
+        _import_state(base, session_archive)
+        presets, live = _server_state(base)
+        if presets - started_with:
+            raise _ResetIncompleteError(presets=presets - started_with)
     for name in sorted(live - live_at_start):
         _call(f"{base}/api/livepresets/{urllib.parse.quote(name, safe='')}", "DELETE")
 
 
 @pytest.fixture(scope="module")
 def browser() -> Iterator[Browser]:
-    """Headless chromium, preferring the binary named by HQPTUNER_CHROMIUM."""
-    binary = os.environ.get("HQPTUNER_CHROMIUM")
+    """Headless chromium with software WebGL2, preferring the binary named by HQPTUNER_CHROMIUM."""
     with sync_playwright() as pw:
-        launched = pw.chromium.launch(executable_path=binary) if binary else pw.chromium.launch()
+        launched = launch(pw)
         try:
             yield launched
         finally:

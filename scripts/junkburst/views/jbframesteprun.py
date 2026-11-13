@@ -1,9 +1,8 @@
-"""Read candidate FS over the owner-labelled corpus and write the frame-step report.
+"""Read candidate FS over the owner-labeled corpus and write the frame-step report.
 
-FS replaces the whole first question and the loud-frame step of the second: a block reads junk where it carries at
-least a floor of lit frames and the share of those frames whose own step reaches a step cut clears a share cut. The
-policy ``jbpolicyyield.py`` grades under is otherwise kept — the ratio veto forces a block real, and G90 at or above
-the working yield line makes the veto stand down.
+Under FS a block reads junk where it carries at least a floor of lit frames and the share of those frames whose own
+step reaches a step cut clears a share cut. The ratio veto forces a block real, and G90 at or above the working yield
+line makes the veto stand down, as in ``jbpolicyyield.py``.
 """
 
 from __future__ import annotations
@@ -275,7 +274,7 @@ def _intro() -> str:
         f"{FRAME_STEP_LIT_HZ[0]:g} Hz to {FRAME_STEP_LIT_HZ[1] / 1000:g} kHz above that fold, per Hz, reaches "
         f"{FRAME_STEP_LIT_DB:g} dB; an unlit frame carries no step. Both folds are read, {folds}, and a frame lit at "
         f"both takes the step of whichever fold reads the higher level over that band. Every graded steady burst of "
-        f"the labelled corpus is scored at {HEADLINE_WINDOW:g} s blocks, and every step distribution below is taken "
+        f"the labeled corpus is scored at {HEADLINE_WINDOW:g} s blocks, and every step distribution below is taken "
         f"over lit frames alone."
     )
 
@@ -296,7 +295,7 @@ def _grade_intro() -> str:
 def write_report(corpus: Corpus, rows: list[dict[str, Any]]) -> None:
     """Write every table to ``REPORT``, each under the command that produced it."""
     lines = [
-        "# Frame-step candidate FS over the labelled corpus",
+        "# Frame-step candidate FS over the labeled corpus",
         "",
         _intro(),
         "",

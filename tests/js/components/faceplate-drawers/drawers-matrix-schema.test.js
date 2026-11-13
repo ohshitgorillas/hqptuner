@@ -1,0 +1,136 @@
+// Rendered suite for hqptuner/static/components/faceplate/drawers/matrix.js, the Matrix engine and DAC correction
+// drawers' schemas drawn by the stage drawer: each tab's rows in order, the Basic tab opening on its intro, the
+// Advanced rows' option lists, the tab or title dot a staged edit puts on its own tab, and the
+// family the two drawers share their staged state in.
+//
+// Renders `Drawer` through preact-render-to-string, the store driven at the wire by the staging fake and the /matrix
+// form in `matrixConfig`. Rows are found by catalog key (`data-k`), tabs by id (`data-tab`); every string asserted is a
+// wire value.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-matrix-schema.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+import { CORRECTION_DRAWER, MATRIX_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/matrix.js";
+import {
+  config,
+  engineState,
+  enums,
+  matrixConfig,
+  metadata,
+  pendingPreset,
+} from "../../../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { cancel } from "../../../../hqptuner/static/store/ask.js";
+import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { dottedTabs, drawerMarkup } from "../../support/rendered/drawer-render.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { stagingWire } from "../../support/wire/wire.js";
+import { elements, attr, classes, hasAttr } from "../../support/markup.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
+
+/**
+ * Options as the /matrix form lists them.
+ *
+ * @param {...string} values
+ */
+const opts = (...values) => values.map((value) => ({ value, label: value }));
+
+beforeEach(async () => {
+  stagingWire();
+  config.value = { fields: [] };
+  matrixConfig.value = {
+    fields: [
+      { name: "enabled" },
+      { name: "expand_hf" },
+      { name: "engine", options: opts("1", "0") },
+      { name: "iir2fir", options: opts("0", "1", "2") },
+      { name: "post_correction_enabled" },
+      { name: "post_correction_dac0", options: opts("", "m1") },
+    ],
+  };
+  await seedReadings(
+    Object.fromEntries(
+      Object.entries({
+        matrix_enabled: true,
+        matrix_expand_hf: false,
+        matrix_engine: "1",
+        matrix_iir2fir: "0",
+        post_correction_enabled: false,
+        post_correction_dac0: "",
+      }).map(([name, value]) => [name, fieldReading(value, { show: "file", restarts: true })]),
+    ),
+  );
+  engineState.value = {};
+  enums.value = null;
+  metadata.value = null;
+  pendingPreset.value = null;
+  openStage.value = null;
+  openPopover.value = null;
+  cancel();
+  await discardAll();
+  pickApplyMode("apply");
+  showTab(MATRIX_DRAWER.id, "basic");
+});
+
+/**
+ * The elements inside a drawer's tab panel.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} tab
+ * @returns {MarkupElement[]}
+ */
+function inPanel(schema, tab) {
+  const panel = drawerMarkup(schema).find((e) => classes(e).includes("dpanel") && attr(e, "data-tab") === tab);
+  return panel ? elements(panel.html).sort((a, b) => a.start - b.start) : [];
+}
+
+test("test_each_advanced_row_lists_every_option_under_it", () => {
+  const listing = inPanel(MATRIX_DRAWER, "advanced")
+    .filter((e) => classes(e).includes("drow"))
+    .map((row) => [
+      attr(row, "data-k"),
+      elements(row.html)
+        .filter((e) => classes(e).includes("optrow"))
+        .map((e) => attr(e, "data-v")),
+    ]);
+  assert.deepEqual(listing, [
+    ["matrix_engine", ["1", "0"]],
+    ["matrix_iir2fir", ["0", "1", "2"]],
+  ]);
+});
+
+test("test_a_staged_matrix_gate_dots_the_basic_tab", async () => {
+  await edit("matrix_enabled", "0");
+  assert.deepEqual(dottedTabs(MATRIX_DRAWER), ["basic"]);
+});
+
+test("test_a_staged_iir_to_fir_dots_the_advanced_tab", async () => {
+  await edit("matrix_iir2fir", "2");
+  assert.deepEqual(dottedTabs(MATRIX_DRAWER), ["advanced"]);
+});
+
+/** Whether the DAC correction drawer's title carries the dirty dot. */
+const dotted = () =>
+  drawerMarkup(CORRECTION_DRAWER).some(
+    (e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"),
+  );
+
+test("test_a_staged_dac_model_dots_the_dac_correction_title", async () => {
+  await edit("dac_correction_profile", "m1");
+  assert.equal(dotted(), true);
+});
+
+/** Whether the Matrix engine drawer's discard is disabled, or null when it draws none. */
+const discardOff = () => {
+  const b = drawerMarkup(MATRIX_DRAWER).find((e) => attr(e, "data-testid") === "discard");
+  return b ? hasAttr(b, "disabled") : null;
+};
+
+test("test_the_matrix_engines_discard_is_disabled_while_nothing_is_staged", () => {
+  assert.equal(discardOff(), true);
+});

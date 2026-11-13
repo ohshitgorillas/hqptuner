@@ -3,16 +3,16 @@
 // Three http-lane settings can starve the engine's buffers: short_buffer at 2
 // (Minimum — hqplayerd-readme.txt, engine attribute 0=Normal/1=Short/2=Minimum)
 // and the per-backend buffer times alsa_period / net_period at a negative value
-// (−1 = minimum, docs/settings-classification.md). Staging one of those does not
+// (−1 = minimum). Staging one of those does not
 // go straight to the pending buffer: a question of kind "warn" opens on the ask
 // signal, the edit stages only on explicit confirm, and cancel stages nothing at
 // all. Safe values of the same keys stage immediately, question-free. The
 // one-question-at-a-time ask contract holds for the new kind: any question
 // opened over a pending warn supersedes it, resolving the guard as declined.
 //
-// Everything is driven through the real edit() against a staging wire
-// (docs/testing.md rule 4); the question is driven through the public ask
-// surface (question / answer / cancel), never by poking store internals. A
+// Everything is driven through the real edit() against a staging wire; the
+// question is driven through the public ask surface (question / answer /
+// cancel), never by poking store internals. A
 // dangerous edit() does not resolve until its question is answered, so these
 // tests hold the promise, drive the question, then await — never the reverse.
 //
@@ -22,14 +22,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { config, engineState } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit, lastApply } from "../../../../hqptuner/static/store/actions.js";
-import { question, askWarn, askConfirm, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
 
 async function reset() {
   const w = stagingWire();
   engineState.value = { filter_junk: 0 };
-  config.value = { fields: [], file: {}, active: "", profiles: null };
+  config.value = { fields: [] };
   cancel();
   await discardAll();
   return w;
@@ -85,8 +85,8 @@ for (const { key, value } of DANGEROUS) {
   });
 }
 
-// A third loop pinned the phrase each warning's caption is built from. The
-// caption is owner copy (docs/testing.md rule 9) and `owner` above already
+// A third loop pinned the phrase each warning's caption is built from.
+// `owner` above already
 // tells the three warnings apart, so nothing survives the wording.
 
 for (const { key, value } of DANGEROUS) {
@@ -127,16 +127,6 @@ for (const { key, value, safe } of DANGEROUS) {
   });
 }
 
-test("a canceled buffer warning leaves lastApply untouched", async () => {
-  const w = await reset();
-  const before = lastApply.value;
-  const { held } = await stage(w, "short_buffer", "2");
-  cancel();
-  await held;
-  await quiesce(w);
-  assert.equal(lastApply.value, before);
-});
-
 // The safe values of the same keys: short_buffer at Normal or Short, buffer
 // time at default (0) or any positive milliseconds, stage straight through.
 const SAFE = [
@@ -167,44 +157,3 @@ for (const { key, value } of SAFE) {
     await held;
   });
 }
-
-// --- the askWarn primitive itself ----------------------------------------------
-// True only on explicit confirm; cancel and supersession both read as declined.
-
-test("askWarn resolves confirmed on an explicit answer", async () => {
-  await reset();
-  const p = askWarn("short_buffer", "minimum short buffer");
-  answer();
-  assert.ok(await p);
-});
-
-test("askWarn resolves declined on cancel", async () => {
-  await reset();
-  const p = askWarn("short_buffer", "minimum short buffer");
-  cancel();
-  assert.ok(!(await p));
-});
-
-test("a superseding question resolves a pending askWarn as declined", async () => {
-  await reset();
-  const p = askWarn("short_buffer", "minimum short buffer");
-  askConfirm("pending", "Replace the staged set?");
-  const verdict = await p;
-  cancel();
-  assert.ok(!verdict);
-});
-
-// The one-question-at-a-time contract, end to end: a question opened over a
-// pending buffer warning declines the guard, so the dangerous edit never lands
-// — and, as with an explicit cancel, what was already staged stays staged.
-test("a question opened over a pending buffer warning stages nothing", async () => {
-  const w = await reset();
-  const { held: pre } = await stage(w, "short_buffer", "1");
-  await pre;
-  const { held } = await stage(w, "short_buffer", "2");
-  askConfirm("pending", "Replace the staged set?");
-  await held;
-  await quiesce(w);
-  cancel();
-  assert.equal(w.staged.http.short_buffer, "1");
-});

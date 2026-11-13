@@ -1,0 +1,128 @@
+// Rendered suite for hqptuner/static/components/faceplate/drawers/hf.js, the HF filter drawer's schema drawn by the
+// stage drawer: its rows in order, the high-frequency filter's option list, the auto-pilot field's state, gray and
+// write, and the title dot a staged pre-process edit puts on it.
+//
+// Renders `Drawer` through preact-render-to-string; a click is fired through the vnode seam
+// (tests/js/support/vnodeseam.js) and the store is driven at the wire by the staging fake. Rows are found by catalog key
+// (`data-k`), the field by its id (`data-field`), options by value (`data-v`); every string asserted is a wire value.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-hf-schema.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+
+import { HF_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/hf.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  metadata,
+  pendingPreset,
+} from "../../../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { cancel } from "../../../../hqptuner/static/store/ask.js";
+import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { pickApplyMode } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { drawerMarkup, tapFieldOption } from "../../support/rendered/drawer-render.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
+import { elements, attr, classes, hasAttr } from "../../support/markup.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+
+/** @type {unknown[]} */
+let autopilotPosts = [];
+/** @type {import("../../support/wire/wire.js").StagingWire} */
+let wire;
+
+/** @param {string} path @param {{ body?: string }} opts */
+function routes(path, opts) {
+  if (path !== "/api/autopilot") return undefined;
+  autopilotPosts.push(JSON.parse(String(opts.body)));
+  return ok({});
+}
+
+beforeEach(async () => {
+  autopilotPosts = [];
+  wire = stagingWire({ routes });
+  config.value = { fields: [{ name: "pre_before_meter", type: "checkbox" }] };
+  await seedReadings({ pre_before_meter: fieldReading(false, { show: "file", restarts: true }) });
+  engineState.value = { filter_junk: "0" };
+  engineStatus.value = { autopilot: false, metering: true };
+  enums.value = {
+    junk_filters: [
+      { index: 0, name: "none" },
+      { index: 1, name: "20k" },
+    ],
+  };
+  metadata.value = null;
+  pendingPreset.value = null;
+  openStage.value = null;
+  openPopover.value = null;
+  cancel();
+  await discardAll();
+  pickApplyMode("apply");
+});
+
+/** Every element of the drawer's markup, in document order. @returns {MarkupElement[]} */
+const markup = () => drawerMarkup(HF_DRAWER);
+
+/** The elements inside the auto-pilot field. @returns {MarkupElement[]} */
+function inAutopilot() {
+  const row = markup().find((e) => attr(e, "data-field") === "autopilot");
+  return row ? elements(row.html) : [];
+}
+
+/**
+ * Tap the auto-pilot field's option `value`.
+ *
+ * @param {string} value
+ */
+const tapAutopilot = (value) => tapFieldOption(HF_DRAWER, "autopilot", value);
+
+test("test_the_hf_filter_lists_every_engine_option_under_its_row", () => {
+  const listed = markup()
+    .filter((e) => classes(e).includes("optrow"))
+    .map((e) => attr(e, "data-v"));
+  assert.deepEqual(listed, ["0", "1"]);
+});
+
+/** Whether the drawer's title carries the staged dot. */
+const dotted = () =>
+  markup().some((e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"));
+
+test("test_staging_pre_process_before_metering_dots_the_title", async () => {
+  await edit("pre_before_meter", "1");
+  assert.equal(dotted(), true);
+});
+
+/** The option value of the auto-pilot field's lit button, or undefined when none is lit. */
+const lit = () => {
+  const on = inAutopilot().find((e) => e.name === "button" && classes(e).includes("on"));
+  return on ? attr(on, "data-v") : undefined;
+};
+
+test("test_the_auto_pilot_field_lights_off_while_the_status_reports_it_off", () => {
+  const off = lit();
+  assert.equal(off, "0");
+});
+
+test("test_the_auto_pilot_field_lights_on_while_the_status_reports_it_on", () => {
+  engineStatus.value = { autopilot: true, metering: true };
+  assert.equal(lit(), "1");
+});
+
+/** How many of the auto-pilot field's buttons are disabled. */
+const disabled = () => inAutopilot().filter((e) => e.name === "button" && hasAttr(e, "disabled")).length;
+
+test("test_the_auto_pilot_field_grays_while_metering_is_off", () => {
+  engineStatus.value = { autopilot: false, metering: false };
+  assert.equal(disabled(), 2);
+});
+
+test("test_tapping_auto_pilot_on_switches_it_on_at_the_backend", async () => {
+  await tapAutopilot("1");
+  await quiesce(wire);
+  assert.deepEqual(autopilotPosts, [{ enabled: true }]);
+});

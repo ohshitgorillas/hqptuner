@@ -1,10 +1,9 @@
 // Behavioral suite for how the store's apply lane words a failed request in its
-// verdict (`lastApply`, the pending bar's status line).
+// verdict (`lastApply`, the warning line store/alerts/failures.js raises).
 //
 // A failure from HQPTuner's own side carries no backend sentence, HQPTuner not
 // reachable at all or a failed response with no usable detail, and is reported
-// behind a prefix naming the lane that failed. The prefix is owner copy and is
-// never spelled here (docs/testing.md rule 9). What follows it is the client's
+// behind a prefix naming the lane that failed. What follows it is the client's
 // own description of the failure, read off the client's public surface over the
 // same wire: an unreachable backend and an unexplained status each read the same
 // from any endpoint (tests/js/lib/api.test.js), so `api.status()` gives the
@@ -17,7 +16,8 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { api } from "../../../hqptuner/static/lib/api.js";
-import { applyAll, lastApply } from "../../../hqptuner/static/store/actions.js";
+import { applyAll } from "../../../hqptuner/static/store/actions.js";
+import { lastApply } from "../../../hqptuner/static/store/signals.js";
 import { bad } from "../support/wire/wire.js";
 import { env, route, trees } from "../support/threetrees.js";
 

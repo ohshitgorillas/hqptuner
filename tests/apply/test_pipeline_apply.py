@@ -1,4 +1,4 @@
-"""Matrix pipeline editing through the faithful fake (matrix-spec §8 step 3).
+"""Matrix pipeline editing through the faithful fake.
 
 The pipeline set stages as one atomic ``matrix_pipelines`` JSON field; the
 restore lane replaces the ``<matrix>`` element's ``<pipeline>`` children and the
@@ -7,6 +7,7 @@ rows verbatim (no interpretation), so only a writer that produces XML the real
 daemon would store round-trips."""
 
 import json
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -14,6 +15,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
+from hqptuner.presets.presetfields import restore_hooks
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "0", "gainunit": "dB", "mixdown": "1", "process": ""}
@@ -32,16 +34,6 @@ async def applied_rows(http_manager: ConnectionManager) -> list[dict[str, str]]:
 async def test_pipeline_gain_edit_reaches_the_running_config(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json({**ROW0, "gain": "-7.8"}, ROW1)})
     assert (await applied_rows(http_manager))[0]["gain"] == "-7.8"
-
-
-async def test_pipeline_row_add_reaches_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json(ROW0, ROW1, {**ROW1, "mixdown": "0"})})
-    assert len(await applied_rows(http_manager)) == 3
-
-
-async def test_pipeline_row_remove_reaches_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json(ROW0)})
-    assert len(await applied_rows(http_manager)) == 1
 
 
 async def test_linear_gain_unit_round_trips(http_manager: ConnectionManager) -> None:
@@ -66,27 +58,26 @@ async def test_process_string_with_xml_specials_round_trips(http_manager: Connec
 
 async def test_pipeline_apply_reports_applied(http_manager: ConnectionManager) -> None:
     assert (
-        await restore.apply(http_manager, {"matrix_pipelines": rows_json({**ROW0, "gain": "1.5"}, ROW1)})
+        await restore.apply(
+            http_manager, {"matrix_pipelines": rows_json({**ROW0, "gain": "1.5"}, ROW1)}, restore_hooks(http_manager)
+        )
     ).outcome is RestoreOutcome.APPLIED
 
 
-async def test_pipeline_apply_leaves_other_settings_untouched(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json({**ROW0, "gain": "-3"}, ROW1)})
-    assert (await fileconfig.load_file_config(http_manager))["channels"] == "2"
-
-
 def test_invalid_gain_is_refused_before_any_write(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "gain": "loud"})}})
-    resp = http_client.post("/api/config/apply")
+    resp = http_client.post(
+        "/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "gain": "loud"}, ROW1)}}
+    )
     assert resp.json()["code"] == "invalid_input"
 
 
-def test_out_of_range_channel_is_refused_before_any_write(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "source": "128"})}})
-    resp = http_client.post("/api/config/apply")
-    assert resp.json()["code"] == "invalid_input"
+#: Restore row for the fake daemon: it re-reads ``<matrix engine>`` from an uploaded config.
+MATRIX_ENGINE_ADOPTED = {"matrix_engine": ("matrix", "engine")}
 
 
-async def test_matrix_engine_field_reaches_the_running_config(http_manager: ConnectionManager) -> None:
+async def test_matrix_engine_field_reaches_the_running_config(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_adopts"] = MATRIX_ENGINE_ADOPTED
     await http_manager.applyops.apply({}, {"matrix_engine": "0"})
     assert (await fileconfig.load_file_config(http_manager))["matrix_engine"] == "0"

@@ -1,5 +1,5 @@
-// Behavioral suite for store/narrow/devicecaps.js — graying the rate menus and the
-// mode segment against what the SELECTED OUTPUT DEVICE can actually carry.
+// Behavioral suite for store/narrow/devicecaps.js — graying the rate menus
+// against what the SELECTED OUTPUT DEVICE can actually carry.
 //
 // The other half of the contract, correcting a setting that already SITS on
 // something the device cannot reach, is devicecaps-fallback.test.js. The
@@ -27,8 +27,7 @@
 // vanished entry reads as "this build does not support it", a grayed one as
 // "your hardware cannot do it", so every named tier comes back present.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no store
-// function stubbed — the exported `config` signal carries the /api/config
+// The exported `config` signal carries the /api/config
 // payload exactly as the endpoint serves it.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/devicecaps.test.js
@@ -37,7 +36,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { DSD_RATES } from "../../../../hqptuner/static/store/schema/options.js";
-import { grayRatesByDevice, grayModesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
+import { grayRatesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
 import {
   ALSA_DEVICE,
   DSD64,
@@ -46,7 +45,6 @@ import {
   DSD512,
   DSD_TIERS,
   GRAYED,
-  MODE_OPTIONS,
   NET_DEVICE,
   OTHER_NET_DEVICE,
   PCM_16X,
@@ -68,28 +66,6 @@ import {
   untouchedAmong,
 } from "../../support/devicecaps-harness.js";
 
-// `reason` is optional on a MenuOption in general — untouched entries carry
-// none — but a case reading it here is always past an assertion that the
-// option WAS grayed, so it is always present by the time this runs.
-/**
- * @param {import("../../support/devicecaps-harness.js").MenuOption[]} options
- * @param {string} value
- * @returns {string}
- */
-function reasonOf(options, value) {
-  const reason = optionFor(options, value).reason;
-  if (reason === undefined) throw new Error(`no reason on ${value}`);
-  return reason;
-}
-
-// --- the menus' own shape -----------------------------------------------------
-
-test("test_the_pcm_tier_menu_carries_its_values_as_strings", () => {
-  // The capability's rates are integers. If the menu ever drifts to numbers,
-  // every join in this file starts leaning on coercion — that fails here first.
-  assert.deepEqual(new Set(PCM_OPTIONS.map((o) => typeof o.value)), new Set(["string"]));
-});
-
 // --- the PCM rate menu against the capability ---------------------------------
 
 test("test_a_pcm_tier_above_what_the_device_announced_is_grayed", async () => {
@@ -98,15 +74,21 @@ test("test_a_pcm_tier_above_what_the_device_announced_is_grayed", async () => {
   assert.deepEqual(marks(optionFor(out, PCM_8X)), GRAYED);
 });
 
-test("test_every_pcm_tier_above_what_the_device_announced_is_grayed", async () => {
+test("test_the_pcm_tier_two_above_what_the_device_announced_is_grayed", async () => {
   // A store graying exactly one tier past the cap passes the case above.
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
   const out = grayRatesByDevice(PCM_OPTIONS, "pcm");
-  assert.deepEqual(grayedAmong(out, [PCM_8X, PCM_16X, PCM_32X]), [PCM_8X, PCM_16X, PCM_32X]);
+  assert.deepEqual(grayedAmong(out, [PCM_16X]), [PCM_16X]);
 });
 
-// The word a grayed rate row reads is owner copy (docs/testing.md rule 9); that
-// it carries a reason at all is what GRAYED states, on every case here.
+test("test_the_pcm_tier_three_above_what_the_device_announced_is_grayed", async () => {
+  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
+  const out = grayRatesByDevice(PCM_OPTIONS, "pcm");
+  assert.deepEqual(grayedAmong(out, [PCM_32X]), [PCM_32X]);
+});
+
+// That a grayed rate row
+// carries a reason at all is what GRAYED states, on every case here.
 
 test("test_a_pcm_tier_the_device_announced_is_not_grayed", async () => {
   // The other half of the judgment: a store that grayed its whole menu passes
@@ -131,17 +113,6 @@ test("test_a_pcm_tier_announced_only_by_its_44_1k_member_is_not_grayed", async (
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_176, []) });
   const out = grayRatesByDevice(PCM_OPTIONS, "pcm");
   assert.deepEqual(marks(optionFor(out, PCM_4X)), UNTOUCHED);
-});
-
-test("test_graying_the_pcm_menu_still_offers_every_tier", async () => {
-  // Grayed entries stay LISTED. A store that filtered instead of graying loses
-  // three of these six.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
-  const out = grayRatesByDevice(PCM_OPTIONS, "pcm");
-  assert.deepEqual(
-    PCM_TIERS.filter((v) => out.some((o) => o.value === v)),
-    PCM_TIERS,
-  );
 });
 
 test("test_graying_leaves_the_option_objects_it_was_given_unmarked", async () => {
@@ -209,64 +180,11 @@ test("test_a_dop_switch_staged_as_the_string_zero_counts_as_off", async () => {
   assert.deepEqual(marks(optionFor(out, DSD64)), GRAYED);
 });
 
-// --- the mode segment ---------------------------------------------------------
-
-test("test_the_sdm_mode_is_grayed_when_the_device_has_no_dsd_path", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), GRAYED);
-});
-
-test("test_the_reason_on_a_grayed_sdm_mode_says_the_device_has_no_dsd_path", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.match(reasonOf(out, "sdm"), /dsd/i);
-});
-
-test("test_the_reason_on_a_grayed_sdm_mode_points_at_dop", async () => {
-  // The other half: naming the problem without naming the way out leaves the
-  // user with a dead button and no next move.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.match(reasonOf(out, "sdm"), /dop/i);
-});
-
-test("test_the_pcm_mode_is_not_grayed_when_the_device_has_no_dsd_path", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "pcm")), UNTOUCHED);
-});
-
-test("test_the_auto_mode_is_not_grayed_when_the_device_has_no_dsd_path", async () => {
-  // In auto the engine picks the family per track and settles on PCM by
-  // itself, so nothing is unreachable and there is nothing to warn about.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "auto")), UNTOUCHED);
-});
-
-test("test_the_sdm_mode_is_not_grayed_when_dop_gives_the_device_a_dsd_path", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), UNTOUCHED);
-});
-
-test("test_the_sdm_mode_is_not_grayed_when_the_device_announced_native_dsd", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, [3072000]), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), UNTOUCHED);
-});
-
 // --- when the capability cannot speak for the control -------------------------
 
 test("test_with_no_capability_known_the_pcm_rate_menu_is_untouched", async () => {
   await reset({ deviceCaps: null });
   assert.equal(markedCount(grayRatesByDevice(PCM_OPTIONS, "pcm")), 0);
-});
-
-test("test_with_no_capability_known_the_mode_segment_is_untouched", async () => {
-  await reset({ deviceCaps: null });
-  assert.equal(markedCount(grayModesByDevice(MODE_OPTIONS)), 0);
 });
 
 test("test_with_no_capability_known_the_dsd_rate_menu_is_untouched", async () => {

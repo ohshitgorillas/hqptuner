@@ -1,0 +1,36 @@
+{
+  "phase": "0",
+  "task": "excise-drop-report",
+  "trigger": "risk_surface",
+  "discriminator": "task-85fd14fb",
+  "round": 1,
+  "base": "a3d08308",
+  "head": "85fd14fb",
+  "base_id": "a3d083087d71d6ce2a3f56f74c5f069d3ec6e429",
+  "head_id": "85fd14fbce570249b3ba5408f64e74369fe19039",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "tests/js/components/faceplate-alerts/plate-unread.test.js",
+      "line": 60,
+      "severity": "low",
+      "claim": "The diff removed the `dropped_settings` key from the shared HEALTHY fixtures, but the doc comments over them still describe a health reading 'which lists no dropped setting'. The same stale wording is at plate-unread.test.js:10, plate-unread-saves.test.js:52, alerts-unread.test.js:51 and alerts-unread-saves.test.js:32. PLAN.md Task 1 orders comments that name the excised feature rewritten or cut.",
+      "failure_scenario": "Run `grep -rn -i 'dropped setting' tests` after 85fd14fb: it prints these 5 comment lines. They describe a health field that no longer exists. The plan's verify grep misses them because it matches only `dropped_settings`/`dropped-settings`, not the phrase 'dropped setting'.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "5c2e3007",
+      "base_id": "a3d083087d71d6ce2a3f56f74c5f069d3ec6e429",
+      "head_id": "85fd14fbce570249b3ba5408f64e74369fe19039"
+    }
+  ]
+}

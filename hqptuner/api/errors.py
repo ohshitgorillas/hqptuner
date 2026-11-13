@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 
     from hqptuner.engine.controlerrors import ControlError
 
-# code -> HTTP status. Every code the API can answer with is here; the
-# vocabulary is documented for clients in docs/architecture.md "API errors".
+# code -> HTTP status. Every code the API can answer with is here.
 STATUS: dict[str, int] = {
     "no_credentials": 503,
+    "credentials_refused": 503,
     "no_http_client": 503,
     "backup_failed": 500,
     "not_loaded": 503,
@@ -47,10 +47,14 @@ STATUS: dict[str, int] = {
     "invalid_input": 422,
     "nothing_staged": 400,
     "fields_unknown": 422,
+    "values_unknown": 422,
+    "stations_unknown": 422,
     "store_too_new": 409,
     "store_corrupt": 500,
     "store_unwritable": 500,
     "archive_unreadable": 500,
+    "state_unreadable": 422,
+    "state_too_new": 409,
     "chain_unknown": 409,
     "route_refused": 409,
     "route_unknown": 404,

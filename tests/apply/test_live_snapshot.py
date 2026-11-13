@@ -4,7 +4,7 @@
 the `state` mapping the daemon's `State` filled and the `enums` mapping its
 enumeration queries filled — joined into a display record per live field. Both
 halves arrive here off the fake control daemon over a real socket, so the shapes
-under test are the wire's own (`docs/testing.md`: fakes speak the protocol).
+under test are the wire's own.
 """
 
 import pytest
@@ -24,21 +24,11 @@ async def test_a_state_that_names_no_loaded_chain_refuses_the_snapshot(live_mana
         live_snapshot(unknown)
 
 
-async def test_a_configured_chain_snapshots_its_chain_fields(live_manager: LiveManager) -> None:
-    known, _, _ = await live_manager(mode="1")
-    # mode 1 loads the PCM chain on the fake's default `shaper="0"`, which its PCM
-    # `GetShapers` lists as index 0, name "none", enum value "0"
-    assert live_snapshot(known).fields["dither"] == {"value": "0", "name": "none"}
-
-
 @pytest.mark.parametrize(
     ("overrides", "chain"),
     [
         ({"mode": "1"}, "pcm"),
         ({"mode": "2"}, "sdm"),
-        # `[source]` configured, an SDM source playing: the loaded chain is the
-        # source's, not anything the configured mode names
-        ({"mode": "0", "_active_mode": "SDM (DSD)"}, "sdm"),
     ],
 )
 async def test_the_snapshot_names_the_chain_the_engine_has_loaded(

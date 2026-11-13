@@ -13,7 +13,7 @@ from jbmirror import MIRROR_VETO_LEVEL
 from jbthresholds import best_threshold, calls_fake
 
 if TYPE_CHECKING:
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 
 #: The fixed G90 cuts the loud-frame step sweep reads, in dB.
@@ -44,7 +44,7 @@ def loud_frame_cut_row(
     return total
 
 
-def loud_frame_sweep(run: LabelledRun) -> list[dict[str, Any]]:
+def loud_frame_sweep(run: LabeledRun) -> list[dict[str, Any]]:
     """One row per ``LOUD_FRAME_CUTS`` value, over the blocks the album line keeps at the headline window.
 
     G90 alone against a fixed cut, no per-album fitting, the mirror ratio veto forcing a block real whatever the
@@ -58,7 +58,7 @@ def loud_frame_sweep(run: LabelledRun) -> list[dict[str, Any]]:
     return [loud_frame_cut_row(kept_mask, kept_g90, run.row_key_of, cut) for cut in LOUD_FRAME_CUTS]
 
 
-def loud_frame_loao_row(run: LabelledRun) -> dict[str, Any]:
+def loud_frame_loao_row(run: LabeledRun) -> dict[str, Any]:
     """G90's leave-one-album-out cut over the same kept blocks ``loud_frame_sweep`` reads, wrong-side counts."""
     mask_rows: list[MaskRow] = run.mask["steady"][HEADLINE_WINDOW]
     g90_rows = run.edge["steady"]["G90"]
@@ -79,7 +79,7 @@ def loud_frame_loao_row(run: LabelledRun) -> dict[str, Any]:
     return total
 
 
-def loud_frame_sweep_section(run: LabelledRun) -> list[str]:
+def loud_frame_sweep_section(run: LabeledRun) -> list[str]:
     """Return the report's loud-frame step sweep section: one table per ``LOUD_FRAME_CUTS`` cut."""
     intro = (
         f"Over the blocks the {MASK_SWEEP_ALBUM_LEVEL:g} dB line keeps at {HEADLINE_WINDOW:g} s. Each row is G90 "
@@ -219,7 +219,7 @@ def policy_rule_row(
     junk: dict[int, bool],
     bursts: dict[str, list[int]],
     kept: set[int],
-    run: LabelledRun,
+    run: LabeledRun,
 ) -> dict[str, Any]:
     """One rule's burst counts, and the stamps of its engaged real bursts and its missed fake bursts per row key."""
     row: dict[str, Any] = {"rule": rule, "real_engaged": 0, "fake_engaged": 0, "fake_missed": 0, "fake_thin": 0}
@@ -243,7 +243,7 @@ def policy_rule_row(
 
 
 def policy_block_rows(
-    mask_rows: list[MaskRow], g90_rows: list[tuple[str, float, str]], keep: list[int], run: LabelledRun
+    mask_rows: list[MaskRow], g90_rows: list[tuple[str, float, str]], keep: list[int], run: LabeledRun
 ) -> list[dict[str, Any]]:
     """One row per kept block of the bursts ``POLICY_BLOCK_KEY`` names: its stamp, index, ratio, G90 and veto."""
     within = {i: n for blocks in policy_bursts(mask_rows).values() for n, i in enumerate(blocks)}
@@ -274,7 +274,7 @@ POLICY_PASSES: tuple[tuple[float | None, tuple[str, ...]], ...] = (
 
 
 def policy_grade_context(
-    run: LabelledRun,
+    run: LabeledRun,
 ) -> tuple[PolicyBlocks, dict[str, list[int]], set[int], list[MaskRow], list[tuple[str, float, str]], list[int]]:
     """Build the steady-burst blocks, bursts, keep set and readings a policy pass grades ``run`` over."""
     mask_rows: list[MaskRow] = run.mask["steady"][HEADLINE_WINDOW]
@@ -287,7 +287,7 @@ def policy_grade_context(
     return blocks, bursts, kept, mask_rows, g90_rows, keep
 
 
-def policy_grade(run: LabelledRun) -> dict[str, Any]:
+def policy_grade(run: LabeledRun) -> dict[str, Any]:
     """Grade every rule per unique steady burst under each veto pass, and read the per-block table."""
     blocks, bursts, kept, mask_rows, g90_rows, keep = policy_grade_context(run)
     rows = []
@@ -334,7 +334,7 @@ def _policy_row_tables(row: dict[str, Any]) -> list[str]:
     return [*out, ""]
 
 
-def _policy_block_table(run: LabelledRun) -> list[str]:
+def _policy_block_table(run: LabeledRun) -> list[str]:
     """Return the per-block table for the bursts ``POLICY_BLOCK_KEY`` names, over the blocks the album line keeps."""
     blocks = run.policy_grade["blocks"]
     intro = (
@@ -359,7 +359,7 @@ def _policy_block_table(run: LabelledRun) -> list[str]:
     ]
 
 
-def policy_section(run: LabelledRun) -> list[str]:
+def policy_section(run: LabeledRun) -> list[str]:
     """Return the report's policy grade section: the five rules' burst counts, their row tables, then the blocks."""
     head = (
         "| rule | real bursts engaged | fake bursts engaged | fake bursts missed | "

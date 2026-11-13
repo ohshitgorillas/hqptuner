@@ -28,6 +28,7 @@ from hqptuner.config import NARROWING_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.presets.store.narrowingjson import FacetInput, facet_input
+from hqptuner.shape.guards import is_bool, is_int
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
@@ -42,8 +43,8 @@ _SCHEMA = 1
 # abuse guard against a client sending the same token ten thousand times, nothing more.
 _MAX_LIST = 32
 
-# The facet token sets, transcribed from the manual's filter tables the same way the frontend's facet-data tables are
-# (architecture, "Static facet fallback"). All four are multi-selects, so the empty LIST means "not narrowed at all".
+# The facet token sets, from the manual's filter tables, matching the frontend's facet-data tables. All four are
+# multi-selects, so the empty LIST means "not narrowed at all".
 # Phase's "" and length's are real values on top of that — the filters neither taxonomy reaches — as genre's "any" is.
 _GENRES = frozenset({"pop", "jazz", "classical", "electronic", "any"})
 _FOCUS = frozenset({"transients", "timbre", "space"})
@@ -64,9 +65,8 @@ _MODES = frozenset({"and", "or"})
 
 
 class NarrowingFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the facet map, whose own shape is ``Facets.to_json()``."""
+    """The on-disk envelope as read: the facet map, whose own shape is ``Facets.to_json()``."""
 
-    schema: int
     facets: FacetInput
 
 
@@ -78,9 +78,6 @@ def _clean(stored: object) -> NarrowingFile:
     out: NarrowingFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     facets = stored.get("facets")
     if isinstance(facets, dict):
         out["facets"] = facet_input(facets)
@@ -143,12 +140,7 @@ def _list_of(allowed: frozenset[str]) -> Callable[[Any], bool]:
 
 def _quality(value: object) -> bool:
     """Pass the four minimum-quality steps. ``bool`` is excluded: ``True`` is an ``int`` and is not a 1."""
-    return isinstance(value, int) and not isinstance(value, bool) and value in _QUALITIES
-
-
-def _flag(value: object) -> bool:
-    """Pass only a real bool — a truthy string is a client bug, not a yes."""
-    return isinstance(value, bool)
+    return is_int(value) and value in _QUALITIES
 
 
 # Every facet the store holds: its default and the check its value must pass. The frontend's signal names map to these
@@ -163,8 +155,8 @@ _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "phase": ([], _list_of(_PHASES)),
     "length": ([], _list_of(_LENGTHS)),
     "hide_limited": ("auto", _one_of(_RATE_RULES)),
-    "odd_rate_only": (False, _flag),
-    "downsafe_only": (False, _flag),
+    "odd_rate_only": (False, is_bool),
+    "downsafe_only": (False, is_bool),
     "apod_1x": ("all", _one_of(_APOD)),
     "apod_nx": ("all", _one_of(_APOD)),
     "lossy_1x": ("both", _one_of(_LOSSY_1X)),

@@ -1,5 +1,5 @@
-// Writing the narrow bar's facets to the server, and reading them back at load
-// — its own module because it is the only part of narrowing that talks to the
+// Writing the narrow bar's facets to the server, and reading them back when boot
+// starts narrowing — its own module because it is the only part of narrowing that talks to the
 // backend, and the state it mirrors has no business knowing that.
 //
 // The facets are stored for the INSTALL, in state/narrowing.json, the way stars
@@ -8,9 +8,11 @@
 // with. Nothing polls — a tab picks up another tab's narrowing on reload, and
 // two browsers racing is last-write-wins. The favorites-only switch is NOT part
 // of that store: it lives in favorites.js and stays session state.
-import { signal, effect, batch } from "@preact/signals";
+import { effect, batch } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { errText } from "../../lib/errtext.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
+import { PLATFORM, quietWindow } from "../../lib/clock.js";
+import { sameJson } from "../../lib/samejson.js";
 import {
   nGenre,
   nQuality,
@@ -64,17 +66,45 @@ const FACETS = [
 // clicked, and the store catches up.
 const QUIET_MS = 400;
 
-/** The last failed narrowing write, as the server's own sentence. */
-export const narrowingError = signal("");
+/** @typedef {import("../../lib/clock.js").Clock} Clock */
 
-/** @type {ReturnType<typeof setTimeout> | null} the open write timer, or null when idle */
-let timer = null;
+/** The last failed narrowing read or write's sentence, "" once one succeeds. */
+const narrowingOp = op("narrowing");
+export const narrowingError = opErrorText(narrowingOp);
+
+/** The quiet window a facet move restarts; it writes the facets out when it closes. */
+let quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), PLATFORM);
 /** @type {Record<string, any>} the facet set as the server last confirmed it */
 let lastSent = snapshot();
 /** Facets the user has moved since that write — hydrate leaves these alone, and a non-empty set means a write is owed. */
 const touched = new Set();
 /** True while hydrate is filling the signals, so its own writes do not read as the user's. */
 let applying = false;
+
+/**
+ * Pace the quiet window on ``next`` from the next facet move on.
+ * @param {Clock} [next]
+ * @returns {void}
+ */
+export function initNarrowing(next = PLATFORM) {
+  quiet.cancel();
+  quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), next);
+}
+
+/**
+ * Start persisting on ``doc``: pace the quiet window on ``clock``, flush when the tab is hidden or closed inside the
+ * quiet window (nothing to restore on failure, the page is going away), and read the stored facets once.
+ * @param {Document} doc
+ * @param {Clock} clock
+ * @returns {void}
+ */
+export function startNarrowing(doc, clock) {
+  initNarrowing(clock);
+  doc.addEventListener("visibilitychange", () => {
+    if (doc.visibilityState === "hidden") void flushNarrowing();
+  });
+  void hydrateNarrowing();
+}
 
 /**
  * The whole facet set as the store takes it.
@@ -93,7 +123,7 @@ function snapshot() {
  * @returns {string[]}
  */
 function changedKeys(snap) {
-  return FACETS.map(([key]) => key).filter((key) => JSON.stringify(snap[key]) !== JSON.stringify(lastSent[key]));
+  return FACETS.map(([key]) => key).filter((key) => !sameJson(snap[key], lastSent[key]));
 }
 
 /**
@@ -104,7 +134,7 @@ function changedKeys(snap) {
  * @returns {Promise<void>}
  */
 export async function hydrateNarrowing() {
-  try {
+  await narrowingOp.run(async () => {
     const body = await api.narrowing();
     const facets = body.facets || {};
     applying = true;
@@ -118,9 +148,8 @@ export async function hydrateNarrowing() {
     } finally {
       applying = false;
     }
-  } catch (e) {
-    narrowingError.value = errText(e);
-  }
+    narrowingError.value = "";
+  });
 }
 
 /**
@@ -131,22 +160,32 @@ export async function hydrateNarrowing() {
  * @returns {Promise<void>}
  */
 export async function flushNarrowing() {
-  if (timer !== null) {
-    clearTimeout(timer);
-    timer = null;
-  }
+  quiet.cancel();
   if (!touched.size) return;
   const snap = snapshot();
   touched.clear();
-  try {
+  const result = await narrowingOp.run(async () => {
     const body = await api.saveNarrowing(snap);
     lastSent = body.facets || snap;
     narrowingError.value = "";
-  } catch (e) {
+  });
+  if (result === FAILED) {
     // Still owed: the next facet the user moves, or the next flush, retries it.
     for (const key of changedKeys(snap)) touched.add(key);
-    narrowingError.value = errText(e);
   }
+}
+
+/**
+ * Forget every write still owed, a failed one included, and take the facets as they stand as the confirmed set, so
+ * nothing moved before now is written. For a store the server has just replaced: an owed facet would otherwise be
+ * skipped by the next hydrate and written over the replacement by the next flush.
+ * @returns {void}
+ */
+export function dropOwedNarrowing() {
+  quiet.cancel();
+  touched.clear();
+  lastSent = snapshot();
+  narrowingError.value = "";
 }
 
 // One subscription over every facet signal: a move marks that facet owed and
@@ -160,17 +199,5 @@ effect(() => {
   const changed = changedKeys(snap);
   if (!changed.length) return;
   for (const key of changed) touched.add(key);
-  if (timer !== null) clearTimeout(timer);
-  timer = setTimeout(() => void flushNarrowing(), QUIET_MS);
+  quiet.arm();
 });
-
-// Read the stored facets once, at load. Guarded on `fetch` because this module
-// is imported by the SSR harness, where there is no backend to ask.
-if (typeof fetch === "function") void hydrateNarrowing();
-// A tab hidden or closed inside the quiet window would otherwise drop the last
-// toggle. Nothing to restore on failure here — the page is going away.
-if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") void flushNarrowing();
-  });
-}

@@ -35,7 +35,7 @@ CORNER_KHZ = {"20k": 20, "30k": 30, "40k": 40, "50k": 50}
 
 
 def hz(i: int, bins: int, bandwidth: float) -> float:
-    """Centre frequency of bin ``i`` on a grid of ``bins`` bins spanning 0 Hz to ``bandwidth``."""
+    """Center frequency of bin ``i`` on a grid of ``bins`` bins spanning 0 Hz to ``bandwidth``."""
     return i * bandwidth / (bins - 1)
 
 
@@ -55,7 +55,7 @@ class Curve:
         self.floor = _percentile(self.smoothed, FLOOR_PERCENTILE)
 
     def hz(self, i: int) -> float:
-        """Return the centre frequency of a kept bin."""
+        """Return the center frequency of a kept bin."""
         return hz(i, self.bins, self.bandwidth)
 
     def at(self, frequency: float) -> int:
@@ -68,7 +68,7 @@ class Curve:
 
 
 def median_smooth(levels: list[float], width: int) -> list[float]:
-    """Return each level replaced by the median of the ``width``-wide window centred on it."""
+    """Return each level replaced by the median of the ``width``-wide window centered on it."""
     half = width // 2
     n = len(levels)
     return [statistics.median(levels[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]

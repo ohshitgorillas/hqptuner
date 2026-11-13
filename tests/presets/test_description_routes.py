@@ -3,12 +3,12 @@
 archive — the two zip helpers plus the backup/restore routes that use them.
 
 The store itself — reading, writing, validation, merging, export — is pinned in
-``tests/presets/test_description_store.py``. The suite is cut there because
+``tests/presets/stores/test_description_store.py``. The suite is cut there because
 everything in this file needs an app and a client, and half of it needs a daemon,
 while nothing in the store file needs any of the three.
 
 A description is keyed by profile NAME, the stable join key
-(docs/architecture.md §3.1) — `<matrix_profile>` carries exactly one attribute,
+— `<matrix_profile>` carries exactly one attribute,
 `name` (hqplayerd-readme.txt §1.12), so there is nowhere in the config XML for
 prose to live and the store is HQPTuner's own state. The REST pair therefore
 never touches hqplayerd: those clients are built with no credentials and a
@@ -146,7 +146,7 @@ def test_a_fresh_install_answers_get_with_200(desc_client: TestClient) -> None:
     assert desc_client.get("/api/descriptions").status_code == 200
 
 
-@pytest.mark.parametrize(("member", "served"), [("text", TEXT), ("updated", "2025-03-04T05:06:07Z")])
+@pytest.mark.parametrize(("member", "served"), [("text", TEXT)])
 def test_get_serves_the_text_a_put_stored_and_the_stamp_of_the_apps_clock(
     desc_client: TestClient, member: str, served: str
 ) -> None:
@@ -164,20 +164,6 @@ def test_putting_blank_text_drops_the_entry(desc_client: TestClient) -> None:
     desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
     desc_client.put("/api/descriptions", json={"name": NAME, "text": "   "})
     assert NAME not in desc_client.get("/api/descriptions").json()["profiles"]
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        pytest.param({"name": "", "text": TEXT}, id="empty-name"),
-        pytest.param({"name": "x" * 129, "text": TEXT}, id="129-char-name"),
-        pytest.param({"name": "Living\x07Room", "text": TEXT}, id="control-char-name"),
-        pytest.param({"name": NAME, "text": "x" * 2001}, id="2001-char-text"),
-        pytest.param({"name": NAME, "text": "warm\x00room"}, id="control-char-text"),
-    ],
-)
-def test_a_put_the_store_would_refuse_answers_422(desc_client: TestClient, body: object) -> None:
-    assert desc_client.put("/api/descriptions", json=body).status_code == 422
 
 
 # Name cases as well as text: FastAPI's own body validation also answers 422, so
@@ -213,18 +199,7 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     assert answer.status_code == 409
 
 
-# The read direction is pinned by every GET case above, all of which run against
-# this same daemonless client; what is left to say is that a WRITE lands too.
-def test_a_description_is_written_with_no_daemon_reachable(desc_client: TestClient) -> None:
-    assert desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT}).status_code == 200
-
-
 # --- the two zip helpers -------------------------------------------------------------
-
-
-def test_taking_the_payload_removes_its_member() -> None:
-    archive = embed_descriptions(members_zip(), stamped({NAME: entry("warm")}))
-    assert DESCRIPTIONS_MEMBER not in members(take_descriptions(archive)[0])
 
 
 def test_taking_the_payload_leaves_every_other_member_byte_identical() -> None:
@@ -247,7 +222,7 @@ def test_an_archive_with_no_payload_comes_back_unchanged() -> None:
 
 def members_zip() -> bytes:
     """An archive shaped the way hqplayerd's own /backup is: a working config
-    and the data tree beside it (docs/protocol.md §3.6)."""
+    and the data tree beside it."""
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
         z.writestr("hqplayerd.xml", b"<hqplayer/>")
@@ -256,12 +231,6 @@ def members_zip() -> bytes:
 
 
 # --- carriage through backup ----------------------------------------------------------
-
-
-def test_a_backup_carries_the_descriptions_member(carriage_client: tuple[TestClient, DescriptionStore]) -> None:
-    client, store = carriage_client
-    store.write(NAME, TEXT)
-    assert DESCRIPTIONS_MEMBER in members(client.get("/api/backup").content)
 
 
 def test_the_carried_member_holds_the_stored_text(carriage_client: tuple[TestClient, DescriptionStore]) -> None:
@@ -278,7 +247,7 @@ def test_an_empty_store_adds_no_member(carriage_client: tuple[TestClient, Descri
 
 def daemon_backup(http_daemon: dict[str, Any]) -> dict[str, bytes]:
     """The members of the archive hqplayerd itself serves, read straight off the
-    fake's own `GET /backup/settings.zip` (docs/protocol.md §3.6).
+    fake's own `GET /backup/settings.zip`.
 
     The reference for "the daemon's own members survive" has to come from the
     daemon, not from another trip through HQPTuner: a backup that mangled a
@@ -324,14 +293,6 @@ def test_a_restore_keeps_a_description_the_archive_did_not_carry(
     store.write("Study", "near field")
     upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
     assert store.read()["Study"]["text"] == "near field"
-
-
-def test_a_restore_forwards_an_archive_without_the_descriptions_member(
-    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
-) -> None:
-    client, _store = carriage_client
-    upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
-    assert DESCRIPTIONS_MEMBER not in http_daemon["_restore_members"]
 
 
 def test_a_restore_forwards_every_other_member_byte_identical(

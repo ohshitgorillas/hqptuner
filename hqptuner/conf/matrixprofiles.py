@@ -21,10 +21,12 @@ import json
 import re
 from typing import TypedDict
 
-from hqptuner.conf.matrixconf import PLUGIN_MAP, live_post_process, pipeline_tag, rows_of
-from hqptuner.conf.matrixpayload import parse_save, validate_name
+from hqptuner.conf.matrixconf import live_post_process, pipeline_tag, rows_of
+from hqptuner.conf.matrixpayload import parse_delete, parse_save, validate_name
 from hqptuner.conf.matrixscope import attr_escape, attr_unescape
 from hqptuner.conf.xmledit import GroundingError, ensure_element, in_comment
+from hqptuner.fields.model import Codec, Plugin
+from hqptuner.fields.query import by_plugin, kept_at
 
 
 class MatrixAbsentError(GroundingError):
@@ -35,15 +37,16 @@ class MatrixAbsentError(GroundingError):
         super().__init__("the matrix element is absent from this snapshot", code="matrix-absent")
 
 
-# One staged field per profile verb. Save carries {"name", "rows"} so the rows
-# are the ones the user is looking at, not whatever the config happens to hold.
-MATRIX_PROFILE_SAVE = "matrix_profile_save"
-MATRIX_PROFILE_DELETE = "matrix_profile_delete"
-# Readback field: every profile in the snapshot, as canonical JSON.
-MATRIX_PROFILES = "matrix_profiles"
+def profile_to_adopt(edits: dict[str, str], active: str) -> str:
+    """Return the matrix profile an apply carrying ``edits`` adopts as the live matrix, ``""`` for none.
 
-#: (plugin type, attribute) -> form field, for reading a stored chain back.
-_PLUGIN_FIELDS: dict[tuple[str, str], str] = {loc: field for field, loc in PLUGIN_MAP.items()}
+    ``active`` is the profile the engine is on, ``""`` for the default matrix. A profile this very apply deletes
+    is not adopted, since a matrix about to be removed is not one to install.
+    """
+    delete = kept_at(Codec.PROFILE_DELETE)
+    if not active or delete not in edits:
+        return active
+    return "" if parse_delete(edits[delete])[0] == active else active
 
 
 def _profile_re(name: str) -> re.Pattern[bytes]:
@@ -143,19 +146,20 @@ def delete_profile(xml: bytes, name: str) -> bytes:
 def _post_of(body: bytes) -> dict[str, str]:
     """One stored profile's ``<post_process>`` chain in form-field terms.
 
-    ``{}`` for a profile carrying no chain. Attributes outside ``PLUGIN_MAP`` are
-    ignored here; they stay in the element because the write copies it verbatim,
-    with no HQPTuner field to hand them back through.
+    ``{}`` for a profile carrying no chain. Attributes the field register keeps no
+    field at are ignored here; they stay in the element because the write copies
+    it verbatim, with no HQPTuner field to hand them back through.
     """
     out: dict[str, str] = {}
     chain = re.search(rb"<post_process\b[^>]*>(.*?)</post_process>", body, re.DOTALL)
     if chain is None:
         return out
+    fields = by_plugin()
     for pm in re.finditer(rb"<plugin\b[^>]*?>", chain.group(1)):
         attrs = {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
         ptype = attrs.get("type", "")
         for attr, value in attrs.items():
-            field = _PLUGIN_FIELDS.get((ptype, attr))
+            field = fields.get(Plugin(ptype, attr))
             if field is not None:
                 out[field] = attr_unescape(value)
     return out

@@ -1,0 +1,24 @@
+/* Page frame, plate, and type utilities. */
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:var(--fs-4);line-height:var(--lh-text)}
+/* Native controls take the plate's pinned line height, never the UA's `normal` (tokens.css --lh-*). */
+button,input,select,textarea{line-height:inherit}
+
+/* #stage centers the plate where the window is larger; where smaller, `safe` pins its top and left edges to the page start and the page scrolls to the rest. No padding: in a window exactly its format's size the page does not scroll. It spans the window and at least the large viewport's height, never the plate's size, and Plate.js measures it as the window. */
+#stage{position:absolute;inset:0;min-height:100vh;min-height:100lvh;display:flex;align-items:safe center;justify-content:safe center}
+.plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:calc(var(--sp-7) + env(safe-area-inset-top)) var(--sp-9) 0;display:flex;flex-direction:column;
+  background:var(--plate-face);border:var(--hair) solid var(--edge);border-radius:var(--r-plate);
+  box-shadow:var(--plate-shadow);font-variant-numeric:tabular-nums;transition:opacity var(--fade)}
+/* The engine is not there: the plate dims and every control stays live. Two causes, one look: an own restart under way (data-restarting) and HQPlayer away from HQPTuner (data-away). */
+.plate[data-restarting],.plate[data-away]{opacity:var(--op-2)}
+.rule{height:var(--hair);background:var(--line);flex-shrink:0}
+
+/* Engraved legend text. */
+.eng{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);text-shadow:var(--engrave);white-space:nowrap;line-height:var(--lh-eng)}
+.mono{font-family:var(--f-mono);line-height:var(--lh-text)}
+.acc{color:var(--acc)}
+.cnt{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
+.grow{flex-grow:1}
+
+select.vfd:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}

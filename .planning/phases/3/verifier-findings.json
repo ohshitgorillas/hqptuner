@@ -1,0 +1,105 @@
+{
+  "status": "gaps",
+  "score": "7/8",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "On 1x content (44.1 kHz) and on a DSD64 source through PCM conversion, the rail HF lamp is unlit for every engaged filter, prints no value and is not byp; the HF menu grays every option except none (ROADMAP SC1)",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "hqptuner/static/model/shell/hf-reach.js:44-52 actsOn returns false for every fixed-corner and Nx name below REACH_FLOOR 50000; contentRate divides DSD by 64. chain.js:225 hfActs feeds READ.hf (chain.js:246), judged on r.metadata.samplerate with DSD_SOURCE_PATHS. hf.js:35-39 judgedRate + hf.js:56 grayed. Tests passing (scripts/gate.sh node --test ..., exit=0, 148/148): hf-reach 'actsOn: nothing acts below 50 kHz, whatever the corner' (all 7 names at 44100 and 48000); chain test_an_engaged_hf_filter_on_a_44_1_source_reads_unlit / _prints_no_value / _is_not_bypassed, test_the_30k_filter_on_a_dsd64_source_converted_to_pcm_reads_unlit; hf test_a_44_1_source_grays_every_option_but_none, test_a_dsd64_source_grays_every_option_but_none; hf-filter test_with_a_44_1_source_playing_every_row_but_none_is_disabled."
+    },
+    {
+      "n": 2,
+      "truth": "On 88.2 kHz content the lamp is unlit with 50k or 2x and lit with 20k/30k/40k; the menu grays 50k, 2x, 4x, 8x (ROADMAP SC2, SC3)",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "hf-reach.js:50 fixed corner acts when rate/2 > corner (44100 > 50000 false for 50k); hf-reach.js:51-52 Nx acts when rate > N*base (88200 > 88200 false for 2x). Passing tests: hf-reach 'at 88.2 kHz the fixed corners below the Nyquist act...' (acting = [20k,30k,40k]); chain test_the_50k_filter_on_an_88_2_source_reads_unlit, test_the_30k_filter_on_an_88_2_source_reads_lit, test_a_running_hf_filter_shows_its_engine_name_on_content_it_acts_on (20k at 88.2), test_a_running_stage_reads_lit_while_the_source_plays (railLamp 'on'); hf test_an_88_2_source_grays_50k_2x_4x_and_8x. 2x and 40k at 88.2 on the rail are carried by the shared rule (chain.js imports the same actsOn), not by a rail-lane case."
+    },
+    {
+      "n": 3,
+      "truth": "On 176.4 kHz content the lamp is lit with 50k or 2x; the menu grays 4x and 8x only (ROADMAP SC3)",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "Passing tests: hf-reach 'at 176.4 kHz every fixed corner acts, and 2x with them'; chain test_the_50k_and_2x_filters_on_a_176_4_source_read_lit; hf test_a_176_4_source_grays_4x_and_8x_only. 48 kHz family and 4x/8x first-act points also pinned in hf-reach.test.js."
+    },
+    {
+      "n": 4,
+      "truth": "A DSD128 source through PCM conversion counts at 88.2 kHz: lamp lit with 30k, unlit with 50k; Direct SDM keeps the HF stage bypassed",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "hf-reach.js:31-35 contentRate(5644800, true) = 88200; chain.js:216 DSD_SOURCE_PATHS ['dsd-pcm','sdm-sdm','direct'] selects the /64; hf.js:38 uses path.js:22 sourceIsDsd. Passing tests: hf-reach 'a DSD source counts at its rate / 64'; chain test_the_30k_filter_on_a_dsd128_source_converted_to_pcm_reads_lit, test_the_50k_filter_on_a_dsd128_source_converted_to_pcm_reads_unlit, test_direct_sdm_still_marks_the_hf_stage_bypassed."
+    },
+    {
+      "n": 5,
+      "truth": "A tap on a grayed HF menu option sends no write, leaves the running filter as it was and leaves the menu open; none is never grayed",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "hqptuner/static/components/faceplate/HfFilter.js:64-65 disabled=${o.grayed} and onClick guard `!o.grayed && pick(o)`; hf-reach.js:47 unknown names incl. none return true, so none never grays. Passing tests: hf-filter test_tapping_a_grayed_row_writes_nothing (no POST to /api/config/live), test_tapping_a_grayed_row_leaves_the_menu_open, test_a_disabled_row_that_runs_is_still_ticked, test_a_grayed_row_carries_no_title; existing test_picking_a_row_sends_that_rows_index_live_as_the_junk_filter still green; hf-reach 'none and an unknown name never read as non-acting'."
+    },
+    {
+      "n": 6,
+      "truth": "scripts/gate.sh make check is green on the phase's code",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "/tmp/gate-make-tGjGFIJH.log (16:21, after 9c221f42 at 16:16; its coverage table lists hf-reach.js at 100%, so it ran this branch's code): pytest '3664 passed, 149 deselected', JS '# tests 5435 / # pass 5435 / # fail 0', run reaches test-js's end of coverage report, the last make check target. Commits after 9c221f42 touch only .planning/ (git diff --stat 9c221f42 HEAD). tests/js/contracts/render-cost.test.js re-run here green alongside the phase suites. Not re-run by the verifier per dispatch; the coordinator's own run (/tmp/gate-make-M67PmKju.log) was in progress at verification time."
+    },
+    {
+      "n": 7,
+      "truth": "Grayed HF rows render dead in the browser (ink-3, default cursor, no hover wash, no badge or text) and the rendered rail lamp is lit only on acting content",
+      "status": "FAILED",
+      "uat_item": 7,
+      "evidence": "Code present and statically sound: hqptuner/static/css/header.css:74-75 `.hfpop .pmrow:disabled{color:var(--ink-3);cursor:default}` and `:disabled:hover{background:none}`, specificity (0,3,0)/(0,4,0) beats matrix.css:290-291 `.pmrow`/`.pmrow:hover`. Rendered-markup lane covers the disabled attribute and no title (hf-filter.test.js) and the rail lamp on 88.2 kHz (rail.test.js:49 fixture, test_a_running_hf_filter_lights_its_lamp). No automated check observes the computed dead ink, cursor or hover background in a browser; SUMMARY 'Open items' states no one has looked."
+    },
+    {
+      "n": 8,
+      "truth": "The content judged is the source rate (metadata.samplerate), never Status.active_rate, and with the transport off or no rate known nothing is grayed",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "chain.js:225 reads r.metadata.samplerate (Running.metadata from chain.js:375 attributes(s.metadata, ['samplerate',...])); hf.js:36 returns null when transportNow() === 'off'. rail.test.js:49 fixture has active_rate 176400 with samplerate 88200 and 30k lit. Passing tests: hf test_a_stopped_engine_with_stale_44_1_metadata_grays_nothing, test_a_paused_source_is_judged_like_a_playing_one; hf-reach 'with no rate known every filter acts'."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "1x and DSD64 content: lamp dark, menu grays all but none",
+      "evidence": "hf-reach.js:44-52 floor rule; chain.js:225,246; hf.js:35-39,56. Green: chain test_an_engaged_hf_filter_on_a_44_1_source_reads_unlit/_prints_no_value/_is_not_bypassed, test_the_30k_filter_on_a_dsd64_source_converted_to_pcm_reads_unlit; hf test_a_44_1_source_grays_every_option_but_none, test_a_dsd64_source_grays_every_option_but_none; hf-reach 'nothing acts below 50 kHz'."
+    },
+    {
+      "k": 2,
+      "name": "88.2 kHz content: lamp and menu follow the corners",
+      "evidence": "Green: chain test_the_50k_filter_on_an_88_2_source_reads_unlit, test_the_30k_filter_on_an_88_2_source_reads_lit, test_a_running_hf_filter_shows_its_engine_name_on_content_it_acts_on; hf test_an_88_2_source_grays_50k_2x_4x_and_8x; hf-reach acting(88200) = [20k,30k,40k]."
+    },
+    {
+      "k": 3,
+      "name": "176.4 kHz content: 50k and 2x act",
+      "evidence": "Green: chain test_the_50k_and_2x_filters_on_a_176_4_source_read_lit; hf test_a_176_4_source_grays_4x_and_8x_only; hf-reach acting(176400) = [20k,30k,40k,50k,2x]."
+    },
+    {
+      "k": 4,
+      "name": "DSD128 content counts at 88.2 kHz",
+      "evidence": "hf-reach.js:31-35 rate/64; chain.js:216 DSD_SOURCE_PATHS. Green: chain test_the_30k_filter_on_a_dsd128_source_converted_to_pcm_reads_lit, test_the_50k_filter_on_a_dsd128_source_converted_to_pcm_reads_unlit, test_direct_sdm_still_marks_the_hf_stage_bypassed."
+    },
+    {
+      "k": 5,
+      "name": "Tap on a grayed HF option does nothing",
+      "evidence": "HfFilter.js:64-65 disabled + handler guard. Green: hf-filter test_tapping_a_grayed_row_writes_nothing, test_tapping_a_grayed_row_leaves_the_menu_open, test_a_disabled_row_that_runs_is_still_ticked."
+    },
+    {
+      "k": 6,
+      "name": "Gate green",
+      "evidence": "/tmp/gate-make-tGjGFIJH.log at 9c221f42 code: pytest 3664 passed, JS 5435 pass 0 fail, reaches end of test-js; only .planning/ changed since. Verifier did not re-run make check per dispatch."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 7,
+      "name": "Grayed HF rows render dead in the browser",
+      "reason": "uncovered acceptance requirement: no automated check exercises it. The CSS rule exists and wins the cascade on static reading, but nothing observes the computed color, cursor or hover background of a disabled .hfpop .pmrow, or the rendered rail lamp, in a browser.",
+      "evidence": "hqptuner/static/css/header.css:74-75 (rule present); matrix.css:290-291 (overridden base rules); tests/js/components/faceplate/hf-filter.test.js covers only the disabled attribute, no title and the tap; no browser/computed-style probe exists for the HF menu; SUMMARY.md 'Open items' says the rendered result has not been looked at.",
+      "severity": "minor",
+      "missing": "The smallest check that closes it: one computed-style probe of the engine-row HF menu with a 44.1 kHz source seeded, asserting a disabled row's color resolves to --ink-3, cursor is default and hover background is none, and that the rail HF lamp reads unlit. The repo's hand-back rule (owner's eyes on every visual change) still applies separately."
+    }
+  ],
+  "human_checks": []
+}

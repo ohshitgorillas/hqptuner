@@ -63,9 +63,8 @@ const PLUGINS = { sonarjs };
 // second gate demanding prose copies of the same types would only give the two
 // a way to disagree.
 //
-// tests/js is exempt, matching the Python side's `tests/**` ignore: the
-// one-assertion rule and docs/testing.md already require a test's name to state
-// its behavior in plain words, and a block above it restates the name.
+// tests/js is exempt, matching the Python side's `tests/**` ignore: a block
+// above a test restates its name.
 //
 // require-jsdoc takes `publicOnly`, which scopes it to the exported surface.
 // require-description has no such option and defaults to every function that
@@ -109,20 +108,13 @@ const JSDOC_RULES = {
 // Import layering, the frontend peer of the Python contract in pyproject.toml
 // under [tool.importlinter]. Highest first:
 //
-//   app.js + components/App.js   the shell
-//   components/tabs
+//   app.js   the shell
 //   components
-//   components/controls
 //   store
+//   model    DOM-free decisions
 //   lib
 //
-// A layer imports below it and never above. App.js is the shell rather than a
-// component: static/app.js renders it, it assembles the header, the tab bar and
-// the pending bar, and it is the only module under components/ that may reach
-// into tabs/.
-//
-// The eqstage node CLI sits on the vendored eqlab and reaches into neither
-// store/ nor components/.
+// A layer imports below it and never above.
 //
 // Patterns match the import SPECIFIER, not a resolved path, so each rule lists
 // the shapes a relative specifier can take from the depths that layer occupies.
@@ -130,8 +122,8 @@ const JSDOC_RULES = {
 const ABOVE = {
   app: "**/app.js",
   components: ["**/components/*.js", "**/components/**/*.js"],
-  tabs: ["**/tabs/*.js", "**/tabs/**/*.js"],
   store: ["**/store/*.js", "**/store/**/*.js"],
+  model: ["**/model/*.js", "**/model/**/*.js"],
 };
 
 /**
@@ -149,8 +141,6 @@ export default [
   // is invoked as `eslint .`, so without this it lints the copy — 83 no-undef
   // errors from a second, unconfigured root. knip and tsc are scoped by explicit
   // globs and are unaffected.
-  // `**/*.mjs` is gitignored scratch — throwaway node scripts from tuning
-  // sessions, never shipped and never a gate's business.
   {
     ignores: [
       "hqptuner/static/vendor/**",
@@ -165,6 +155,7 @@ export default [
       // an older commit — never a finding about this tree's source.
       ".claude/worktrees/**",
       "**/*.mjs",
+      "!.github/cadence/coverage-report-check.mjs",
     ],
   },
   js.configs.recommended,
@@ -175,9 +166,8 @@ export default [
     rules: { ...RULES, "hqptuner/no-hand-rolled-card": "error" },
   },
   {
-    // The module that OWNS the card frame is the one place allowed to write it.
-    files: ["hqptuner/static/components/common.js"],
-    rules: { "hqptuner/no-hand-rolled-card": "off" },
+    files: [".github/cadence/**/*.mjs"],
+    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
   },
   {
     // Test suite runs under node's built-in runner, not in the browser. The
@@ -196,8 +186,8 @@ export default [
       },
     },
     // no-copy-assertions enforces for JS what
-    // scripts/gates/testing/check_no_copy_assertions.py enforces for Python
-    // (docs/testing.md rule 9), same semantics, blocking on both sides.
+    // scripts/gates/testing/check_no_copy_assertions.py enforces for Python,
+    // same semantics, blocking on both sides.
     // assertion-shape is the JS peer of the shape checks in the same Python gate,
     // blocking on both sides.
     rules: {
@@ -208,23 +198,19 @@ export default [
     },
   },
   {
-    // scripts/eqstage is a node CLI, not browser code: it runs under node with
-    // stdin, stdout and fetch.
-    files: ["scripts/**/*.js"],
-    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
-    plugins: PLUGINS,
-    rules: RULES,
-  },
-  {
-    // Production JS: the served frontend, the eqstage node CLI and the local
-    // eslint rules. tests/js is deliberately absent.
-    files: ["hqptuner/static/**/*.js", "scripts/eqstage/**/*.js", "eslint-rules/**/*.js"],
+    // Production JS: the served frontend and the local eslint rules. tests/js is
+    // deliberately absent.
+    files: ["hqptuner/static/**/*.js", "eslint-rules/**/*.js"],
     plugins: { jsdoc },
     rules: JSDOC_RULES,
   },
   // --- the layering contract ---------------------------------------------
   {
     files: ["hqptuner/static/lib/**/*.js"],
+    rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store, ...ABOVE.model], LAYER_MSG),
+  },
+  {
+    files: ["hqptuner/static/model/**/*.js"],
     rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store], LAYER_MSG),
   },
   {
@@ -232,30 +218,8 @@ export default [
     rules: noUp([ABOVE.app, ...ABOVE.components], LAYER_MSG),
   },
   {
-    // Controls sit under the components that compose them. `../*.js` is a flat
-    // sibling of components/, one level up from here, and `../*/*.js` is one
-    // inside a concern directory (matrix/, xfeed/, live/, …) — both are
-    // components. `../../lib/…` is deeper and unaffected, and `*` does not
-    // match a `/`, so neither pattern reaches it.
-    files: ["hqptuner/static/components/controls/**/*.js"],
-    rules: noUp([ABOVE.app, ...ABOVE.tabs, "../*.js", "../*/*.js"], LAYER_MSG),
-  },
-  {
     files: ["hqptuner/static/components/**/*.js"],
-    ignores: [
-      "hqptuner/static/components/App.js",
-      "hqptuner/static/components/tabs/**",
-      "hqptuner/static/components/controls/**",
-    ],
-    rules: noUp([ABOVE.app, ...ABOVE.tabs], LAYER_MSG),
-  },
-  {
-    files: ["hqptuner/static/components/tabs/**/*.js"],
     rules: noUp([ABOVE.app], LAYER_MSG),
-  },
-  {
-    files: ["scripts/eqstage/**/*.js"],
-    rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store], LAYER_MSG),
   },
   {
     // The config and its local rules run in node.

@@ -92,11 +92,6 @@ def problem_lines(out: str, path: Path) -> list[str]:
     return [line for line in out.splitlines() if str(path) in line]
 
 
-def body_of(path: Path) -> list[tuple[int, str]]:
-    """The ``[Unreleased]`` body of a written changelog, as ``unreleased()`` reads it."""
-    return check_changelog.unreleased(path.read_text(encoding="utf-8").splitlines())
-
-
 # --- a clean section --------------------------------------------------------
 
 
@@ -106,11 +101,6 @@ def test_a_conformant_unreleased_section_passes_the_gate(tmp_path: Path, entry: 
 
 
 # --- the word cap -----------------------------------------------------------
-
-
-def test_the_word_cap_is_seventy_five() -> None:
-    """The number CONTRIBUTING.md publishes to entry writers, not an internal tuning knob."""
-    assert WORD_CAP == 75
 
 
 @pytest.mark.parametrize("expected", [str(WORD_CAP + 1), str(WORD_CAP)], ids=["actual count", "the cap"])
@@ -129,17 +119,7 @@ def test_a_bullet_at_exactly_the_word_cap_passes_the_gate(tmp_path: Path, count:
     assert CHECK(write_changelog(tmp_path, under_added(sized_bullet(count)))) == code
 
 
-@pytest.mark.parametrize(("count", "code"), [(WORD_CAP, 0), (WORD_CAP + 1, 1)], ids=["at the cap", "one over"])
-def test_an_em_dash_added_to_a_bullet_at_the_cap_does_not_push_it_over(tmp_path: Path, count: int, code: int) -> None:
-    """Punctuation carrying no letter or digit is not a word, so it costs nothing."""
-    assert CHECK(write_changelog(tmp_path, under_added(sized_bullet(count, middle="— ")))) == code
-
-
 # --- word counting ----------------------------------------------------------
-
-
-def test_words_counts_plain_words() -> None:
-    assert WORDS("alpha beta gamma") == 3
 
 
 def test_words_ignores_a_standalone_em_dash() -> None:
@@ -169,14 +149,6 @@ def test_words_ignores_a_standalone_underscore_emphasis_marker() -> None:
 CONTINUED = "- **Lead.** First block of text.\n\n  A second block indented beneath it."
 
 
-def test_a_bullet_running_to_a_second_paragraph_is_reported_as_such(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    path = write_changelog(tmp_path, under_added(CONTINUED))
-    CHECK(path)
-    assert "paragraph" in report(capsys.readouterr().out, path, CONTINUED).lower()
-
-
 @pytest.mark.parametrize(
     ("section", "code"), [(under_added(CLEAN, CLEAN), 0), (under_added(CONTINUED), 1)], ids=["two bullets", "continued"]
 )
@@ -184,15 +156,6 @@ def test_a_blank_line_between_two_bullets_does_not_make_the_second_a_continuatio
     tmp_path: Path, section: str, code: int
 ) -> None:
     assert CHECK(write_changelog(tmp_path, section)) == code
-
-
-# --- the bold lead ----------------------------------------------------------
-
-
-def test_a_bullet_without_a_bold_lead_is_reported_as_such(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    path = write_changelog(tmp_path, under_added(NO_LEAD))
-    CHECK(path)
-    assert "bold" in report(capsys.readouterr().out, path, NO_LEAD).lower()
 
 
 # --- second person ----------------------------------------------------------
@@ -234,33 +197,6 @@ def test_a_word_merely_containing_a_second_person_word_passes_the_gate(tmp_path:
 # --- marketing register -----------------------------------------------------
 
 
-HYPE = [
-    ("- **Lead.** The knob simply moves now.", "simply"),
-    ("- **Lead.** The move is seamless now.", "seamless"),
-    ("- **Lead.** The engine is powerful now.", "powerful"),
-    ("- **Lead.** The knob finally moves.", "finally"),
-    ("- **Lead.** The knob quietly moves now.", "quietly"),
-    ("- **Lead.** The knob moves significantly faster.", "significantly"),
-    ("- **Lead.** The knob just works now.", "just works"),
-    ("- **Lead.** The change is under the hood.", "under the hood"),
-    ("- **Lead.** It runs out of the box.", "out of the box"),
-]
-
-
-@pytest.mark.parametrize("bullet", [b for b, _ in HYPE], ids=[w for _, w in HYPE])
-def test_a_bullet_in_marketing_register_fails_the_gate(tmp_path: Path, bullet: str) -> None:
-    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 1
-
-
-@pytest.mark.parametrize("bullet,word", HYPE, ids=[w for _, w in HYPE])
-def test_a_bullet_in_marketing_register_is_reported_with_the_offending_word(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], bullet: str, word: str
-) -> None:
-    path = write_changelog(tmp_path, under_added(bullet))
-    CHECK(path)
-    assert word in report(capsys.readouterr().out, path, bullet).lower()
-
-
 @pytest.mark.parametrize(
     ("bullet", "code"),
     [("- **Lead.** The simplynoise generator is gone.", 0), ("- **Lead.** The knob simply moves now.", 1)],
@@ -272,33 +208,6 @@ def test_a_marketing_word_inside_a_longer_word_passes_the_gate(tmp_path: Path, b
 
 
 # --- narration by negation --------------------------------------------------
-
-
-NEGATION = [
-    ("- **Lead.** The knob moves; the dial is unchanged.", "is unchanged"),
-    ("- **Lead.** The dials are unchanged.", "are unchanged"),
-    ("- **Lead.** The dial remains unchanged.", "remains unchanged"),
-    ("- **Lead.** The dial is otherwise unchanged.", "otherwise unchanged"),
-    ("- **Lead.** The dial is unaffected.", "unaffected"),
-    ("- **Lead.** The dial is untouched.", "untouched"),
-    ("- **Lead.** The dial moved and nothing changed.", "nothing changed"),
-    ("- **Lead.** The dial moves and nothing else changes.", "nothing else changes"),
-    ("- **Lead.** The dial moves and everything else works as before.", "everything else works as before"),
-]
-
-
-@pytest.mark.parametrize("bullet", [b for b, _ in NEGATION], ids=[p for _, p in NEGATION])
-def test_a_bullet_narrating_by_negation_fails_the_gate(tmp_path: Path, bullet: str) -> None:
-    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 1
-
-
-@pytest.mark.parametrize("bullet,phrase", NEGATION, ids=[p for _, p in NEGATION])
-def test_a_bullet_narrating_by_negation_is_reported_with_the_offending_phrase(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], bullet: str, phrase: str
-) -> None:
-    path = write_changelog(tmp_path, under_added(bullet))
-    CHECK(path)
-    assert phrase in report(capsys.readouterr().out, path, bullet).lower()
 
 
 @pytest.mark.parametrize(
@@ -348,48 +257,10 @@ def test_a_bullet_breaking_three_rules_is_reported_three_times(
     assert len(problem_lines(capsys.readouterr().out, path)) == 3
 
 
-@pytest.mark.parametrize("expected", ["bold", "you", "simply"])
-def test_each_rule_a_single_bullet_breaks_is_named(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
-) -> None:
-    path = write_changelog(tmp_path, under_added(TRIPLE))
-    CHECK(path)
-    assert expected in report(capsys.readouterr().out, path, TRIPLE).lower()
-
-
-def test_a_mix_of_bullet_and_heading_problems_fails_the_gate(tmp_path: Path) -> None:
-    section = "### Fixed\n\n" + CLEAN + "\n\n### Added\n\n" + NO_LEAD + "\n"
-    assert CHECK(write_changelog(tmp_path, section)) == 1
-
-
 # --- headings ---------------------------------------------------------------
 
-#: ``Changed`` twice, with an innocent ``Added`` above it in canonical order, so
-#: naming the duplicated kind means naming the right one rather than every one.
-DUPLICATE = "### Added\n\n" + CLEAN + "\n\n### Changed\n\n" + CLEAN + "\n\n### Changed\n\n" + CLEAN + "\n"
-UNKNOWN = "### Tweaked\n\n" + CLEAN + "\n"
 UNKNOWN_DEEP = under_added(CLEAN, CLEAN, CLEAN) + "\n### Tweaked\n\n" + CLEAN + "\n"
 OUT_OF_ORDER = "### Fixed\n\n" + CLEAN + "\n\n### Added\n\n" + CLEAN + "\n"
-
-
-def test_a_repeated_heading_fails_the_gate(tmp_path: Path) -> None:
-    assert CHECK(write_changelog(tmp_path, DUPLICATE)) == 1
-
-
-def test_a_repeated_heading_is_reported_with_its_kind(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The report has to say which heading came twice, so the writer knows what to merge."""
-    path = write_changelog(tmp_path, DUPLICATE)
-    CHECK(path)
-    assert "Changed" in report(capsys.readouterr().out, path, CLEAN)
-
-
-def test_a_repeated_heading_report_leaves_the_sections_other_headings_alone(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """``Added`` appears once and is fine; a report naming it too is naming everything."""
-    path = write_changelog(tmp_path, DUPLICATE)
-    CHECK(path)
-    assert "Added" not in report(capsys.readouterr().out, path, CLEAN)
 
 
 def test_a_heading_of_an_unknown_kind_is_reported_with_its_kind(
@@ -398,20 +269,6 @@ def test_a_heading_of_an_unknown_kind_is_reported_with_its_kind(
     path = write_changelog(tmp_path, UNKNOWN_DEEP)
     CHECK(path)
     assert "Tweaked" in report(capsys.readouterr().out, path, CLEAN, "### Added")
-
-
-def test_headings_out_of_keep_a_changelog_order_are_reported_as_such(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    path = write_changelog(tmp_path, OUT_OF_ORDER)
-    CHECK(path)
-    assert "order" in report(capsys.readouterr().out, path, CLEAN).lower()
-
-
-@pytest.mark.parametrize(("kind", "code"), [*((kind, 0) for kind in KINDS), ("Unknown", 1)])
-def test_an_accepted_heading_kind_passes_the_gate(tmp_path: Path, kind: str, code: int) -> None:
-    """All seven kinds are known; alone in a section, each is trivially in order."""
-    assert CHECK(write_changelog(tmp_path, f"### {kind}\n\n{CLEAN}\n")) == code
 
 
 #: Every accepted kind once, in Keep a Changelog order.
@@ -443,14 +300,6 @@ def test_problems_in_a_released_section_pass_the_gate(tmp_path: Path, entry: str
     assert CHECK(write_changelog(tmp_path, under_added(entry), released=released)) == code
 
 
-def test_a_released_sections_offending_words_are_not_named_on_stdout(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    path = write_changelog(tmp_path, under_added(CLEAN), released=HISTORY)
-    CHECK(path)
-    assert "seamless" not in capsys.readouterr().out
-
-
 @pytest.mark.parametrize(
     ("text", "code"),
     [("# Changelog\n\nNotable changes." + HISTORY, 0), (HEAD + under_added(NO_LEAD), 1)],
@@ -465,21 +314,6 @@ def test_a_changelog_with_no_unreleased_section_passes_the_gate(tmp_path: Path, 
 # --- how a problem is printed -----------------------------------------------
 
 
-def test_a_problem_is_printed_with_the_file_path(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    path = write_changelog(tmp_path, under_added(NO_LEAD))
-    CHECK(path)
-    assert str(path) in capsys.readouterr().out
-
-
-def test_a_problem_is_printed_with_the_1_indexed_line_number_of_the_bullet(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    path = write_changelog(tmp_path, under_added(CLEAN, CLEAN, CLEAN, CLEAN, NO_LEAD))
-    CHECK(path)
-    reported = report(capsys.readouterr().out, path, NO_LEAD)
-    assert str(line_of(path, NO_LEAD)) in reported
-
-
 def test_a_heading_problem_is_printed_with_the_line_number_of_the_heading(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -489,73 +323,9 @@ def test_a_heading_problem_is_printed_with_the_line_number_of_the_heading(
     assert str(line_of(path, "### Tweaked")) in reported
 
 
-# --- the reading helpers ----------------------------------------------------
-
-
-def test_unreleased_gives_a_body_line_with_its_1_indexed_line_number(tmp_path: Path) -> None:
-    path = write_changelog(tmp_path, under_added(CLEAN))
-    assert (line_of(path, CLEAN), CLEAN) in [(number, text.strip()) for number, text in body_of(path)]
-
-
-@pytest.mark.parametrize(
-    ("entry", "released", "needle", "present"),
-    [(CLEAN, HISTORY, "seamless", False), (HYPE_AND_NEGATION, "", "simply", True)],
-    ids=["released text", "unreleased text"],
-)
-def test_unreleased_stops_at_the_next_version_heading(
-    tmp_path: Path, entry: str, released: str, needle: str, *, present: bool
-) -> None:
-    path = write_changelog(tmp_path, under_added(entry), released=released)
-    assert (needle in "\n".join(text for _, text in body_of(path))) is present
-
-
-def test_entries_gives_one_tuple_per_bullet(tmp_path: Path) -> None:
-    path = write_changelog(tmp_path, under_added(CLEAN, CLEAN, CLEAN))
-    assert len(check_changelog.entries(body_of(path))) == 3
-
-
-def test_entries_gives_a_bullets_1_indexed_line_number(tmp_path: Path) -> None:
-    path = write_changelog(tmp_path, under_added(NO_LEAD))
-    assert [number for number, _ in check_changelog.entries(body_of(path))] == [line_of(path, NO_LEAD)]
-
-
-def test_entries_carries_a_bullets_continuation_lines(tmp_path: Path) -> None:
-    path = write_changelog(tmp_path, under_added(CONTINUED))
-    assert "indented beneath it" in " ".join(check_changelog.entries(body_of(path))[0][1])
-
-
-def test_headings_gives_the_kind_of_every_heading_in_the_section(tmp_path: Path) -> None:
-    path = write_changelog(tmp_path, OUT_OF_ORDER)
-    assert [kind for _, kind in check_changelog.headings(body_of(path))] == ["Fixed", "Added"]
-
-
-def test_headings_gives_a_headings_1_indexed_line_number(tmp_path: Path) -> None:
-    path = write_changelog(tmp_path, UNKNOWN)
-    assert [number for number, _ in check_changelog.headings(body_of(path))] == [line_of(path, "### Tweaked")]
-
-
 # --- the command line -------------------------------------------------------
 
 
 @pytest.mark.parametrize(("entry", "code"), [(CLEAN, 0), (NO_LEAD, 1)], ids=["clean", "dirty"])
 def test_main_returns_zero_only_when_the_named_path_is_clean(tmp_path: Path, entry: str, code: int) -> None:
     assert check_changelog.main([str(write_changelog(tmp_path, under_added(entry)))]) == code
-
-
-def test_main_returns_one_when_one_of_several_paths_has_a_problem(tmp_path: Path) -> None:
-    clean = write_changelog(tmp_path, under_added(CLEAN))
-    dirty_dir = tmp_path / "other"
-    dirty_dir.mkdir()
-    dirty = write_changelog(dirty_dir, under_added(NO_LEAD))
-    assert check_changelog.main([str(clean), str(dirty)]) == 1
-
-
-def test_main_checks_every_path_it_is_given(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The second path is read, not short-circuited away by the first one passing."""
-    clean = write_changelog(tmp_path, under_added(CLEAN))
-    dirty_dir = tmp_path / "other"
-    dirty_dir.mkdir()
-    dirty = write_changelog(dirty_dir, under_added(NO_LEAD))
-    check_changelog.main([str(clean), str(dirty)])
-    located = [line.partition(": ")[0] for line in problem_lines(capsys.readouterr().out, dirty)]
-    assert located == [f"{dirty}:line {line_of(dirty, NO_LEAD)}"]

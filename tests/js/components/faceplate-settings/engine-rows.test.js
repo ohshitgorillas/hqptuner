@@ -1,0 +1,204 @@
+// Rendered suite for hqptuner/static/components/faceplate/settings/engine-rows.js, the Timing, UPnP and Behavior
+// drawers' schemas drawn by the stage drawer, and their Settings rail readouts: each drawer's rows in order, the title
+// dot a staged idle time puts on Timing, the pinned-rates field writing its preference, and a readout printing the
+// running option's label.
+//
+// Renders `Drawer` through preact-render-to-string; a click is fired through the vnode seam
+// (tests/js/support/vnodeseam.js) and the store is driven at the wire by the staging fake. Rows are found by catalog key
+// (`data-k`), the field by its id (`data-field`), options by value (`data-v`). Readouts print through the rail's own
+// settingsRail; every label asserted is one the config fixture put on the wire.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-settings/engine-rows.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
+import {
+  BEHAVIOR_DRAWER,
+  TIMING_DRAWER,
+  TIMING_READOUTS,
+  UPNP_READOUTS,
+} from "../../../../hqptuner/static/components/faceplate/settings/engine-rows.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  metadata,
+  pendingPreset,
+} from "../../../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { cancel } from "../../../../hqptuner/static/store/ask.js";
+import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { pickApplyMode } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { allowPinnedRates, setAllowPinnedRates } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
+import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
+import { stagingWire } from "../../support/wire/wire.js";
+import { renderTree } from "../../support/vnodeseam.js";
+import { elements, attr, classes } from "../../support/markup.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
+/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
+
+//: The daemon form's options for the two config-sourced keys, labels as the wire carries them.
+const IDLE_OPTIONS = [
+  { value: "0", label: "Default" },
+  { value: "10000", label: "10" },
+];
+const SHORT_OPTIONS = [
+  { value: "0", label: "Normal" },
+  { value: "1", label: "Short" },
+];
+
+/** The config form: field names, types and the options the wire carries; the values are readings. */
+const FORM = {
+  fields: [
+    { name: "idle_time", type: "select", options: IDLE_OPTIONS },
+    { name: "quick_pause", type: "checkbox" },
+    { name: "short_buffer", type: "select", options: SHORT_OPTIONS },
+    { name: "upnp_freewheel", type: "checkbox" },
+  ],
+};
+
+/**
+ * Serve the config form with idle time and UPnP freewheel at the values given.
+ *
+ * @param {string} idle
+ * @param {boolean} freewheel
+ */
+async function load(idle, freewheel) {
+  config.value = FORM;
+  await seedReadings({ idle_time: idle, quick_pause: false, short_buffer: "0", upnp_freewheel: freewheel });
+}
+
+beforeEach(async () => {
+  stagingWire();
+  await load("0", false);
+  engineState.value = {};
+  engineStatus.value = { metering: true };
+  enums.value = {};
+  metadata.value = null;
+  pendingPreset.value = null;
+  openStage.value = null;
+  openPopover.value = null;
+  setAllowPinnedRates(false);
+  cancel();
+  await discardAll();
+  pickApplyMode("apply");
+});
+
+/**
+ * The first vnode in a subtree whose props match `pred`.
+ *
+ * @param {unknown} node
+ * @param {(props: Record<string, unknown>) => boolean} pred
+ * @returns {VNode | undefined}
+ */
+function findIn(node, pred) {
+  if (Array.isArray(node)) return node.map((n) => findIn(n, pred)).find(Boolean);
+  if (!node || typeof node !== "object") return undefined;
+  const v = /** @type {VNode} */ (node);
+  if (v.props && pred(v.props)) return v;
+  return findIn(v.props?.children, pred);
+}
+
+/**
+ * Tap the pinned-rates field's option `value`.
+ *
+ * @param {string} value
+ */
+async function tapPinned(value) {
+  const { seen } = renderTree(html`<${Drawer} schema=${BEHAVIOR_DRAWER} />`);
+  const field = seen.find((v) => v.props?.["data-field"] === "pinallow");
+  const hit = findIn(field?.props.children, (p) => p["data-v"] === value);
+  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
+  if (fn) await fn();
+}
+
+/** Serve the idle time as a reading that restarts the engine, the lane that dots a title. */
+const loadRestartingIdle = () =>
+  seedReadings({
+    idle_time: fieldReading("0", { restarts: true }),
+    quick_pause: false,
+    short_buffer: "0",
+    upnp_freewheel: false,
+  });
+
+/**
+ * Whether the Timing drawer's title carries the dirty dot.
+ *
+ * @returns {boolean}
+ */
+const timingTitleDotted = () =>
+  elements(render(html`<${Drawer} schema=${TIMING_DRAWER} />`)).some(
+    (e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"),
+  );
+
+/**
+ * The option value the pinned-rates field lights, or undefined when none is lit.
+ *
+ * @returns {string | undefined}
+ */
+function litPinned() {
+  const marks = elements(render(html`<${Drawer} schema=${BEHAVIOR_DRAWER} />`));
+  const field = marks.find((e) => attr(e, "data-field") === "pinallow");
+  const on = elements(field?.html ?? "").find((e) => e.name === "button" && classes(e).includes("on"));
+  return on && attr(on, "data-v");
+}
+
+/**
+ * The text the rail prints for the first readout of a set.
+ *
+ * @param {readonly SettingsReadout[]} readouts
+ * @returns {string | undefined}
+ */
+function railText(readouts) {
+  const plan = alertPlan([], {});
+  return settingsRail([{ id: "c", name: "C", readouts }], plan, null, [])[0]?.rows[0]?.text;
+}
+
+test("test_the_timing_title_has_no_dot_before_an_idle_time_is_staged", async () => {
+  await loadRestartingIdle();
+  assert.equal(timingTitleDotted(), false);
+});
+
+test("test_staging_an_idle_time_dots_the_timing_title", async () => {
+  await loadRestartingIdle();
+  await edit("idle_time", "10000");
+  assert.equal(timingTitleDotted(), true);
+});
+
+test("test_the_pinned_rates_field_lights_off_until_it_is_tapped_on", async () => {
+  const before = litPinned();
+  await tapPinned("1");
+  assert.deepEqual([before, litPinned()], ["0", "1"]);
+});
+
+test("test_tapping_pinned_rates_on_writes_the_preference", async () => {
+  await tapPinned("1");
+  assert.equal(allowPinnedRates.value, true);
+});
+
+test("test_a_readout_prints_the_label_of_the_running_option", async () => {
+  await load("10000", false);
+  assert.equal(railText(TIMING_READOUTS), "10");
+});
+
+test("test_a_readout_holds_the_running_option_while_an_edit_is_staged", async () => {
+  await edit("idle_time", "10000");
+  assert.equal(railText(TIMING_READOUTS), "Default");
+});
+
+test("test_a_checkbox_readout_reads_its_running_false_as_the_off_option_value", () => {
+  assert.equal(UPNP_READOUTS[0]?.value(), "0");
+});
+
+test("test_a_checkbox_readout_reads_its_running_true_as_the_on_option_value", async () => {
+  await load("0", true);
+  assert.equal(UPNP_READOUTS[0]?.value(), "1");
+});

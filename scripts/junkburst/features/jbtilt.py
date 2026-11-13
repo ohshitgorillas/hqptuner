@@ -25,7 +25,7 @@ from jbpolicy import policy_bursts, policy_grade_context, policy_rule_row
 
 if TYPE_CHECKING:
     from jbcurves import Grid
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 #: The five values this section reports per block, in the order every table below carries them.
 TILT_READINGS = ("above", "below", "flip", "top", "corr")
@@ -263,7 +263,7 @@ def _grades(
     ]
 
 
-def tilt_augment(run: LabelledRun) -> None:
+def tilt_augment(run: LabeledRun) -> None:
     """Read T and U over the kept blocks, grade them, and add the qualifier rule to the policy table."""
     _blocks, bursts, kept, mask_rows, g90_rows, keep = policy_grade_context(run)
     rows: TiltRows = run.tilt["steady"]
@@ -301,7 +301,7 @@ def _tilt_intro() -> str:
     )
 
 
-def _tilt_album_rows(run: LabelledRun) -> list[str]:
+def _tilt_album_rows(run: LabeledRun) -> list[str]:
     """One row per album: its label, its kept blocks, and the median of all five readings."""
     out = []
     for name, entry in sorted(run.tilt_albums.items()):
@@ -323,7 +323,7 @@ def _tilt_grade_intro() -> str:
     )
 
 
-def _tilt_block_table(run: LabelledRun) -> list[str]:
+def _tilt_block_table(run: LabeledRun) -> list[str]:
     """Return the block-level table for the named bursts and the three the row keys find."""
     intro = (
         f"Every 1 s block of the bursts this table names, whether the {MASK_SWEEP_ALBUM_LEVEL:g} dB line keeps or "
@@ -353,7 +353,7 @@ def _tilt_block_table(run: LabelledRun) -> list[str]:
     ]
 
 
-def tilt_section(run: LabelledRun) -> list[str]:
+def tilt_section(run: LabeledRun) -> list[str]:
     """Return the report's tilt section: the per-album medians, the grades, then the block table."""
     grade_rows = [
         f"| {row['rule']} | {row['wrong']} | {row['fake_called_real']} | {row['real_called_fake']} |"

@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Probe what eats a live `SetRate` — playback, or `[source]` mode.
 
-Every earlier rate measurement (protocol.md:236, :237) was taken with the engine
-**stopped** and in an explicit PCM/SDM mode. protocol.md:213 says so outright:
-"Behavior during active playback unobserved." Observed on Opal 2026-07-29,
-playing 24/44.1 through Roon in `[source]` mode, `SetRate value="9"` (705600 Hz,
-the index the running list carries) returned `result="OK"` and left `State.rate`
-at `"0"` — which is the mismatch `control.verify_state` reports and the LIVE page
-shows the user.
+Every earlier rate measurement was taken with the engine **stopped** and in an
+explicit PCM/SDM mode. Observed on Opal 2026-07-29, playing 24/44.1 through Roon
+in `[source]` mode, `SetRate value="9"` (705600 Hz, the index the running list
+carries) returned `result="OK"` and left `State.rate` at `"0"` — which is the
+mismatch `control.verify_state` reports and the LIVE page shows the user.
 
 Two candidate causes, indistinguishable from reads:
 

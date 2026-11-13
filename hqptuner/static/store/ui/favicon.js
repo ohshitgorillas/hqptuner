@@ -1,4 +1,4 @@
-// Dynamic favicon — the tab icon follows the Matrix tab's mode: 🔊 for speakers,
+// Dynamic favicon — the browser-tab icon follows the listening mode (store/matrix/mode.js): 🔊 for speakers,
 // 🎧 for headphones. The mode is the fact itself — sniffing the active preset's
 // NAME for "headphone"/"speaker" holds only for users who name presets that way.
 // Rendered as an inline SVG-text data URI, so no icon files are shipped;
@@ -20,10 +20,10 @@ function pick(mode) {
   return mode === "speakers" ? "🔊" : "🎧";
 }
 
-/** Keep the tab icon following the Matrix tab's mode for the life of the page. */
-export function initFavicon() {
+/** Keep the browser-tab icon of `doc` following the listening mode for the life of the page. @param {Document} doc */
+export function initFavicon(doc) {
   effect(() => {
-    const link = document.getElementById("favicon");
-    if (link instanceof HTMLLinkElement) link.href = svg(pick(matrixMode.value));
+    const link = doc.getElementById("favicon");
+    if (link?.localName === "link") /** @type {HTMLLinkElement} */ (link).href = svg(pick(matrixMode.value));
   });
 }

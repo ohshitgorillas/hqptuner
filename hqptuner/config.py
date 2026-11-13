@@ -65,7 +65,7 @@ def _optional_path(name: str) -> Path | None:
 # variable name — still sees every one of these fields.
 _UNSET_PATH = Path()
 
-#: Whether any build offers the junk-filter advisor, auto-pilot and the METER page. Not an operator knob: the three
+#: Whether any build offers the junk-filter advisor and auto-pilot. Not an operator knob: the two
 #: ship only when this reads True, and a stored auto-pilot state never acts while it reads False.
 ADVISOR_ENABLED = False
 
@@ -105,14 +105,14 @@ class Config:
     hqp_host: str = field(default_factory=lambda: _env("HQP_HOST", "127.0.0.1"))
     hqp_control_port: int = field(default_factory=lambda: int(_env("HQP_CONTROL_PORT", "4321")))
     hqp_http_port: int = field(default_factory=lambda: int(_env("HQP_HTTP_PORT", "8088")))
-    # metering side channel (protocol.md §7) — control port + 1 on a stock daemon
+    # metering side channel — control port + 1 on a stock daemon
     hqp_metering_port: int = field(default_factory=lambda: int(_env("HQP_METERING_PORT", "4322")))
     # Whether the junk-filter advisor's metering reader runs at all. Off means the
     # reader is never constructed, nothing connects to 4322, and the advisor's
     # recommendation is permanently null — the rest of HQPTuner is unaffected.
     metering_enabled: bool = field(default_factory=lambda: _env_flag("METERING_ENABLED", "1"))
-    # Whether the junk-filter advisor, auto-pilot and the METER page are offered at all. A build
-    # constant, not an operator knob: off hides the three and makes auto-pilot inert while they
+    # Whether the junk-filter advisor and auto-pilot are offered at all. A build
+    # constant, not an operator knob: off hides the two and makes auto-pilot inert while they
     # are reworked, with every stored state left where it is.
     advisor_enabled: bool = ADVISOR_ENABLED
     # hqplayerd's stock management credentials (Signalyst embedded-install docs) —
@@ -127,6 +127,9 @@ class Config:
     listen_host: str = field(default_factory=lambda: _env("LISTEN_HOST", "127.0.0.1"))
     listen_port: int = field(default_factory=lambda: int(_env("LISTEN_PORT", "8090")))
     poll_interval: float = field(default_factory=lambda: float(_env("POLL_INTERVAL", "2.0")))
+    # While the engine plays, Status alone is read this often between heartbeats, so the counters it
+    # carries reach the page sooner than `poll_interval` brings them; the heartbeat keeps its own cadence.
+    status_interval: float = field(default_factory=lambda: float(_env("STATUS_INTERVAL", "1.0")))
     alarm_threshold: float = field(default_factory=lambda: float(_env("ALARM_THRESHOLD", "15.0")))
     request_timeout: float = field(default_factory=lambda: float(_env("REQUEST_TIMEOUT", "5.0")))
     # How long discovery waits for daemons to answer its multicast datagram
@@ -155,7 +158,7 @@ class Config:
     # HQPTuner-owned preset store (see presets/store/presets.py) — full-config XML snapshots we
     # manage ourselves instead of hqplayerd's unreliable named-profile subsystem.
     preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", str(_UNSET_PATH))))
-    # The LIVE view's named live snapshots (see presets/store/live.py) — one JSON file, not a
+    # The stations' named live snapshots (see presets/store/live.py) — one JSON file, not a
     # directory, because a live snapshot is a handful of enum IDs rather than a
     # config snapshot. Defaults beside the dev container's bind-mounted state dir
     # so a host run and the dev container read the same presets.
@@ -196,6 +199,9 @@ class Config:
     # 24 s at 352.8 kHz and keeps a LAN client from filling the backup volume
     # one upload at a time.
     filter_max_bytes: int = field(default_factory=lambda: int(_env("FILTER_MAX_BYTES", str(32 * 1024 * 1024))))
+    # Largest state upload accepted, in bytes, and the most the stores it carries
+    # may unpack to (presets/store/stateimport.py).
+    state_max_bytes: int = field(default_factory=lambda: int(_env("STATE_MAX_BYTES", str(64 * 1024 * 1024))))
     # Append-only event log (audit.py) — every durable write, as it was handed
     # to us. Unset means the subsystem is inert: no file, no records, no cost.
     # There is deliberately no UI for it; it is an operator's tool, set on the

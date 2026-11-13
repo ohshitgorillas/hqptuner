@@ -1,7 +1,5 @@
 """Control client behavior against a fake daemon speaking real protocol XML
-over a real socket, including the documented wire quirks (protocol.md §1).
-
-Policy: docs/testing.md — one condition per test, behavior only.
+over a real socket, including the documented wire quirks.
 """
 
 import asyncio

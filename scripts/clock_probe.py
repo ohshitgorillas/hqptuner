@@ -15,9 +15,8 @@ timer that fires (``asyncio.sleep``, ``wait_for``, ``asyncio.timeout``),
 with a timeout outside an event loop, and a ``sleep`` bound by name before the
 plugin loads. The idle gate covers those on the development host.
 
-The plugin measures and writes; ``scripts/gates/check_clock_waits.py`` judges.
-Loaded by ``-p clock_probe`` with ``scripts`` on ``PYTHONPATH``, on the same
-two whole-suite command lines that load the idle probe.
+The plugin measures and writes; ``scripts/gates/testing/check_clock_waits.py`` judges.
+Loaded by ``-p clock_probe`` with ``scripts`` on ``PYTHONPATH``.
 """
 
 from __future__ import annotations
@@ -99,7 +98,7 @@ def timed_sleep(original: Callable[[float], None], recorder: Recorder) -> Callab
 
 
 def timed_call_at[R](original: Callable[..., R], recorder: Recorder) -> Callable[..., R]:
-    """Wrap ``BaseEventLoop.call_at``: a timer counts its delay when it fires, nothing when cancelled."""
+    """Wrap ``BaseEventLoop.call_at``: a timer counts its delay when it fires, nothing when canceled."""
 
     def call_at(
         loop: Clocked, when: float, callback: Callable[..., object], *args: object, context: Context | None = None

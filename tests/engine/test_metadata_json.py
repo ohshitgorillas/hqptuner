@@ -4,8 +4,7 @@ Every function here drops a field, or an entry, or a whole document, rather than
 trust a shape it does not recognize. Each test drives the "not the shape
 expected" leg of one guard — a non-dict where a dict is expected, a
 JSON-incompatible value nested inside a document, and the one string field
-(``sdm_two_stage_note``) ``filter_entry`` carries. One assertion each
-(docs/testing.md rule 2).
+(``sdm_two_stage_note``) ``filter_entry`` carries.
 """
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ from hqptuner.metadata_json import (
     easy_db,
     filter_entry,
     filter_entry_map,
-    filters_db,
     plain_name_entry,
     plain_name_entry_map,
     settings_db,
@@ -137,10 +135,6 @@ def test_plain_name_entry_map_on_a_non_dict_value_is_empty_and_on_a_dict_keeps_i
     value: object, expected: object
 ) -> None:
     assert plain_name_entry_map(value) == expected
-
-
-def test_filters_db_on_a_non_dict_raw_value_still_carries_an_empty_filters_table() -> None:
-    assert filters_db("not a mapping") == {"filters": {}}
 
 
 #: A well-formed ``shapers.json`` document, both per-mode tables populated.

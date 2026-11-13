@@ -1,13 +1,14 @@
 """hqplayerd HTTP configuration interface (port 8088) — transport and writes.
 
 ``HttpConfigClient`` is the Digest-authenticated client for the /config, /matrix,
-/speakers and /backup forms; each read parses the page it fetched, and each
+/speakers and /backup forms; each read parses the page it fetched unless the
+body is byte-identical to the one that getter fetched last, and each
 write serializes a complete form (the daemon silently ignores a partial POST)
 with the daemon's checkbox and range-validation contracts.
 """
 
 import contextlib
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
 import httpx
@@ -60,8 +61,8 @@ def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
     """Complete, browser-faithful serialization of the /matrix form.
 
     Checked checkboxes only (submitting their ``value`` attr — the daemon
-    persists a stray ``on`` verbatim into its XML and wedges engine init,
-    matrix-spec probe findings), the selected option per select, text/number
+    persists a stray ``on`` verbatim into its XML and wedges engine init),
+    the selected option per select, text/number
     values as-is. Returns ``(fields, file_input_names)`` — the daemon silently
     ignores any partial POST, so every write must carry the whole thing.
     """
@@ -114,6 +115,27 @@ class UnknownProfileActionError(ValueError):
     def __init__(self, *, action: str) -> None:
         """Render the wording naming the unrecognized action."""
         super().__init__(f"unknown profile action: {action}")
+
+
+class _LastParse[F]:
+    """One getter's last fetched body and the form parsed from it.
+
+    A body byte-identical to the last one returns that same parsed object, so its
+    readers share it and must not mutate it; any other body is parsed afresh and
+    replaces the pair.
+    """
+
+    def __init__(self, parse: Callable[[str], F]) -> None:
+        """Hold ``parse``, with nothing fetched yet."""
+        self._parse = parse
+        self._last: tuple[bytes, F] | None = None
+
+    def __call__(self, resp: httpx.Response) -> F:
+        """Return the form for ``resp``'s body, parsing only when it differs from the last body seen."""
+        body = resp.content
+        if self._last is None or self._last[0] != body:
+            self._last = (body, self._parse(resp.text))
+        return self._last[1]
 
 
 @dataclass(frozen=True)
@@ -173,6 +195,9 @@ class HttpConfigClient:
         #: than the credentials (a plain wire fault leaves whatever verdict is
         #: already here standing).
         self.credentials_ok: bool | None = None
+        self._config = _LastParse(parse_config_form)
+        self._matrix = _LastParse(parse_matrix_form)
+        self._speakers = _LastParse(parse_speakers_form)
 
     def _mark(self, resp: httpx.Response) -> None:
         """Raise on any non-2xx, recording what this response proved about the credentials.
@@ -219,17 +244,16 @@ class HttpConfigClient:
 
     async def get_config(self) -> ConfigForm:
         """GET /config — the persistent-settings form, parsed into fields plus the preset select."""
-        return parse_config_form((await self._get("/config")).text)
+        return self._config(await self._get("/config"))
 
     async def get_matrix(self) -> MatrixForm:
         """GET /matrix — the pipeline/post-processing form.
 
         Carries pipeline rows, matrix profiles, Bauer crossfeed, DAC correction
-        and loudness. The daemon silently ignores a partial POST here too
-        (docs/matrix-spec.md probe findings), so writes overlay a fresh read
-        (manager).
+        and loudness. The daemon silently ignores a partial POST here too, so
+        writes overlay a fresh read (manager).
         """
-        return parse_matrix_form((await self._get("/matrix")).text)
+        return self._matrix(await self._get("/matrix"))
 
     # No profile CRUD on this lane. save/delete are staged ``<matrix_profile>``
     # config edits and load rides 4321 ``MatrixSetProfile``. Nothing here
@@ -240,7 +264,7 @@ class HttpConfigClient:
 
         Carries the enabled switch and per-channel level (dBFS) + distance (cm).
         """
-        return parse_speakers_form((await self._get("/speakers")).text)
+        return self._speakers(await self._get("/speakers"))
 
     async def apply_speakers(self, channels: dict[str, dict[str, str]], *, enabled: bool) -> None:
         """Apply speaker processing via the /speakers Apply form.
@@ -249,7 +273,7 @@ class HttpConfigClient:
         COMPLETE GET (a partial POST is silently ignored, same contract as
         /config and /matrix) and enforces the checkbox contract: ``enabled=1`` when on, the field
         OMITTED when off — never a raw ``0``/``on``, which the daemon writes
-        verbatim and wedges engine init (matrix-spec probe). Levels are validated
+        verbatim and wedges engine init. Levels are validated
         to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
         sent. The daemon reloads the engine (~3 s), interrupting playback.
         """
@@ -267,7 +291,7 @@ class HttpConfigClient:
         await self._post("/speakers", data=fields)
 
     async def post_profile(self, action: str, **fields: str) -> None:
-        """Preset CRUD: action in load/save/delete (protocol.md §3.6).
+        """Preset CRUD: action in load/save/delete.
 
         `load` also restarts the daemon.
         """
@@ -295,7 +319,7 @@ class HttpConfigClient:
         writes every archive member to disk (**additively** — a member omitted
         from the zip is not deleted) and the daemon self-restarts (~5.6 s), landing
         on the ``[default]`` config (``hqplayerd.xml``); it does **not** restore a
-        named active profile (docs/protocol.md §3.6). The connection manager's
+        named active profile. The connection manager's
         outage path handles the restart/resync. ``cfgfile`` is a ``/backup``
         settings.zip (or config xml).
         """

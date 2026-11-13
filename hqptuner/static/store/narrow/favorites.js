@@ -1,14 +1,12 @@
 // Favorite filters — the stars the user put on filter names, stored for the
 // install and shared by every browser pointed at it. Keyed by filter NAME, not
-// enum id: the running engine owns ids and ordering, names are the stable join
-// key (architecture §3.1), so one list serves all four filter dropdowns (pcm/sdm ×
-// 1x/nx) and survives re-enumeration.
+// enum id, so one list serves all four filter dropdowns (pcm/sdm × 1x/nx) and
+// survives re-enumeration.
 //
 // The server is the only store. A toggle writes the whole resulting set to
 // PUT /api/favorites — unstarring is a write without the name, so there is no
 // second route and two browsers racing is last-write-wins. Nothing polls: a tab
-// picks up another tab's stars on reload, the same way the LIVE page re-reads
-// its presets when it opens.
+// picks up another tab's stars on reload.
 //
 // Stars applied optimistically. The star is the user's own click and the round
 // trip is a LAN hop; making them wait for it to light up would make the control
@@ -23,12 +21,12 @@
 // other still holds a star leaves the switch alone, because it still narrows
 // something. It is session state, never persisted anywhere.
 //
-// Module load stays node-safe like prefs.js: the hydrate is guarded on `fetch`
-// existing and swallows its own failure, so importing this in the SSR harness
-// neither throws nor leaves a rejected promise behind.
+// Importing this reads nothing: boot calls `hydrateFavorites`, which swallows its
+// own failure and leaves no rejected promise behind.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { errText } from "../../lib/errtext.js";
+import { getStored, removeStored } from "../../lib/browser/storage.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
 
 // The pre-server store. Read exactly once, by the migration below, so stars set
 // before favorites moved to the server survive the move.
@@ -42,10 +40,11 @@ export const favoriteFilters = signal(new Set());
 // (store/narrow/match.js).
 export const favoriteModulators = signal(new Set());
 export const nFavOnly = signal(false);
-// The last failed write, as the server's own sentence. One error for the whole
-// feature, latest wins: there is one set, and a second toggle clears whatever
-// the first left behind.
-export const favoritesError = signal("");
+// The last failed read or write's sentence, "" once one succeeds. One error for
+// the whole feature, latest wins: there is one set, and a second toggle clears
+// whatever the first left behind.
+const favoriteOp = op("favorite");
+export const favoritesError = opErrorText(favoriteOp);
 
 /**
  * The names left in localStorage by a pre-server HQPTuner, empty when there are
@@ -53,8 +52,10 @@ export const favoritesError = signal("");
  * @returns {string[]}
  */
 function legacyNames() {
+  const stored = getStored(LEGACY_KEY);
+  if (!stored.ok) return [];
   try {
-    const v = JSON.parse(localStorage.getItem(LEGACY_KEY) || "[]");
+    const v = JSON.parse(stored.value || "[]");
     return Array.isArray(v) ? v.filter((n) => typeof n === "string" && n) : [];
   } catch {
     return [];
@@ -63,13 +64,10 @@ function legacyNames() {
 
 /** @returns {void} */
 function dropLegacy() {
-  try {
-    localStorage.removeItem(LEGACY_KEY);
-  } catch {
-    // A store we cannot clear is one the next hydrate migrates again. Harmless:
-    // the union of a set with itself is that set, so the re-run writes back what
-    // the server already holds.
-  }
+  // A store we cannot clear is one the next hydrate migrates again. Harmless:
+  // the union of a set with itself is that set, so the re-run writes back what
+  // the server already holds.
+  removeStored(LEGACY_KEY);
 }
 
 /**
@@ -88,11 +86,12 @@ function dropLegacy() {
  * @returns {Promise<void>}
  */
 export async function hydrateFavorites() {
-  try {
+  await favoriteOp.run(async () => {
     const body = await api.favorites();
     const stored = body.filters || [];
     favoriteFilters.value = new Set(stored);
     favoriteModulators.value = new Set(body.modulators || []);
+    favoritesError.value = "";
     const legacy = legacyNames();
     // No legacy key is the steady state — every load after the first — and it
     // must not write, or every page open would PUT the list back unchanged.
@@ -102,9 +101,7 @@ export async function hydrateFavorites() {
     const saved = await api.saveFavorites({ filters: [...new Set([...stored, ...legacy])] });
     favoriteFilters.value = new Set(saved.filters || []);
     dropLegacy();
-  } catch (e) {
-    favoritesError.value = errText(e);
-  }
+  });
 }
 
 /**
@@ -172,15 +169,9 @@ async function toggleIn(set, kind, name) {
   set.value = next;
   syncFavOnly();
   favoritesError.value = "";
-  try {
-    await api.saveFavorites({ [kind]: [...next] });
-  } catch (e) {
+  const result = await favoriteOp.run(() => api.saveFavorites({ [kind]: [...next] }));
+  if (result === FAILED) {
     set.value = before;
     syncFavOnly();
-    favoritesError.value = errText(e);
   }
 }
-
-// Read the set once, at load. Guarded on `fetch` because this module is imported
-// by the SSR harness, where there is no backend to ask and no failure to report.
-if (typeof fetch === "function") void hydrateFavorites();

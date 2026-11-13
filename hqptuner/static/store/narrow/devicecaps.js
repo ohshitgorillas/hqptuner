@@ -11,7 +11,7 @@
 // makes a reachable setting unreachable, which is the worse failure.
 
 import { computed, effect } from "@preact/signals";
-import { config } from "../signals.js";
+import { metadataValue } from "../core/readings.js";
 import { effective } from "../resolve.js";
 import { edit } from "../actions.js";
 import { schema } from "../schema.js";
@@ -59,7 +59,7 @@ const members = (/** @type {string | number | undefined} */ tier) => {
 // one may already be different, and narrowing a freshly picked device to the old
 // one's limits is exactly the stale gray this guards against.
 const deviceCaps = computed(() => {
-  const caps = (config.value && config.value.device_caps) || null;
+  const caps = /** @type {DeviceCaps | null} */ (metadataValue("device_caps"));
   if (!caps) return null;
   const field = fieldOf(backend(), "device");
   if (!field) return null;
@@ -73,9 +73,7 @@ const dopOn = () => {
 
 // One word for every grayed rate tier, whatever made it unreachable. A dropdown
 // reason rides on the option's own label — "DSD1024 — needs a 705.6 kHz carrier
-// for DoP" is a paragraph in a third-width box — and the same word is what the
-// LIVE columns already use for a tier the engine is not offering (live.js
-// UNOFFERED). The detail belongs on the mode segment, which has room for it.
+// for DoP" is a paragraph in a third-width box.
 const UNAVAILABLE = "unavailable";
 
 // Which DSD tiers the device can reach: the ones it announced outright, plus —
@@ -139,13 +137,11 @@ function sdmReason() {
 // unticking DoP on a device whose only DSD path was DoP. Left alone it shows a
 // rate the hardware refuses and applies it on the next Apply.
 //
-// So the store corrects it — as an ordinary STAGED edit, visible in the pending
-// bar, marked dirty on its control, discardable — never as a silent display
-// substitution. architecture.md §7.6: the editor shows what WOULD apply, and a
-// control disagreeing with the config it writes is the two-views-disagree
-// failure this store keeps refusing. That the correction costs a daemon restart
-// at Apply is not a reason to withhold it (CLAUDE.md, "user actions always
-// proceed"): the restart is the user's to spend, at the moment they click.
+// So the store corrects it — as an ordinary STAGED edit, visible in the Output
+// drawer, marked dirty on its control, discardable — never as a silent display
+// substitution, since a control must never disagree with the config it writes.
+// The correction stages even when it costs a daemon restart at Apply: the
+// restart is the user's to spend, at the moment they click.
 
 /** @type {Record<string, string>} */
 const RATE_KEY = { pcm: "pcm_rate", sdm: "sdm_rate" };
@@ -208,33 +204,3 @@ effect(() => {
   correctRate(caps, "sdm");
   correctMode();
 });
-
-// --- asking about one saved value ---------------------------------------------
-// The menus above narrow a list they are handed. A saved live snapshot is not a
-// list: it carries an output mode, decided when it was saved, and the picker
-// needs to know whether the device can play it. Same question, asked one value
-// at a time — and the same answer to an unknown announcement, which is yes.
-
-/**
- * Whether the selected output device can reach any DSD rate at all, natively or over DoP.
- * @returns {boolean}
- */
-export function sdmReachableByDevice() {
-  return !sdmReason();
-}
-
-// Gray the SDM button on a mode segment when the device cannot do DSD. Auto is
-// left alone: in auto the engine picks the family per track and will settle on
-// PCM by itself, so there is nothing unreachable to warn about.
-/**
- * Disable the SDM option when the selected device can reach no DSD rate, with the
- * reason on it. Auto and PCM are left alone.
- * @template {DeviceOption} T
- * @param {T[]} options
- * @returns {(T | (T & { disabled: boolean, reason: string }))[]}
- */
-export function grayModesByDevice(options) {
-  const reason = sdmReason();
-  if (!reason) return options;
-  return (options || []).map((o) => (o.value === "sdm" ? { ...o, disabled: true, reason } : o));
-}

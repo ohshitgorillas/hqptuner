@@ -1,0 +1,51 @@
+# Docs
+
+A new fact goes in the doc that owns its subject. If no doc owns it, it gets a new doc, listed here.
+
+## spec/
+
+The design and binding rules.
+
+- [api](spec/api.md): the REST API contract with its clients.
+- [crossfeed-compensation](spec/crossfeed-compensation.md): compensating headphone EQ for the Bauer crossfeed tilt.
+- [design-system](spec/design-system.md): frontend layout and stylesheet rules.
+- [eq-export](spec/eq-export.md): EQ export formats and their mapping.
+- [junk-advisor](spec/junk-advisor.md): the junk-filter advisor's rules, note states and grading.
+- [faceplate](spec/faceplate.md): the faceplate's controls and behavior.
+- [fields](spec/fields.md): every setting's facts in one register, and the enumeration joins.
+- [lifecycle](spec/lifecycle.md): the daemon connection lifecycle.
+- [matrix](spec/matrix.md): matrix profile, pipeline and EQ editing.
+- [protocol](spec/protocol.md): hqplayerd wire truth.
+- [settings-classification](spec/settings-classification.md): which lane each setting writes on.
+- [settings-truth](spec/settings-truth.md): which store answers for a setting, and when.
+- [state](spec/state.md): state HQPTuner keeps that the daemon does not.
+- [testing](spec/testing.md): testing policy.
+- [timing](spec/timing.md): playback time and wall time.
+- [wizard](spec/wizard/wizard.md): the setup wizard workflow.
+
+## superpowers/specs/
+
+Designs for work in progress.
+
+- [meter-loop-idle](superpowers/specs/meter-loop-idle-design.md): the meter loop runs only while the engine plays.
+- [rebuild-integrate](superpowers/specs/rebuild-integrate-design.md): the merge of the rebuild branches into one tree.
+
+## parked/
+
+Design kept for withdrawn work.
+
+- [advisor](parked/advisor.md): the junk-filter advisor and auto-pilot.
+
+## research/
+
+Background studies.
+
+- [crossfeed-math](research/crossfeed-math.md): structural crossfeed math and design options.
+- [junk-filter-autopilot-resource-20k](research/junkfilter/junk-filter-autopilot-resource-20k.md): junk-filter auto-pilot detectors and their scores.
+
+## internal/
+
+Working notes for contributors.
+
+- [copy-before-after](internal/copy-before-after.md): copy that differs from the manual text it derives from.
+- [v2-roadmap](internal/v2-roadmap.md): the v2 implementation roadmap.

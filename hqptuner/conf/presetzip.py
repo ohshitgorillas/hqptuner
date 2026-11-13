@@ -77,8 +77,8 @@ def restore_zip_from_running(
     """Build a ``POST /restore`` archive whose ``hqplayerd.xml`` is the current working config plus ``edits``.
 
     The working config is read from ``hqplayerd.xml``, or from the root ``<Profile>.xml`` when a named preset is
-    active, and written to ``hqplayerd.xml`` either way: the restore boots ``[default]`` off that member
-    (docs/protocol.md §3.6). Every other member, including the ``cfgs`` snapshots, is copied byte-for-byte. So the
+    active, and written to ``hqplayerd.xml`` either way: the restore boots ``[default]`` off that member.
+    Every other member, including the ``cfgs`` snapshots, is copied byte-for-byte. So the
     running config becomes ``{running config} ⊕ {edits}``, and the named preset's saved definition is left untouched
     (edits are ephemeral until the user Saves). Returns ``(restore_zip, intended_working_xml)``.
 
@@ -118,14 +118,13 @@ def restore_zip_with_working(
 ) -> bytes:
     """Build a ``POST /restore`` archive whose ``[default]`` working config (``hqplayerd.xml``) is ``working_xml``.
 
-    That is the config the daemon actually runs, since a restore always lands the daemon on ``[default]``
-    (docs/protocol.md).
+    That is the config the daemon actually runs, since a restore always lands the daemon on ``[default]``.
 
     When ``mirror_name`` is given, also (over)write ``data/cfgs/<mirror_name>.xml``
     = ``mirror_xml`` (defaulting to ``working_xml``), so hqplayerd's own native
     profile list mirrors HQPTuner's preset store. Every other member is copied
     byte-for-byte. ``hqplayerd.xml`` is inserted when the source archive lacks it
-    (a named profile was active, so its working member was root-renamed).
+    (an archive taken under a named profile carries its working member root-renamed).
     """
     substitutions = {"hqplayerd.xml": working_xml}
     if mirror_name:

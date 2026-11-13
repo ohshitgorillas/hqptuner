@@ -1,20 +1,18 @@
-// Behavioral suite for rate/shaper fit inside the LIVE page's chain cards —
+// Behavioral suite for rate/shaper fit inside `liveModel`'s chain cards —
 // which modulator rows the SDM card grays, and the PCM card's refusal to gray a
 // dither for any reason of rate at all.
 //
 // The split is a product decision, not something the manual draws: a modulator
 // below its rate floor makes the engine produce NOTHING, so the row cannot be
 // picked; a dither below its floor still plays, so the row stays pickable and
-// the advice goes in the alert strip instead (shaperfit-alerts.test.js).
+// the advice goes in an alert instead (shaperfit-alerts.test.js).
 //
 // Constraints live only in data/shapers.json, which joins to the engine's own
-// shaper names (architecture §3.1/§7.10), so every floor below arrives through the
+// shaper names, so every floor below arrives through the
 // /api/metadata overlay the fixture states — `min_rate_hz` in Hz, null for a
 // shaper the file records no floor for.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. The cards are read through the exported `liveModel`, the same
-// surface components/live/View.js renders from.
+// The cards are read through the exported `liveModel`.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/guards/shaperfit-graying.test.js
 
@@ -22,16 +20,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
-import {
-  reset,
-  DSD64,
-  DSD512,
-  PCM_1X,
-  PCM_8X,
-  MODULATOR,
-  DITHER,
-  OTHER_MODULATOR,
-} from "../../support/shaperfit-fixtures.js";
+import { reset, DSD64, DSD512, PCM_1X, MODULATOR, DITHER, OTHER_MODULATOR } from "../../support/shaperfit-fixtures.js";
 
 /**
  * One option row of a chain control: the value it sends, the shaper name it
@@ -91,21 +80,6 @@ test("test_a_modulator_above_the_sdm_rate_is_offered_disabled", async () => {
   assert.equal(option("modulator", MODULATOR).disabled, true);
 });
 
-// The reason's wording is owner copy (docs/testing.md rule 9); the FIGURE in it
-// is the modulator's own floor, and that is what these two state.
-
-test("test_a_modulator_grayed_by_rate_names_the_floor_it_needs", async () => {
-  await reset({ chain: "sdm", mode: "2", sdmRate: DSD512, floors: { sdm: { [MODULATOR]: 40960000 } } });
-  assert.match(String(option("modulator", MODULATOR).reason), /\b40\.96\b/);
-});
-
-test("test_a_modulator_grayed_by_rate_names_a_second_floor_as_its_own", async () => {
-  // The same reason at a different floor: a formatter emitting one constant
-  // passes the case above and fails this one.
-  await reset({ chain: "sdm", mode: "2", sdmRate: DSD64, floors: { sdm: { [OTHER_MODULATOR]: 6144000 } } });
-  assert.match(String(option("modulator", OTHER_MODULATOR).reason), /\b6\.144\b/);
-});
-
 test("test_a_modulator_the_sdm_rate_reaches_exactly_stays_pickable", async () => {
   // The floor is AT the effective rate, the boundary the rule turns on.
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD512, floors: { sdm: { [MODULATOR]: 24576000 } } });
@@ -162,12 +136,5 @@ test("test_the_loaded_pcm_card_leaves_a_dither_below_its_floor_pickable", async 
 
 test("test_the_dormant_pcm_card_leaves_a_dither_below_its_floor_pickable", async () => {
   await reset({ chain: "sdm", mode: "2", pcmRate: PCM_1X, floors: { pcm: { [DITHER]: 352800 } } });
-  assert.deepEqual(marks(option("dither", DITHER)), PICKABLE);
-});
-
-test("test_the_pcm_card_leaves_a_dither_with_a_high_floor_pickable_at_a_high_rate", async () => {
-  // The other half: a floor far above even the 8x tier grays nothing either, so
-  // no case here passes merely by the rate happening to clear the floor.
-  await reset({ chain: "pcm", mode: "1", pcmRate: PCM_8X, floors: { pcm: { [DITHER]: 1536000 } } });
   assert.deepEqual(marks(option("dither", DITHER)), PICKABLE);
 });

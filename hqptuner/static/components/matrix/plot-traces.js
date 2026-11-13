@@ -1,29 +1,26 @@
-// Trace builders for the matrix RESPONSE plot (Plot.js): working-row
-// magnitude/phase curves, the crossfeed-block EQ overview, applied-baseline
-// ghosts and the library-picker preview. Pure client math (lib/dsp/chain.js),
-// recomputed per render off the staged pipeline signals — no server
+// Trace builders for the page's Matrix profile response
+// (faceplate/page/MatrixProfile.js responsePlot): pipeline-row magnitude/phase
+// curves and the crossfeed-block EQ overview. Pure client math
+// (vendor/eqlab/core/dsp/chain.js), recomputed per render — no server
 // round-trip.
 import { parseProcess, serializeProcess } from "../../vendor/eqlab/core/matrixspec.js";
 import { chainResponse } from "../../vendor/eqlab/core/dsp/chain.js";
 import { bandFreqs } from "../../vendor/eqlab/core/dsp/curves.js";
 import { xfeedBlock } from "../../store/xfeed/block.js";
 import { structuralBlock } from "../../store/xfeed/mode.js";
-import { withDrag, dragEq } from "./BandStrip.js";
 
 /**
  * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
  *   One matrix pipeline as store/resolve.js canonicalizes it — every field a
  *   string, because the config XML and the /matrix form both carry text.
  * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} Stage
- *   One parsed `process` stage, as lib/matrixspec.js parseProcess emits it.
+ *   One parsed `process` stage, as vendor/eqlab/core/matrixspec.js parseProcess emits it.
  * @typedef {{ min: number, max: number }} Bounds
  *   The dB window the plot auto-scales to. Widened IN PLACE by every builder
  *   here, so the caller's object is the accumulator.
  * @typedef {{ stages: Stage[], idxs: number[] }} Group
  *   Rows sharing a byte-identical chain, drawn as one curve labeled with every
  *   pipeline number it covers.
- * @typedef {PlotTrace & { ghost?: boolean }} GhostTrace
- *   An applied-baseline curve: a PlotTrace flagged for the muted dashed style.
  * @typedef {{ eqProcess: { left: string, right: string } }} StructuralRec
  *   The part of a recognized structural crossfeed block these traces read: the
  *   per-ear EQ chain it was built from (store/xfeed/mode.js).
@@ -32,7 +29,7 @@ import { withDrag, dragEq } from "./BandStrip.js";
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
 const FS = 48000;
-export const HUES = ["r0", "r1", "r2", "r3"];
+const HUES = ["r0", "r1", "r2", "r3"];
 
 /**
  * Magnitude and phase curves for the plotted pipeline rows, one pair per distinct
@@ -54,7 +51,7 @@ export function rowTraces(rows, plotted, bounds) {
   /** @type {Map<string, Group>} */
   const byKey = new Map();
   plotted.forEach((i) => {
-    const stages = withDrag(rows, i);
+    const stages = parseProcess(rows[i].process);
     const key = serializeProcess(stages);
     let g = byKey.get(key);
     if (!g) {
@@ -91,8 +88,8 @@ export function rowTraces(rows, plotted, bounds) {
 }
 
 // A recognized crossfeed block is data, but its 8 internal pipelines aren't worth
-// plotting individually. Draw the single headphone-EQ curve the block was built
-// from (msRecognize recovers it) as the block-only overview.
+// plotting individually. Draw the single headphone-EQ curve the block holds
+// (xfeedBlock reads it) as the block-only overview.
 // Both block types hide their rows from the plot, so without this the EQ — the
 // curve the user actually tuned — disappears and a ~2 dB crossfeed response is
 // left dominating the chart.
@@ -165,87 +162,4 @@ function structuralEqTraces(rec, bounds) {
     out.push({ points: ph, kind: "ph", label: `${label} φ`, y2: true });
   }
   return out.length ? out : null;
-}
-
-// Reference to tune against: the APPLIED response — pipelineBaseline, the
-// daemon's file truth — as dashed muted ghost magnitude curves under the
-// working traces, present whenever the working picture differs (staged edits
-// or an in-flight drag). A block baseline (crossfeed applied) ghosts its
-// recovered EQ curve instead of the block's internal rows.
-/**
- * True when the working rows no longer match the applied baseline, or a band drag
- * is in flight — the condition for drawing the applied ghosts.
- *
- * @param {PipelineRow[]} rows
- * @param {PipelineRow[]} base
- * @param {number[]} plotted
- * @returns {boolean}
- */
-export function editedAway(rows, base, plotted) {
-  if (dragEq.value !== null) return true;
-  if (rows.length !== base.length) return true;
-  return plotted.some((i) => (rows[i].process || "") !== ((base[i] && base[i].process) || ""));
-}
-
-/**
- * Ghost magnitude curves for the applied baseline rows; a crossfeed baseline ghosts
- * its recovered EQ curve instead of the block's internal rows.
- *
- * @param {PipelineRow[]} base
- * @param {number[]} plotted
- * @param {Bounds} bounds
- * @returns {GhostTrace[]}
- */
-export function appliedTraces(base, plotted, bounds) {
-  if (structuralBlock(base) || xfeedBlock(base).rec) {
-    const eq = eqOverviewTrace(base, bounds) || [];
-    return eq.filter((t) => !t.y2).map((t) => ({ points: t.points, kind: "ghost", ghost: true, label: "applied" }));
-  }
-  /** @type {Map<string, Group>} */
-  const byKey = new Map();
-  plotted.forEach((i) => {
-    if (!base[i]) return;
-    const stages = parseProcess(base[i].process);
-    if (!stages.length) return;
-    const key = serializeProcess(stages);
-    let g = byKey.get(key);
-    if (!g) {
-      g = { stages, idxs: [] };
-      byKey.set(key, g);
-    }
-    g.idxs.push(i);
-  });
-  const freqs = bandFreqs(160);
-  return [...byKey.values()].map((g) => {
-    /** @type {[number, number][]} */
-    const mag = [];
-    for (const f of freqs) {
-      const r = chainResponse(g.stages, f, FS);
-      mag.push([f, r.db]);
-      bounds.min = Math.min(bounds.min, r.db);
-      bounds.max = Math.max(bounds.max, r.db);
-    }
-    return { points: mag, kind: "ghost", ghost: true, label: `${g.idxs.map((i) => i + 1).join("+")} applied` };
-  });
-}
-
-/**
- * A single accent magnitude curve for the library picker's candidate chain, so it
- * reads as an A/B against the working traces.
- *
- * @param {{ label: string, stages: Stage[] }} preview
- * @param {Bounds} bounds
- * @returns {PlotTrace}
- */
-export function previewTrace(preview, bounds) {
-  const freqs = bandFreqs(160);
-  /** @type {[number, number][]} */
-  const mag = [];
-  for (const f of freqs) {
-    const r = chainResponse(preview.stages, f, FS);
-    mag.push([f, r.db]);
-    bounds.min = Math.min(bounds.min, r.db);
-    bounds.max = Math.max(bounds.max, r.db);
-  }
-  return { points: mag, kind: "mag prev", label: "preview" };
 }

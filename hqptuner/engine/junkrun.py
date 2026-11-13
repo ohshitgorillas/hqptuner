@@ -4,8 +4,7 @@ One block's reading is three-state: ``DROPPED`` where the block carries nothing 
 carries junk standing above an image fold, ``REAL`` where it reads as music. Blocks close every
 ``metering.BLOCK_SECONDS``, and auto-pilot samples slower than that, so one block at the cut is too little to move the
 daemon: the run rule engages on the second ``JUNK`` reading within ``GAP_BLOCKS`` of the first, holds through
-``DROPPED`` readings for as long as they last, and releases on the first ``REAL`` reading
-(docs/junk-filter-autopilot-resource-20k.md §3.2).
+``DROPPED`` readings for as long as they last, and releases on the first ``REAL`` reading.
 
 The run carries no clock and no reset of its own. The aggregate that owns it is replaced when the frame geometry
 moves, which is what a sample-rate change is, and dropped when the stream breaks, so the run starts over with it.

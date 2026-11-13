@@ -1,0 +1,15 @@
+# Installed separately (see README) so older branches sharing .git/hooks never
+# run the main config's gates at checkout.
+repos:
+  - repo: local
+    hooks:
+      # `git worktree add` fires post-checkout with an all-zeros from-ref, which
+      # pre-commit exposes as PRE_COMMIT_FROM_REF; an ordinary checkout has a
+      # real from-ref and does nothing.
+      - id: worktree-submodules
+        name: initialize submodules in a new worktree
+        entry: bash -c '[ "$PRE_COMMIT_FROM_REF" = 0000000000000000000000000000000000000000 ] || exit 0; git submodule update --init --recursive'
+        language: system
+        stages: [post-checkout]
+        always_run: true
+        pass_filenames: false

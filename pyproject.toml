@@ -1,6 +1,6 @@
 [project]
 name = "hqptuner"
-version = "1.20.1"
+version = "1.19.2"
 description = "Web configurator for HQPlayer Embedded — backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -78,17 +78,13 @@ pythonpath = [
 ]
 markers = [
     "live: requires a reachable hqplayerd (deselect with '-m \"not live\"')",
-    "e2e: browser tests driving a real server (deselected by default)",
+    "e2e: browser tests driving a real server (select with '-m e2e', deselect with '-m \"not e2e\"')",
 ]
-
-[tool.coverage.run]
-# temporary feature to be used for a few days then disabled
-omit = ["hqptuner/core/junkcal.py"]
 
 [tool.mutmut]
 # Mutation testing, run by hand via `make mutate` — never in `make check` or
-# pre-commit (docs/testing.md "Mutation testing"). It asks the one question the
-# assertion gate cannot: would this test have failed if the code were wrong.
+# pre-commit. It asks the one question the assertion gate cannot: would this
+# test have failed if the code were wrong.
 source_paths = ["hqptuner"]
 # The frontend is JavaScript; mutmut mutates Python only and already skips
 # non-.py files, but naming static/ keeps the scope explicit rather than
@@ -96,9 +92,12 @@ source_paths = ["hqptuner"]
 do_not_mutate = ["hqptuner/static/*"]
 # Same suite the gate runs: offline and deterministic. A mutation run must never
 # reach the production daemon, so the live marker is deselected here too.
-# tests/gates exercises scripts/, which the mutants/ copy does not carry, and
-# never touches hqptuner/; collecting it there only errors the stats pass.
+# tests/gates exercises scripts/ and never touches hqptuner/; collecting it
+# there only slows every mutant.
 pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests/gates"]
+# The pytest pythonpath above names scripts/ directories, and conftests import
+# from them at collection, so the mutants/ copy needs them too.
+also_copy = ["scripts"]
 
 [tool.triviajudge]
 # Scope for the markdown, comment and archaeology gates. It matches the
@@ -106,8 +105,13 @@ pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests
 # the Makefile's archaeology line; both the hook modes and the console scripts
 # read it from here. The changelog gate is not scoped here: it reads CHANGELOG.md
 # from its own module constant. copy-before-after.md is a record of
-# owner-approved wording, so it takes no judge.
-md_skip = ["CHANGELOG.md", "docs/copy-before-after.md"]
+# owner-approved wording, so it takes no judge. The faceplate spec is a sketch,
+# not product: no gate reads it.
+# Cadence parses these planning files by their phase numbers, dependencies and
+# cursor fields, and rewrites the cursor every step, so they take no judge. The
+# entries match exact paths, so each phase file is listed by name; the md-trivia
+# pre-commit hook excludes all of `.planning/`.
+md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate.md", ".planning/PROJECT.md", ".planning/REQUIREMENTS.md", ".planning/ROADMAP.md", ".planning/STATE.md", ".planning/phases/1/CONTEXT.md"]
 suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.
@@ -124,6 +128,11 @@ watch = 400
 
 [tool.filepawl.exempt]
 "scripts/junkcal/junkcal_fixture.py" = "junkcal fixture oracle, provenance kept whole"
+
+[tool.filepawl.absence.exempt]
+"tests/e2e/test_drawers_fit_every_format.py::test_no_drawer_tab_scrolls_or_cuts_off_content" = "passing is absence: no drawer tab holds hidden content"
+"tests/e2e/test_views_fit_every_format.py::test_no_view_entry_or_tab_scrolls_or_cuts_off_content" = "passing is absence: no view entry or tab holds hidden content"
+"tests/e2e/test_popovers_fit_every_format.py::test_no_opened_surface_or_profile_view_scrolls_or_cuts_off_content" = "passing is absence: no opened surface or the profile view holds hidden content"
 
 [tool.filepawl.barrels]
 include = ["hqptuner/**/*.py", "scripts/**/*.py"]
@@ -154,7 +163,14 @@ include = ["**/*.py"]
 mover = "rope"
 
 [tool.filepawl.javascript]
-include = ["**/*.js", "**/*.css"]
+include = [
+    "*.js",
+    "eslint-rules/**/*.js",
+    "hqptuner/**/*.js",
+    "hqptuner/**/*.css",
+    "scripts/**/*.js",
+    "tests/**/*.js",
+]
 mover = "command"
 mover_command = "node /home/atom/dev/jsmover/bin/jsmover.js mv {old} {new}"
 
@@ -169,7 +185,24 @@ ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.dele
 # http.server via getattr, never called by name; pytest_plugins is read by
 # pytest itself. socketserver reads daemon_threads and block_on_close off the
 # server class rather than from any call site. All read as unused to a static sweep.
-ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins", "daemon_threads", "block_on_close"]
+# Response-model fields the frontend reads as JSON keys (connected_at, app_version,
+# speakers, plain_names, ceiling_khz) and junkcal statistics the CLI reads by name
+# through getattr (argmax_hz, slope_db_per_khz) have no Python call site either.
+ignore_names = [
+    "do_GET",
+    "do_POST",
+    "log_message",
+    "pytest_plugins",
+    "daemon_threads",
+    "block_on_close",
+    "connected_at",
+    "app_version",
+    "speakers",
+    "plain_names",
+    "ceiling_khz",
+    "argmax_hz",
+    "slope_db_per_khz",
+]
 
 [tool.ruff]
 line-length = 120
@@ -225,9 +258,7 @@ select = [
     "PLC2701",          # no import of another module's private name (preview)
     "PLR6301",          # method that never uses self (preview)
     # Docstrings (pydocstyle), pep257 convention, over hqptuner/ and scripts/.
-    # tests/ is exempt by decision: docs/testing.md rule 6 already requires a
-    # test name to state its behavior in plain words, so a docstring there
-    # restates the name.
+    # tests/ is exempt by decision: a docstring there restates the test name.
     "D",
 ]
 
@@ -254,14 +285,14 @@ ban-relative-imports = "all"
 "tests/gates/test_release_preflight.py" = ["S603"]
 "scripts/*" = ["S101"]
 "scripts/probes/**/*.py" = ["PLR0915"]  # probes are linear capture sequences, read top to bottom rather than decomposed
-"scripts/eqtools_mcp.py" = ["S607"]  # owner-approved: node comes from PATH, which is the tests' stub seam; the argv stays literal
 "scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 files = ["hqptuner", "tests", "scripts"]
-# Mirrors the pytest `pythonpath` above: the support modules are imported by
+# Equal to the pytest `pythonpath` above, root for root, held so by
+# scripts/gates/check_config_copies.py: the support modules are imported by
 # bare name, not by package path.
 mypy_path = ["tests", "tests/support", "scripts", "scripts/gates", "scripts/pytest_plugins", "scripts/junkcal", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
 
@@ -273,23 +304,26 @@ ignore_missing_imports = true
 # and nothing above. Siblings on one line are independent: they may not import
 # each other either.
 #
-# `presets` is not a layer the architecture doc names. The graph puts it between
-# core and lanes: core drives it (core/manager.py, core/applyops.py) and it
-# drives the lanes (presets/presetlane.py reaching overrides and settle).
+# The graph puts `presets` between core and lanes: core drives it
+# (core/manager.py, core/applyops.py) and it drives the lanes
+# (presets/presetlane.py reaching overrides and settle).
 #
-# `exclude_type_checking_imports` is set because a layers contract constrains
-# runtime dependencies, and an `if TYPE_CHECKING:` import is not one — every
-# excluded edge here is a lane annotating `mgr: ConnectionManager`, which is the
-# manager driving the lane, not the lane depending on the manager. Real edges
-# are still caught; this option removes nothing else.
+# `exclude_type_checking_imports` is false: an `if TYPE_CHECKING:` import is held
+# to the same layers as a runtime one. A layer below core that is handed the
+# manager types it as a protocol declared in its own layer (voltrace.py,
+# engine/trackcontext.py, lanes/__init__.py, presets/__init__.py), which the
+# concrete ConnectionManager satisfies structurally.
 #
-# audit.py, config.py and metadata.py are deliberately outside the contract.
-# They are top-level modules that import nothing from any hqptuner subpackage,
-# so they are leaves of the internal graph and cannot form an upward edge; the
-# contract is not `exhaustive`, so unlisted siblings are simply unconstrained.
+# audit.py, config.py and metadata.py are top-level modules outside the
+# contract. It is not `exhaustive`, so their own imports are unconstrained, but
+# a chain running through them from a lower layer to a higher one still breaks
+# it. audit.py and config.py import only other top-level modules (audit.py
+# reaches `shape` through audit_narrow.py), so they reach no layer and any
+# layer may import them. Of the layers, metadata.py imports engine and fields,
+# and only api imports it, so every chain through it runs downward.
 [tool.importlinter]
 root_package = "hqptuner"
-exclude_type_checking_imports = true
+exclude_type_checking_imports = false
 
 [[tool.importlinter.contracts]]
 name = "Layered architecture"
@@ -302,6 +336,7 @@ layers = [
     "lanes",
     "engine",
     "conf",
+    "fields",
 ]
 
 [build-system]
@@ -317,11 +352,13 @@ packages = [
   "hqptuner.conf",
   "hqptuner.core",
   "hqptuner.engine",
+  "hqptuner.fields",
   "hqptuner.lanes",
   "hqptuner.lanes.http",
   "hqptuner.lanes.live",
   "hqptuner.presets",
   "hqptuner.presets.store",
+  "hqptuner.shape",
 ]
 
 [tool.setuptools.package-data]
@@ -329,7 +366,7 @@ packages = [
 # a wheel install has no frontend to serve and no filter/shaper prose to join
 # against the live enumerations. Dev-only members of data/ (engine-enums.json,
 # the capture reference) are excluded by the glob.
-hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json", "data/tested-releases.json", "data/tray.png"]
+hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json", "data/tray.png"]
 
 [tool.setuptools.exclude-package-data]
 # The eqlab submodule ships only core/, the part the browser imports.

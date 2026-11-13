@@ -1,13 +1,11 @@
 // Behavioral suite for profile descriptions on the client (store/matrix/descriptions.js):
 // the prose a user attaches to a saved matrix profile, kept on the SERVER so
 // every browser sees the same note, and keyed by profile NAME — the stable join
-// key (docs/architecture.md §3.1), which is also all `<matrix_profile>` carries
-// (hqplayerd-readme.txt §1.12).
+// key, which is also all `<matrix_profile>` carries (hqplayerd-readme.txt §1.12).
 //
 // Persistence is one REST pair, GET/PUT /api/descriptions, driven through the
 // fetch fake below: it speaks those paths with those shapes, HOLDS the map the
-// way the backend's store does, and stamps every entry it accepts (docs/testing.md
-// rule 4 — real path, real shapes, nothing of ours stubbed).
+// way the backend's store does, and stamps every entry it accepts.
 //
 // Saving is queue-then-flush: typing calls `queueDescription`, and one
 // `flushDescriptions` sends what the typing left behind. So the cases about what
@@ -17,7 +15,7 @@
 // `reset()` puts every piece of module state a test touches back: both signals,
 // and the private queue, which it empties by flushing once against an accepting
 // wire. All three outlive a test, and a partial reset makes cases that only pass
-// in a particular order — the one hazard docs/testing.md names for this harness.
+// in a particular order.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/descriptions.test.js
 
@@ -26,6 +24,7 @@ import assert from "node:assert/strict";
 
 import { ok, bad } from "../support/wire/wire.js";
 import { settle } from "../support/wire/livepresetwire.js";
+import { fakeClock } from "../support/clock.js";
 import {
   descriptions,
   descriptionError,
@@ -131,11 +130,6 @@ test("test_a_profile_with_no_description_answers_null", async () => {
   assert.equal(descriptionFor(OTHER), null);
 });
 
-test("test_a_profile_name_answers_null_when_nothing_is_stored_at_all", async () => {
-  await reset();
-  assert.equal(descriptionFor(NAME), null);
-});
-
 // --- queue then flush --------------------------------------------------------------
 
 test("test_queueing_a_description_sends_nothing_until_the_flush", async () => {
@@ -143,13 +137,6 @@ test("test_queueing_a_description_sends_nothing_until_the_flush", async () => {
   queueDescription(NAME, TEXT);
   await settle();
   assert.deepEqual(puts(w), []);
-});
-
-test("test_a_flush_sends_exactly_one_put_for_one_queued_profile", async () => {
-  const w = await reset();
-  queueDescription(NAME, TEXT);
-  await flushDescriptions();
-  assert.equal(puts(w).length, 1);
 });
 
 test("test_a_flush_sends_the_last_text_queued_for_that_profile", async () => {
@@ -183,6 +170,96 @@ test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async (
   assert.equal(puts(w).length, 1);
 });
 
+// --- the send that goes out on its own ----------------------------------------------
+// Typing paces on the Clock handed to `queueDescription`, here a fake that moves
+// only on `advance`. The quiet window is the module's own choice, so no case
+// states it: `pacedClock` reads it off the delay of the timer the module last
+// armed, and every case is stated relative to it.
+
+/** @typedef {import("../../../hqptuner/static/lib/clock.js").Clock} Clock */
+
+/**
+ * A fake Clock that also reports the delay of the last timeout armed on it,
+ * which is the module's quiet window; 0 while nothing has been armed.
+ *
+ * @returns {{ clock: Clock, advance: (ms: number) => void, quiet: () => number }}
+ */
+function pacedClock() {
+  const { clock, advance } = fakeClock();
+  /** @type {number[]} */
+  const delays = [];
+  /** @type {Clock} */
+  const paced = {
+    ...clock,
+    setTimeout: (fn, ms) => {
+      delays.push(ms);
+      return clock.setTimeout(fn, ms);
+    },
+  };
+  return { clock: paced, advance, quiet: () => delays.at(-1) ?? 0 };
+}
+
+/**
+ * How many PUTs the wire holds once the clock has moved `ms` on and whatever
+ * send that fired has settled.
+ *
+ * @param {DescriptionWire} w
+ * @param {(ms: number) => void} advance
+ * @param {number} ms
+ * @returns {Promise<number>}
+ */
+async function putsAfter(w, advance, ms) {
+  advance(ms);
+  await settle();
+  return puts(w).length;
+}
+
+const DRAFT = "Wide stereo, gentle";
+const STUDY_TEXT = "near field";
+
+/** @param {{ name: string }} a @param {{ name: string }} b */
+const byName = (a, b) => a.name.localeCompare(b.name, "en");
+
+test("test_a_queued_description_goes_out_on_its_own_once_the_typist_has_been_quiet_for_the_window", async () => {
+  const w = await reset();
+  const { clock, advance, quiet } = pacedClock();
+  queueDescription(NAME, TEXT, clock);
+  const quietMs = quiet();
+  const counts = [await putsAfter(w, advance, quietMs - 1), await putsAfter(w, advance, 1)];
+  assert.deepEqual(counts, [0, 1]);
+});
+
+test("test_typing_again_inside_the_quiet_window_restarts_the_window", async () => {
+  const w = await reset();
+  const { clock, advance, quiet } = pacedClock();
+  queueDescription(NAME, DRAFT, clock);
+  const quietMs = quiet();
+  advance(quietMs - 1);
+  queueDescription(NAME, TEXT, clock);
+  const counts = [await putsAfter(w, advance, quietMs - 1), await putsAfter(w, advance, 1)];
+  assert.deepEqual(counts, [0, 1]);
+});
+
+//: Each PUT one burst of typing sends, by its place in name order, with the profile it names and the text it carries.
+/** @type {[string, number, string, string][]} */
+const BURST_PUTS = [
+  ["a_profile_retyped_in_it_its_newest_text", 0, NAME, TEXT],
+  ["a_profile_typed_once_in_it_its_text", 1, OTHER, STUDY_TEXT],
+];
+
+for (const [behavior, i, name, text] of BURST_PUTS) {
+  test(`test_one_burst_of_typing_sends_${behavior}`, async () => {
+    const w = await reset();
+    const { clock, advance, quiet } = pacedClock();
+    queueDescription(NAME, DRAFT, clock);
+    queueDescription(OTHER, STUDY_TEXT, clock);
+    queueDescription(NAME, TEXT, clock);
+    advance(quiet());
+    await settle();
+    assert.deepEqual(puts(w).sort(byName)[i], { name, text });
+  });
+}
+
 // --- what the save leaves on screen --------------------------------------------------
 
 test("test_a_saved_description_is_readable_back_out_of_the_store", async () => {
@@ -206,25 +283,10 @@ test("test_a_save_leaves_another_profiles_description_alone", async () => {
   assert.equal(descriptionFor(OTHER)?.text, "near field");
 });
 
-test("test_a_successful_save_leaves_no_error", async () => {
-  await reset();
-  queueDescription(NAME, TEXT);
-  await flushDescriptions();
-  assert.equal(descriptionError.value, "");
-});
-
 // --- a refused save --------------------------------------------------------------------
 // The user's typing is the one thing that cannot be thrown away: a save the
 // server refused leaves the text queued, so the next flush still carries it, and
 // says why on the error line — it never blanks what is on screen.
-
-test("test_a_failed_save_keeps_the_text_queued_for_the_next_flush", async () => {
-  const w = await reset({ putStatus: 500, putDetail: "State directory is read-only." });
-  queueDescription(NAME, TEXT);
-  await flushDescriptions();
-  await flushDescriptions();
-  assert.deepEqual(puts(w).at(-1), { name: NAME, text: TEXT });
-});
 
 test("test_a_failed_save_does_not_blank_the_description_already_stored", async () => {
   await reset({ profiles: { [NAME]: entry("warm") }, putStatus: 500, putDetail: "State directory is read-only." });

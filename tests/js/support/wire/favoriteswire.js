@@ -4,8 +4,7 @@
 // served by one REST pair — GET /api/favorites -> {filters: [...], modulators:
 // [...]} and PUT /api/favorites {filters?: [...], modulators?: [...]} ->
 // {filters: [...], modulators: [...]} — with no daemon behind it. The fake
-// speaks exactly those paths with exactly those shapes (docs/testing.md rule 4);
-// no store function is ever stubbed.
+// speaks exactly those paths with exactly those shapes.
 //
 // It HOLDS both lists the way the backend's store does, and applies the same two
 // normalizations the store applies — deduplicate and sort — so "a PUT replaces
@@ -121,7 +120,7 @@ export const modulatorPuts = (w) =>
  * @param {string[]} [modulators]
  * @returns {FavoritesWire}
  */
-export function favoritesState(filters = [], modulators = []) {
+function favoritesState(filters = [], modulators = []) {
   /** @type {(() => void)[]} */
   let parked = [];
   return {
@@ -166,21 +165,3 @@ export function favoritesWire(cfg = {}) {
   };
   return w;
 }
-
-/**
- * The same endpoint as a `routes` callback, for the suites whose own wire
- * (`staticWire`, `stagingWire`) must keep answering the staging paths.
- *
- * @param {FavoritesWire} w
- * @returns {(path: string, opts: FakeRequest) => FakeResponse | undefined}
- */
-export const favoritesRoutes =
-  (w) =>
-  (path, opts = {}) => {
-    if (path !== "/api/favorites") return undefined;
-    const method = opts.method || "GET";
-    w.calls.push({ path, method, body: opts.body });
-    if (method === "PUT" && !namesASet(opts.body)) return bad(UNPROCESSABLE, NOTHING_NAMED);
-    if (method === "PUT") store(w, opts.body);
-    return ok({ filters: w.filters, modulators: w.modulators });
-  };

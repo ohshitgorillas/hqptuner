@@ -19,8 +19,9 @@ export const isPcm = (/** @type {GrayCtx} */ ctx) => (inMode(ctx, "pcm") ? "Only
  * DirectSDM "will disable volume control and set PCM volume to fixed -3 dBFS
  * value" (manual §4.5). Every persistent control that sets a volume level is
  * therefore inert while it's on — the daemon accepts and stores the setting but
- * nothing reaches the output stage, so the UI has to say so. volume/Playback.js
- * already grays the live slider for the same reason.
+ * nothing reaches the output stage, so the UI has to say so. For the same reason,
+ * store/faceplate/volume.js pins the engine-row volume and gives this
+ * predicate's text as the pin's reason.
  */
 export const directSdm = (/** @type {GrayCtx} */ ctx) =>
   truthy(ctx.effective("direct_sdm"))
@@ -46,7 +47,22 @@ export const isoLevel = (/** @type {string | number | boolean | undefined} */ v)
   if (s === "2") return "2";
   return s === "0" || s === "" || s === "false" ? "0" : "1";
 };
-const isoOn = (/** @type {GrayCtx} */ ctx) => isoLevel(ctx.effective("optimal_iso")) !== "0";
+/** @typedef {"off" | "manual" | "auto"} FixedMode */
+/** @typedef {(key: string) => string | number | boolean | undefined} ConfigGetter */
+/**
+ * The fixed-volume mode a view of the config is in: Auto headroom on (either
+ * encoding, normalized by isoLevel) wins over the manual level switched on, else
+ * Off. Takes a getter (key => value), so the running config, the staged store and
+ * the edit being staged all read the mode by this one rule.
+ *
+ * @param {ConfigGetter} get
+ * @returns {FixedMode}
+ */
+export const fixedVolumeMode = (get) => {
+  if (isoLevel(get("optimal_iso")) !== "0") return "auto";
+  return truthy(get("fixed_volume_enabled")) ? "manual" : "off";
+};
+const isoOn = (/** @type {GrayCtx} */ ctx) => fixedVolumeMode(ctx.effective) === "auto";
 /**
  * Whether the volume control is pinned (manual §4.2, §4.5): fixed volume, Auto
  * headroom (either encoding — file "0"/"1"/"2" or the /config form's lossy
@@ -55,22 +71,28 @@ const isoOn = (/** @type {GrayCtx} */ ctx) => isoLevel(ctx.effective("optimal_is
  * the signal path passes runningValue to gate the volume-adaptive loudness chip
  * on what the engine is actually applying.
  */
-export const volumePinned = (/** @type {(key: string) => string | number | boolean | undefined} */ get) =>
-  truthy(get("fixed_volume_enabled")) ||
-  isoLevel(get("optimal_iso")) !== "0" ||
-  (Number(get("volume_min")) === 0 && Number(get("volume_max")) === 0);
+export const volumePinned = (/** @type {ConfigGetter} */ get) =>
+  fixedVolumeMode(get) !== "off" || (Number(get("volume_min")) === 0 && Number(get("volume_max")) === 0);
 /**
- * Whether the volume is already pinned at a fixed −3 dB, by either of the two
- * independent fixed-volume modes: the manual level (the `<fixed>` element, live
- * only while fixed_volume_enabled is on) or Auto headroom at its −3 dB setting
- * (isoLevel "1", which is also what the /config form's bare checkbox means).
+ * Whether the volume is already pinned at a fixed −3 dB, judged by the
+ * fixed-volume mode in force: under Auto headroom, its −3 dB setting (isoLevel
+ * "1", which is also what the /config form's bare checkbox means), whatever the
+ * manual level underneath says; under the manual mode, the `<fixed>` level at −3.
  * Takes a getter, like volumePinned, so the same predicate serves any view.
  */
-export const atFixedMinusThree = (/** @type {(key: string) => string | number | boolean | undefined} */ get) =>
-  (truthy(get("fixed_volume_enabled")) && Number(get("fixed_volume")) === -3) || isoLevel(get("optimal_iso")) === "1";
+export const atFixedMinusThree = (/** @type {ConfigGetter} */ get) => {
+  const mode = fixedVolumeMode(get);
+  if (mode === "auto") return isoLevel(get("optimal_iso")) === "1";
+  return mode === "manual" && Number(get("fixed_volume")) === -3;
+};
 /** Grays the manual fixed-volume level while fixed volume is off or Auto headroom supersedes it. */
 export const levelGray = (/** @type {GrayCtx} */ ctx) =>
   fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets the level automatically." : "");
+/** The reason fixed volume or Optimal ISO gives for a bypassed volume control. */
+export const FIXED_VOLUME_REASON = "Fixed volume bypasses the volume control.";
+/** The reason volume min = max = 0 gives for a bypassed volume control. */
+export const ZERO_RANGE_REASON =
+  "Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.";
 /**
  * The live volume control is bypassed in three documented cases (manual §4.2,
  * §4.5): Direct SDM, fixed volume / Optimal ISO, and volume min = max = 0.
@@ -80,14 +102,11 @@ export const levelGray = (/** @type {GrayCtx} */ ctx) =>
  * editing min or max, so graying them there would trap the user in it.
  */
 export const volumeRangeGray = (/** @type {GrayCtx} */ ctx) =>
-  directSdm(ctx) ||
-  (truthy(ctx.effective("fixed_volume_enabled")) || isoOn(ctx) ? "Fixed volume bypasses the volume control." : "");
+  directSdm(ctx) || (fixedVolumeMode(ctx.effective) !== "off" ? FIXED_VOLUME_REASON : "");
 /** volumeRangeGray plus the third case, volume min = max = 0. */
 export const volumeBypassed = (/** @type {GrayCtx} */ ctx) =>
   volumeRangeGray(ctx) ||
-  (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0
-    ? "Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side."
-    : "");
+  (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0 ? ZERO_RANGE_REASON : "");
 /** Grays the log file path while logging is off. */
 export const logOff = (/** @type {GrayCtx} */ ctx) =>
   truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.";

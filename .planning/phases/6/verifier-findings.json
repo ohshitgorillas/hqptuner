@@ -1,0 +1,53 @@
+{
+  "status": "delivered",
+  "score": "4/4",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "Every aclean filter the running engine enumerates joins by name to a filters.json entry",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "Read-only GET 127.0.0.1:8090/api/enumerations: exactly three aclean names, data.filters[56..58] = poly-sinc-aclean-gauss, -ext2, -xtr. Each carries a populated `static` block equal to its hqptuner/data/filters.json entry (the join landed). Loaded by hqptuner/metadata.py:81. Gate scripts/gates/check_metadata.py check_filters (line 105: every filters_pcm/filters_sdm name resolves through the production join) run via scripts/gate.sh: exit=0."
+    },
+    {
+      "n": 2,
+      "truth": "The three filters.json aclean entries match v1 316d72c5 verbatim, at v1's positions",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "git show 316d72c5:hqptuner/data/filters.json parsed vs working copy: each of the three entries is dict-equal (description, genre, quality, focus, apodizing, ratio, upsample_only, phase). The filters key order equals v1's (71 keys each, list equality True), so each entry has the same neighbors as in v1. Diff cdea8189 adds 30 lines to filters.json, the three entries only."
+    },
+    {
+      "n": 3,
+      "truth": "The aclean simplified names match v1 and are served to the UI",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "cmp of hqptuner/data/filter-plain-names.json vs 316d72c5: byte-identical. Entries present, e.g. poly-sinc-aclean-gauss short 'Poly-sinc · Gauss · Adaptive cleanup'. Loaded by hqptuner/metadata.py:85-92. Read-only GET /api/metadata (hqptuner/api/routes/status.py:147) returns plain_names.filters with all three entries."
+    },
+    {
+      "n": 4,
+      "truth": "engine-enums.json is v1's 6.2.0 capture and lists the three aclean filters in filters_pcm and filters_sdm",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "cmp of hqptuner/data/engine-enums.json vs 316d72c5: byte-identical. engine=6.2.0, captured=2026-11-03. Aclean names at filters_pcm[45..47] and filters_sdm[56..58]."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Every enumerated aclean filter has a filter-data entry",
+      "evidence": "Live GET /api/enumerations lists poly-sinc-aclean-gauss/-ext2/-xtr (filters[56..58]). Each carries a `static` block joined from filters.json. scripts/gates/check_metadata.py (production join over filters_pcm and filters_sdm) exit=0."
+    },
+    {
+      "k": 2,
+      "name": "aclean entries carry v1's description and simplified name",
+      "evidence": "The three filters.json entries are dict-equal to 316d72c5's, in the same key order. filter-plain-names.json is byte-identical to 316d72c5's. Live GET /api/metadata serves all three plain-name entries."
+    },
+    {
+      "k": 3,
+      "name": "Engine enumeration capture is the 6.2.0 capture",
+      "evidence": "hqptuner/data/engine-enums.json is byte-identical to 316d72c5's (engine 6.2.0, captured 2026-11-03). Aclean names at filters_pcm[45..47] and filters_sdm[56..58]."
+    }
+  ],
+  "gaps": [],
+  "human_checks": []
+}

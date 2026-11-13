@@ -7,7 +7,7 @@ What it may not carry is trivia about the road there: which attempt came first,
 what the session or a reviewer did, what somebody found along the way, a dated
 remark, a tally of a file's past. None of that helps the next reader make the
 next change, and each such line invites the next one. ``PATTERNS`` below holds
-the phrasing that reliably marks such narration, one labelled class per entry;
+the phrasing that reliably marks such narration, one labeled class per entry;
 the phrases are spelled there and nowhere else in this file, since the comment
 gate reads this docstring too.
 

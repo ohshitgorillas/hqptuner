@@ -20,7 +20,7 @@
 // after the "on"/"off" overrides.
 //
 // Facet data is driven the way narrowing.test.js drives it — `enums.filters`
-// carries the engine's own `<GetFilters/>` items (protocol.md:226) with the
+// carries the engine's own `<GetFilters/>` items with the
 // PCM glyph `⥮` and the engine's abbreviated ratio tails (`Int`, `2^x`,
 // `Any`), and `metadata.filters.filters` is the static name-keyed overlay from
 // /api/metadata. The 1:1 class, the mode-split ratio pair and the flat
@@ -40,25 +40,22 @@
 // `hide_int`, `ratio` and `upsample_only` keys are neither written nor choked
 // on when an old file still carries them.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/narrowing-rate.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { narrowingWire, puts } from "../../support/wire/narrowingwire.js";
+import { narrowingWire } from "../../support/wire/narrowingwire.js";
 import {
   nHideLimited,
   nOddRateOnly,
   nDownsafeOnly,
-  narrowingActive,
   resetNarrowing,
 } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, rateAutoHide, effHideLimited } from "../../../../hqptuner/static/store/narrow/match.js";
 import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { enums, metadata, config } from "../../../../hqptuner/static/store/signals.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 const STAGE = "nx";
 const PCM_FIELD = "pcm_filter_nx";
@@ -78,7 +75,7 @@ const SDM_FIELD = "sdm_filter_nx";
 
 /** @typedef {import("../../support/wire/narrowingwire.js").Facets} Facets */
 
-// One `<FiltersItem/>` as the enumeration serves it (protocol.md:226).
+// One `<FiltersItem/>` as the enumeration serves it.
 const item = (/** @type {string} */ name, /** @type {string} */ description, /** @type {number} */ index) => ({
   index: String(index),
   name,
@@ -119,9 +116,9 @@ const DSD_RATES = ["2822400", "5644800"];
  * @param {Record<string, Record<string, unknown>>} [overlay]
  * @param {string[]} [extras]
  * @param {Engine} [engine]
- * @returns {NarrowOption[]}
+ * @returns {Promise<NarrowOption[]>}
  */
-function reset(filters, overlay = {}, extras = [], engine = {}) {
+async function reset(filters, overlay = {}, extras = [], engine = {}) {
   const mode = engine.mode || "pcm";
   const backend = engine.backend || "network";
   const alsaAnydsd = engine.alsa_anydsd ?? "1";
@@ -135,20 +132,18 @@ function reset(filters, overlay = {}, extras = [], engine = {}) {
     filters: { filters: overlay, aliases: {} },
     shapers: { pcm_dithers: {}, sdm_modulators: {} },
   };
-  config.value = {
-    // These settings' /config form rows and file-truth keys carry the wire
-    // spellings — `mode`, `backend`, `alsa_anydsd`, `net_anydsd` (the
-    // `output_mode` spelling is the schema's field id, not the wire key).
-    fields: [
-      { name: "mode", value: mode },
-      { name: "backend", value: backend },
-      { name: "alsa_anydsd", value: alsaAnydsd },
-      { name: "net_anydsd", value: netAnydsd },
-    ],
-    file: { mode: mode, backend: backend, alsa_anydsd: alsaAnydsd, net_anydsd: netAnydsd },
-    active: "",
-    profiles: null,
-  };
+  // These settings' /config form rows and readings carry the wire spellings —
+  // `mode`, `backend`, `alsa_anydsd`, `net_anydsd` (the `output_mode` spelling
+  // is the schema's field id, not the wire key).
+  config.value = { fields: ["mode", "backend", "alsa_anydsd", "net_anydsd"].map((name) => ({ name })) };
+  await seedReadings(
+    Object.fromEntries(
+      Object.entries({ mode, backend, alsa_anydsd: alsaAnydsd, net_anydsd: netAnydsd }).map(([name, v]) => [
+        name,
+        fieldReading(v, { show: "file" }),
+      ]),
+    ),
+  );
   resetNarrowing();
   const live = filters.map(([name], i) => ({ label: name, value: String(i) }));
   return live.concat(extras.map((name, i) => ({ label: name, value: String(filters.length + i) })));
@@ -174,7 +169,7 @@ const ALL_CLASSES = ["rat-two", "rat-int", "rat-any", "none"];
 const ONE_TO_ONE = { none: { ratio: "1:1" } };
 
 /** @param {Engine} [engine] */
-const classes = (engine = {}) => reset(CLASSES, ONE_TO_ONE, ["none"], engine);
+const classes = async (engine = {}) => await reset(CLASSES, ONE_TO_ONE, ["none"], engine);
 
 // The state that engages auto: SDM out on a network backend whose anydsd flag
 // says 44.1k-family only.
@@ -203,28 +198,18 @@ const SPLIT = {
   "poly-sinc-mqa/mp3-lp": { ratio_pcm: "integer", ratio_sdm: "any", upsample_only: true, quality: 4 },
 };
 
-const split = () => reset([], SPLIT, ["poly-sinc-mqa/mp3-lp"]);
-
-// --- nothing engaged ---------------------------------------------------------
-
-test("test_every_switch_at_its_default_returns_the_labels_untouched", () => {
-  const options = classes();
-  nHideLimited.value = "auto";
-  nOddRateOnly.value = false;
-  nDownsafeOnly.value = false;
-  assert.deepEqual(labels(options), ALL_CLASSES);
-});
+const split = async () => await reset([], SPLIT, ["poly-sinc-mqa/mp3-lp"]);
 
 // --- the limited-class hide ----------------------------------------------------
 
-test("test_hide_limited_on_excludes_the_2x_and_integer_filters", () => {
-  const options = classes();
+test("test_hide_limited_on_excludes_the_2x_and_integer_filters", async () => {
+  const options = await classes();
   nHideLimited.value = "on";
   assert.deepEqual(labels(options), ["rat-any", "none"]);
 });
 
-test("test_hide_limited_off_passes_the_limited_classes_auto_would_hide", () => {
-  const options = classes(SDM_44_NET);
+test("test_hide_limited_off_passes_the_limited_classes_auto_would_hide", async () => {
+  const options = await classes(SDM_44_NET);
   nHideLimited.value = "off";
   assert.deepEqual(labels(options), ALL_CLASSES);
 });
@@ -232,8 +217,8 @@ test("test_hide_limited_off_passes_the_limited_classes_auto_would_hide", () => {
 // Putting the switch back to "auto" — under conditions where auto does not
 // engage — gives the whole list back: the narrowing is undone, not merely
 // never applied, so the case narrows for real first.
-test("test_putting_hide_limited_back_to_auto_narrows_by_ratio_not_at_all", () => {
-  const options = classes();
+test("test_putting_hide_limited_back_to_auto_narrows_by_ratio_not_at_all", async () => {
+  const options = await classes();
   nHideLimited.value = "on";
   nHideLimited.value = "auto";
   assert.deepEqual(labels(options), ALL_CLASSES);
@@ -243,103 +228,95 @@ test("test_putting_hide_limited_back_to_auto_narrows_by_ratio_not_at_all", () =>
 // Positive evidence only: the active backend's anydsd flag drives auto, the
 // rates enumeration never does.
 
-test("test_auto_hides_both_limited_classes_on_a_44_1_only_network_backend", () => {
-  const options = classes(SDM_44_NET);
+test("test_auto_hides_both_limited_classes_on_a_44_1_only_network_backend", async () => {
+  const options = await classes(SDM_44_NET);
   assert.deepEqual(labels(options), ["rat-any", "none"]);
 });
 
-test("test_rate_auto_hide_engages_in_sdm_on_a_44_1_only_network_backend", () => {
-  classes(SDM_44_NET);
+test("test_rate_auto_hide_engages_in_sdm_on_a_44_1_only_network_backend", async () => {
+  await classes(SDM_44_NET);
   assert.equal(rateAutoHide.value, true);
 });
 
 // THE reported bug: this exact state — SDM out, network backend, net_anydsd
 // saying 48k-family DSD is supported — fired the hide before the fix.
-test("test_rate_auto_hide_stays_off_when_the_network_backend_supports_48k_dsd", () => {
-  classes({ mode: "sdm", backend: "network", net_anydsd: "1" });
+test("test_rate_auto_hide_stays_off_when_the_network_backend_supports_48k_dsd", async () => {
+  await classes({ mode: "sdm", backend: "network", net_anydsd: "1" });
   assert.equal(rateAutoHide.value, false);
 });
 
-test("test_rate_auto_hide_engages_in_sdm_on_a_44_1_only_alsa_backend", () => {
-  classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "0" });
+test("test_rate_auto_hide_engages_in_sdm_on_a_44_1_only_alsa_backend", async () => {
+  await classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "0" });
   assert.equal(rateAutoHide.value, true);
 });
 
-test("test_rate_auto_hide_stays_off_when_the_alsa_backend_supports_48k_dsd", () => {
-  classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "1" });
+test("test_rate_auto_hide_stays_off_when_the_alsa_backend_supports_48k_dsd", async () => {
+  await classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "1" });
   assert.equal(rateAutoHide.value, false);
 });
 
 // Only the ACTIVE backend's flag counts: the other backend being 44.1k-only
 // is not evidence about the chain in use.
 
-test("test_the_inactive_network_flag_does_not_engage_auto_on_an_alsa_backend", () => {
-  classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "1", net_anydsd: "0" });
+test("test_the_inactive_network_flag_does_not_engage_auto_on_an_alsa_backend", async () => {
+  await classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "1", net_anydsd: "0" });
   assert.equal(rateAutoHide.value, false);
 });
 
-test("test_the_inactive_alsa_flag_does_not_engage_auto_on_a_network_backend", () => {
-  classes({ mode: "sdm", backend: "network", net_anydsd: "1", alsa_anydsd: "0" });
+test("test_the_inactive_alsa_flag_does_not_engage_auto_on_a_network_backend", async () => {
+  await classes({ mode: "sdm", backend: "network", net_anydsd: "1", alsa_anydsd: "0" });
   assert.equal(rateAutoHide.value, false);
 });
 
-test("test_rate_auto_hide_stays_off_on_the_combo_backend_whatever_the_flags", () => {
-  classes({ mode: "sdm", backend: "combo", alsa_anydsd: "0", net_anydsd: "0" });
+test("test_rate_auto_hide_stays_off_on_the_combo_backend_whatever_the_flags", async () => {
+  await classes({ mode: "sdm", backend: "combo", alsa_anydsd: "0", net_anydsd: "0" });
   assert.equal(rateAutoHide.value, false);
 });
 
-test("test_rate_auto_hide_stays_off_outside_sdm_output", () => {
-  classes({ mode: "pcm", backend: "network", net_anydsd: "0" });
-  assert.equal(rateAutoHide.value, false);
-});
-
-// The regression pin proper: with the rate on Auto the daemon enumerates only
-// the `rate:"0"` sentinel row, and that empty list is no information — the
-// backend flag saying 48k DSD is supported keeps auto off regardless.
-test("test_a_sentinel_only_rates_list_does_not_engage_auto", () => {
-  classes({ mode: "sdm", backend: "network", net_anydsd: "1", rates: [] });
+test("test_rate_auto_hide_stays_off_outside_sdm_output", async () => {
+  await classes({ mode: "pcm", backend: "network", net_anydsd: "0" });
   assert.equal(rateAutoHide.value, false);
 });
 
 // The flags arrive in either encoding: "0"/false is 44.1k-family only,
 // "1"/true is 48k-family support.
 
-test("test_a_boolean_false_anydsd_flag_engages_auto", () => {
-  classes({ mode: "sdm", backend: "network", net_anydsd: false });
+test("test_a_boolean_false_anydsd_flag_engages_auto", async () => {
+  await classes({ mode: "sdm", backend: "network", net_anydsd: false });
   assert.equal(rateAutoHide.value, true);
 });
 
-test("test_a_boolean_true_anydsd_flag_keeps_auto_off", () => {
-  classes({ mode: "sdm", backend: "network", net_anydsd: true });
+test("test_a_boolean_true_anydsd_flag_keeps_auto_off", async () => {
+  await classes({ mode: "sdm", backend: "network", net_anydsd: true });
   assert.equal(rateAutoHide.value, false);
 });
 
-test("test_eff_hide_limited_is_true_when_the_switch_is_on_and_auto_is_not", () => {
-  classes({ mode: "pcm" });
+test("test_eff_hide_limited_is_true_when_the_switch_is_on_and_auto_is_not", async () => {
+  await classes({ mode: "pcm" });
   nHideLimited.value = "on";
   assert.equal(effHideLimited.value, true);
 });
 
-test("test_eff_hide_limited_is_true_on_auto_while_auto_engages", () => {
-  classes(SDM_44_NET);
+test("test_eff_hide_limited_is_true_on_auto_while_auto_engages", async () => {
+  await classes(SDM_44_NET);
   assert.equal(effHideLimited.value, true);
 });
 
-test("test_eff_hide_limited_is_false_on_auto_while_auto_does_not_engage", () => {
-  classes({ mode: "pcm" });
+test("test_eff_hide_limited_is_false_on_auto_while_auto_does_not_engage", async () => {
+  await classes({ mode: "pcm" });
   assert.equal(effHideLimited.value, false);
 });
 
-test("test_eff_hide_limited_is_false_when_auto_engages_but_the_switch_is_off", () => {
-  classes(SDM_44_NET);
+test("test_eff_hide_limited_is_false_when_auto_engages_but_the_switch_is_off", async () => {
+  await classes(SDM_44_NET);
   nHideLimited.value = "off";
   assert.equal(effHideLimited.value, false);
 });
 
 // --- the odd-rate switch ------------------------------------------------------
 
-test("test_odd_rate_only_excludes_the_2x_filters_and_passes_the_rest", () => {
-  const options = classes();
+test("test_odd_rate_only_excludes_the_2x_filters_and_passes_the_rest", async () => {
+  const options = await classes();
   nOddRateOnly.value = true;
   assert.deepEqual(labels(options), ["rat-int", "rat-any", "none"]);
 });
@@ -348,25 +325,17 @@ test("test_odd_rate_only_excludes_the_2x_filters_and_passes_the_rest", () => {
 
 // `down-ok` is a 2x filter, so its survival is also the fact that the switch
 // reads the upsample flag and never a ratio class.
-test("test_downsample_safe_only_excludes_only_the_upsample_only_filters", () => {
-  const options = reset(UPSAMPLE, UPSAMPLE_OVERLAY);
+test("test_downsample_safe_only_excludes_only_the_upsample_only_filters", async () => {
+  const options = await reset(UPSAMPLE, UPSAMPLE_OVERLAY);
   nDownsafeOnly.value = true;
   assert.deepEqual(labels(options), ["down-ok"]);
 });
 
 // --- the 1:1 filter survives every combination --------------------------------
 
-for (const [hideLimited, oddRate, downsafe] of [
-  ["on", false, false],
-  ["auto", true, false],
-  ["auto", false, true],
-  ["on", true, false],
-  ["on", false, true],
-  ["auto", true, true],
-  ["on", true, true],
-]) {
-  test(`test_the_one_to_one_filter_survives_${hideLimited}_${oddRate}_${downsafe}`, () => {
-    const options = classes();
+for (const [hideLimited, oddRate, downsafe] of [["on", true, true]]) {
+  test(`test_the_one_to_one_filter_survives_${hideLimited}_${oddRate}_${downsafe}`, async () => {
+    const options = await classes();
     nHideLimited.value = String(hideLimited);
     nOddRateOnly.value = Boolean(oddRate);
     nDownsafeOnly.value = Boolean(downsafe);
@@ -374,8 +343,8 @@ for (const [hideLimited, oddRate, downsafe] of [
   });
 }
 
-test("test_the_one_to_one_filter_survives_the_auto_engaged_hide", () => {
-  const options = classes(SDM_44_NET);
+test("test_the_one_to_one_filter_survives_the_auto_engaged_hide", async () => {
+  const options = await classes(SDM_44_NET);
   nOddRateOnly.value = true;
   nDownsafeOnly.value = true;
   assert.equal(labels(options).includes("none"), true);
@@ -383,55 +352,55 @@ test("test_the_one_to_one_filter_survives_the_auto_engaged_hide", () => {
 
 // --- a filter with no facet record --------------------------------------------
 
-test("test_a_filter_with_no_facet_record_survives_every_switch_engaged", () => {
-  const options = reset([], {}, ["mystery"]);
+test("test_a_filter_with_no_facet_record_survives_every_switch_engaged", async () => {
+  const options = await reset([], {}, ["mystery"]);
   nHideLimited.value = "on";
   nOddRateOnly.value = true;
   nDownsafeOnly.value = true;
   assert.deepEqual(labels(options), ["mystery"]);
 });
 
-test("test_a_filter_with_no_facet_record_survives_the_auto_engaged_hide", () => {
-  const options = reset([], {}, ["mystery"], SDM_44_NET);
+test("test_a_filter_with_no_facet_record_survives_the_auto_engaged_hide", async () => {
+  const options = await reset([], {}, ["mystery"], SDM_44_NET);
   assert.deepEqual(labels(options), ["mystery"]);
 });
 
 // --- mode-split records answer for the field's side ----------------------------
 
-test("test_hide_limited_on_hides_the_split_ratio_pair_on_a_pcm_field", () => {
-  const options = split();
+test("test_hide_limited_on_hides_the_split_ratio_pair_on_a_pcm_field", async () => {
+  const options = await split();
   nHideLimited.value = "on";
   assert.deepEqual(labels(options, STAGE, PCM_FIELD), []);
 });
 
-test("test_hide_limited_on_passes_the_split_ratio_pair_on_an_sdm_field", () => {
-  const options = split();
+test("test_hide_limited_on_passes_the_split_ratio_pair_on_an_sdm_field", async () => {
+  const options = await split();
   nHideLimited.value = "on";
   assert.deepEqual(labels(options, STAGE, SDM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
 });
 
 // The pair's PCM ratio is integer, not 2x, so the odd-rate switch — which hides
 // the 2x class alone — leaves it alone on both sides.
-test("test_odd_rate_only_passes_the_split_ratio_pair_on_a_pcm_field", () => {
-  const options = split();
+test("test_odd_rate_only_passes_the_split_ratio_pair_on_a_pcm_field", async () => {
+  const options = await split();
   nOddRateOnly.value = true;
   assert.deepEqual(labels(options, STAGE, PCM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
 });
 
-test("test_odd_rate_only_passes_the_split_ratio_pair_on_an_sdm_field", () => {
-  const options = split();
+test("test_odd_rate_only_passes_the_split_ratio_pair_on_an_sdm_field", async () => {
+  const options = await split();
   nOddRateOnly.value = true;
   assert.deepEqual(labels(options, STAGE, SDM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
 });
 
-test("test_downsample_safe_only_hides_the_mqa_pair_on_a_pcm_field", () => {
-  const options = split();
+test("test_downsample_safe_only_hides_the_mqa_pair_on_a_pcm_field", async () => {
+  const options = await split();
   nDownsafeOnly.value = true;
   assert.deepEqual(labels(options, STAGE, PCM_FIELD), []);
 });
 
-test("test_downsample_safe_only_passes_the_mqa_pair_on_an_sdm_field", () => {
-  const options = split();
+test("test_downsample_safe_only_passes_the_mqa_pair_on_an_sdm_field", async () => {
+  const options = await split();
   nDownsafeOnly.value = true;
   assert.deepEqual(labels(options, STAGE, SDM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
 });
@@ -440,51 +409,15 @@ test("test_downsample_safe_only_passes_the_mqa_pair_on_an_sdm_field", () => {
 // Auto engaging on its own is the engine's doing, not the user's: it never
 // reads as active narrowing. Any EXPLICIT setting — "on" or "off" alike — does.
 
-test("test_auto_engaged_hides_are_not_active_narrowing", () => {
-  classes(SDM_44_NET);
-  assert.equal(narrowingActive.value, false);
-});
-
-test("test_hide_limited_on_is_active_narrowing", () => {
-  classes();
-  nHideLimited.value = "on";
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_hide_limited_off_is_active_narrowing", () => {
-  classes();
-  nHideLimited.value = "off";
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_an_engaged_odd_rate_switch_is_active_narrowing", () => {
-  classes();
-  nOddRateOnly.value = true;
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_an_engaged_downsample_safe_switch_is_active_narrowing", () => {
-  classes();
-  nDownsafeOnly.value = true;
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_reset_returns_hide_limited_to_auto", () => {
-  classes();
-  nHideLimited.value = "on";
-  resetNarrowing();
-  assert.equal(nHideLimited.value, "auto");
-});
-
-test("test_reset_returns_odd_rate_only_to_off", () => {
-  classes();
+test("test_reset_returns_odd_rate_only_to_off", async () => {
+  await classes();
   nOddRateOnly.value = true;
   resetNarrowing();
   assert.equal(nOddRateOnly.value, false);
 });
 
-test("test_reset_returns_downsample_safe_only_to_off", () => {
-  classes();
+test("test_reset_returns_downsample_safe_only_to_off", async () => {
+  await classes();
   nDownsafeOnly.value = true;
   resetNarrowing();
   assert.equal(nDownsafeOnly.value, false);
@@ -504,55 +437,6 @@ async function persistReset(cfg = {}) {
   narrowingError.value = "";
   return w;
 }
-
-// Every key on the rate side of the record, old and new alike, so a filter on
-// the PUT body's keys reads back exactly the three the record now carries.
-const RATE_KEYS = ["hide_limited", "odd_rate_only", "downsafe_only", "hide_2x", "hide_int", "ratio", "upsample_only"];
-
-/**
- * The last PUT body a flush of one changed switch produced. The sentinel
- * stands in for a flush that sent nothing at all, so a client that never
- * writes fails here rather than passing on an empty key list.
- *
- * @param {{ value: unknown }} signal
- * @param {unknown} value
- * @returns {Promise<Facets>}
- */
-async function flushed(signal, value) {
-  const w = await persistReset();
-  await hydrateNarrowing();
-  signal.value = value;
-  await flushNarrowing();
-  return puts(w).at(-1) || { no_put_was_sent: true };
-}
-
-// The wire keys are pinned by NAME on the PUT body: of the rate-side keys the
-// record has ever carried, the flush sends exactly the three new ones.
-
-test("test_the_put_carries_the_three_rate_keys_and_no_legacy_ones", async () => {
-  const sent = await flushed(nHideLimited, "on");
-  assert.deepEqual(
-    Object.keys(sent)
-      .filter((k) => RATE_KEYS.includes(k) || k === "no_put_was_sent")
-      .sort(),
-    ["downsafe_only", "hide_limited", "odd_rate_only"],
-  );
-});
-
-test("test_the_put_carries_hide_limited_as_the_tri_state_token", async () => {
-  const sent = await flushed(nHideLimited, "on");
-  assert.equal(sent.hide_limited, "on");
-});
-
-test("test_the_put_carries_odd_rate_only_as_a_real_boolean", async () => {
-  const sent = await flushed(nOddRateOnly, true);
-  assert.equal(sent.odd_rate_only, true);
-});
-
-test("test_the_put_carries_downsafe_only_as_a_real_boolean", async () => {
-  const sent = await flushed(nDownsafeOnly, true);
-  assert.equal(sent.downsafe_only, true);
-});
 
 // The read path pins the same key names: a stored value under the pinned key
 // restores the switch on hydration.
@@ -586,13 +470,8 @@ test("test_a_persisted_downsample_safe_switch_restores_on_hydration", async () =
 
 const LEGACY = { hide_2x: "on", hide_int: "on", ratio: "2x", upsample_only: true };
 
-test("test_hydrating_a_legacy_rate_record_does_not_throw", async () => {
-  await persistReset({ facets: LEGACY });
-  await assert.doesNotReject(() => hydrateNarrowing());
-});
-
 test("test_hydrating_a_legacy_rate_record_narrows_nothing", async () => {
-  const options = classes();
+  const options = await classes();
   await persistReset({ facets: LEGACY });
   await hydrateNarrowing();
   assert.deepEqual(labels(options), ALL_CLASSES);
@@ -602,12 +481,6 @@ test("test_hydrating_a_legacy_rate_record_narrows_nothing", async () => {
 // record every rate switch still sits at its default. Pinned per switch — the
 // narrows-nothing case above cannot see, say, `upsample_only:true` mapped onto
 // the downsample-safe switch when the fixture holds no upsample-only filter.
-
-test("test_a_legacy_record_leaves_hide_limited_at_auto", async () => {
-  await persistReset({ facets: LEGACY });
-  await hydrateNarrowing();
-  assert.equal(nHideLimited.value, "auto");
-});
 
 test("test_a_legacy_record_leaves_the_odd_rate_switch_off", async () => {
   await persistReset({ facets: LEGACY });

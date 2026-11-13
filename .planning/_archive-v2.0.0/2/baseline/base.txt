@@ -1,0 +1,10 @@
+sha: 082346ffcc11303f511bbade18aa6b0f9367370b
+branch: rebuild/integrate (.claude/worktrees/integrate)
+command: PYTHONPATH=$(pwd) scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test --test-concurrency=8 tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js
+pass: 4709
+fail: 195
+tests: 4904
+original log: /tmp/gate-node-bQDoxWF6.log
+kept log: .planning/phases/2/baseline/failures.log
+failing files: 53 (files.txt)
+unleased:

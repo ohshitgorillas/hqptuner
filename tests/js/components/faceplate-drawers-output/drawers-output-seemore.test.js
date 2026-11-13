@@ -1,0 +1,356 @@
+// Rendered suite for a drawer row whose settings metadata entry holds part of its paragraph back: an entry may carry
+// `more`, the prose held back, beside `tooltip`, the start shown. A row whose entry carries `more` shows its tooltip and
+// then the `see more` trigger, and the trigger's popover holds the `more` prose. A row whose entry carries no `more`
+// shows its tooltip whole, with no trigger. That holds at 10.2″ and 11″; at 13″ nothing is held back, so a marked row
+// shows its tooltip and then its `more` prose in sight, with no trigger. A `more` of several paragraphs, a blank line
+// between each, comes back as that many paragraphs, in the popover and in sight alike.
+//
+// The mark lives in the metadata, so the fixture puts it where drawer code could not have guessed it: on the IPv6 and
+// channel offset entries, one per backend, while the DAC bits entry carries the owner's whole DAC bits paragraph
+// (docs/internal/copy-before-after.md, DAC bits tooltip) as its tooltip and no `more`.
+//
+// Renders through preact-render-to-string with the store driven at the wire by the staging fake. Rows are found by their
+// catalog key (`data-k`), the trigger by its `data-testid`, the popover by its `role`.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output-seemore.test.js
+
+import test, { beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
+import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
+import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../../../hqptuner/static/store/actions.js";
+import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
+import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
+import { stagingWire } from "../../support/wire/wire.js";
+import { attr, classes, elements, text } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
+
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+
+/** The owner's whole DAC bits paragraph, handed to the DAC bits entry as its tooltip with no `more` beside it. */
+const DAC_BITS_PARAGRAPH =
+  "Number of significant bits the DAC has; this is the dithering level. 0 auto-detects. When the DAC is connected to " +
+  "a unidirectional interface like S/PDIF, AES/EBU or I2S, it is important to select the correct number of bits. In " +
+  "addition, when a DAC is connected to USB and has something other than 32-bit input resolution, it is recommended to " +
+  "set the actual value here. Also, when a suitable noise-shaper, such as LNS15, NS9 or NS5, is used in combination " +
+  "with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower the distortion " +
+  "of especially low-level signals and reduce zero-crossing distortions.";
+
+/** The metadata entries that carry `more`, keyed by the row each one describes. */
+const MARKED = {
+  net_ipv6: {
+    entry: "ipv6",
+    tooltip: "Start of the IPv6 fixture paragraph",
+    more: "Prose the IPv6 fixture entry holds back.",
+  },
+  alsa_offset: {
+    entry: "channel_offset",
+    tooltip: "Start of the channel offset fixture paragraph",
+    more: "Prose the channel offset fixture entry holds back.",
+  },
+};
+
+/** The rows whose entry carries `more`. */
+const MARKED_ROWS = Object.keys(MARKED);
+
+/** The DAC bits row of each backend, whose entry carries no `more`. */
+const DAC_BITS_ROWS = ["net_bits", "alsa_bits"];
+
+/** The settings metadata keys the Output drawer's rows read their paragraphs from. */
+const OUTPUT_META_KEYS = [
+  "output_mode",
+  "dop",
+  "dsd_48k",
+  "dac_bits",
+  "backend",
+  "ipv6",
+  "buffer_time",
+  "channel_offset",
+  "net_device",
+  "alsa_device",
+];
+
+/** @type {Record<string, { label: string, tooltip: string, more?: string }>} */
+const OUTPUT_META = Object.fromEntries(
+  OUTPUT_META_KEYS.map((k) => [k, { label: "label-fixture", tooltip: `Tooltip fixture for ${k}` }]),
+);
+OUTPUT_META.dac_bits = { label: "label-fixture", tooltip: DAC_BITS_PARAGRAPH };
+for (const { entry, tooltip, more } of Object.values(MARKED))
+  OUTPUT_META[entry] = { label: "label-fixture", tooltip, more };
+
+const META = {
+  settings: {
+    output: OUTPUT_META,
+    dsp: { channels: { label: "label-fixture", tooltip: "Tooltip fixture for channels" } },
+  },
+};
+
+/** The window at each plate size: 10.2″, 11″ and 13″. */
+const SMALL = { w: 1080, h: 810 };
+const MIDDLE = { w: 1180, h: 820 };
+const LARGE = { w: 1366, h: 1024 };
+const SIZES = [SMALL, MIDDLE, LARGE];
+
+const NET = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
+const ALSA = "hw:CARD=NVidia,DEV=3";
+
+beforeEach(async () => {
+  stagingWire();
+  config.value = {
+    fields: [
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "channels", type: "number" },
+      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
+      { name: "alsa_device", type: "select", options: [{ value: ALSA, label: "HDA NVidia: HDMI 0" }] },
+      { name: "net_dop", type: "checkbox" },
+      { name: "alsa_dop", type: "checkbox" },
+      { name: "net_anydsd", type: "checkbox" },
+      { name: "alsa_anydsd", type: "checkbox" },
+      { name: "net_bits", type: "number" },
+      { name: "alsa_bits", type: "number" },
+      { name: "net_ipv6", type: "checkbox" },
+      { name: "alsa_offset", type: "number" },
+      { name: "net_period", type: "number" },
+      { name: "alsa_period", type: "number" },
+    ],
+  };
+  await seedReadings({
+    mode: "pcm",
+    backend: "combo",
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    channels: 2,
+    net_device: NET,
+    alsa_device: ALSA,
+    net_dop: false,
+    alsa_dop: false,
+    net_anydsd: true,
+    alsa_anydsd: false,
+    net_bits: 20,
+    alsa_bits: 24,
+    net_ipv6: true,
+    alsa_offset: 0,
+    net_period: 0,
+    alsa_period: 100,
+  });
+  engineState.value = { state: "0" };
+  engineStatus.value = { status: {}, metadata: {} };
+  enums.value = null;
+  metadata.value = META;
+  openStage.value = null;
+  openPopover.value = null;
+  viewport.value = SMALL;
+  await pickChannelLayout("2");
+  await discardAll();
+});
+
+/** Every row the drawer draws, each with its own markup. */
+const rows = () =>
+  elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`)).filter(
+    (e) => classes(e).includes("drow") && attr(e, "data-k") !== undefined,
+  );
+
+/**
+ * The elements inside the row drawn for `key`.
+ *
+ * @param {string} key
+ * @returns {MarkupElement[]}
+ */
+function inRow(key) {
+  const row = rows().find((e) => attr(e, "data-k") === key);
+  return row ? elements(row.html) : [];
+}
+
+/** @param {MarkupElement} e */
+const isTrigger = (e) => attr(e, "data-testid") === "see-more";
+
+/** @param {MarkupElement} e */
+const isPopover = (e) => attr(e, "role") === "dialog";
+
+/**
+ * Whether `inner` lies inside `outer`.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+const within = (inner, outer) => inner.start >= outer.start && inner.start < outer.start + outer.html.length;
+
+/** Spaces, full stops and ellipses at either end carry no words. */
+const WORDLESS = " .…";
+
+/** `s` less its wordless ends. @param {string} s */
+function words(s) {
+  let start = 0;
+  let end = s.length;
+  while (start < end && WORDLESS.includes(s[start])) start += 1;
+  while (end > start && WORDLESS.includes(s[end - 1])) end -= 1;
+  return s.slice(start, end);
+}
+
+/** @param {string} h */
+const textOf = (h) => text({ name: "p", attrs: "", start: 0, html: h });
+
+/**
+ * The paragraphs a row shows in sight, outside any popover.
+ *
+ * @param {MarkupElement[]} inside
+ * @returns {MarkupElement[]}
+ */
+function inSight(inside) {
+  const popovers = inside.filter(isPopover);
+  return inside.filter((e) => e.name === "p" && !popovers.some((pop) => within(e, pop)));
+}
+
+/**
+ * The description a row shows in sight, less the see-more trigger's own text.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
+function shownDescription(key) {
+  const inside = inRow(key);
+  const triggers = inside.filter(isTrigger);
+  return words(
+    inSight(inside)
+      .map((p) => triggers.filter((t) => within(t, p)).reduce((h, t) => h.replace(t.html, ""), p.html))
+      .map(textOf)
+      .join(" "),
+  );
+}
+
+/**
+ * The description a row shows in sight, read on either side of its see-more trigger: the words before it and the
+ * words after it. With no trigger in sight, `after` is null and `before` is the whole description.
+ *
+ * @param {string} key
+ * @returns {{ before: string, after: string | null }}
+ */
+function aroundTrigger(key) {
+  const inside = inRow(key);
+  const shown = inSight(inside);
+  const trigger = inside.find((e) => isTrigger(e) && shown.some((p) => within(e, p)));
+  if (!trigger) return { before: shownDescription(key), after: null };
+  const side = (/** @type {(p: MarkupElement) => string} */ cut) => words(shown.map(cut).map(textOf).join(" "));
+  const end = trigger.start + trigger.html.length;
+  return {
+    before: side((p) => (p.start < trigger.start ? p.html.slice(0, trigger.start - p.start) : "")),
+    after: side((p) => (p.start + p.html.length > end ? p.html.slice(Math.max(0, end - p.start)) : "")),
+  };
+}
+
+/**
+ * The text of each paragraph inside a row's see-more popover.
+ *
+ * @param {string} key
+ * @returns {string[]}
+ */
+function popoverParagraphs(key) {
+  const pop = inRow(key).find(isPopover);
+  return pop
+    ? elements(pop.html)
+        .filter((e) => e.name === "p")
+        .map(text)
+    : [];
+}
+
+/**
+ * The text of the paragraphs inside a row's see-more popover.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
+const popoverText = (key) => popoverParagraphs(key).join(" ");
+
+/**
+ * For each plate size, whether the row drawn for `key` shows a see-more trigger.
+ *
+ * @param {string} key
+ * @returns {boolean[]}
+ */
+const triggerBySize = (key) =>
+  SIZES.map((size) => {
+    viewport.value = size;
+    return inRow(key).some(isTrigger);
+  });
+
+/**
+ * The text of the last paragraph a row shows in sight.
+ *
+ * @param {string} key
+ * @returns {string | undefined}
+ */
+const lastParagraphInSight = (key) => inSight(inRow(key)).map(text).at(-1);
+
+/** The row whose entry is handed a `more` of two paragraphs. */
+const TWO_PARAGRAPH_ROW = "net_ipv6";
+const FIRST_PARAGRAPH = "First paragraph the fixture entry holds back.";
+const SECOND_PARAGRAPH = "Second paragraph the fixture entry holds back.";
+
+/** Hand the IPv6 entry a `more` of two paragraphs, a blank line between them. */
+function holdBackTwoParagraphs() {
+  const output = { ...OUTPUT_META, ipv6: { ...OUTPUT_META.ipv6, more: `${FIRST_PARAGRAPH}\n\n${SECOND_PARAGRAPH}` } };
+  metadata.value = { settings: { ...META.settings, output } };
+}
+
+test("test_the_rows_with_a_see_more_trigger_are_the_rows_whose_metadata_entry_carries_more", () => {
+  const withTrigger = rows()
+    .filter((row) => elements(row.html).some(isTrigger))
+    .map((row) => attr(row, "data-k"))
+    .sort();
+  assert.deepEqual(withTrigger, [...MARKED_ROWS].sort());
+});
+
+for (const [key, { tooltip }] of Object.entries(MARKED)) {
+  test(`test_the_${key}_row_shows_its_tooltip_and_then_the_see_more_trigger`, () => {
+    assert.deepEqual(aroundTrigger(key), { before: words(tooltip), after: "" });
+  });
+}
+
+for (const [key, { more }] of Object.entries(MARKED)) {
+  test(`test_the_${key}_rows_see_more_popover_holds_its_more_prose`, () => {
+    assert.equal(popoverText(key), more);
+  });
+}
+
+for (const key of DAC_BITS_ROWS) {
+  test(`test_the_${key}_row_whose_entry_carries_no_more_shows_its_tooltip_whole`, () => {
+    assert.equal(shownDescription(key), words(DAC_BITS_PARAGRAPH));
+  });
+}
+
+for (const key of MARKED_ROWS) {
+  test(`test_the_${key}_row_holds_its_more_prose_behind_see_more_at_10_2_and_11_inches_and_not_at_13`, () => {
+    assert.deepEqual(triggerBySize(key), [true, true, false]);
+  });
+}
+
+for (const [key, { tooltip, more }] of Object.entries(MARKED)) {
+  test(`test_at_13_inches_the_${key}_row_shows_its_tooltip_then_its_more_prose_in_sight`, () => {
+    viewport.value = LARGE;
+    assert.deepEqual(shownDescription(key).split(" "), words(`${tooltip} ${more}`).split(" "));
+  });
+}
+
+test("test_the_first_paragraph_of_a_two_paragraph_more_prose_opens_as_the_see_more_popovers_first_paragraph", () => {
+  holdBackTwoParagraphs();
+  assert.deepEqual(popoverParagraphs(TWO_PARAGRAPH_ROW)[0], FIRST_PARAGRAPH);
+});
+
+test("test_the_second_paragraph_of_a_two_paragraph_more_prose_opens_as_the_see_more_popovers_second_paragraph", () => {
+  holdBackTwoParagraphs();
+  assert.deepEqual(popoverParagraphs(TWO_PARAGRAPH_ROW)[1], SECOND_PARAGRAPH);
+});
+
+test("test_at_13_inches_the_second_paragraph_of_a_more_prose_shows_as_a_paragraph_of_its_own", () => {
+  holdBackTwoParagraphs();
+  viewport.value = LARGE;
+  assert.equal(lastParagraphInSight(TWO_PARAGRAPH_ROW), SECOND_PARAGRAPH);
+});

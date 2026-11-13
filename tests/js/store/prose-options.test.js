@@ -12,8 +12,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { optionDescription } from "../../../hqptuner/static/store/prose.js";
+import { optionDescription, optionProse } from "../../../hqptuner/static/store/prose.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
+import { viewport } from "../../../hqptuner/static/store/faceplate/plate.js";
 import { reset, META } from "../support/field-harness.js";
 
 const INTEGRATOR_META = META.settings.dsp.sdm_integrator;
@@ -102,4 +103,45 @@ test("test_a_dither_label_the_overlay_does_not_know_describes_nothing", async ()
 test("test_a_modulator_label_the_overlay_does_not_know_describes_nothing", async () => {
   await reset();
   assert.equal(optionDescription(schema.sdm_modulator, { value: "9", label: "made-up" }, SHAPER_META), "");
+});
+
+// --- optionProse: the two-stage note held behind "see more" ------------------
+
+const LEAD = "Fixture lead";
+const NOTE = `${LEAD}: the rest of the fixture note.`;
+const LEAD_META = { ...META, filters: { ...META.filters, two_stage_note: NOTE } };
+
+/** @param {string} label */
+const prose = (label) => optionProse(schema.pcm_filter_1x, { value: "0", label }, FILTER_META);
+
+for (const plain of [false, true]) {
+  test(`test_a_two_stage_filter_holds_the_two_stage_note_back_${plain ? "simplified" : "standard"}`, async () => {
+    await reset({ meta: LEAD_META, plain });
+    assert.deepEqual(prose("sinc-M-2s").more, [NOTE]);
+  });
+}
+
+const FIRST_PARAGRAPH = `${LEAD}: the first paragraph of the fixture note.`;
+const SECOND_PARAGRAPH = "The second paragraph of the fixture note.";
+const TWO_PARAGRAPH_META = {
+  ...META,
+  filters: { ...META.filters, two_stage_note: `${FIRST_PARAGRAPH}\n\n${SECOND_PARAGRAPH}` },
+};
+
+// The note is held back only below 13″, so the plate is set to the smallest size.
+test("test_a_two_stage_note_of_two_paragraphs_holds_back_its_first_paragraph_on_its_own", async () => {
+  await reset({ meta: TWO_PARAGRAPH_META });
+  viewport.value = { w: 1080, h: 810 };
+  assert.equal(prose("sinc-M-2s").more[0], FIRST_PARAGRAPH);
+});
+
+test("test_a_two_stage_note_of_two_paragraphs_holds_back_its_second_paragraph_on_its_own", async () => {
+  await reset({ meta: TWO_PARAGRAPH_META });
+  viewport.value = { w: 1080, h: 810 };
+  assert.equal(prose("sinc-M-2s").more[1], SECOND_PARAGRAPH);
+});
+
+test("test_a_two_stage_filter_reads_inline_as_its_single_stage_twin_then_the_notes_lead", async () => {
+  await reset({ meta: LEAD_META });
+  assert.equal(prose("sinc-M-2s").text, `${prose("sinc-M").text} ${LEAD}`);
 });

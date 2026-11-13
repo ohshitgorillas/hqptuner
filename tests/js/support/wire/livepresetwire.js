@@ -1,5 +1,5 @@
 // Shared fixtures for the live-snapshot suites: the wire fake, the records it
-// serves, and the enumeration/metadata trees the LIVE page reads.
+// serves, and the enumeration/metadata trees the live store reads.
 //
 // A live snapshot is HQPTuner's, not the daemon's: it stores a batch of live
 // settings keyed by form-field name, and it carries the OUTPUT MODE among them
@@ -10,10 +10,16 @@
 // device cannot reach is grayed (livepreset-narrow.test.js).
 //
 // The fake answers the real REST paths with the real shapes —
-// GET /api/livepresets -> {presets}, PUT /api/livepresets/{name} -> the record,
-// POST /api/livepresets/{name}/apply -> {report: {live, stored}}, DELETE -> {deleted} —
-// and it HOLDS the list the way the backend does, so "a save re-reads the list"
-// is observable as the list having moved. No store function is ever stubbed.
+// GET /api/livepresets -> {station, presets, stations}, PUT /api/livepresets/{name}
+// -> the record, POST /api/livepresets/{name}/apply -> {report: {live, stored}},
+// DELETE -> {deleted} — and it HOLDS each station's list the way the backend's
+// `LivePresetStore` does, so "a save re-reads the list" is observable as the
+// list having moved. `presets` is the loaded station's list; `others` holds every
+// other station's, and the book (`stations`) is both. A PUT writes the record to
+// every station its body names (the loaded station when it names none) and
+// touches no other; a DELETE removes the name only from the station its
+// `?station=` query names (the loaded station when it names none). No store
+// function is ever stubbed.
 
 import { ok, bad } from "./wire.js";
 
@@ -25,10 +31,13 @@ import { ok, bad } from "./wire.js";
 /**
  * The fake's own state: the defaults `presetWire` starts from, plus whatever a
  * suite overrode. `report` is the report /apply answers with and `mirrored` the
- * engine state /api/state serves, both suite-supplied shapes.
+ * engine state /api/state serves, both suite-supplied shapes. `station` is the
+ * loaded station `presets` belongs to; `others` every other station's list.
  *
  * @typedef {{
  *   presets: PresetRecord[],
+ *   station: string,
+ *   others: Record<string, PresetRecord[]>,
  *   chain: string,
  *   listStatus: number,
  *   saveStatus: number,
@@ -43,15 +52,18 @@ import { ok, bad } from "./wire.js";
 
 /**
  * What the fake was handed and what it now holds: the calls in arrival order,
- * and the preset list the way the backend's store would have moved it.
+ * the loaded station and its preset list the way the backend's store would have
+ * moved it, and every other station's list.
  *
  * `inflight` holds the requests the fake has been handed and not yet answered,
  * the same member `stagingWire` keeps, so a suite can wait for this wire to go
- * quiet (`quiesce`) rather than for a stopwatch (docs/testing.md rule 7).
+ * quiet (`quiesce`).
  *
  * @typedef {{
  *   calls: { path: string, method: string, body?: string }[],
+ *   station: string,
  *   presets: PresetRecord[],
+ *   others: Record<string, PresetRecord[]>,
  *   inflight: Set<Promise<FakeResponse>>,
  * }} PresetWire
  */
@@ -104,7 +116,7 @@ export const STATE = (chain, rate = "1") => ({
   active_chain: chain,
 });
 
-export const ENUMS = {
+const ENUMS = {
   filters: [
     { index: "0", value: "0", name: "none" },
     { index: "1", value: "40", name: "poly-sinc-gauss-long" },
@@ -118,49 +130,58 @@ export const ENUMS = {
   mode: { name: "PCM" },
 };
 
-// settings.json's per-control label and tooltip, plus the name-keyed overlays:
-// same SHAPE as the shipped prose, cut to a sentence each.
-export const METADATA = {
-  settings: {
-    output: {
-      output_mode: { label: "Output mode", tooltip: "Selects default output mode." },
-      rate: { label: "Output rate", tooltip: "Output sample rate request, or upper limit." },
-      junk_filter: { label: "High-frequency filter", tooltip: "Playback filters for noise.", options: { 0: "None." } },
-    },
-    dsp: {
-      filter_1x: { label: "1x filter", tooltip: "Oversampling filter for base-rate sources." },
-      filter_nx: { label: "Nx filter", tooltip: "Oversampling filter above the base rates." },
-      shaper: { label: "Dither", tooltip: "Noise shaping applied at the output word length." },
-    },
-    volume: { adaptive_volume: { label: "Adaptive volume", tooltip: "Applies the source's ReplayGain 2.0 offset." } },
-  },
-  filters: { filters: {}, aliases: {} },
-  shapers: { pcm_dithers: {}, sdm_modulators: {} },
-};
+// PUT and DELETE move the lists the fake HOLDS, the way the backend's store does:
+// a PUT writes only the stations its body names, a DELETE removes only the
+// station its query names, and every other station's list stays as it was. A
+// following GET answers differently, the only way "a save re-reads the list" can
+// be told apart from a save that quietly kept the old one.
+/**
+ * @param {PresetWire} w
+ * @param {string} station
+ * @returns {PresetRecord[]}
+ */
+const heldAt = (w, station) => (station === w.station ? w.presets : (w.others[station] ?? []));
 
-// PUT and DELETE move the list the fake HOLDS, the way the backend's store
-// does, so a following GET answers differently — the only way "a save re-reads
-// the list" can be told apart from a save that quietly kept the old one.
+/**
+ * @param {PresetWire} w
+ * @param {string} station
+ * @param {PresetRecord[]} list
+ * @returns {void}
+ */
+function hold(w, station, list) {
+  if (station === w.station) w.presets = list;
+  else w.others = { ...w.others, [station]: list };
+}
+
 /**
  * @param {PresetWire} w
  * @param {PresetWireState} c
  * @param {string} name
+ * @param {string | undefined} body  the PUT's JSON body, whose `stations` names where the record lands
  * @returns {FakeResponse}
  */
-function storeSave(w, c, name) {
+function storeSave(w, c, name, body) {
   if (c.saveStatus !== 200) return bad(c.saveStatus, c.saveDetail);
   const saved = rec(name, c.chain);
-  w.presets = [...w.presets.filter((p) => p.name !== name), saved];
+  /** @type {string[]} */
+  const stations = (body ? JSON.parse(body).stations : undefined) ?? [w.station];
+  for (const station of stations) hold(w, station, [...heldAt(w, station).filter((p) => p.name !== name), saved]);
   return ok(saved);
 }
 
 /**
  * @param {PresetWire} w
  * @param {string} name
+ * @param {string | undefined} query  the DELETE's query string, whose `station` names where the record goes
  * @returns {FakeResponse}
  */
-function storeDelete(w, name) {
-  w.presets = w.presets.filter((p) => p.name !== name);
+function storeDelete(w, name, query) {
+  const station = new URLSearchParams(query).get("station") ?? w.station;
+  hold(
+    w,
+    station,
+    heldAt(w, station).filter((p) => p.name !== name),
+  );
   return ok({ deleted: name });
 }
 
@@ -169,13 +190,13 @@ function storeDelete(w, name) {
  *
  * @param {PresetWire} w
  * @param {PresetWireState} c
- * @param {{ name: string, isApply: boolean, method: string }} req
+ * @param {{ name: string, isApply: boolean, method: string, query?: string, body?: string }} req
  * @returns {FakeResponse}
  */
-function onePreset(w, c, { name, isApply, method }) {
+function onePreset(w, c, { name, isApply, method, query, body }) {
   if (isApply) return c.applyStatus === 200 ? ok({ report: c.report }) : bad(c.applyStatus, c.applyDetail);
-  if (method === "PUT") return storeSave(w, c, name);
-  if (method === "DELETE") return storeDelete(w, name);
+  if (method === "PUT") return storeSave(w, c, name, body);
+  if (method === "DELETE") return storeDelete(w, name, query);
   return ok({});
 }
 
@@ -189,10 +210,10 @@ function onePreset(w, c, { name, isApply, method }) {
  */
 function ambient(path, c) {
   // the whole frame the daemon lane serves, not just its payload: a lane reading
-  // `stale` must see the real field rather than undefined (docs/testing.md rule 4)
+  // `stale` must see the real field rather than undefined
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: c.mirrored || STATE(c.chain) });
   if (path === "/api/enumerations") return ok({ data: ENUMS });
-  if (path === "/api/config") return ok({ data: { fields: [], file: {}, active: "", profiles: null } });
+  if (path === "/api/config") return ok({ generation: 0, fields: {} });
   if (path === "/api/matrix") return ok({ data: { fields: [] } });
   if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
   return ok({});
@@ -200,26 +221,54 @@ function ambient(path, c) {
 
 const ONE = /^\/api\/livepresets\/([^/]+)(\/apply)?$/;
 
+// The book as GET /api/livepresets serves it: station -> name -> record.
+/**
+ * @param {PresetWire} w
+ * @returns {Record<string, Record<string, { chain: string, fields: Record<string, string>, names: Record<string, string> }>>}
+ */
+function bookOf(w) {
+  /** @type {Record<string, PresetRecord[]>} */
+  const lists = { ...w.others, [w.station]: w.presets };
+  return Object.fromEntries(
+    Object.entries(lists).map(([station, list]) => [
+      station,
+      Object.fromEntries(list.map(({ name, ...record }) => [name, record])),
+    ]),
+  );
+}
+
 /**
  * @param {Partial<PresetWireState>} [cfg]
  * @returns {PresetWire}
  */
 export function presetWire(cfg = {}) {
   /** @type {PresetWireState} */
-  const c = { presets: [], chain: "pcm", listStatus: 200, saveStatus: 200, applyStatus: 200, ...cfg };
+  const c = {
+    presets: [],
+    station: "",
+    others: {},
+    chain: "pcm",
+    listStatus: 200,
+    saveStatus: 200,
+    applyStatus: 200,
+    ...cfg,
+  };
   c.report = cfg.report || { live: [], stored: {} };
   /** @type {PresetWire} */
-  const w = { calls: [], presets: [...c.presets], inflight: new Set() };
+  const w = { calls: [], station: c.station, presets: [...c.presets], others: { ...c.others }, inflight: new Set() };
   const answer = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const method = opts.method || "GET";
     w.calls.push({ path, method, body: opts.body });
-    if (path === "/api/livepresets") {
-      return c.listStatus === 200 ? ok({ presets: w.presets }) : bad(c.listStatus, c.listDetail);
+    const [bare, query] = path.split("?");
+    if (bare === "/api/livepresets") {
+      return c.listStatus === 200
+        ? ok({ station: w.station, presets: w.presets, stations: bookOf(w) })
+        : bad(c.listStatus, c.listDetail);
     }
-    const one = ONE.exec(path);
+    const one = ONE.exec(bare);
     return one
-      ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method })
-      : ambient(path, c);
+      ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method, query, body: opts.body })
+      : ambient(bare, c);
   };
   env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const req = answer(path, opts);
@@ -234,8 +283,8 @@ export function presetWire(cfg = {}) {
 }
 
 // The fake resolves without timers, so the whole read -> json -> signal chain
-// settles in a handful of microtask ticks. No wall clock is waited on
-// (docs/testing.md rule 7): a lane that never fired fails here immediately
+// settles in a handful of microtask ticks.
+// A lane that never fired fails here immediately
 // rather than hanging.
 /**
  * @param {number} [ticks]

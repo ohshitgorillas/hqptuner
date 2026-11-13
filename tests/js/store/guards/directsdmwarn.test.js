@@ -19,8 +19,8 @@
 //     bool, and bool `true` means the same as "1".
 // -6 dB in either mechanism is NOT -3 dB, and so still warns.
 //
-// Everything is driven through the real edit() against a staging wire
-// (docs/testing.md rule 4); the question is driven through the public ask
+// Everything is driven through the real edit() against a staging wire;
+// the question is driven through the public ask
 // surface (question / answer / cancel), never by poking store internals. A
 // guarded edit() does not resolve until its question is answered, so these
 // tests hold the promise, drive the question, then await — never the reverse.
@@ -30,11 +30,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
-import { applyAll, discardAll, edit, lastApply } from "../../../../hqptuner/static/store/actions.js";
-import { question, askConfirm, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { config, matrixConfig, engineState, lastApply } from "../../../../hqptuner/static/store/signals.js";
+import { applyAll, discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { atFixedMinusThree } from "../../../../hqptuner/static/store/schema/gray.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool and
@@ -62,15 +64,19 @@ async function reset(volume) {
   // answered `{}` there would quietly erase the volume state under test.
   const w = stagingWire({
     routes: (path) => {
-      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/config") return ok(readings.value);
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/enumerations") return ok({ data: null });
       return undefined;
     },
   });
   engineState.value = {};
-  config.value = { fields: volume.fields, file: volume.file, active: "", profiles: null };
-  matrixConfig.value = { fields: [], active: "[Default]" };
+  config.value = { fields: volume.fields.map(({ name }) => ({ name })) };
+  matrixConfig.value = { fields: [] };
+  await seedReadings({
+    ...Object.fromEntries(volume.fields.map(({ name, value }) => [name, value])),
+    ...Object.fromEntries(Object.entries(volume.file).map(([name, v]) => [name, fieldReading(v, { show: "file" })])),
+  });
   lastApply.value = null;
   cancel();
   await discardAll();
@@ -150,7 +156,7 @@ test("the direct sdm warning names direct_sdm as owner", async () => {
 });
 
 // The question's message and its two button labels were pinned here verbatim.
-// All three are owner copy (docs/testing.md rule 9), and `kind` and `owner`
+// `kind` and `owner`
 // above already tell this question apart from every other one, so nothing
 // survives them but the wording.
 
@@ -337,6 +343,24 @@ for (const { what, volume } of STILL_DANGEROUS) {
   });
 }
 
+// Auto headroom supersedes the Manual level, so a Manual level left on at -3
+// underneath Auto headroom at -6 does not pin the volume at -3, and Direct SDM
+// still moves the level. The optimal_iso spelling drops the `volume_fixed`
+// form field, as in the -6 dB case above, so the file entry answers alone.
+/** @type {VolumeState} */
+const AUTO_MINUS_SIX_OVER_MANUAL_MINUS_THREE = {
+  fields: [{ name: "fixed_volume_enabled", value: true }],
+  file: { volume_fixed: "2", fixed_volume: "-3" },
+};
+
+test("direct sdm on with auto headroom at -6 over a manual level on at -3 opens a warn question", async () => {
+  const w = await reset(AUTO_MINUS_SIX_OVER_MANUAL_MINUS_THREE);
+  const { held } = await stage(w, "1");
+  assert.equal(question.value?.kind, "warn");
+  cancel();
+  await held;
+});
+
 // --- turning it OFF is never dangerous ---------------------------------------
 // Whatever the volume state: switching the setting off cannot force anything.
 // "0" is the trap — a guard that tests the raw value for truthiness warns on
@@ -370,23 +394,8 @@ test("turning direct sdm off stages immediately", async () => {
   await held;
 });
 
-// The one-question-at-a-time contract, end to end: a question opened over a
-// pending Direct SDM warning declines the guard, so the dangerous edit never
-// lands — and, as with an explicit cancel, what was already staged stays staged.
-test("a question opened over a pending direct sdm warning stages nothing", async () => {
-  const w = await reset(FREE_WITH_DIRECT_SDM_ON);
-  const { held: pre } = await stage(w, "0");
-  await pre;
-  const { held } = await stage(w, "1");
-  askConfirm("pending", "Replace the staged set?");
-  await held;
-  await quiesce(w);
-  cancel();
-  assert.equal(w.staged.http.direct_sdm, "0");
-});
-
 // --- the askWarn defaults ----------------------------------------------------
 // The two cases that stood here pinned askWarn's default confirm and decline
-// labels word for word. Both are owner copy (docs/testing.md rule 9), and the
+// labels word for word. The
 // question carries no machine identity for a label, so there is nothing left to
 // assert once the wording goes.

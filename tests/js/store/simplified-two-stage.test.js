@@ -1,5 +1,5 @@
-// Behavioral suite for the Simplified option style dropping every mention of
-// the two-stage variant.
+// Behavioral suite for the Simplified option style dropping the two-stage
+// clause from a filter's name while its description keeps both two-stage notes.
 //
 // The "Option style" pref (`plainNames` in store/ui/prefs.js) has two settings:
 // Standard shows the raw engine name, Simplified shows the plain-names
@@ -10,15 +10,13 @@
 // filter's own name (`two_stage_note`) and the SDM-chain note keyed by the
 // entry's `sdm_two_stage` flag (`sdm_two_stage_note`).
 //
-// Under Simplified none of those four appear: the trailing two-stage clause is
-// stripped off the leaf and off the short, and neither shared note joins the
-// description. Under Standard nothing changes at all, which the four regression
-// guards below hold.
+// Under Simplified the trailing two-stage clause is stripped off the leaf and
+// off the short; the notes describe what the filter does, so both join the
+// description in either style.
 //
 // Every string asserted here is invented by this file's own fixture and seeded
 // into the /api/metadata signal through the field harness's reset(), the way
-// the neighboring prose suites drive their overlays. No shipped wording from
-// hqptuner/data/*.json is read or asserted (docs/testing.md rule 9); what is
+// the neighboring prose suites drive their overlays. What is
 // pinned is whether a fixture-defined sentence or clause survives the
 // composition.
 //
@@ -26,16 +24,12 @@
 // every case sets it explicitly — otherwise the cases pass alone and fail in
 // sequence.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/simplified-two-stage.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { decorateOptions, plainClosedLabel } from "../../../hqptuner/static/store/plainnames.js";
-import { optionDescription, selectionDescription } from "../../../hqptuner/static/store/prose.js";
-import { schema } from "../../../hqptuner/static/store/schema.js";
+import { decorateOptions } from "../../../hqptuner/static/store/plainnames.js";
 import { plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { reset, META } from "../support/field-harness.js";
 
@@ -83,18 +77,11 @@ const FIXTURE_META = {
   },
 };
 
-// settings.json prose for the control being described; the two-stage sentences
-// come from the filters overlay, never from here.
-const FILTER_META = META.settings.dsp.filter_1x;
-
 const OPTIONS = [
   { value: "0", label: "fix-a" },
   { value: "1", label: "fix-a-2s" },
   { value: "2", label: "fix-c-2s" },
 ];
-
-/** @param {string} label */
-const one = (label) => [{ value: "0", label }];
 
 /**
  * Seed the overlays and the option-style pref.
@@ -133,77 +120,6 @@ test("test_a_simplified_two_stage_row_drops_the_trailing_two_stage_clause_from_t
   assert.equal(await rowText("fix-a-2s"), "Long");
 });
 
-test("test_a_simplified_two_stage_closed_control_drops_the_trailing_two_stage_clause_from_the_short", async () => {
-  await seed(true);
-  assert.equal(plainClosedLabel("filters", "fix-a-2s"), "Fix L");
-});
-
 test("test_a_simplified_row_whose_leaf_does_not_end_in_a_two_stage_clause_is_left_alone", async () => {
   assert.equal(await rowText("fix-c-2s"), "Long, two-stage, apodizing");
-});
-
-// --- N4/N5: the two shared notes leave the description ----------------------
-
-test("test_a_simplified_two_stage_filter_selection_omits_the_shared_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META).includes(TWO_STAGE_NOTE),
-    "the shared two-stage note is still in the Simplified description",
-  );
-});
-
-test("test_a_simplified_flagged_filter_on_the_sdm_chain_omits_the_sdm_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !selectionDescription(schema.sdm_filter_1x, "0", one("fix-b"), FILTER_META).includes(SDM_TWO_STAGE_NOTE),
-    "the SDM two-stage note is still in the Simplified description",
-  );
-});
-
-// The option-row twin of each: Simplified mentions the variant NOWHERE, so the
-// dropdown's own descriptions drop the same two sentences the closed
-// selection's does.
-
-test("test_a_simplified_two_stage_filter_option_omits_the_shared_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !optionDescription(schema.pcm_filter_1x, { value: "0", label: "fix-a-2s" }, FILTER_META).includes(TWO_STAGE_NOTE),
-    "the shared two-stage note is still in the Simplified option description",
-  );
-});
-
-test("test_a_simplified_flagged_filter_option_on_the_sdm_chain_omits_the_sdm_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !optionDescription(schema.sdm_filter_1x, { value: "0", label: "fix-b" }, FILTER_META).includes(SDM_TWO_STAGE_NOTE),
-    "the SDM two-stage note is still in the Simplified option description",
-  );
-});
-
-// --- N6: only the two-stage sentences go ------------------------------------
-
-test("test_a_simplified_two_stage_filter_selection_keeps_its_own_description_and_notes", async () => {
-  await seed(true);
-  assert.equal(
-    selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META),
-    `${OWN_DESCRIPTION} ${OWN_NOTES}`,
-  );
-});
-
-// --- N7/N8: Standard is untouched -------------------------------------------
-
-test("test_a_standard_two_stage_filter_selection_still_carries_the_shared_two_stage_note", async () => {
-  await seed(false);
-  assert.ok(
-    selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META).includes(TWO_STAGE_NOTE),
-    "the shared two-stage note is missing from the Standard description",
-  );
-});
-
-test("test_a_standard_flagged_filter_on_the_sdm_chain_still_carries_the_sdm_two_stage_note", async () => {
-  await seed(false);
-  assert.ok(
-    selectionDescription(schema.sdm_filter_1x, "0", one("fix-b"), FILTER_META).includes(SDM_TWO_STAGE_NOTE),
-    "the SDM two-stage note is missing from the Standard description",
-  );
 });

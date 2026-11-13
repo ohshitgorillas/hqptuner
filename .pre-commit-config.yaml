@@ -42,17 +42,6 @@ repos:
         entry: .venv/bin/python scripts/gates/check_changelog.py
         language: system
         files: ^CHANGELOG\.md$
-      - id: md-trivia
-        name: markdown states what holds now (LLM judge)
-        entry: .venv/bin/triviajudge-md
-        language: system
-        files: \.md$
-        exclude: ^(CHANGELOG\.md|docs/copy-before-after\.md)$
-      - id: changelog-trivia
-        name: changelog entries are new work, not repeats (LLM judge)
-        entry: .venv/bin/triviajudge-changelog
-        language: system
-        files: ^CHANGELOG\.md$
 
       - id: single-assertion
         name: one assertion per test
@@ -60,6 +49,22 @@ repos:
         language: system
         types: [python]
         files: ^tests/
+      - id: lifecycle-names
+        name: no retired lifecycle names
+        entry: .venv/bin/python scripts/gates/check_lifecycle_names.py
+        language: system
+        types: [python]
+        files: ^(hqptuner|tests)/
+      - id: store-flags
+        name: no store flags in the frontend
+        entry: .venv/bin/python scripts/gates/check_store_flags.py
+        language: system
+        files: ^hqptuner/static/.*\.js$
+      - id: field-structure
+        name: field structure gate
+        entry: .venv/bin/python scripts/gates/check_field_structure.py
+        language: system
+        files: ^hqptuner/.*\.py$
       - id: no-copy-assertions
         name: no copy in assertions
         entry: .venv/bin/python scripts/gates/testing/check_no_copy_assertions.py
@@ -74,9 +79,21 @@ repos:
         files: ^tests/
       - id: pytest-offline
         name: pytest (offline suite)
-        # `env` because pre-commit splits the entry and execs it directly rather
-        # than through a shell, so a bare assignment would be read as a program.
-        entry: env PYTHONPATH=scripts:scripts/pytest_plugins .venv/bin/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+        # The Makefile target holds the command and its marker expression; the
+        # gates `make test` runs after it are the hooks below. `.` on PYTHONPATH
+        # puts the tree being committed ahead of the editable install. `env`
+        # because pre-commit splits the entry and execs it directly rather than
+        # through a shell, so a bare assignment would be read as a program.
+        entry: env PYTHONPATH=. make pytest-offline
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Refuses a report older than the run the hook above stamped, or missing:
+      # an aborted or crashed run leaves the last run's reports for the gates below.
+      - id: fresh-reports
+        name: reports written by the latest run
+        entry: .venv/bin/python scripts/gates/testing/check_fresh_reports.py
         language: system
         pass_filenames: false
         always_run: true
@@ -94,7 +111,7 @@ repos:
       # Reads the junit report the pytest hook writes; a red suite is not
       # judged, so this reports the red rather than a time.
       - id: suite-time
-        name: suite wall time against the last green run
+        name: suite wall time against its bar
         entry: .venv/bin/python scripts/gates/testing/check_suite_time.py
         language: system
         pass_filenames: false
@@ -104,7 +121,7 @@ repos:
       # judged and not recorded, so this reports the red rather than a number.
       - id: idle-time
         name: per-test idle against the threshold
-        entry: .venv/bin/python scripts/gates/check_idle.py
+        entry: .venv/bin/python scripts/gates/testing/check_idle.py
         language: system
         pass_filenames: false
         always_run: true
@@ -113,7 +130,7 @@ repos:
       # judged, so this reports the red rather than a wait.
       - id: clock-waits
         name: no real-clock timeout runs out
-        entry: .venv/bin/python scripts/gates/check_clock_waits.py
+        entry: .venv/bin/python scripts/gates/testing/check_clock_waits.py
         language: system
         pass_filenames: false
         always_run: true
@@ -174,8 +191,8 @@ repos:
         exclude: ^hqptuner/static/vendor/
 
       # Cross-cutting: a custom property is declared in CSS and may be read from
-      # either side — theme.js writes --accent through setProperty and
-      # controls/index.js reads var(--accent) out of a string — so the gate has
+      # either side — theme.js writes --accent through setProperty and a
+      # component may read var(--accent) out of a string — so the gate has
       # to run when EITHER side moves.
       - id: css-dead
         name: css dead-property/keyframe gate
@@ -185,25 +202,27 @@ repos:
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
         exclude: ^hqptuner/static/vendor/
 
-      # Cross-cutting: the widget kinds live in schema.js and their staged-edit
-      # marking lives in the stylesheets, so the gate has to run when either moves.
+      # Cross-cutting like css-classes: a producer is JS, its mark is CSS.
       - id: css-dirty
-        name: staged-edit marking gate
+        name: css staged-edit mark gate
         entry: .venv/bin/python scripts/gates/css/check_css_dirty.py
         language: system
         pass_filenames: false
-        files: ^hqptuner/static/(css/.*\.css|store/schema\.js)$
+        files: ^hqptuner/static/(css/.*\.css|.*\.js)$
+        exclude: ^hqptuner/static/vendor/
 
       # Cross-cutting: a clone has two ends and either one can move, and the
-      # threshold is a whole-tree percentage, so the gate reads the entire
-      # source set from .jscpd.json rather than the staged filenames.
+      # threshold is a percentage of each format's whole tree, so the gate
+      # reads the entire source set from .jscpd.json rather than the staged
+      # filenames. The Makefile target holds the command: one run per format
+      # in .jscpd.json, each judged against the threshold alone.
+      # It always runs because .jscpd.json names its paths and formats.
       - id: jscpd
         name: copy-paste duplication gate
-        entry: npx jscpd
+        entry: make -s jscpd
         language: system
         pass_filenames: false
-        files: ^(hqptuner|scripts|tests)/.*\.(py|js|css)$
-        exclude: ^hqptuner/static/vendor/
+        always_run: true
 
       # Cross-cutting: one control is spelled out in schema.js, presetconf.py and
       # settings.json, so the gate has to run when ANY of the three moves.
@@ -212,7 +231,14 @@ repos:
         entry: .venv/bin/python scripts/gates/check_control_catalog.py
         language: system
         pass_filenames: false
-        files: ^(hqptuner/static/store/schema\.js|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
+        files: ^(hqptuner/static/store/schema\.js|hqptuner/static/store/schema/.*|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
+
+      - id: static-clocks
+        name: no bare clock under hqptuner/static/
+        entry: .venv/bin/python scripts/gates/check_static_clocks.py
+        language: system
+        files: ^hqptuner/static/.*\.js$
+        exclude: ^hqptuner/static/vendor/
 
       # The shipped metadata is read by the application alone: the offline suite
       # runs on fixtures, so a data file that stops loading or stops covering the
@@ -238,28 +264,30 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Cross-cutting: a citation names a doc heading, so the gate has to run
-      # when either the citing source or the cited doc moves.
+      # A backticked path in a design doc names a file in the tree, and code
+      # under hqptuner/, tests/ and scripts/ never names a design doc.
       - id: doc-refs
         name: doc citation gate
         entry: .venv/bin/python scripts/gates/check_doc_refs.py
         language: system
-        types_or: [python, javascript, markdown]
+        types_or: [python, javascript, shell, json, css, html, text, markdown]
+        files: \.(py|js|sh|json|css|html|txt|webmanifest|md)$
         exclude: ^hqptuner/static/vendor/
 
-      - id: archaeology
-        name: decision-archaeology gate
-        entry: .venv/bin/triviajudge-archaeology
+      # Design-doc lines stay under the limit, and docs/README.md indexes
+      # every doc under docs/ with a subject.
+      - id: docs
+        name: docs line-length gate
+        entry: .venv/bin/python scripts/gates/check_docs.py .
         language: system
-        types_or: [python, javascript, css]
-        exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
+        pass_filenames: false
+        files: ^docs/
 
-      - id: comment-trivia
-        name: comments state what holds now (LLM judge)
-        entry: .venv/bin/triviajudge-comments
+      - id: spelling
+        name: American spelling gate
+        entry: .venv/bin/python scripts/gates/check_spelling.py
         language: system
-        types_or: [python, javascript, css]
-        exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
+        types: [text]
 
       # Runs at the commit-msg stage, so it gets the message file, not the staged
       # paths; `default_install_hook_types` above is what makes `pre-commit
@@ -279,6 +307,15 @@ repos:
         pass_filenames: false
         always_run: true
 
+      # Cross-cutting: a shared value and its copy live in different config
+      # files, so the gate reads them together and runs when any of them moves.
+      - id: config-copies
+        name: config copies held equal
+        entry: .venv/bin/python scripts/gates/check_config_copies.py
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|Makefile|\.pre-commit-config\.yaml|eslint\.config\.js)$
+
       # Reads the config module and the e2e harness together, so it triggers on
       # either: a new path knob and a harness that forgot it are the same defect
       # seen from two files.
@@ -297,7 +334,7 @@ repos:
         entry: .venv/bin/python scripts/gates/check_openapi.py
         language: system
         pass_filenames: false
-        files: ^(hqptuner/api/|docs/openapi\.json$)
+        files: ^(hqptuner/api/|docs/spec/openapi\.json$)
 
       # Reads the config module and the Dockerfile together: a new Path field and
       # an ENV block that forgot it are the same defect seen from two files.

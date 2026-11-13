@@ -7,13 +7,12 @@
 // holds a pointer on the element or has just pressed a slider key on it;
 // anything else is refused and the control snaps back to the canonical value.
 //
-// Provenance is tracked by document-capture listeners dom.js installs at module
-// load, so a document must exist BEFORE that import. tests/js/support/useredit-dom.js
-// owns that ordering: it installs a fake document recording what dom.js
-// registers, then imports dom.js, and replays events the way the browser's
-// capture phase would — plain objects carrying exactly the surface those
-// listeners read. Elements are fresh per test, and provenance is per element, so
-// no test can lend state to the next.
+// Provenance is tracked by capture listeners dom.js attaches to the document
+// handed to watchGestures. tests/js/support/useredit-dom.js hands it a fake
+// document recording what dom.js registers, installs no global, and replays
+// events the way the browser's capture phase would — plain objects carrying
+// exactly the surface those listeners read. Elements are fresh per test, and
+// provenance is per element, so no test can lend state to the next.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/useredit.test.js
 
@@ -49,16 +48,6 @@ test("test_input_while_a_pointer_is_held_on_the_slider_is_honored", () => {
   press(el);
   const event = fire(handler, el, "input");
   assert.deepEqual(calls, [event]);
-});
-
-// A track click: pointerdown jumps the thumb, the input event lands between the
-// down and the up.
-test("test_input_between_pointerdown_and_pointerup_is_honored", () => {
-  const { el, calls, handler } = setup();
-  press(el);
-  fire(handler, el, "input");
-  release(el);
-  assert.equal(calls.length, 1);
 });
 
 for (const key of SLIDER_KEYS) {

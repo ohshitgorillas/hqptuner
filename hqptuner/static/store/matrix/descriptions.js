@@ -1,8 +1,7 @@
 // Matrix-profile descriptions — the prose the user wrote about a saved profile,
 // stored for the install and shared by every browser pointed at it. Keyed by
-// profile NAME, the stable join key (architecture §3.1), because
-// `<matrix_profile>` carries only `name` (readme §1.12) and there is nowhere in
-// hqplayerd's config for this text to live.
+// profile NAME, because `<matrix_profile>` carries only `name` (readme §1.12)
+// and there is nowhere in hqplayerd's config for this text to live.
 //
 // Writes are QUEUED, not optimistic. A star is one click and lands or does not;
 // a description is typed, and a PUT per keystroke would be a write storm on the
@@ -19,26 +18,42 @@
 // could not save it.
 //
 // Nothing polls. A tab picks up another tab's edits on reload, like favorites.
-// Module load stays node-safe: the hydrate is guarded on `fetch` existing.
+// Importing this reads nothing: boot calls `hydrateDescriptions`.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { errText } from "../../lib/errtext.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
+import { PLATFORM, quietWindow } from "../../lib/clock.js";
 
 // How long the typist has to pause before the queue drains on its own.
 const QUIET_MS = 800;
 
 /** @typedef {{ text: string, updated: string }} Description */
+/** @typedef {import("../../lib/clock.js").Clock} Clock */
 
 /** Every stored description, keyed by profile name. */
 export const descriptions = signal(/** @type {Record<string, Description>} */ ({}));
-// The last failed write, as the server's own sentence. One error for the
-// feature, latest wins — there is one editor on screen at a time.
-export const descriptionError = signal("");
+// The last failed read or write's sentence, "" once one succeeds. One error for
+// the feature, latest wins — there is one editor on screen at a time.
+const descriptionOp = op("description");
+export const descriptionError = opErrorText(descriptionOp);
+
+/**
+ * Put a failed description call's sentence in `descriptionError`.
+ * @param {unknown} e
+ * @returns {void}
+ */
+export function descriptionFailed(e) {
+  void descriptionOp.run(() => {
+    throw e;
+  });
+}
 
 /** @type {Map<string, string>} name -> the newest text not yet sent */
 const queued = new Map();
-/** @type {ReturnType<typeof setTimeout> | null} the open drain timer, or null when idle */
-let timer = null;
+/** @type {Clock} the clock `quiet` is paced on */
+let quietClock = PLATFORM;
+/** The quiet window a keystroke restarts; it drains the queue when it closes. */
+let quiet = quietWindow(QUIET_MS, () => void flushDescriptions(), quietClock);
 
 /**
  * The stored description for a profile name, or null when it has none.
@@ -54,13 +69,12 @@ export function descriptionFor(name) {
  * whatever is already on screen alone, which is what the page can honestly show.
  * @returns {Promise<void>}
  */
-async function hydrateDescriptions() {
-  try {
+export async function hydrateDescriptions() {
+  await descriptionOp.run(async () => {
     const body = await api.descriptions();
     descriptions.value = body.profiles || {};
-  } catch (e) {
-    descriptionError.value = errText(e);
-  }
+    descriptionError.value = "";
+  });
 }
 
 /**
@@ -69,12 +83,17 @@ async function hydrateDescriptions() {
  * was queued — only the newest text is ever sent.
  * @param {string} name
  * @param {string} text
+ * @param {Clock} [clock] what the quiet window is paced on
  * @returns {void}
  */
-export function queueDescription(name, text) {
+export function queueDescription(name, text, clock = PLATFORM) {
   queued.set(name, text);
-  if (timer !== null) clearTimeout(timer);
-  timer = setTimeout(() => void flushDescriptions(), QUIET_MS);
+  if (clock !== quietClock) {
+    quiet.cancel();
+    quietClock = clock;
+    quiet = quietWindow(QUIET_MS, () => void flushDescriptions(), clock);
+  }
+  quiet.arm();
 }
 
 /**
@@ -85,26 +104,30 @@ export function queueDescription(name, text) {
  * @returns {Promise<void>}
  */
 export async function flushDescriptions() {
-  if (timer !== null) {
-    clearTimeout(timer);
-    timer = null;
-  }
+  quiet.cancel();
   const draining = [...queued];
   queued.clear();
   for (const [name, text] of draining) {
-    try {
+    const result = await descriptionOp.run(async () => {
       const body = await api.saveDescription(name, text);
       descriptions.value = body.profiles || {};
       descriptionError.value = "";
-    } catch (e) {
+    });
+    if (result === FAILED) {
       // Only re-queue when nothing newer arrived while the write was in flight —
       // the newer text is the one the user means.
       if (!queued.has(name)) queued.set(name, text);
-      descriptionError.value = errText(e);
     }
   }
 }
 
-// Read the map once, at load. Guarded on `fetch` because this module is imported
-// by the SSR harness, where there is no backend to ask.
-if (typeof fetch === "function") void hydrateDescriptions();
+/**
+ * Forget every queued description, a failed write included, unsent. For a store the server has just replaced: a
+ * queued text would otherwise be written over the replacement by the next flush.
+ * @returns {void}
+ */
+export function dropQueuedDescriptions() {
+  quiet.cancel();
+  queued.clear();
+  descriptionError.value = "";
+}

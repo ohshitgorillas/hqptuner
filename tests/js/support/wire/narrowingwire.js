@@ -1,7 +1,7 @@
 // The fetch fake behind the narrowing persistence suites: the server side of
 // the GET/PUT /api/narrowing pair, holding the facet map the way the backend's
-// store does (docs/testing.md rule 4 — real path, real shapes, nothing of ours
-// stubbed). Shared by tests/js/store/narrow/narrowing-persist.test.js and
+// store does.
+// Shared by tests/js/store/narrow/narrowing-persist.test.js and
 // tests/js/store/narrow/narrowing-rate.test.js.
 
 import { ok, bad } from "./wire.js";

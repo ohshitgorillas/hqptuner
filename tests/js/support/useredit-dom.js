@@ -1,40 +1,45 @@
 // The document seam the two `lib/dom.js` userEdit suites drive provenance
 // through, plus the gestures and the wrapped-handler fixture both suites share.
-// dom.js registers its capture listeners at module load, so the fake document
-// has to exist BEFORE that import — this module does both in that order, which
-// is the only way a suite can have the ordering right without repeating the
-// dance.
+// dom.js attaches its capture listeners to the document handed to
+// watchGestures, so this module hands it the document of a fresh fake page
+// (tests/js/support/page.js), whose `activeElement` moves on `focus()` and
+// `blur()` and whose events run the capture, target and bubble phases. No
+// global is installed.
+
+import { userEdit, watchGestures } from "../../../hqptuner/static/lib/dom.js";
+import { fakeClock } from "./clock.js";
+import { fakePage } from "./page.js";
 
 /**
  * A control as the provenance listeners and the wrapped handler read one: the
- * three members they touch, with the two a bare DIV does not carry optional.
+ * three members they touch, with the two a bare DIV does not carry optional,
+ * and the document it lives in, which userEdit reads its gestures from.
  *
- * @typedef {{ tagName: string, type?: string, value?: string }} ControlSeam
+ * @typedef {{ tagName: string, type?: string, value?: string, ownerDocument?: unknown }} ControlSeam
  */
-
-/** @type {Map<string, Function[]>} */
-const registered = new Map();
 
 /**
- * The global these suites install a document on, viewed as an optional member:
- * under `node --test` there is none, and the DOM lib declares it as always
- * present and fully shaped.
+ * A fresh page whose document's gestures dom.js watches.
  *
- * @type {{ document?: unknown }}
+ * @returns {any}
  */
-const env = globalThis;
+function watchedPage() {
+  const { doc: page } = fakePage({ clock: fakeClock().clock });
+  watchGestures(/** @type {Document} */ (page));
+  return page;
+}
 
-env.document = {
-  addEventListener(/** @type {string} */ type, /** @type {Function} */ fn) {
-    registered.set(type, [...(registered.get(type) || []), fn]);
-  },
-};
+// The document of the case in progress. Every setup() opens a new page, so no
+// focus, gesture or listener of an earlier case reaches a later one.
+let doc = watchedPage();
 
-const { userEdit } = await import("../../../hqptuner/static/lib/dom.js");
+//: Gestures a browser fires without bubbling; every other one this seam sends bubbles.
+const NON_BUBBLING = new Set(["focus", "blur"]);
 
-// One document-level event, delivered to every listener dom.js registered for
-// its type — the browser's capture phase, which sees the event whatever element
-// it targets.
+// One gesture as the page delivers it. A control of the page receives it as its
+// target, so the document's capture listeners see it on the way down; a bare
+// stand-in for some other element, which is not in the page, is announced at the
+// document itself, which every listener there sees whatever element it targets.
 /**
  * @param {string} type
  * @param {unknown} target
@@ -42,8 +47,10 @@ const { userEdit } = await import("../../../hqptuner/static/lib/dom.js");
  * @returns {void}
  */
 export function documentSees(type, target, extra = {}) {
-  const event = { type, target, ...extra };
-  for (const fn of registered.get(type) || []) fn(event);
+  const node = /** @type {any} */ (target);
+  const bubbles = !NON_BUBBLING.has(type);
+  if (typeof node?.dispatchEvent === "function") node.dispatchEvent({ type, bubbles, ...extra });
+  else doc.dispatchEvent({ type, target, bubbles, ...extra });
 }
 
 /** @typedef {import("../../../hqptuner/static/lib/dom.js").ControlEvent} ControlEvent */
@@ -57,16 +64,12 @@ export const press = (el) => documentSees("pointerdown", el, { button: 0, button
  */
 export const keydown = (el, key) => documentSees("keydown", el, { key });
 
-// A browser announces a focus change twice, and a document-level capture
-// listener sees both: `focus`/`blur` (which do not bubble but are capturable)
-// and `focusin`/`focusout` (which bubble). Both spellings are delivered, in the
-// order a browser fires them, so a case states "the element was focused" rather
-// than which of the two the implementation chose to listen for.
+// Focus moves the way a browser moves it: the page's `activeElement` becomes the
+// control, and the page fires `blur`/`focusout` on the element losing focus, then
+// `focus`/`focusin` on the control, so a case states "the element was focused"
+// rather than which signal the implementation chose to read.
 /** @param {ControlSeam} el */
-export const focus = (el) => {
-  documentSees("focus", el, { relatedTarget: null });
-  documentSees("focusin", el, { relatedTarget: null });
-};
+export const focus = (el) => /** @type {any} */ (el).focus();
 
 // A range element mid-edit: the browser has already moved its value to 63 by the
 // time the input event fires; 50 is the canonical value the app last knew.
@@ -74,11 +77,17 @@ export const focus = (el) => {
  * @returns {{ el: ControlSeam, calls: ControlEvent[], handler: (e: ControlEvent) => void }}
  */
 export function setup() {
+  doc = watchedPage();
   /** @type {ControlSeam} */
-  const el = { tagName: "INPUT", type: "range", value: "63" };
+  const el = doc.body.appendChild(doc.createElement("input"));
+  el.type = "range";
+  el.value = "63";
   /** @type {ControlEvent[]} */
   const calls = [];
-  const handler = userEdit(50, (ev) => calls.push(ev));
+  // The control's own handler runs its edit through userEdit, naming the control
+  // whose document's gestures decide it.
+  /** @param {ControlEvent} ev */
+  const handler = (ev) => userEdit(/** @type {Element} */ (/** @type {unknown} */ (el)), "50", () => calls.push(ev));
   return { el, calls, handler };
 }
 

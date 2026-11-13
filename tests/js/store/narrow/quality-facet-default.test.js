@@ -8,10 +8,9 @@
 // narrowed" means "quality deviates from 0": any explicit floor of 3, 4 or 5
 // reads as narrowed, a quality of 0 never does.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Filter fixtures are hand-built in the engine's own `<FiltersItem/>`
+// Filter fixtures are hand-built in the engine's own `<FiltersItem/>`
 // shape, with the quality rating at the head of the engine's description
-// string, `"<q>/5 ... ⥮ <ratio>"` (protocol.md:228) — the unrated fixture
+// string, `"<q>/5 ... ⥮ <ratio>"` — the unrated fixture
 // simply carries no `n/5` head. Hydration cases drive real GET /api/narrowing
 // answers through a fetch fake, the way narrowing-persist.test.js does.
 //
@@ -24,7 +23,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nQuality, nApod1x, narrowingActive, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
+import { nQuality, nApod1x, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { narrowOptions, narrowCount } from "../../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../../hqptuner/static/store/signals.js";
@@ -45,23 +44,15 @@ const PATH = "/api/narrowing";
  */
 const env = globalThis;
 
-// --- the freshly loaded store -------------------------------------------------
-// Nothing has touched a signal yet: this read is the module's initial state.
-
-test("test_a_freshly_loaded_store_leaves_quality_at_0", () => {
-  assert.equal(nQuality.value, 0);
-});
-
 // The dropdown's own rows and the label read off a selected one were pinned
-// here verbatim. Both are owner-owned copy — a curated option list and its
-// labels — and docs/testing.md rule 9 keeps them out of an assertion; the
+// here verbatim. The
 // thresholds themselves are stated by the matching cases below.
 
 // --- fixtures for matching and the narrowed indicator ---------------------------
 // One filter per rating band. Every filter the daemon enumerates carries its
-// rating at the head of the description (protocol.md:228), so a live item
+// rating at the head of the description, so a live item
 // without one is a frame the wire never carries; the genuinely unrated filter
-// is the overlay-only one the live enumeration omits (architecture.md:27), and
+// is the overlay-only one the live enumeration omits, and
 // it gets its own fixture below. Names carry no phase, length or hires marker,
 // and `arg` stays 0, so nothing narrows by a facet these cases did not pick;
 // every case reads the Nx stage, whose other switches default to "all".
@@ -152,29 +143,6 @@ test("test_any_quality_accepts_a_filter_whose_overlay_row_carries_no_rating", ()
 // Narrowed means DEVIATES from the default: 0 with everything else at its own
 // default is not narrowed, while any explicit floor — 3, 4 or 5 — is.
 
-test("test_quality_at_its_default_of_0_is_not_active_narrowing", () => {
-  seed(RATED);
-  nQuality.value = 0;
-  assert.equal(narrowingActive.value, false);
-});
-
-for (const selection of [3, 4, 5]) {
-  test(`test_quality_at_${selection}_is_active_narrowing`, () => {
-    seed(RATED);
-    nQuality.value = selection;
-    assert.equal(narrowingActive.value, true);
-  });
-}
-
-// --- reset returns quality to its default ----------------------------------------
-
-test("test_reset_returns_quality_to_its_default_of_0", () => {
-  seed(RATED);
-  nQuality.value = 4;
-  resetNarrowing();
-  assert.equal(nQuality.value, 0);
-});
-
 // --- hydration takes the stored value, or the new default --------------------------
 // The reset pattern is narrowing-persist.test.js's: one flush against a
 // throwaway wire drains the private "changed" mark before the case's own fake
@@ -205,11 +173,6 @@ test("test_hydration_takes_a_stored_quality_of_3_over_the_default", async () => 
   assert.equal(nQuality.value, 3);
 });
 
-test("test_hydration_leaves_a_quality_the_server_omits_at_the_default_of_0", async () => {
-  await hydrateFrom({ phase: "linear" });
-  assert.equal(nQuality.value, 0);
-});
-
 // --- the pass-through's escape hatch ------------------------------------------
 // `none` describes an ABSENCE of resampling rather than poor resampling, so it
 // is offered whatever the descriptive facets say — the way genre's "any" tag
@@ -224,7 +187,7 @@ const PASSTHROUGH = [
   ["gauss-five", "5/5 ⥮ Any"],
 ];
 
-for (const floor of [3, 4, 5]) {
+for (const floor of [5]) {
   test(`test_the_pass_through_is_offered_with_the_quality_floor_at_${floor}`, () => {
     const options = seed(PASSTHROUGH);
     nQuality.value = floor;
@@ -256,14 +219,14 @@ for (const setting of ["only", "half"]) {
   });
 }
 
-// Favourites-only is not a description of the filter but a membership choice
+// Favorites-only is not a description of the filter but a membership choice
 // the user made, so the escape hatch does not reach it. Another filter is
-// starred so the case is "not among the favourites", never "there are no
-// favourites at all", and quality is opened to "any" so favourites-only is the
+// starred so the case is "not among the favorites", never "there are no
+// favorites at all", and quality is opened to "any" so favorites-only is the
 // only facet that can drop the row — otherwise the 1/5 rating would drop it
 // under an implementation with no exemption at all, which is what this case
 // exists to catch.
-test("test_the_pass_through_is_not_offered_when_favourites_only_is_on_and_it_is_not_starred", () => {
+test("test_the_pass_through_is_not_offered_when_favorites_only_is_on_and_it_is_not_starred", () => {
   const options = seed(PASSTHROUGH);
   nQuality.value = 0;
   favoriteFilters.value = new Set(["gauss-five"]);

@@ -34,7 +34,8 @@ import { compileRows } from "../../vendor/eqlab/core/binaural/compile.js";
 import { SPEAKER_ANGLE, HEAD_RADIUS } from "../../vendor/eqlab/core/binaural/geometry.js";
 import { recognizeRows } from "../../vendor/eqlab/core/binaural/recognize.js";
 import { blockConflicts, pairInfo, REFUSAL } from "../../lib/binaural-setup.js";
-import { effective, effectivePipelines, pipelineBaseline } from "../resolve.js";
+import { getStored, setStored } from "../../lib/browser/storage.js";
+import { effective } from "../resolve.js";
 import { stagePipelines, edit } from "../actions.js";
 import { xfeedBlock, removeBlock as removeCompBlock } from "./block.js";
 import { truthy } from "../../lib/coerce.js";
@@ -51,10 +52,10 @@ const KEY = "hqptuner.structuralCrossfeed";
 const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
 
 function load() {
+  const stored = getStored(KEY);
+  if (!stored.ok || !stored.value) return { ...DEFAULTS };
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
-    const v = JSON.parse(raw);
+    const v = JSON.parse(stored.value);
     return {
       lambda: Number.isFinite(v.lambda) ? v.lambda : DEFAULTS.lambda,
       angle: Number.isFinite(v.angle) ? v.angle : DEFAULTS.angle,
@@ -69,11 +70,8 @@ function load() {
 const remembered = signal(load());
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(remembered.value));
-  } catch {
-    /* storage disabled — in-memory values still drive the session */
-  }
+  // A refused write is dropped: `remembered` is what the session reads.
+  setStored(KEY, JSON.stringify(remembered.value));
 }
 
 /**
@@ -124,12 +122,18 @@ function installedMode(rows) {
 }
 
 // What stands between the current config and an installed block. Reported, never
-// applied behind the user's back — the caller stages these so they appear in the
-// pending bar like any other edit.
+// applied behind the user's back — the caller stages these so they show as staged
+// like any other edit.
 /** Report the config settings that stand between the current config and an installed block. */
 export function conflicts() {
   return blockConflicts(effective);
 }
+
+/**
+ * The settings a pipeline-row stage writes: the rows (`stagePipelines`) and their count. `stageStructural` writes both,
+ * and so does the compensation's `commitComp` (store/faceplate/drawers/crossfeed/comp.js).
+ */
+export const PIPELINE_WRITES = ["matrix_pipelines", "pipelines"];
 
 // Install or update the block, or REFUSE. Returns null when the block is in, and
 // the refusal note when the rows it was pointed at are not a stereo pair it can
@@ -168,21 +172,6 @@ export function stageStructural(rows, params) {
   return null;
 }
 
-// The Structural gate's dirty state. The gate is ENGAGE/BYPASS, so the question
-// it asks is whether the BLOCK's presence is staged-different from the applied
-// one — not whether the rows changed. Retuning an installed block restages all
-// sixteen rows and leaves the gate clean on purpose: the crossfeed is engaged
-// either way, and the pending bar counts the row edit under matrix_pipelines.
-//
-// Presence rather than the "pipelines" row-count field:
-// that field is the Matrix tab's own count dropdown, so reading it (or a DSP-mode
-// restore) lights this gate with no crossfeed change staged, while install and
-// removal only register because 2 <-> 16 happens to move the count.
-/** Whether the block's staged presence differs from the applied one — the Structural gate's dirty state. */
-export function pipelinesDirty() {
-  return !!structuralBlock(effectivePipelines.value) !== !!structuralBlock(pipelineBaseline.value);
-}
-
 // --- which mode the user is LOOKING AT ---------------------------------------
 //
 // STORED, not derived from the rows. Deriving it makes the segment a mutator:
@@ -195,12 +184,10 @@ export function pipelinesDirty() {
 const MODE_KEY = "hqptuner.crossfeedMode";
 
 function loadSelected() {
-  try {
-    const v = localStorage.getItem(MODE_KEY);
-    return v === "structural" || v === "bauer" ? v : null;
-  } catch {
-    return null; // storage disabled — the session still switches
-  }
+  const stored = getStored(MODE_KEY);
+  if (!stored.ok) return null; // an unreadable store is no choice: the rows decide
+  const v = stored.value;
+  return v === "structural" || v === "bauer" ? v : null;
 }
 
 export const xfMode = signal(loadSelected());
@@ -226,7 +213,7 @@ export function activeMode(rows) {
  *
  * @param {PipelineRow[]} rows
  */
-export function disableBauer(rows) {
+function disableBauer(rows) {
   const { rec } = xfeedBlock(rows);
   if (rec) removeCompBlock(rows, rec);
   if (truthy(effective("crossfeed_enabled"))) edit("crossfeed_enabled", "0");
@@ -238,8 +225,8 @@ export function disableBauer(rows) {
 // and it is what keeps the two crossfeeds — matrix block and post-process — from
 // ever running in series. Turning either one on stays a button the user presses.
 //
-// Both directions stage like any other edit: the pending bar counts them and
-// Discard puts them back.
+// Both directions stage like any other edit: they show as staged and Discard
+// puts them back.
 /**
  * Switch the view to a crossfeed mode, staging the mode being left off and
  * enabling nothing.
@@ -250,11 +237,8 @@ export function disableBauer(rows) {
 export function setXfMode(next, rows) {
   const m = next === "structural" ? "structural" : "bauer";
   xfMode.value = m;
-  try {
-    localStorage.setItem(MODE_KEY, m);
-  } catch {
-    /* storage disabled — in-memory value drives the session */
-  }
+  // storage disabled — in-memory value drives the session
+  setStored(MODE_KEY, m);
   if (m === "bauer") {
     const rec = structuralBlock(rows);
     if (rec) removeStructural(rows, rec);

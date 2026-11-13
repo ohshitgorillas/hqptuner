@@ -13,20 +13,30 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from hqptuner import voltrace
-from hqptuner.conf import engineconf, httpauth
+from hqptuner.conf import engineconf
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.lanes import settle
-from hqptuner.lanes.http import engineattrs, restore
+from hqptuner.lanes.http import engineattrs, forms, restore
 from hqptuner.lanes.http.engineattrs import EngineVerification
 from hqptuner.lanes.http.restore import RestoreDeclined, RestoreResult
+from hqptuner.lanes.http.storecarry import StoreCarry
 from hqptuner.lanes.live import lane
-from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
-from hqptuner.presets import presetlane
+from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult
+from hqptuner.presets import fileconfig, presetfields, presetlane
 from hqptuner.presets.presetlane import PresetActivation
 from hqptuner.presets.presetops import PresetAftermath, after_restore
+from hqptuner.presets.realized import realized_config
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
+
+
+def _realized_edits(mgr: "ConnectionManager", staged: dict[str, str]) -> dict[str, str]:
+    """Return what a restore boots on, as edits onto the File the restore lane writes them into.
+
+    The lane fetches the File as a fresh ``/backup`` for each push and writes these into its working config, so the
+    File is left out here: what remains is the Engine's live-domain fields with the staged edits over them.
+    """
+    return realized_config({}, staged, mgr.readings.engine_snapshot())
 
 
 def _trace_live_volume(
@@ -34,12 +44,14 @@ def _trace_live_volume(
     live_edits: dict[str, dict[str, str]],
     report: list[LiveWriteResult],
 ) -> None:
-    """Record a volume the live lane just set, where this batch carried one.
+    """Record a volume the live lane just wrote, where this batch carried one.
 
     The second of the two paths that reach the playing volume. Emitted here rather than inside ``lanes/writer`` for
     two reasons: ``_apply_one`` is handed an ``AuditLog`` and not the manager, and the attribution field lives on the
     manager's readings — so emitting from the caller leaves every existing signature alone. A setter that returns
-    without raising has had its readback matched (``lanes/writer``), so the value sent is the value confirmed.
+    without raising has had its readback matched (``lanes/writer``), so the value sent is the value confirmed; a
+    volume with no ``report`` row, as in the empty report of a volume write whose connection died, is traced as not
+    verified.
     """
     want = live_edits.get("volume", {}).get("value")
     if want is None:
@@ -64,29 +76,36 @@ class ApplyReport:
 
 
 async def _persistent_apply(
-    mgr: "ConnectionManager", http_fields: dict[str, str], switch_to: str | None
+    mgr: "ConnectionManager", http_fields: dict[str, str], switch_to: str | None, save: str | None
 ) -> RestoreResult:
     """Return the persistent lane's outcome: declined as data, or the restore lane's own answer.
 
     Checked before the lane is ever called: a compound action's outcome is data, while the restore
-    lane called alone raises the same refusal.
+    lane called alone raises the same refusal. ``save`` names the preset the apply is being saved
+    as, whose mirror the restore carries.
     """
-    declined = httpauth.decline_error(mgr)
+    declined = forms.decline(mgr)
     if declined is not None:
         return RestoreDeclined(str(declined), declined.code)
-    return await restore.apply(mgr, http_fields, switched=switch_to is not None)
+    hooks = presetfields.restore_hooks(mgr, saving=save)
+    return await restore.apply(mgr, _realized_edits(mgr, http_fields), hooks, switched=switch_to is not None)
 
 
-async def _write_live(
-    mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]], staged: dict[str, str]
-) -> list[LiveWriteResult]:
-    """Send the batch's live-routed edits, readback-verified, and do the bookkeeping the next write relies on."""
-    client = mgr.require_control()
-    report = await apply_live(client, live_edits, mgr.audit)
-    _trace_live_volume(mgr, live_edits, report)
-    await lane.refresh_after_live(mgr, client, live_edits)
-    lane.remember_routed(mgr, report, staged)
-    return report
+async def _write_live(mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]]) -> list[LiveWriteResult]:
+    """Send the batch's live-routed edits, readback-verified, and refresh what the next write resolves against."""
+    async with mgr.live_writes:
+        client = mgr.require_control()
+        interrupted: list[str] = []
+        try:
+            report = await lane.write_live(mgr, client, live_edits, on_interrupted=interrupted.append)
+        except ControlError:
+            # only a volume write the drop caught in flight is traced; one never sent is no write at all
+            if "volume" in interrupted:
+                _trace_live_volume(mgr, live_edits, [])
+            raise
+        _trace_live_volume(mgr, live_edits, report)
+        await lane.refresh_after_live(mgr, client, live_edits)
+        return report
 
 
 @dataclass(frozen=True)
@@ -121,23 +140,26 @@ class ApplyOps:
         client = self._mgr.require_control()
         try:
             await client.set_volume(db)
+            state = await client.get_state()
+            self._mgr.readings.take_engine(self._mgr.phase.standing.generation, state=state)
         except ControlError:
-            # recorded before it propagates: a refused write is exactly the one a
-            # later reading cannot be told from a write that never happened
+            # recorded before it propagates: a refused write, or one whose readback
+            # never came, is exactly the one a later reading cannot be told from a
+            # write that never happened
             voltrace.write(self._mgr, "api.volume", db, None, ok=False)
             raise
-        self._mgr.readings.state = await client.get_state()
-        readback = self._mgr.readings.state.get("volume")
+        readback = state.get("volume")
         voltrace.write(self._mgr, "api.volume", db, readback, ok=True)
         return VolumeReport(readback)
 
-    # --- write path (Phase 3) -----------------------------------------
+    # --- write path ---------------------------------------------------
 
     async def apply(
         self,
         live_edits: dict[str, dict[str, str]],
         http_fields: dict[str, str],
         switch_to: str | None = None,
+        save: str | None = None,
     ) -> ApplyReport:
         """Apply staged changes.
 
@@ -145,7 +167,9 @@ class ApplyOps:
         becomes the active preset (the only way HQPlayer sets the active label), then apply the
         staged tweaks on top of its snapshot. Then the live setters (readback-verified), then the
         persistent lane, which re-asserts the active snapshot ⊕ tweaks via POST /restore — so drift
-        never survives — and self-corrects fixable divergence.
+        never survives — and self-corrects fixable divergence. ``save`` names the preset the caller
+        saves this apply as afterwards; the persistent lane's restore carries its mirror, so the save
+        that follows never restores on its own.
         """
         mgr = self._mgr
         switched = await presetlane.switch(mgr, switch_to) if switch_to is not None else None
@@ -161,10 +185,10 @@ class ApplyOps:
             plan = await lane.mode_then_split(mgr, http_fields, live_edits)
         live = plan.report
         if plan.live_edits:
-            live = live + await _write_live(mgr, plan.live_edits, dict(http_fields))
+            live = live + await _write_live(mgr, plan.live_edits)
         restore_fields = plan.restore_fields
-        persistent = await _persistent_apply(mgr, restore_fields, switch_to) if restore_fields else None
-        aftermath = await after_restore(mgr, persistent, restore_fields)
+        persistent = await _persistent_apply(mgr, restore_fields, switch_to, save) if restore_fields else None
+        aftermath = after_restore(mgr, persistent, restore_fields)
         # after all of it: a preset load is the FIRST step of an apply, so every
         # checkpoint inside the load reads state the live setters and the restore
         # have not touched yet. This one reads on a live-only apply too —
@@ -181,14 +205,15 @@ class ApplyOps:
         """
         mgr = self._mgr
         engineconf.validate_overrides(overrides)
-        declined = httpauth.decline_error(mgr)
+        declined = forms.decline(mgr)
         if declined is not None:
             raise declined
         backup = await mgr.require_http().backup()
         mgr.presetops.persist_backup_for_apply(backup)
-        result = await engineattrs.apply(mgr, backup, overrides, mgr.readings.active_config, all_presets=all_presets)
-        # same restart, same stale readings as the staged-apply path above
-        await settle.resync_engine_state(mgr)
+        carry = StoreCarry(mirror=presetfields.preset_mirror(mgr), carried=_realized_edits(mgr, {}))
+        result = await engineattrs.apply(mgr, backup, overrides, carry, all_presets=all_presets)
         if result.verified.engine:
-            mgr.readings.engine = result.verified.engine
+            fileconfig.record_engine(
+                mgr, result.verified.engine, generation=result.generation, acquisition=result.acquisition
+            )
         return EngineApplyResult(verified=result.verified, members=result.members, backup_bytes=result.backup_bytes)

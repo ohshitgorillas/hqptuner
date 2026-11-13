@@ -1,8 +1,9 @@
 """Faithful fake hqplayerd HTTP config daemon (the port-8088 lane).
 
-Speaks the restore/XML write contract (docs/protocol.md §3.6): GET /backup
+Speaks the restore/XML write contract: GET /backup
 serves a real hqplayerd.xml the daemon would produce, POST /restore adopts the
-uploaded working config, and GET /config + /matrix render the current state.
+attributes of the uploaded working config that `fake_config_xml`'s adoption
+tables name, and GET /config + /matrix render the current state.
 The XML schema here is authored to match 6.0.4 INDEPENDENTLY of presetconf, so
 a wrong form->XML mapping in the writer surfaces as a failed readback — not a
 self-confirming round-trip. A change only lands if manager.apply produced a
@@ -12,6 +13,7 @@ restore archive the real daemon would accept.
 """
 
 import contextlib
+import copy
 import io
 import re
 import socket
@@ -25,10 +27,9 @@ from urllib.parse import parse_qs
 from fake_config_xml import adopt_cfg, cfg_xml, elem_attr
 
 #: Guards every read-modify-write of a served state dict. Handlers run on their
-#: own threads (see `_Server`), and the read lane mutates state too — the stale
-#: window counts down on `GET /backup/settings.zip` and a rescan rewrites the
-#: endpoint lists on `GET /config/refresh`, while the test thread is assigning
-#: the same keys and another handler may be rendering `/config` off them. One
+#: own threads (see `_Server`), and the read lane mutates state too — it counts
+#: arrivals and takes queued archives off `_backups` on
+#: `GET /backup/settings.zip`, while the test thread is assigning the same keys. One
 #: module-level lock rather than one per server: fakes are per-test and the
 #: sections are three dict operations long, so the contention is not worth the
 #: bookkeeping of threading a lock through every module-level helper.
@@ -45,22 +46,30 @@ _DIGEST_CHALLENGE = (
 #: The 40-byte body the daemon serves with both the 401 and the 403.
 _AUTH_BODY = b"Authentication is required for this page"
 
+HTTP_UNAUTHORIZED = 401
+HTTP_FORBIDDEN = 403
 
-def _count_request(st: dict[str, Any], path: str) -> None:
+_Refusal = tuple[int, str, bytes]
+
+
+def _count_request(st: dict[str, Any], path: str, refusal: _Refusal | None) -> None:
     """Bookkeeping on arrivals, the same shape as `_restore_attempts`.
 
     `_requests` counts every arrival at the lane, any method, any path, refused
     or served, so a caller can be tested for how much traffic it spent.
     `_backup_reads` narrows that to the settings archive: the poll cycle never
     fetches it, so it is the arrival that says a caller reached the write path
-    rather than merely polled."""
+    rather than merely polled. An arrival answered with the 401 digest challenge is
+    the first leg of a handshake, not a fetch: the client's authenticated retry is
+    the one fetch, so only that leg is counted."""
+    challenged = refusal is not None and refusal[0] == HTTP_UNAUTHORIZED
     with _STATE:
         st["_requests"] = st.get("_requests", 0) + 1
-        if path == "/backup/settings.zip":
+        if path == "/backup/settings.zip" and not challenged:
             st["_backup_reads"] = st.get("_backup_reads", 0) + 1
 
 
-def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[int, str, bytes] | None:
+def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> _Refusal | None:
     """The credential wire on 8088, verified against hqplayerd 6.0.4.
 
     Every page needs authentication: with no `Authorization` header the daemon
@@ -69,28 +78,22 @@ def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[in
     consumes the 401 internally and re-sends, so 403 is the status that surfaces
     to a caller carrying bad credentials.
 
-    `_challenge_auth` is the same wire with the RIGHT password: the daemon still
-    answers an unauthenticated request with 401 and the challenge, and then
-    serves the digest the client builds from it. That is what every fresh
-    connection to the real 6.0.4 looks like; the default state skips the
-    challenge so cases that do not care about credentials pay nothing for it.
-
     A daemon that is down answers 503 first, on every path: a restart window is
     not a credential verdict, so `_down` and `_fail_paths` outrank `_refuse_auth`
     exactly as they do on the real thing."""
     if st.get("_down") or path in st.get("_fail_paths", ()):
         return None
-    if not authorization and (st.get("_refuse_auth") or st.get("_challenge_auth")):
-        return 401, _DIGEST_CHALLENGE, _AUTH_BODY
+    if not authorization and st.get("_refuse_auth"):
+        return HTTP_UNAUTHORIZED, _DIGEST_CHALLENGE, _AUTH_BODY
     if authorization and st.get("_refuse_auth"):
-        return 403, "", _AUTH_BODY
+        return HTTP_FORBIDDEN, "", _AUTH_BODY
     return None
 
 
 def _working_member(st: dict[str, Any]) -> str:
     """The root-level archive name the working config is served under: a named
     active profile renames it to ``<Profile>.xml``, and only ``[default]``
-    serves ``hqplayerd.xml`` (docs/protocol.md §3.6)."""
+    serves ``hqplayerd.xml``."""
     profile = st.get("_active_profile")
     return f"{profile}.xml" if profile else "hqplayerd.xml"
 
@@ -108,27 +111,19 @@ def _backup_zip(st: dict[str, Any]) -> bytes:
     return out.getvalue()
 
 
-def _empty_backup_zip() -> bytes:
-    """The archive hqplayerd 6.0.4 serves after a named profile/load until it is
-    restarted — a bare data/ with no base config (docs/protocol.md §3.6 bug)."""
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, "w") as z:
-        z.writestr("data/", b"")
-    return out.getvalue()
-
-
 def _http_render(st: dict[str, Any]) -> str:
     """GET /config form — the read side, rendered from state."""
     opts = "".join(
         f'<option value="{v}"{" selected" if st["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
     )
-    with _STATE:  # a rescan on another handler thread may be rewriting the list
-        endpoints = tuple(st["_net_endpoints"])
+    endpoints = tuple(st["_net_endpoints"])
     # `_form_net_device` is the lag window: the config file already carries the
     # device a just-loaded preset picked, while this page still renders the one
     # the engine has open. Unset (the usual state) means both routes agree.
     form_device = st.get("_form_net_device") or st["net_device"]
     dev_opts = "".join(f'<option value="{v}"{" selected" if form_device == v else ""}>{v}</option>' for v in endpoints)
+    volume_bounds = st.get("_defaults_volume_bounds", {"min": -60, "max": 0})
+    volume_limits = " ".join(f'{key}="{value}"' for key, value in volume_bounds.items())
     rows = [
         f'<input type="text" name="title" value="{st["title"]}"/>',
         f'<select name="backend">{opts}</select>',
@@ -140,7 +135,7 @@ def _http_render(st: dict[str, Any]) -> str:
         # the startup volume, as the real 6.0.4 page renders it
         # (tests/support/fixtures/config-form-6.0.4.html: a number input bounded
         # by the volume range) — the form carries it as well as the config file
-        f'<input type="number" name="defaults_volume" value="{st["defaults_volume"]}" min="-60" max="0"/>',
+        f'<input type="number" name="defaults_volume" value="{st["defaults_volume"]}" {volume_limits}/>',
         f'<input type="checkbox" name="auto_family" value="1"{" checked" if st["auto_family"] else ""}/>',
         f'<input type="checkbox" name="net_ipv6" value="1"{" checked" if st["net_ipv6"] else ""}/>',
         # the daemon renders 0/1/2 as a bare checkbox: -3 dB and -6 dB are
@@ -151,7 +146,7 @@ def _http_render(st: dict[str, Any]) -> str:
 
 
 def _speakers_render(st: dict[str, Any]) -> str:
-    """GET /speakers (readme §1.9) — the enabled switch plus per-channel level
+    """GET /speakers, the speaker-processing page: the enabled switch plus per-channel level
     (dBFS) and distance (cm) inputs, each channel under its own <h2> name, the
     layout the parser reads channel labels from on 6.0.4."""
     parts = [f'<input type="checkbox" name="enabled" value="1"{" checked" if st["speakers_enabled"] else ""}/>']
@@ -166,12 +161,20 @@ def _speakers_render(st: dict[str, Any]) -> str:
 
 def _adopt_speakers(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     """POST /speakers — adopt the (complete) form. Checkbox contract as the real
-    daemon keeps it: `enabled` present means on, absent means off."""
+    daemon keeps it: `enabled` present means on, absent means off.
+
+    The apply also RELOADS THE ENGINE. That side of
+    it lands on the 4321 daemon, which this fake cannot see: a test that wants
+    it hangs its own callable on ``_on_speakers`` and moves the control fake's
+    State from there, the way ``_on_refresh`` models the rescan."""
     fields = _parse_multipart_fields(content_type, raw)
     st["speakers_enabled"] = fields.get("enabled") == "1"
     for i, ch in enumerate(st["_speakers"]):
         ch["level"] = fields.get(f"level_{i}", ch["level"])
         ch["distance"] = fields.get(f"distance_{i}", ch["distance"])
+    reloaded = st.get("_on_speakers")
+    if reloaded is not None:
+        reloaded()
 
 
 def _matrix_pipeline_row(i: int, source: str, mixdown: str, process: str) -> str:
@@ -228,7 +231,7 @@ def _matrix_render(st: dict[str, Any]) -> str:
 
 
 def _about_render(st: dict[str, Any]) -> str:
-    """GET /about — the stock UI page (protocol.md §3.6 route table). The
+    """GET /about — the stock UI page. The
     daemon's installed release string follows the Version heading on its own
     line, which is where a reader parses it from. ``_about_body`` overrides the
     whole page: a daemon whose about page carries no Version heading at all."""
@@ -278,15 +281,9 @@ def _backup_response(st: dict[str, Any]) -> bytes:
     """The archive GET /backup/settings.zip serves right now."""
     if st.get("_corrupt_backup"):  # a restarting daemon serves an error page here, not a zip
         return b"not a zip archive"
-    if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
-        return _empty_backup_zip()
-    # after a restore the daemon serves the pre-restart archive for a read or two
-    # before catching up — the restart window verify must ride through
-    with _STATE:  # read lane, but this one counts down: two concurrent reads
-        stale = st.get("_stale", 0) > 0  # must not both take the same ticket
-        if stale:
-            st["_stale"] -= 1
-    return st["_pre_backup"] if stale else _backup_zip(st)
+    with _STATE:  # two concurrent reads must not both take the same queued archive
+        queued = st["_backups"].pop(0) if st.get("_backups") else None
+    return _backup_zip(st) if queued is None else queued
 
 
 def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
@@ -301,24 +298,13 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     st["_restore_bytes"] = zbytes
     archive = zipfile.ZipFile(io.BytesIO(zbytes))
     st["_restore_members"] = archive.namelist()  # what the restore carried (filter uploads land as data/*)
-    if st.get("_active_profile") and "hqplayerd.xml" not in st["_restore_members"]:
-        # A named profile was active, so the uploaded working config is the root
-        # <Profile>.xml. The restart boots from hqplayerd.xml, the upload carried
-        # none, and the edit to <Profile>.xml is discarded: the config stays as it
-        # was, and the daemon comes back on [default].
-        st["_active_profile"] = None
-        return
     xml = archive.read("hqplayerd.xml")
     if elem_attr(xml, "title", "value") == "REJECT":
         return  # modeled value-level rejection: the daemon refuses, state unchanged
-    st["_pre_backup"] = _backup_zip(st)  # snapshot before adopting, for the stale window
-    st["_active_profile"] = None  # the restart boots from hqplayerd.xml, on [default]
     adopt_cfg(st, xml)
-    st["_stale"] = st.get("_lag", 0)
-    if st.get("_die"):
-        st["_down"] = True
-    # An adopted restore SELF-RESTARTS the daemon (docs/architecture.md §2.2 lane
-    # 2), and the restarted engine comes up running the restored file — so the
+    st.update(copy.deepcopy(st.get("_restart_state", {})))  # every restart comes up this way
+    # An adopted restore SELF-RESTARTS the daemon,
+    # and the restarted engine comes up running the restored file — so the
     # Control API's State reflects it afterwards. That side lands on the 4321
     # daemon, which this fake cannot see: a dual-lane test hangs its own
     # callable on ``_on_restore`` and moves the control fake's State from there,
@@ -338,7 +324,7 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
     same arm that catches a live connection refusal.
 
     ``_restore_attempts`` counts every arrival, refused or not, so a retry loop
-    can be tested for how many passes it makes (docs/testing.md rule 7)."""
+    can be tested for how many passes it makes."""
     with _STATE:
         st["_restore_attempts"] = st.get("_restore_attempts", 0) + 1
         refused = st.get("_restore_refusals", 0) > 0
@@ -357,22 +343,15 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
 
 
 def _refresh_devices(st: dict[str, Any]) -> None:
-    """GET /config/refresh — re-scan output devices. Endpoints that were powered
-    off (staged in _hidden_endpoints) become bindable and join the offered set,
-    modeling a NAA that came back on since the last form read.
+    """GET /config/refresh — re-scan output devices.
 
-    The rescan also STOPS THE ENGINE (6.0.4, reported on Opal), so every
+    The rescan STOPS THE ENGINE (6.0.4, reported on Opal), so every
     live-only setting comes back at the config file's value. That side of it
     lands on the 4321 daemon, which this fake cannot see: a test that wants it
     hangs its own callable on ``_on_refresh`` and moves the control fake's State
     from there, the way a real rescan would."""
-    with _STATE:  # both lists are read-modify-written here, off a handler thread
-        endpoints = list(st["_net_endpoints"])
-        endpoints += [ep for ep in st.get("_hidden_endpoints", []) if ep not in endpoints]
-        st["_net_endpoints"] = endpoints  # a fresh list, so no renderer sees it grow
-        st["_hidden_endpoints"] = []
-    # outside the lock: the callable is the test's own, and it reaches for the
-    # 4321 fake rather than for anything served here
+    # the callable is the test's own, and it reaches for the 4321 fake rather
+    # than for anything served here
     engine_stops = st.get("_on_refresh")
     if engine_stops is not None:
         engine_stops()
@@ -395,9 +374,8 @@ def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
 
 # No POST /matrix or POST /matrix/{load,save,delete} here. HQPTuner writes the
 # matrix only through /restore now: profile save/delete are staged
-# <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile
-# (matrix-spec.md "Probe findings — saved"). Modeling routes nothing calls
-# would be scaffolding for a lane that is deliberately gone.
+# <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile.
+# Modeling routes nothing calls would be scaffolding for a lane that is deliberately gone.
 
 
 def _save_profile(st: dict[str, Any], raw: bytes) -> None:
@@ -408,16 +386,9 @@ def _save_profile(st: dict[str, Any], raw: bytes) -> None:
         st.setdefault("_saved", {})[name] = cfg_xml(st)
 
 
-def _serve_refusal(handler: BaseHTTPRequestHandler, st: dict[str, Any]) -> bool:
-    """Answer the request with the daemon's authentication refusal if the state
-    calls for one, reporting whether it did."""
-    authorization = handler.headers.get("Authorization", "")
-    if authorization:
-        with _STATE:  # handlers run on their own threads
-            st.setdefault("_authorizations", []).append(
-                {"method": handler.command, "path": handler.path, "header": authorization}
-            )
-    refusal = _auth_refusal(st, handler.path, authorization)
+def _serve_refusal(handler: BaseHTTPRequestHandler, refusal: _Refusal | None) -> bool:
+    """Answer the request with the daemon's authentication refusal if there is
+    one, reporting whether it did."""
     if refusal is None:
         return False
     status, challenge, body = refusal
@@ -448,8 +419,9 @@ def _sever_open_connections(st: dict[str, Any]) -> None:
 def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
-            _count_request(st, self.path)
-            if _serve_refusal(self, st):
+            refusal = _auth_refusal(st, self.path, self.headers.get("Authorization", ""))
+            _count_request(st, self.path, refusal)
+            if _serve_refusal(self, refusal):
                 return
             status, body = _http_get_response(st, self.path)
             self.send_response(status)
@@ -458,10 +430,11 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
                 self.wfile.write(body)
 
         def do_POST(self) -> None:
-            _count_request(st, self.path)
+            refusal = _auth_refusal(st, self.path, self.headers.get("Authorization", ""))
+            _count_request(st, self.path, refusal)
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
-            if _serve_refusal(self, st):
+            if _serve_refusal(self, refusal):
                 return
             status = 200  # /config POST is unused by the restore lane
             if self.path == "/restore":
@@ -497,13 +470,9 @@ class _Server(ThreadingHTTPServer):
     `block_on_close=False` keeps `server_close()` from joining one.
 
     Handlers now touch `st` concurrently, where before they were serialized, and
-    the test thread writes the same dict throughout. Neither lane is read-only:
-    `_stale` counts down inside a `GET /backup/settings.zip`, and
-    `GET /config/refresh` rewrites `_net_endpoints` and `_hidden_endpoints`
-    while `/config` may be rendering off them. Every read-modify-write of `st`
-    therefore runs under the module's `_STATE` lock, and the sections under it
-    publish whole replacement values rather than mutating a list in place, so a
-    reader that took the old list keeps a list nothing is appending to.
+    the test thread writes the same dict throughout. The read lane is not
+    read-only: a `GET /backup/settings.zip` takes the next archive off `_backups`.
+    Every read-modify-write of `st` therefore runs under the module's `_STATE` lock.
     """
 
     daemon_threads = True
@@ -596,7 +565,7 @@ def state(**extra: object) -> dict[str, Any]:
         # GET /about — the installed release string under the Version heading
         "release": "6.0.2",
         # the live-routed set as the config file carries it: a control-lane write
-        # never reaches these, so a restore is the only way they ever change
+        # never reaches these
         "mode": "sdm",
         "filter": "40",
         "filter1x": "47",
@@ -620,16 +589,13 @@ def state(**extra: object) -> dict[str, Any]:
         # another: the window after a preset load, before the form catches up.
         # None means the two routes agree, which is the ordinary case.
         "_form_net_device": None,
-        # endpoints the daemon can bind; a net_device outside this set is refused
-        # on restore (endpoint gone) — the unfixable-divergence case
+        # the endpoints GET /config offers as net_device options
         "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
-        # powered-off endpoints a /config/refresh rescan makes bindable
-        "_hidden_endpoints": [],
         "_saved": {},
         # the daemon's active named configuration; None is [default], which serves
-        # the working config as hqplayerd.xml, and any restore lands back on it
+        # the working config as hqplayerd.xml
         "_active_profile": None,
-        # speaker processing (readme §1.9): off, two flat channels
+        # speaker processing: off, two flat channels
         "speakers_enabled": False,
         "_speakers": [
             {"label": "Left", "level": "0", "distance": "0"},
@@ -694,27 +660,24 @@ def state(**extra: object) -> dict[str, Any]:
         "defaults_volume": "-3",
         # GET routes answered 503 instead of their page; tests move it mid-run
         "_fail_paths": [],
-        "_lag": 0,
+        # state the restarted daemon comes up in after an adopted restore, beyond the upload
+        "_restart_state": {},
+        # further elements a restore adopts: state key -> (element tag, attribute)
+        "_adopts": {},
+        # further live plugin attributes a restore adopts: state key -> (plugin type, attribute)
+        "_plugin_adopts": {},
+        # archives GET /backup/settings.zip serves one per read, ahead of the live one
+        "_backups": [],
         # POST /restore arrivals to refuse with 503 before adopting one, and the
-        # running count of arrivals. Both default to the healthy daemon: nothing
-        # is refused and the count is bookkeeping no existing test reads.
+        # running count of arrivals. The default refuses nothing.
         "_restore_refusals": 0,
         "_restore_attempts": 0,
         # Running count of GET /log arrivals, same bookkeeping shape.
         "_log_reads": 0,
         # Refuse authentication on every page (401 challenge, then 403 to the
-        # digest), and the running count of arrivals at the lane. Both default to
-        # the healthy daemon: credentials are accepted and the count is
-        # bookkeeping no existing test reads.
+        # digest), and the running count of arrivals at the lane. The default
+        # accepts the credentials.
         "_refuse_auth": False,
-        # Challenge an unauthenticated request with the 401 and serve the digest
-        # that comes back, the way the real daemon greets a fresh connection
-        # carrying the right password. Off by default: the healthy daemon here
-        # asks nothing, so no existing case pays for a handshake.
-        "_challenge_auth": False,
-        # Every `Authorization` header that arrived, in order: method, path and
-        # the header verbatim, so a case can read the credentials a caller sent.
-        "_authorizations": [],
         "_requests": 0,
         # Running count of GET /backup/settings.zip arrivals, refused or served.
         "_backup_reads": 0,

@@ -4,7 +4,7 @@ Split out of `conftest` on size alone. It keeps a settings dict and answers
 setters plus `State` from it, so a `Set*` followed by `State` reads the change
 back, which is what exercises the readback-verify path. Several wire quirks are
 modeled because the write-path tests turn on them: `value="999"` answers
-`result="OK"` without applying (the OK-is-not-proof caveat, protocol.md §6),
+`result="OK"` without applying,
 `value="err"` answers `result="Error"`, `SetMode` resets `rate` to `0` (the mode
 swaps the lists a rate is relative to), and the filter/shaper/rate enumerations
 answer for the chain the engine has LOADED rather than the one configured, which
@@ -14,8 +14,9 @@ The port-8088 HTTP fake is `fake_http`; the fixtures over both are in `conftest`
 """
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from types import MappingProxyType
+from typing import NamedTuple
 
 from defusedxml.ElementTree import fromstring as _fromstring
 
@@ -23,6 +24,26 @@ XML = '<?xml version="1.0" encoding="UTF-8"?>'
 
 #: Every command the fake was asked, in order: (name, attrs).
 CommandLog = list[tuple[str, dict[str, str]]]
+
+#: One-shot callables keyed by command name, shared across connections like the
+#: log: each runs when its command first arrives over a connection, while that
+#: command waits for its answer, so a test can land something on HQPTuner inside
+#: that window. The callable
+#: is the test's own and may move the State; a restart it makes severs the
+#: connection it arrived on, unanswered.
+CommandHooks = dict[str, Callable[[], None]]
+
+
+class OnNextArrival:
+    """A command hook that runs on its command's next arrival, including over a
+    connection that has sent that command before, such as a list a heartbeat
+    reads again."""
+
+    def __init__(self, run: Callable[[], None]) -> None:
+        self.run = run
+
+    def __call__(self) -> None:
+        self.run()
 
 
 DEFAULTS = {
@@ -43,17 +64,16 @@ DEFAULTS = {
     # element left the config is one the restarted daemon no longer lists.
     "_profile_names": "Default\nMch-to-Stereo mixdown",
     # underscore keys are internal to the fake (VolumeRange source), not emitted in State
-    "_vol_min": "-60",
     "_vol_max": "0",
     "_vol_enabled": "1",
-    "_vol_adaptive": "0",
     "_metadata": "",  # optional <metadata> child injected into the Status frame
-    # The junk-filter enumeration this daemon answers with, space separated in
-    # list order (protocol.md §6: `<JunkFiltersItem index name value/>`); empty
-    # means the built-in list below.
-    "_junk_filters": "",
+    # The daemon's own `output_delay`, `position` and `apod` Status attributes, each carried on the Status frame
+    # verbatim while the knob holds a value, and left off it while the knob is empty.
+    "_output_delay": "",
+    "_position": "",
+    "_apod": "",
     # Space-separated commands answered `result="OK"` without applying: the
-    # `value="999"` caveat above (protocol.md §4), keyed by command instead.
+    # `value="999"` caveat above, keyed by command instead.
     "_deaf": "",
     # Space-separated commands answered NOT AT ALL — the connection stays open and
     # nothing comes back, so the client's read deadline is what ends the wait. What
@@ -70,11 +90,16 @@ DEFAULTS = {
     "_close": "",
     # Space-separated commands the daemon REFUSES, reads as readily as writes: the
     # command is received and answered `result="Error"`, with the daemon's
-    # diagnostic as the element's own text (protocol.md §6). `_error_text` is that
+    # diagnostic as the element's own text. `_error_text` is that
     # diagnostic. What hqplayerd 6.0.4 does to `MatrixSetProfile` with an empty
     # playlist: the switch is refused, not stalled and not silently dropped.
     "_error": "",
     "_error_text": "refused",
+    # Space-separated commands answered ONCE with `NOT_XML_FRAME`, a whole
+    # newline-terminated frame that is not XML; the connection stays open, and
+    # each command leaves the knob as it is answered, so the next connection is
+    # answered normally.
+    "_not_xml": "",
     # Which family the SOURCE is, which in [source] mode is which chain the engine
     # has loaded (readme §1.7). Named for the Status attribute it used to be
     # emitted as verbatim; it no longer is, because the daemon echoes "[source]"
@@ -83,25 +108,15 @@ DEFAULTS = {
     # 2026-07-27): configured mode 2 reports active_mode="SDM (DSD)",
     # byte-identical to ModesItem index 2. Empty means nothing is playing.
     "_active_mode": "PCM",
-    # The rates enumeration each family answers with, space separated in Hz and
-    # in list order, index 0 first (protocol.md §6: `<RatesItem index rate/>`,
-    # index 0 is rate="0" = auto). `_rates` is the PCM family's, `_sdm_rates` the
-    # SDM one; empty means that family's built-in list below, so the enumeration
-    # stays mode-dependent whichever knob a test sets.
-    #
-    # What is established about the real list: `GetRates` is answered per mode AND
-    # per transport state, and a snapshot taken right after a reconnect with the
-    # transport idle held the auto entry alone. Whether asking again fills such a
-    # list in is NOT established — `scripts/probes/rate/probe_rates_on_demand.py`
-    # against 6.0.4 could not reproduce the short answer at all (two fresh
-    # connections, three `GetRates` each, all six the full 11-item ladder). So the
-    # knob says only what a daemon answered, never why.
-    "_rates": "",
-    "_sdm_rates": "",
-    # What Status.active_filter reports — the ACTIVE main filter as a display
-    # string (protocol.md: Status reports display strings, State numeric
-    # indices). Empty means the frame carries no active_filter attribute at all.
-    "_active_filter": "poly-sinc-gauss-long",
+    # Commands the instance that accepted a restart (`restart_into`) still answers
+    # on its open connections before the restart severs them: the moment a
+    # `POST /config` or `POST /restore` leaves 4321 up after its 200. "0" severs at
+    # once. The command after the last one answered is received and dropped
+    # unanswered, and only then does State become the restarted instance's.
+    "_linger": "0",
+    # Connects the restart turns away, unanswered, before the restarted instance
+    # answers one: the restart window, counted in dials rather than seconds.
+    "_restart_window": "1",
 }
 
 
@@ -109,25 +124,23 @@ def _reload_shaper(state: dict[str, str]) -> None:
     """What a mode switch does to the shaper pin: SetMode loads the entered
     chain from the daemon's config file, so the fresh chain's shaper is the
     FILE's dither/modulator — never the previous chain's pin carried across
-    (protocol.md §SetMode: the enumeration lists swap wholesale). Opt-in via
+    (the enumeration lists swap wholesale). Opt-in via
     the ``_cfg_dither`` / ``_cfg_modulator`` knobs (enum IDs, config-file
-    domain), resolved on the loaded chain's own list; a state without the knobs
-    keeps the fake's old carry-the-pin behavior, so existing suites see no
-    change."""
-    sdm = _active_sdm(state)
-    enum_id = state.get("_cfg_modulator" if sdm else "_cfg_dither")
-    if enum_id is None:
-        return
-    for index, _name, value in _SDM_SHAPERS if sdm else _PCM_SHAPERS:
-        if value == enum_id:
-            state["shaper"] = index
+    domain), answered from the loaded chain's row in ``_PCM_SHAPER_FOR_DITHER``
+    or ``_SDM_SHAPER_FOR_MODULATOR``. A state without the knob, or a knob with
+    no row there, keeps the pin it had."""
+    sdm = _loaded(state).sdm
+    enum_id = state.get("_cfg_modulator" if sdm else "_cfg_dither", "")
+    rows = _SDM_SHAPER_FOR_MODULATOR if sdm else _PCM_SHAPER_FOR_DITHER
+    if enum_id in rows:
+        state["shaper"] = rows[enum_id]
 
 
 def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> None:
     value = attrs.get("value", "")
     if name == "SetMode":
         state["mode"] = value
-        state["rate"] = "0"  # mode resets rate to auto (protocol.md §6)
+        state["rate"] = "0"  # mode resets rate to auto
         _reload_shaper(state)  # the entered chain comes up on the FILE's shaper
     elif name == "SetFilter":
         state["filterNx"] = value
@@ -136,7 +149,7 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
         state["shaper"] = value
     elif name == "SetRate":
         # Stores whatever arrived. The real daemon accepts and silently IGNORES a
-        # value that is not a current `RatesItem` index (protocol.md §6, verified
+        # value that is not a current `RatesItem` index (verified
         # 2026-07-29), which this does not model: `tests/apply/test_apply.py` pins
         # rate index "5", a legitimate index of the real 11-item ladder that the
         # abbreviated lists below do not reach, so enforcing it here would red two
@@ -155,7 +168,7 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
 # Enumerations are MODE-DEPENDENT on the real daemon: GetFilters/GetShapers
 # answer for the ACTIVE mode only, and the two chains number their enum IDs
 # differently — poly-sinc-gauss-long is enum 40 under PCM `filter` and 38 under
-# SDM `oversampling` (protocol.md §4, readme §1.5/§1.6). The fake models both
+# SDM `oversampling` (readme §1.5/§1.6). The fake models both
 # facts because the live-routing chain gate exists precisely to protect them.
 #
 # The two filter lists also deliberately SHARE one enum ID under different names:
@@ -164,6 +177,8 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
 # misses, so the outcome an index resolved against the wrong list really has —
 # a different filter, silently — could not be expressed.
 _MODES = (("0", "[source]", "-1"), ("1", "PCM", "0"), ("2", "SDM (DSD)", "1"))
+#: The modes a device that cannot do DSD offers: ``_MODES`` less its SDM row.
+_MODES_NO_SDM = (("0", "[source]", "-1"), ("1", "PCM", "0"))
 _PCM_FILTERS = (
     ("0", "none", "0"),
     ("1", "poly-sinc-gauss-long", "40"),
@@ -175,8 +190,41 @@ _PCM_SHAPERS = (("0", "none", "0"), ("1", "NS9", "5"))
 _SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
 _JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))
 
+#: The shaper index each chain comes up on when a mode switch or a restart
+#: loads it, keyed by the config file's enum ID for that chain: `_cfg_dither`
+#: for PCM, `_cfg_modulator` for SDM. Stated row by row, not looked up on the
+#: shaper lists above; an enum ID with no row leaves the shaper index as it was.
+_PCM_SHAPER_FOR_DITHER = {"0": "0", "5": "1"}
+_SDM_SHAPER_FOR_MODULATOR = {"0": "0", "3": "1"}
+
+
+class _Loaded(NamedTuple):
+    """The chain the engine has LOADED, and the rate `Status.active_rate`
+    reports it running at."""
+
+    sdm: bool
+    active_rate: str
+
+
+_PCM_PLAYING = _Loaded(sdm=False, active_rate="192000")
+_SDM_PLAYING = _Loaded(sdm=True, active_rate="2822400")
+
+#: What is loaded with an output mode CONFIGURED, keyed by State `mode`: that
+#: mode's own chain, whatever the source is.
+_CONFIGURED_CHAIN = {"1": _PCM_PLAYING, "2": _SDM_PLAYING}
+
+#: What is loaded in `[source]` mode, keyed by the source family `_active_mode`
+#: names: the engine follows the source (readme §1.7). Empty is nothing
+#: playing: rate "0", which says the loaded chain is unknowable, while the
+#: enumerations answer from the PCM lists. A family with no row raises KeyError.
+_SOURCE_CHAIN = {
+    "": _Loaded(sdm=False, active_rate="0"),
+    "PCM": _PCM_PLAYING,
+    "SDM (DSD)": _SDM_PLAYING,
+}
+
 # `RatesItem` carries no `value`: it is `<RatesItem index rate/>` with the actual
-# rate in Hz and index 0 = auto (protocol.md §6). Mode-dependent for real, and
+# rate in Hz and index 0 = auto. Mode-dependent for real, and
 # each mode offers BOTH base families; the 48k-base members sit last here so no
 # existing index moves, not because the daemon orders them that way.
 _PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4", "384000"))
@@ -195,13 +243,31 @@ def take_lane_down(state: dict[str, str]) -> None:
 
 def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
     """Move the fake's State to what a daemon reports after a restore's
-    self-restart: it comes back up running the restored config file
-    (docs/architecture.md §2.2 lane 2). The file speaks ``pcm``/``sdm`` and enum
+    self-restart: it comes back up running the restored config file.
+    The file speaks ``pcm``/``sdm`` and enum
     IDs; State speaks the mode index and list indices resolved against the
-    chain the restart loaded (protocol.md §4 — the domains never mix), so the
-    restored shaper is the loaded chain's dither or modulator looked up on that
-    chain's own enumeration. The restored file also becomes the per-chain
-    shaper a later ``SetMode`` loads (``_reload_shaper``)."""
+    chain the restart loaded, so the
+    restored shaper is the loaded chain's row for the file's dither or
+    modulator (``_reload_shaper``). The restored file also becomes the per-chain
+    shaper a later ``SetMode`` loads (``_reload_shaper``).
+
+    With ``_linger`` above "0" the restart is accepted but not yet performed:
+    the running instance keeps answering for that many commands, and the one
+    after them performs it (``serve_shared``)."""
+    linger = state.get("_linger", "0")
+    if int(linger):
+        # the count lands first: `_on_restore` calls this from the 8088 fake's
+        # thread, and a connection that saw the pending restart without its count
+        # would perform it at once
+        state["_lingering"] = linger
+        state["_restart_pending"] = f"{mode} {dither} {modulator}"
+        return
+    _restart(state, mode, dither, modulator)
+
+
+def _restart(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
+    """The restart itself: State becomes the restored file's, every open
+    connection is severed, and ``_restart_window`` connects are turned away."""
     state["mode"] = {"pcm": "1", "sdm": "2"}.get(mode, "0")
     state["_cfg_dither"] = dither
     state["_cfg_modulator"] = modulator
@@ -209,7 +275,22 @@ def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) 
     # the restart itself, as the wire sees it: every open connection is severed,
     # and the first connect inside the restart window is turned away
     state["_generation"] = str(int(state.get("_generation", "0")) + 1)
-    state["_refuse_connects"] = "1"
+    state["_refuse_connects"] = state.get("_restart_window", "1")
+
+
+def _restarts_now(state: dict[str, str]) -> bool:
+    """Count one command against a pending restart's ``_linger``, performing
+    the restart once none is left; True when it was performed."""
+    pending = state.get("_restart_pending")
+    if not pending:
+        return False
+    left = int(state.get("_lingering", "0"))
+    if left:
+        state["_lingering"] = str(left - 1)
+        return False
+    del state["_restart_pending"]
+    _restart(state, *pending.split(" "))
+    return True
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
@@ -217,7 +298,7 @@ def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
 
 
 #: A `FiltersItem` carries `arg` and `description` as well, and it is the only
-#: enumeration that carries either (protocol.md §GetFilters). `description` is
+#: enumeration that carries either. `description` is
 #: the engine's own facet string, `"<quality>/5 [focus] <glyph> <ratio>"`, and
 #: every filter the daemon enumerates carries one — so a filter served without
 #: it is narrowed out of the dropdowns by the quality facet. `arg` is a flags
@@ -242,36 +323,8 @@ def _filter_items(rows: tuple[tuple[str, str, str], ...]) -> str:
     )
 
 
-def _junk_filters(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
-    """The junk filters this daemon answers `GetJunkFilters` with.
-
-    The `_junk_filters` knob names the list outright, space separated, so a test
-    can serve an enumeration that differs from the built-in one — which is what a
-    different engine build really does answer (architecture §3.1: the running
-    engine is the authority on the names and the ordering). Empty means the
-    built-in list.
-    """
-    named = state.get("_junk_filters", "")
-    if named:
-        return tuple((str(i), n, str(i)) for i, n in enumerate(named.split()))
-    return _JUNK_FILTERS
-
-
 def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
     return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
-
-
-def _rates(state: dict[str, str], *, sdm: bool) -> tuple[tuple[str, str], ...]:
-    """The rates this daemon answers `GetRates` with for the loaded family.
-
-    The knobs name the list outright, per family, so a test can serve an
-    enumeration that differs from the built-in one — and can move it between one
-    `GetRates` and the next, which is what tells a lane that re-asks apart from
-    one that answers out of a list it took earlier."""
-    named = state.get("_sdm_rates", "") if sdm else state.get("_rates", "")
-    if named:
-        return tuple((str(i), hz) for i, hz in enumerate(named.split()))
-    return _SDM_RATES if sdm else _PCM_RATES
 
 
 def _modes(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
@@ -280,24 +333,21 @@ def _modes(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
     a fixed index. ``_no_sdm`` asks the fake for such a device — and the remaining
     entries keep their own indices, so a caller that hardcoded them still finds
     something and still gets it wrong."""
-    if not state.get("_no_sdm"):
-        return _MODES
-    return tuple(mode for mode in _MODES if not mode[1].startswith("SDM"))
+    return _MODES_NO_SDM if state.get("_no_sdm") else _MODES
 
 
-def _active_sdm(state: dict[str, str]) -> bool:
-    """Whether the chain the fake currently has LOADED is the SDM one.
+def _loaded(state: dict[str, str]) -> _Loaded:
+    """The chain the fake currently has LOADED, and the rate it runs at.
 
     Not the same question as the configured mode. In ``[source]`` the engine
-    follows the source (readme §1.7) and ``Status.active_mode`` is what reports
-    which chain that left loaded — so a fake that scoped its lists by the
+    follows the source (readme §1.7), so a fake that scoped its lists by the
     configured mode alone could not represent the source changing family, which
     is the one thing ``[source]`` mode does.
     """
-    mode = state.get("mode")
-    if mode in ("1", "2"):
-        return mode == "2"
-    return state["_active_mode"].upper().startswith(("SDM", "DSD"))
+    mode = state.get("mode", "")
+    if mode in _CONFIGURED_CHAIN:
+        return _CONFIGURED_CHAIN[mode]
+    return _SOURCE_CHAIN[state["_active_mode"]]
 
 
 def _reported_mode(state: dict[str, str]) -> str:
@@ -312,23 +362,9 @@ def _reported_mode(state: dict[str, str]) -> str:
     return state.get("_active_mode", "") if state.get("mode") in ("1", "2") else "[source]"
 
 
-def _active_rate(state: dict[str, str]) -> str:
-    """The rate the fake is running at, or ``"0"`` when it is running nothing.
-
-    Carried because it is the only thing on the Status frame that tells ``[source]``
-    mode which chain is loaded, ``active_mode`` having declined to
-    (``routing._chain_from_status``). Nothing loaded is nothing running: no
-    configured family and no source family means no rate, which is what says
-    "unknowable" rather than guessing PCM.
-    """
-    if state.get("mode") not in ("1", "2") and not state.get("_active_mode"):
-        return "0"
-    return "2822400" if _active_sdm(state) else "192000"
-
-
 def _enumeration(name: str, state: dict[str, str]) -> str | None:
     """GetModes/GetFilters/GetShapers, scoped to the chain the fake has loaded."""
-    sdm = _active_sdm(state)
+    sdm = _loaded(state).sdm
     if name == "GetModes":
         return f"<GetModes>{_items('ModesItem', _modes(state))}</GetModes>"
     if name == "GetFilters":
@@ -336,10 +372,19 @@ def _enumeration(name: str, state: dict[str, str]) -> str | None:
     if name == "GetShapers":
         return f"<GetShapers>{_items('ShapersItem', _SDM_SHAPERS if sdm else _PCM_SHAPERS)}</GetShapers>"
     if name == "GetRates":
-        return f"<GetRates>{_rate_items(_rates(state, sdm=sdm))}</GetRates>"
+        return f"<GetRates>{_rate_items(_SDM_RATES if sdm else _PCM_RATES)}</GetRates>"
     if name == "GetJunkFilters":
-        return f"<GetJunkFilters>{_items('JunkFiltersItem', _junk_filters(state))}</GetJunkFilters>"
+        return f"<GetJunkFilters>{_items('JunkFiltersItem', _JUNK_FILTERS)}</GetJunkFilters>"
     return None
+
+
+#: The Status attributes the fake carries from its state, by attribute name: the knob that holds each.
+_STATUS_EXTRAS = (("output_delay", "_output_delay"), ("position", "_position"), ("apod", "_apod"))
+
+
+def _status_extras(state: dict[str, str]) -> str:
+    """The Status root's `output_delay`, `position` and `apod` attributes for the knobs that hold a value."""
+    return "".join(f' {attr}="{state[knob]}"' for attr, knob in _STATUS_EXTRAS if state.get(knob))
 
 
 def _query(name: str, state: dict[str, str]) -> str | None:
@@ -348,39 +393,33 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     if enumerated is not None:
         return enumerated
     if name == "GetInfo":
-        # The full attribute set of docs/protocol.md:157, in the order the
-        # verified 6.0.4 response carries them (docs/protocol.md:160).
+        # The full attribute set, in the order the
+        # verified 6.0.4 response carries them.
         return (
-            '<GetInfo engine="6.0.4" name="Fake" platform="Linux"'
-            ' product="Signalyst HQPlayer Embedded" version="6"/>'
+            '<GetInfo engine="6.0.4" name="Fake" platform="Linux" product="Signalyst HQPlayer Embedded" version="6"/>'
         )
     if name == "GetLicense":
         return '<GetLicense valid="1" name="Fake Licensee" fingerprint="AAAA"/>'
     if name == "ConfigurationGet":
-        return f'<ConfigurationGet result="OK" value="{state.get("_active_config", "")}"/>'
+        return '<ConfigurationGet result="OK" value=""/>'
     if name == "MatrixListProfiles":
         names = [n for n in state.get("_profile_names", "").split("\n") if n]
         items = "".join(f'<MatrixProfile name="{n}"/>' for n in names)
         return f'<MatrixListProfiles result="OK">{items}</MatrixListProfiles>'
     if name == "MatrixGetProfile":
-        return f'<MatrixGetProfile result="OK" value="{state.get("_matrix_profile", "")}"/>'
+        return '<MatrixGetProfile result="OK" value=""/>'
     if name == "State":
         return "<State " + " ".join(f'{k}="{v}"' for k, v in state.items() if not k.startswith("_")) + "/>"
     if name == "VolumeRange":
-        return (
-            f'<VolumeRange min="{state["_vol_min"]}" max="{state["_vol_max"]}" '
-            f'enabled="{state["_vol_enabled"]}" adaptive="{state["_vol_adaptive"]}"/>'
-        )
+        return f'<VolumeRange min="-60" max="{state["_vol_max"]}" enabled="{state["_vol_enabled"]}" adaptive="0"/>'
     if name == "Status":
         # active_* live on the Status root; the track <metadata> child is where the
         # daemon emits unescaped chars mid-playback (_metadata override).
-        active_filter = state["_active_filter"]
-        filter_attr = f'active_filter="{active_filter}" ' if active_filter else ""
         return (
             f'<Status state="{state["state"]}" active_mode="{_reported_mode(state)}" '
-            f'{filter_attr}active_shaper="NS9" '
-            f'active_rate="{_active_rate(state)}" volume="{state["volume"]}">'
-            f'{state["_metadata"]}</Status>'
+            'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
+            f'active_rate="{_loaded(state).active_rate}" volume="{state["volume"]}"{_status_extras(state)}>'
+            f"{state['_metadata']}</Status>"
         )
     return None
 
@@ -393,10 +432,41 @@ class Close:
 #: nothing, and closed the socket (the `_close` knob).
 CLOSE = Close()
 
+#: The frame the `_not_xml` knob answers with: whole and newline-terminated, its
+#: root closed but carrying one attribute twice, so it is not well-formed XML,
+#: no lenient reading repairs it and no further data completes it.
+NOT_XML_FRAME = f'{XML}<Answer value="1" value="2"/>\n'.encode()
 
-def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | Close | None:
+
+class NotXml:
+    """What the fake returns instead of a frame when it answers with `NOT_XML_FRAME`."""
+
+
+#: Singleton of the above (the `_not_xml` knob).
+NOT_XML = NotXml()
+
+
+def _not_xml_once(name: str, state: dict[str, str]) -> bool:
+    """Whether `name` is answered with `NOT_XML_FRAME` this time, taking it off the knob if so."""
+    pending = state.get("_not_xml", "").split()
+    if name not in pending:
+        return False
+    pending.remove(name)
+    state["_not_xml"] = " ".join(pending)
+    return True
+
+
+def _on_the_wire(answer: str | NotXml) -> bytes:
+    """The bytes an answer goes out as: `NOT_XML_FRAME` as it stands, any
+    other frame behind the declaration and newline-terminated. Either way the
+    connection stays open."""
+    return NOT_XML_FRAME if isinstance(answer, NotXml) else f"{XML}{answer}\n".encode()
+
+
+def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | Close | NotXml | None:
     """The answer to one command: a frame, `CLOSE` for a command the fake drops
-    the connection on, or None for one it stalls on."""
+    the connection on, `NOT_XML` for one it answers with a frame that is not
+    XML, or None for one it stalls on."""
     el = _fromstring(body)
     name, attrs = el.tag, el.attrib
     if log is not None:
@@ -405,6 +475,8 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
         return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():
         return None  # received, logged, never answered
+    if _not_xml_once(name, state):
+        return NOT_XML  # received, logged, answered with a frame that will not parse
     if name in state.get("_error", "").split():
         # above the query dispatch: a daemon refuses reads as readily as writes
         return f'<{name} result="Error">{state.get("_error_text", "refused")}</{name}>'
@@ -412,7 +484,7 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
     if answer is not None:
         return answer
     if name == "Volume" and state["_vol_enabled"] == "0":
-        return '<Volume result="Error"/>'  # volume control disabled (protocol.md §6)
+        return '<Volume result="Error"/>'  # volume control disabled
     value = attrs.get("value")
     if value == "err":
         return f'<{name} result="Error">bad value</{name}>'
@@ -437,6 +509,7 @@ async def serve_shared(
     writer: asyncio.StreamWriter,
     state: dict[str, str],
     log: CommandLog | None = None,
+    hooks: CommandHooks | None = None,
 ) -> None:
     # A caller that passes `state` shares ONE dict across every connection, the
     # way a real daemon does — which is what lets a test move the fake mid-session
@@ -454,16 +527,29 @@ async def serve_shared(
         writer.close()
         return
     generation = state.get("_generation", "0")
+    arrived: set[str] = set()
     while True:
         data = await reader.read(4096)
-        if not data or state.get("_generation", "0") != generation:
-            break  # closed by the client, or severed by a restart since it connected
+        if not data or state.get("_generation", "0") != generation or _restarts_now(state):
+            # closed by the client, severed by a restart since it connected, or
+            # the command a lingering restart dies under, unanswered
+            break
         body = data.split(b"?>", 1)[-1].strip().decode()
+        if hooks is not None:
+            name = _fromstring(body).tag
+            again = isinstance(hooks.get(name), OnNextArrival)
+            hook = hooks.pop(name, None) if again or name not in arrived else None
+            arrived.add(name)
+            if hook is not None:
+                # off this loop: the callable may call HQPTuner, which may call back here
+                await asyncio.to_thread(hook)
+                if state.get("_generation", "0") != generation:
+                    break  # the callable restarted the daemon under this command
         answer = handle(body, state, log)
         if isinstance(answer, Close):
             break  # dropped: the socket goes away with nothing on it
         if answer is None:
             continue  # stalled: keep the connection open and say nothing
-        writer.write(f"{XML}{answer}\n".encode())
+        writer.write(_on_the_wire(answer))
         await writer.drain()
     writer.close()

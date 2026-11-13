@@ -1,4 +1,5 @@
-// Roon idle-time warning — one fixed-copy alert-strip row.
+// Roon idle-time warning: one fixed-copy alert line
+// (components/faceplate/AlertLines.js).
 //
 // Roon (song == "Roon" in the Status metadata, the only wire marker it leaves)
 // stops and restarts the whole playback engine between tracks whenever the
@@ -16,7 +17,7 @@ import { engineStatus } from "../signals.js";
 import { runningValue } from "../resolve.js";
 
 const TEXT =
-  "Recommend setting Engine idle time (System tab) to 10 or longer; " +
+  "Recommend setting Engine idle time (Settings → Timing) to 10 or longer; " +
   "at default idle time, Roon inefficiently restarts the engine between tracks.";
 
 /** The roon-idle alert row for the strip, or null when the scenario doesn't hold. */

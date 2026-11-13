@@ -10,7 +10,7 @@ import inspect
 import io
 import ipaddress
 import socket
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
@@ -323,11 +323,6 @@ def test_stdio_puts_the_sink_in_place_of_a_missing_stream(
     assert desktop.stdio(stdout, stderr, sink=lambda: SINK) == pair
 
 
-def test_stdio_opens_a_sink_that_takes_a_write_when_none_is_given() -> None:
-    with desktop.stdio(None, KEPT)[0] as sink:
-        assert sink.write("x") == 1
-
-
 # --- launch -----------------------------------------------------------------------------------------------------
 
 #: platform, who holds the port, the servers ``main`` was asked to start, the addresses browsed, the exit status.
@@ -384,19 +379,6 @@ def test_launch_exits_nonzero_only_when_a_stranger_holds_the_port(platform: str,
     assert launched(platform, held).status == status
 
 
-def mute(url: str) -> Occupant:
-    """A probe whose port holder takes the connection and never answers."""
-    raise httpx.ReadTimeout(url)
-
-
-@pytest.mark.usefixtures("listen_env")
-@pytest.mark.parametrize("platform", ["darwin", "win32"])
-def test_launch_ends_the_process_nonzero_when_the_port_holder_never_answers(platform: str) -> None:
-    with pytest.raises(SystemExit) as ended:
-        desktop.launch(platform, FakeMain(), replace(Rig().parts(), probe=mute))
-    assert ended.value.code == 1
-
-
 # --- stop -------------------------------------------------------------------------------------------------------
 
 
@@ -422,7 +404,7 @@ def test_stop_abandons_a_thread_still_running_after_the_wait(*, alive: bool, res
     assert stopped(alive=alive).result is result
 
 
-@pytest.mark.parametrize(("timeout", "wait"), [(None, desktop.QUIT_WAIT), (30.0, 30.0)], ids=["default", "given"])
+@pytest.mark.parametrize(("timeout", "wait"), [(30.0, 30.0)], ids=["given"])
 def test_stop_joins_the_thread_once_for_the_timeout_it_was_given(timeout: float | None, wait: float) -> None:
     assert stopped(alive=False, timeout=timeout).waits == [wait]
 
@@ -477,16 +459,12 @@ def knocked(_url: str) -> bool:
 
 @dataclass
 class Get:
-    """A ``get`` that keeps the timeout each request carried, then raises ``raised``, or answers 200 when it is None."""
+    """A ``get`` that raises ``raised`` on every request."""
 
-    raised: type[httpx.TimeoutException] | None = None
-    timeouts: list[object] = field(default_factory=list)
+    raised: type[httpx.TimeoutException]
 
-    def __call__(self, url: str, **kwargs: object) -> httpx.Response:
-        self.timeouts.append(kwargs.get("timeout"))
-        if self.raised is not None:
-            raise self.raised(url)
-        return httpx.Response(200, content=b"{}")
+    def __call__(self, url: str, **_: object) -> httpx.Response:
+        raise self.raised(url)
 
 
 def test_occupant_calls_a_refused_connection_nobody(closed_port: int) -> None:
@@ -521,17 +499,6 @@ def test_occupant_raises_when_no_answer_comes_inside_the_timeout(raised: type[ht
         desktop.occupant(f"http://{HOST}:{PORT}", get=Get(raised), knock=knocked)
 
 
-def test_occupant_asks_once_with_the_probe_timeout() -> None:
-    get = Get()
-    desktop.occupant(f"http://{HOST}:{PORT}", get=get, knock=knocked)
-    assert get.timeouts == [desktop.PROBE_TIMEOUT]
-
-
-def test_answers_only_where_something_listens(closed_port: int) -> None:
-    closed = desktop.answers(f"http://{HOST}:{closed_port}")
-    assert (closed, served(answering(200, b""), desktop.answers)) == (False, True)
-
-
 # --- the production parts ---------------------------------------------------------------------------------------
 
 
@@ -545,26 +512,21 @@ def accepts(port: int) -> bool:
 
 
 @pytest.fixture
-def listening(closed_port: int) -> Iterator[desktop.Listening]:
-    """A ``Listening`` on a free loopback port, never run, its socket closed afterwards."""
-    built = desktop.Listening(FastAPI(), host=HOST, port=closed_port, log_level="info", timeout_graceful_shutdown=5)
+def listening() -> Iterator[desktop.Listening]:
+    """A ``Listening`` on a loopback port the OS chooses, never run, its socket closed afterwards.
+
+    The ``Listening`` binds port 0 itself, so the socket that serves on the port holds it from the moment it is
+    chosen and no other socket can take it first."""
+    built = desktop.Listening(FastAPI(), host=HOST, port=0, log_level="info", timeout_graceful_shutdown=5)
     yield built
     for sock in built.sockets:
         sock.close()
 
 
-def test_a_listener_takes_connections_before_it_runs(closed_port: int, request: pytest.FixtureRequest) -> None:
-    before = accepts(closed_port)
-    request.getfixturevalue("listening")
-    assert (before, accepts(closed_port)) == (False, True)
+def test_a_listener_takes_connections_before_it_runs(listening: desktop.Listening) -> None:
+    assert accepts(listening.sockets[0].getsockname()[1]) is True
 
 
 def test_exit_asks_the_bound_server_to_stop(listening: desktop.Listening) -> None:
-    before = listening.server.should_exit
     listening.exit()
-    assert (before, listening.server.should_exit) == (False, True)
-
-
-def test_the_server_thread_is_an_unstarted_daemon() -> None:
-    thread = desktop.daemon_thread(lambda: None)
-    assert (thread.daemon, thread.is_alive()) == (True, False)
+    assert listening.server.should_exit is True

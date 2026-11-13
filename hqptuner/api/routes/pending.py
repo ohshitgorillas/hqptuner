@@ -3,92 +3,20 @@
 A self-contained feature surface mounted alongside ``app``.
 """
 
-from dataclasses import dataclass
-
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import ErrorBody, refuse
-from hqptuner.api.models import AutosaveBody, StageBody
-from hqptuner.audit import AuditLog
+from hqptuner.api.deps import Mgr, audit_of, manager_of, pending_of
+from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
+from hqptuner.api.models import StageBody
+from hqptuner.conf.xmledit import GroundingError
 from hqptuner.core.applyops import ApplyReport
+from hqptuner.core.pending import PendingSnapshot
+from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.lanes.writer import LiveWriteFailed, known_live_settings
+from hqptuner.lanes.writer import LiveWriteFailed
 
 router = APIRouter(prefix="/api")
-
-
-@dataclass(frozen=True)
-class PendingSnapshot:
-    """The staged buffer as every staging route answers with it: live-lane buckets and restore-lane fields."""
-
-    live: dict[str, dict[str, str]]
-    http: dict[str, str]
-
-
-@dataclass(frozen=True)
-class AutosaveState:
-    """``POST /api/autosave``'s answer: whether auto-save is now armed."""
-
-    autosave: bool
-
-
-class PendingStore:
-    """Server-side staged-changes buffer.
-
-    Survives browser reloads because it lives on the backend, not the client.
-    """
-
-    def __init__(self) -> None:
-        """Start with both buckets empty — nothing staged."""
-        self.live: dict[str, dict[str, str]] = {}
-        self.http: dict[str, str] = {}
-
-    def stage(self, live: dict[str, dict[str, str]], http: dict[str, str]) -> None:
-        """Merge entries into the buffer, a later value for the same key replacing the earlier one.
-
-        The merge is shallow on the live side: a live key's whole argument bucket is replaced, not merged per argument.
-        """
-        self.live.update(live)
-        self.http.update(http)
-
-    def drop(self, live: dict[str, list[str]], http: list[str]) -> None:
-        """Remove named entries.
-
-        Names that are not staged are ignored — the client sends the whole set of entries that read clean, not a diff,
-        so a name it has already dropped must not be an error. A live bucket emptied of its arguments goes with them:
-        an empty bucket is not "no change", it is a setter the apply would still call.
-        """
-        for field in http:
-            self.http.pop(field, None)
-        for key, args in live.items():
-            bucket = self.live.get(key)
-            if bucket is None:
-                continue
-            for arg in args:
-                bucket.pop(arg, None)
-            if not bucket:
-                del self.live[key]
-
-    def clear(self) -> None:
-        """Throw the whole buffer away — what a clean apply and an explicit discard both end with."""
-        self.live = {}
-        self.http = {}
-
-    def snapshot(self) -> PendingSnapshot:
-        """Return both buckets as the wire shape every staging route answers with."""
-        return PendingSnapshot(live=self.live, http=self.http)
-
-
-def pending_store(request: Request) -> PendingStore:
-    """Return the app's staged-changes buffer."""
-    store: PendingStore = request.app.state.pending
-    return store
-
-
-def _audit(request: Request) -> AuditLog:
-    log: AuditLog = request.app.state.audit
-    return log
 
 
 def apply_succeeded(report: ApplyReport) -> bool:
@@ -117,27 +45,30 @@ class UnknownLiveSettingsError(ErrorBody):
 def stage(body: StageBody, request: Request) -> PendingSnapshot:
     """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
 
-    422 when a live key is not a known live setting — the daemon would have no setter to call for it. Nothing is
-    written to the daemon here; apply is a separate call.
+    422 when a live key is not a setting the buffer takes: no setter exists for it, or it is the pinned rate, which
+    only ``POST /api/config/live`` sends. Nothing is written to the daemon here; apply is a separate call.
     """
-    unknown = set(body.live) - set(known_live_settings())
+    unknown = set(body.live) - set(query.stageable())
     if unknown:
         raise refuse(UnknownLiveSettingsError(unknown=unknown))
-    store = pending_store(request)
+    store = pending_of(request)
     # merge, THEN drop: one request both re-stages a field and reports it clean
     # when an edit lands back on its baseline, and the drop is the later word.
-    store.stage(body.live, body.http)
+    try:
+        store.stage(body.live, body.http, EngineView.of(manager_of(request).readings))
+    except GroundingError as exc:
+        raise refuse(InvalidInputError(error=exc)) from exc
     store.drop(body.drop.live, body.drop.http)
     # what THIS request carried, not the accumulated buffer: the buffer is a sum
     # of requests and the log has to be able to attribute a field to one of them
-    _audit(request).stage(body.http, body.live, body.drop.model_dump())
-    return store.snapshot()
+    audit_of(request).stage(body.http, body.live, body.drop.model_dump())
+    return store.reconcile(manager_of(request).readings)
 
 
 @router.get("/config/pending")
 def pending(request: Request) -> PendingSnapshot:
     """Return the staged buffer as it stands, so a reloaded browser recovers what it had staged."""
-    return pending_store(request).snapshot()
+    return pending_of(request).reconcile(manager_of(request).readings)
 
 
 @router.delete("/config/pending")
@@ -146,22 +77,12 @@ def discard(request: Request, manager: Mgr) -> PendingSnapshot:
 
     Touches the daemon not at all — the discarded edits were never written to it.
     """
-    store = pending_store(request)
+    store = pending_of(request)
     # snapshot before the clear: the discard's whole effect is to destroy this,
     # so the record is the only surviving copy of what was thrown away
     lost_http, lost_live = dict(store.http), dict(store.live)
     store.clear()
-    _audit(request).discard(lost_http, lost_live)
+    audit_of(request).discard(lost_http, lost_live)
     # parked filter uploads belong to the staged process strings just discarded
     manager.presetops.clear_parked_filters()
     return store.snapshot()
-
-
-@router.post("/autosave")
-def set_autosave(body: AutosaveBody, manager: Mgr) -> AutosaveState:
-    """Toggle auto-save: every successful apply/live write is folded back into the active preset's store file.
-
-    Pure store flag — no daemon touch.
-    """
-    manager.presetops.store.set_autosave(enabled=body.enabled)
-    return AutosaveState(manager.presetops.store.autosave)

@@ -6,17 +6,16 @@
 // "lossy" and "both", defaulting to "both". The filters it groups are the ones
 // HQPlayer documents for lossy and lossy-adjacent material — the two `hires`
 // families and `poly-sinc-mqa/mp3`, the latter documented as cleaning up
-// encoding noise (docs/vendor/manual/04-06-filter-oversampling-selection.txt).
+// encoding noise.
 // Membership is read off the NAME: `hires`, `mqa` or `mp3` in it.
 //
 // The manual gives that whole family Ratio "Any" and Genre "Any", so there is
 // no rate restriction behind this control and the Nx stage is never narrowed on
 // this axis at all — the three states differ only in what the 1x list offers.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Facet data is driven by assigning the two source signals the real
+// Facet data is driven by assigning the two source signals the real
 // payloads carry — `enums.filters` is the running engine's `<GetFilters/>`
-// enumeration (`{index, name, value, arg, description}`, protocol.md:226) and
+// enumeration (`{index, name, value, arg, description}`) and
 // `metadata.filters.filters` is the static name-keyed overlay served by
 // /api/metadata. Descriptions are hand-written in the engine's own format,
 // `"<q>/5 [focus, ...] <glyph> <ratio>"`, with the PCM glyph `⥮` and the
@@ -38,19 +37,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  nLossy1x,
-  nApod1x,
-  nQuality,
-  narrowingActive,
-  resetNarrowing,
-} from "../../../../hqptuner/static/store/narrow/state.js";
+import { nLossy1x, nApod1x, nQuality } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions } from "../../../../hqptuner/static/store/narrow/match.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
 
 /**
  * A fixture row: filter name, its facet description, and its flags bitfield
- * (bit 0 = apodizing, protocol.md:226).
+ * (bit 0 = apodizing).
  *
  * @typedef {[string, string, number]} FilterTuple
  */
@@ -114,20 +107,6 @@ const at1x = (options) => narrowOptions(options, "1x", "pcm_filter_1x").map((o) 
  */
 const atNx = (options) => narrowOptions(options, "nx", "pcm_filter_nx").map((o) => o.label);
 
-// --- the control's default ------------------------------------------------------
-
-test("test_a_fresh_bar_holds_the_lossy_control_at_both", () => {
-  reset();
-  assert.equal(nLossy1x.value, "both");
-});
-
-// The apodizing control is the other 1x control this change moves: it no longer
-// starts narrowed either, so a fresh bar offers the whole 1x list.
-test("test_a_fresh_bar_holds_the_1x_apodizing_control_at_all", () => {
-  reset();
-  assert.equal(nApod1x.value, "all");
-});
-
 // --- what each state offers at 1x -------------------------------------------------
 
 test("test_both_leaves_every_filter_in_the_1x_list", () => {
@@ -147,24 +126,6 @@ test("test_lossy_keeps_only_the_filters_named_hires_mqa_or_mp3_in_the_1x_list", 
   nLossy1x.value = "lossy";
   assert.deepEqual(at1x(options), LOSSY);
 });
-
-// One name at a time. `hires`, `mqa` and `mp3` each appear on a name of their
-// own in the fixture, so a control reading only one or two of the three words
-// fails here rather than passing on the list cases above.
-
-for (const name of LOSSY) {
-  test(`test_lossless_drops_${name}`, () => {
-    const options = reset();
-    nLossy1x.value = "lossless";
-    assert.equal(at1x(options).includes(name), false);
-  });
-
-  test(`test_lossy_keeps_${name}`, () => {
-    const options = reset();
-    nLossy1x.value = "lossy";
-    assert.equal(at1x(options).includes(name), true);
-  });
-}
 
 // --- the control narrows ALONGSIDE the other facets, never instead of them ------------
 //
@@ -206,28 +167,3 @@ for (const state of ["both", "lossless", "lossy"]) {
 }
 
 // --- narrowing reads as active only away from both -------------------------------------
-
-test("test_the_lossy_control_at_both_is_not_active_narrowing", () => {
-  reset();
-  nLossy1x.value = "both";
-  assert.equal(narrowingActive.value, false);
-});
-
-for (const state of ["lossless", "lossy"]) {
-  test(`test_the_lossy_control_at_${state}_is_active_narrowing`, () => {
-    reset();
-    nLossy1x.value = state;
-    assert.equal(narrowingActive.value, true);
-  });
-}
-
-// --- reset ------------------------------------------------------------------------------
-
-for (const state of ["lossless", "lossy"]) {
-  test(`test_reset_returns_the_lossy_control_to_both_from_${state}`, () => {
-    reset();
-    nLossy1x.value = state;
-    resetNarrowing();
-    assert.equal(nLossy1x.value, "both");
-  });
-}

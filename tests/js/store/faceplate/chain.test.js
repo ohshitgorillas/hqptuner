@@ -1,0 +1,487 @@
+// Behavioral suite for railStages in hqptuner/static/store/faceplate/chain.js: the chain rail's stages decided from a
+// plain running picture, one value per stage, its lamp, whether it is hidden and whether this track's path bypasses it.
+//
+// Every engine name below is the fixture's own, so it may be asserted back verbatim; the stage names and the words the
+// rail writes beside a value are copy and are compared only against each other.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/chain.test.js
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+import { railLamp, railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
+
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").RailStage} RailStage */
+
+const CONV = {
+  filter1x: "poly-sinc-gauss-long",
+  filterNx: "sinc-Mx",
+  shaper: "NS9",
+  noise: "standard-fir",
+  decim: "poly-sinc-short-mp",
+  integ: "IIR2",
+  sdmconv: "XFi",
+};
+
+/**
+ * A running picture: a CD source playing to a PCM rate with the matrix engine on and nothing else engaged.
+ *
+ * @param {Partial<Running>} [over]
+ * @returns {Running}
+ */
+function running(over = {}) {
+  return {
+    path: "pcm-pcm",
+    chain: "pcm",
+    stage: "1x",
+    direct: false,
+    metadata: { samplerate: "44100", bits: "16" },
+    status: { active_rate: "352800", active_bits: "32" },
+    hf: "none",
+    conv: CONV,
+    matrix: true,
+    profile: "Desk nearfield",
+    pipelines: 2,
+    working: false,
+    crossfeed: null,
+    loudness: false,
+    applied: 0,
+    correction: false,
+    model: "",
+    volume: "-20",
+    speakers: false,
+    hidden: [],
+    ...over,
+  };
+}
+
+const NOTHING = /** @type {RailStage} */ (
+  /** @type {unknown} */ ({ id: null, level: null, name: null, value: null, on: null, hidden: null, byp: null })
+);
+
+/**
+ * One stage of a decided rail, or a stage whose every field fails a comparison when the rail has none by that id.
+ *
+ * @param {Partial<Running>} over
+ * @param {string} id
+ * @returns {RailStage}
+ */
+const stage = (over, id) => railStages(running(over)).find((s) => s.id === id) || NOTHING;
+
+/**
+ * The ids of a decided rail's stages that satisfy a test.
+ *
+ * @param {Partial<Running>} over
+ * @param {(s: RailStage) => boolean} pick
+ * @returns {string[]}
+ */
+const idsWhere = (over, pick) =>
+  railStages(running(over))
+    .filter(pick)
+    .map((s) => s.id);
+
+test("test_an_idle_source_prints_nothing_of_the_metadata_the_engine_left_behind", () => {
+  assert.doesNotMatch(stage({ path: "idle", metadata: { samplerate: "96000", bits: "24" } }, "source").value, /96|24/);
+});
+
+test("test_a_playing_source_reads_its_rate", () => {
+  const a = stage({ metadata: { samplerate: "44100", bits: "16" } }, "source").value;
+  const b = stage({ metadata: { samplerate: "96000", bits: "16" } }, "source").value;
+  assert.notEqual(a, b);
+});
+
+test("test_a_playing_source_reads_its_channel_count", () => {
+  const stereo = stage({ metadata: { samplerate: "44100", bits: "16", channels: "2" } }, "source").value;
+  const surround = stage({ metadata: { samplerate: "44100", bits: "16", channels: "6" } }, "source").value;
+  assert.notEqual(stereo, surround);
+});
+
+test("test_a_playing_source_reads_differently_from_an_idle_one", () => {
+  assert.notEqual(stage({}, "source").value, stage({ path: "idle" }, "source").value);
+});
+
+/** A source rate the 20k, 30k and 40k filters act on and the 50k and Nx filters do not. */
+const AT_88K = { samplerate: "88200", bits: "24" };
+
+/** Content a DSD source plays as through conversion: DSD128, which counts at 88.2 kHz, and DSD64, at 44.1 kHz. */
+const DSD128 = { samplerate: "5644800", sdm: "1" };
+const DSD64 = { samplerate: "2822400", sdm: "1" };
+
+test("test_a_running_hf_filter_shows_its_engine_name_on_content_it_acts_on", () => {
+  assert.equal(stage({ hf: "20k", metadata: AT_88K }, "hf").value, "20k");
+});
+
+test("test_an_engaged_hf_filter_on_a_44_1_source_reads_unlit", () => {
+  assert.equal(stage({ hf: "20k" }, "hf").on, false);
+});
+
+test("test_an_engaged_hf_filter_on_a_44_1_source_prints_no_value", () => {
+  assert.equal(stage({ hf: "20k" }, "hf").value, "");
+});
+
+test("test_an_engaged_hf_filter_on_content_it_does_not_act_on_is_not_bypassed", () => {
+  assert.equal(stage({ hf: "20k" }, "hf").byp, false);
+});
+
+test("test_the_50k_filter_on_an_88_2_source_reads_unlit", () => {
+  assert.equal(stage({ hf: "50k", metadata: AT_88K }, "hf").on, false);
+});
+
+test("test_the_30k_filter_on_an_88_2_source_reads_lit", () => {
+  assert.equal(stage({ hf: "30k", metadata: AT_88K }, "hf").on, true);
+});
+
+test("test_the_50k_and_2x_filters_on_a_176_4_source_read_lit", () => {
+  const md = { samplerate: "176400", bits: "24" };
+  assert.deepEqual(
+    ["50k", "2x"].map((hf) => stage({ hf, metadata: md }, "hf").on),
+    [true, true],
+  );
+});
+
+test("test_the_30k_filter_on_a_dsd128_source_converted_to_pcm_reads_lit", () => {
+  assert.equal(stage({ hf: "30k", path: "dsd-pcm", metadata: DSD128 }, "hf").on, true);
+});
+
+test("test_the_50k_filter_on_a_dsd128_source_converted_to_pcm_reads_unlit", () => {
+  assert.equal(stage({ hf: "50k", path: "dsd-pcm", metadata: DSD128 }, "hf").on, false);
+});
+
+test("test_the_30k_filter_on_a_dsd64_source_converted_to_pcm_reads_unlit", () => {
+  assert.equal(stage({ hf: "30k", path: "dsd-pcm", metadata: DSD64 }, "hf").on, false);
+});
+
+test("test_direct_sdm_still_marks_the_hf_stage_bypassed", () => {
+  assert.equal(stage({ hf: "30k", path: "direct", metadata: DSD128 }, "hf").byp, true);
+});
+
+test("test_the_hf_filter_at_none_is_unlit", () => {
+  assert.equal(stage({ hf: "none" }, "hf").on, false);
+});
+
+test("test_dsd_processing_on_the_pcm_chain_names_the_decimation_filter", () => {
+  assert.match(stage({ path: "dsd-pcm" }, "dsd").value, new RegExp(CONV.decim));
+});
+
+test("test_dsd_processing_on_the_sdm_chain_names_the_integrator", () => {
+  assert.equal(stage({ path: "sdm-sdm", chain: "sdm" }, "dsd").value, CONV.integ);
+});
+
+test("test_dsd_processing_under_a_running_direct_sdm_does_not_name_the_integrator", () => {
+  assert.doesNotMatch(stage({ path: "direct", chain: "sdm", direct: true }, "dsd").value, new RegExp(CONV.integ));
+});
+
+/** @type {[Running["path"], boolean][]} */
+const DSD_BYPASS = [
+  ["pcm-sdm", true],
+  ["dsd-pcm", false],
+  ["sdm-sdm", false],
+  ["idle", true],
+];
+
+for (const [path, byp] of DSD_BYPASS) {
+  test(`test_dsd_processing_on_a_${path}_path_is_bypassed_${byp}`, () => {
+    assert.equal(stage({ path }, "dsd").byp, byp);
+  });
+}
+
+/** @type {[string, Partial<Running>, string][]} */
+const RESAMPLING = [
+  ["a_base_rate_pcm_source_runs_the_1x_filter", { stage: "1x" }, CONV.filter1x],
+  ["a_high_rate_pcm_source_runs_the_nx_filter", { stage: "nx" }, CONV.filterNx],
+  ["a_base_rate_dsd_source_to_pcm_runs_the_nx_filter", { path: "dsd-pcm", stage: "1x" }, CONV.filterNx],
+  ["a_remodulated_dsd_source_runs_the_sdm_conversion", { path: "sdm-sdm", chain: "sdm" }, CONV.sdmconv],
+  ["a_stopped_engine_names_the_1x_filter", { path: "idle", stage: "nx" }, CONV.filter1x],
+];
+
+for (const [name, over, value] of RESAMPLING) {
+  test(`test_resampling_${name}`, () => {
+    assert.equal(stage(over, "resampling").value, value);
+  });
+}
+
+const CD_SOURCE = { samplerate: "44100", bits: "16" };
+const DSD64_SOURCE = { samplerate: "2822400", bits: "1", sdm: "1" };
+const CD_OUT = { active_rate: "44100", active_bits: "32" };
+const PCM_8X_OUT = { active_rate: "352800", active_bits: "32" };
+const DSD64_OUT = { active_rate: "2822400", active_bits: "1" };
+const DSD256_OUT = { active_rate: "11289600", active_bits: "1" };
+const NO_FILTER = { ...CONV, filter1x: "none", filterNx: "none" };
+
+/**
+ * The Rate conversion lamp while the source plays.
+ *
+ * @param {Partial<Running>} over
+ * @returns {string}
+ */
+const rateLamp = (over) => railLamp(stage(over, "resampling"), false, "playing");
+
+/** @type {[string, Partial<Running>][]} */
+const RATE_LAMP_LIT = [
+  [
+    "pcm_to_pcm_lights_the_rate_lamp_while_the_output_rate_differs_from_the_source_rate",
+    { metadata: CD_SOURCE, status: PCM_8X_OUT },
+  ],
+  [
+    "pcm_to_sdm_lights_the_rate_lamp_under_a_running_filter",
+    { path: "pcm-sdm", chain: "sdm", metadata: CD_SOURCE, status: DSD256_OUT },
+  ],
+  [
+    "dsd_to_pcm_lights_the_rate_lamp_under_a_running_filter",
+    { path: "dsd-pcm", metadata: DSD64_SOURCE, status: PCM_8X_OUT },
+  ],
+  [
+    "sdm_to_sdm_lights_the_rate_lamp_while_the_output_rate_differs_whatever_the_pcm_filter",
+    { path: "sdm-sdm", chain: "sdm", metadata: DSD64_SOURCE, status: DSD256_OUT, conv: NO_FILTER },
+  ],
+];
+
+for (const [name, converting] of RATE_LAMP_LIT) {
+  test(`test_${name}`, () => {
+    assert.equal(rateLamp(converting), "on");
+  });
+}
+
+/** @type {[string, Partial<Running>][]} */
+const RATE_LAMP_UNLIT = [
+  [
+    "pcm_to_pcm_leaves_the_rate_lamp_unlit_while_the_output_rate_matches_the_source_rate",
+    { metadata: CD_SOURCE, status: CD_OUT },
+  ],
+  [
+    "pcm_to_pcm_leaves_the_rate_lamp_unlit_under_the_none_filter",
+    { metadata: CD_SOURCE, status: PCM_8X_OUT, conv: NO_FILTER },
+  ],
+  [
+    "pcm_to_sdm_leaves_the_rate_lamp_unlit_under_the_none_filter",
+    { path: "pcm-sdm", chain: "sdm", metadata: CD_SOURCE, status: DSD256_OUT, conv: NO_FILTER },
+  ],
+  [
+    "dsd_to_pcm_leaves_the_rate_lamp_unlit_under_the_none_filter",
+    { path: "dsd-pcm", metadata: DSD64_SOURCE, status: PCM_8X_OUT, conv: NO_FILTER },
+  ],
+  [
+    "sdm_to_sdm_leaves_the_rate_lamp_unlit_while_the_output_rate_matches_whatever_the_pcm_filter",
+    { path: "sdm-sdm", chain: "sdm", metadata: DSD64_SOURCE, status: DSD64_OUT, conv: NO_FILTER },
+  ],
+];
+
+for (const [name, still] of RATE_LAMP_UNLIT) {
+  test(`test_${name}`, () => {
+    assert.equal(rateLamp(still), "off");
+  });
+}
+
+test("test_resampling_is_renamed_on_a_remodulated_dsd_source", () => {
+  assert.notEqual(stage({ path: "sdm-sdm", chain: "sdm" }, "resampling").name, stage({}, "resampling").name);
+});
+
+test("test_shaping_names_the_running_shaper", () => {
+  assert.equal(stage({ path: "pcm-sdm", chain: "sdm" }, "shaping").value, CONV.shaper);
+});
+
+test("test_direct_sdm_hides_resampling_and_shaping", () => {
+  assert.deepEqual(
+    idsWhere({ path: "direct", chain: "sdm", direct: true }, (s) => s.hidden),
+    ["resampling", "shaping"],
+  );
+});
+
+test("test_a_processed_path_hides_only_what_the_preferences_hide", () => {
+  assert.deepEqual(
+    idsWhere({ path: "sdm-sdm", chain: "sdm", hidden: ["loudness"] }, (s) => s.hidden),
+    ["loudness"],
+  );
+});
+
+test("test_a_pcm_path_bypasses_only_dsd_processing", () => {
+  assert.deepEqual(
+    idsWhere({}, (s) => s.byp),
+    ["dsd"],
+  );
+});
+
+test("test_the_matrix_engine_names_the_running_profile", () => {
+  assert.equal(stage({ profile: "Desk nearfield" }, "matrix").value, "Desk nearfield");
+});
+
+test("test_a_bypassed_matrix_engine_is_unlit", () => {
+  assert.equal(stage({ matrix: false }, "matrix").on, false);
+});
+
+test("test_a_running_matrix_engine_is_lit", () => {
+  assert.equal(stage({ matrix: true }, "matrix").on, true);
+});
+
+test("test_dsp_pipelines_count_the_running_pipelines", () => {
+  assert.match(stage({ pipelines: 7 }, "pipelines").value, /\b7\b/);
+});
+
+/** @type {Partial<Running>} */
+const ENGAGED = { working: true, crossfeed: "bauer", loudness: true, correction: true, model: "D90", speakers: true };
+
+for (const id of ["crossfeed", "loudness", "correction"]) {
+  test(`test_${id}_engaged_under_a_running_matrix_engine_is_lit`, () => {
+    assert.equal(stage({ ...ENGAGED, matrix: true }, id).on, true);
+  });
+}
+
+for (const id of ["crossfeed", "loudness", "correction"]) {
+  test(`test_${id}_engaged_under_a_bypassed_matrix_engine_is_unlit`, () => {
+    assert.equal(stage({ ...ENGAGED, matrix: false }, id).on, false);
+  });
+}
+
+for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
+  ["crossfeed", { crossfeed: null }],
+  ["loudness", { loudness: false }],
+  ["correction", { correction: false }],
+  ["speakers", { speakers: false }],
+])) {
+  test(`test_${id}_switched_off_is_unlit`, () => {
+    assert.equal(stage({ ...ENGAGED, ...off }, id).on, false);
+  });
+}
+
+for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
+  ["hf", { hf: "none" }],
+  ["crossfeed", { crossfeed: null }],
+  ["correction", { correction: false }],
+])) {
+  test(`test_${id}_switched_off_prints_no_value`, () => {
+    assert.equal(stage({ ...ENGAGED, ...off }, id).value, "");
+  });
+}
+
+for (const [id, why, off] of /** @type {[string, string, Partial<Running>][]} */ ([
+  ["matrix", "bypassed", { matrix: false }],
+  ["pipelines", "under_a_bypassed_matrix_engine", { matrix: false }],
+  ["loudness", "under_a_bypassed_matrix_engine", { matrix: false }],
+  ["loudness", "switched_off", { loudness: false }],
+  ["correction", "under_a_bypassed_matrix_engine", { matrix: false }],
+  ["dsd", "off_the_playing_path", { path: "pcm-pcm" }],
+  ["volume", "under_direct_sdm", { path: "direct", chain: "sdm", direct: true }],
+])) {
+  test(`test_the_rail_prints_nothing_under_${id}_${why}`, () => {
+    assert.equal(railValue(stage({ ...ENGAGED, ...off }, id), false, "playing"), "");
+  });
+}
+
+test("test_the_rail_prints_nothing_under_a_stage_the_alerts_darken", () => {
+  assert.equal(railValue(stage({}, "output"), true, "playing"), "");
+});
+
+test("test_the_rail_prints_the_noise_filter_under_dsd_processing_on_the_playing_path", () => {
+  assert.match(railValue(stage({ path: "dsd-pcm" }, "dsd"), false, "playing"), new RegExp(CONV.noise));
+});
+
+test("test_the_rail_prints_the_percent_under_lit_loudness", () => {
+  assert.match(railValue(stage({ loudness: true, applied: 37 }, "loudness"), false, "playing"), /\b37%/);
+});
+
+/**
+ * What the rail prints under the Crossfeed lamp while the source plays, one crossfeed running or none.
+ *
+ * @param {Running["crossfeed"]} crossfeed
+ * @returns {string}
+ */
+const crossfeedPrinted = (crossfeed) => railValue(stage({ crossfeed }, "crossfeed"), false, "playing");
+
+const STRUCTURAL = "structural";
+const BAUER = "bauer";
+
+test("test_the_rail_prints_different_words_under_a_structural_and_a_bauer_crossfeed", () => {
+  assert.notEqual(crossfeedPrinted(STRUCTURAL), crossfeedPrinted(BAUER));
+});
+
+for (const mode of /** @type {NonNullable<Running["crossfeed"]>[]} */ ([STRUCTURAL, BAUER])) {
+  test(`test_the_rail_prints_a_value_under_a_running_${mode}_crossfeed_where_none_prints_nothing`, () => {
+    assert.notEqual(crossfeedPrinted(mode), crossfeedPrinted(null));
+  });
+}
+
+test("test_dsp_pipelines_keep_their_count_as_a_value_under_a_bypassed_matrix_engine", () => {
+  assert.match(stage({ matrix: false, pipelines: 7 }, "pipelines").value, /\b7\b/);
+});
+
+test("test_dac_correction_engaged_names_the_running_model", () => {
+  assert.equal(stage({ correction: true, model: "D90" }, "correction").value, "D90");
+});
+
+for (const text of ["-12.5 dB", "Pinned: -3.0 dB"]) {
+  test(`test_volume_reads_the_running_rail_text_${text.replace(/\W+/g, "_")}`, () => {
+    assert.equal(stage({ volume: text }, "volume").value, text);
+  });
+}
+
+test("test_speakers_engaged_are_lit", () => {
+  assert.equal(stage({ speakers: true }, "speakers").on, true);
+});
+
+test("test_the_output_reads_its_rate", () => {
+  const a = stage({ status: { active_rate: "352800", active_bits: "32" } }, "output").value;
+  const b = stage({ status: { active_rate: "22579200", active_bits: "1" } }, "output").value;
+  assert.notEqual(a, b);
+});
+
+test("test_the_output_reads_its_channel_count", () => {
+  const stereo = stage({ status: { active_rate: "352800", active_bits: "32", active_channels: "2" } }, "output").value;
+  const surround = stage(
+    { status: { active_rate: "352800", active_bits: "32", active_channels: "6" } },
+    "output",
+  ).value;
+  assert.notEqual(stereo, surround);
+});
+
+test("test_an_idle_output_prints_nothing_of_the_rate_the_engine_left_behind", () => {
+  const idle = stage({ path: "idle", status: { active_rate: "352800", active_bits: "32" } }, "output").value;
+  assert.doesNotMatch(idle, /352|32/);
+});
+
+test("test_a_stage_the_preferences_hide_is_hidden", () => {
+  assert.deepEqual(
+    idsWhere({ hidden: ["loudness", "speakers"] }, (s) => s.hidden),
+    ["loudness", "speakers"],
+  );
+});
+
+/**
+ * The ids of a decided rail's stages whose lamp does not read unlit under one transport.
+ *
+ * @param {Partial<Running>} over
+ * @param {import("../../../../hqptuner/static/store/faceplate/path.js").Transport} transport
+ * @returns {string[]}
+ */
+const showing = (over, transport) =>
+  railStages(running({ ...ENGAGED, ...over }))
+    .filter((s) => railLamp(s, false, transport) !== "off")
+    .map((s) => s.id);
+
+test("test_a_running_stage_reads_lit_while_the_source_plays", () => {
+  assert.equal(railLamp(stage({ hf: "20k", metadata: AT_88K }, "hf"), false, "playing"), "on");
+});
+
+test("test_a_stage_the_playing_path_bypasses_reads_unlit", () => {
+  assert.equal(railLamp(stage({ path: "pcm-pcm" }, "dsd"), false, "playing"), "off");
+});
+
+test("test_a_stage_the_alerts_darken_reads_unlit", () => {
+  assert.equal(railLamp(stage({}, "output"), true, "playing"), "off");
+});
+
+test("test_every_lamp_reads_unlit_with_the_engine_off", () => {
+  assert.deepEqual(showing({ hf: "20k" }, "off"), []);
+});
+
+test("test_paused_the_source_lamp_alone_shows", () => {
+  assert.deepEqual(showing({ hf: "20k" }, "paused"), ["source"]);
+});
+
+test("test_paused_the_source_lamp_reads_paused", () => {
+  assert.equal(railLamp(stage({}, "source"), false, "paused"), "pause");
+});
+
+test("test_the_rail_prints_nothing_with_the_engine_off", () => {
+  assert.equal(railValue(stage({ hf: "20k" }, "hf"), false, "off"), "");
+});

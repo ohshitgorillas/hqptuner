@@ -1,18 +1,18 @@
-"""Per-block spectral statistics, the arithmetic of docs/junk-filter-autopilot-resource-20k.md §2.
+"""Per-block spectral statistics, the arithmetic of docs/research/junkfilter/junk-filter-autopilot-resource-20k.md §2.
 
 One closed block of metering frames reads as three things: the per-bin minimum, the per-bin 90th percentile across
 the block's frames, and the band scalars — the level just above whichever image fold reads higher, the level of the
 15-18 kHz music band, and their distance. Levels are dB of power per Hz, so the width of the band each is read over
 does not enter the distance between them.
 
-The functions here mirror the scoring package under ``scripts/junkburst/`` (``jbcurves.Grid``, ``jbcurves.band_bins``
+The scoring package under ``scripts/junkburst/`` holds the same arithmetic (``jbcurves.Grid``, ``jbcurves.band_bins``
 and ``band_level_db``, ``jbcandidates._per_hz_level``, ``_fold_mask``, ``mask_reading`` and ``fold_step``,
-``jbcurves.median_smooth``, ``jbedge.p90_curve`` and ``g90_value``, ``jblabelled``'s per-bin minimum) rather than
-importing them: the image installs the wheel, and that package is not in it (``Dockerfile``, ``pyproject.toml``
-``packages``).
+``jbcurves.median_smooth``, ``jbedge.p90_curve`` and ``g90_value``, ``jblabeled``'s per-bin minimum). The image
+installs the wheel and that package is not in it (``Dockerfile``, ``pyproject.toml`` ``packages``), so this module is
+self-contained.
 
-The record's ``p90`` is the raw percentile row ``jbedge.p90_curve`` smooths rather than that smoothed curve: the
-9-bin median smooth belongs to the rule that reads the step, and ``p90_smoothed`` runs it there.
+The record's ``p90`` is the raw, unsmoothed percentile row. The 9-bin median smooth belongs to the rule that reads the
+step, and ``p90_smoothed`` runs it there.
 """
 
 import math
@@ -91,7 +91,7 @@ def _band_bins(grid: Grid, lo_hz: float, hi_hz: float) -> tuple[int, int] | None
 def _per_hz_level(
     frames: npt.NDArray[np.float64], grid: Grid, lo_hz: float, hi_hz: float
 ) -> npt.NDArray[np.float64] | None:
-    """Per frame: one band's summed power normalised to per Hz, in dB, or None when the band is off the grid."""
+    """Per frame: one band's summed power normalized to per Hz, in dB, or None when the band is off the grid."""
     span = _band_bins(grid, lo_hz, hi_hz)
     if span is None:
         return None
