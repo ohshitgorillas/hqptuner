@@ -97,6 +97,11 @@ for (const { span, nyquist, khz } of [
   });
 }
 
+test("test_a_frequency_tick_above_the_top_of_the_view_is_dropped", () => {
+  const above = ticksAt(QUARTER, NYQ_96).filter((t) => t.at > 1);
+  assert.deepEqual(above, []);
+});
+
 test("test_the_quarter_view_of_a_44_1_khz_source_carries_ticks_inside_it", () => {
   const inside = ticksAt(QUARTER, NYQ_44).filter(
     (t) => t.khz > 0 && t.at < 1 && r4(t.at * QUARTER_OF_44_KHZ) === r4(t.khz),
