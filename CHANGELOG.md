@@ -17,6 +17,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Changing HQPlayer's address asks for the username and password again** to prevent credential leaks.
 - **Settings, restore archives and preset names HQPlayer can't use are refused**, and special characters in names save correctly.
 - **Settings staged while an apply runs are kept**, and two applies at once take turns.
+- **The last five pre-apply backups are kept** instead of only the newest.
 
 ## [1.20.1] — 2026-11-03
 

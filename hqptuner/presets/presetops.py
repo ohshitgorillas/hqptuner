@@ -9,7 +9,10 @@ this class owns the state.
 import contextlib
 import json
 import logging
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -28,6 +31,11 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
+
+#: How many dated safety copies stay in the backup directory; a new one past this drops the oldest.
+KEPT_BACKUPS = 5
+_BACKUP_STEM = "pre-apply-settings-"
+_DATED_BACKUP = re.compile(re.escape(_BACKUP_STEM) + r"\d{8}T\d{6}Z-\d{4}\.zip")
 
 
 class BackupFailedError(HQPTunerError):
@@ -119,6 +127,33 @@ def is_settings_archive(data: bytes) -> bool:
         presetzip.list_members(data)
         return True
     return False
+
+
+def copies_to_prune(names: Iterable[str]) -> list[str]:
+    """Return the dated safety copies among ``names`` that fall outside the ``KEPT_BACKUPS`` most recent, oldest first.
+
+    A name carries its own age: the UTC stamp and the zero-padded serial sort in creation order. Any other name, such
+    as the undated ``pre-apply-settings.zip``, is not a dated copy and is never listed.
+    """
+    return sorted(name for name in names if _DATED_BACKUP.fullmatch(name))[:-KEPT_BACKUPS]
+
+
+def _write_new_copy(directory: Path, at: datetime, data: bytes) -> Path:
+    """Write ``data`` under the first dated name free at ``at``, never over an existing copy; ``OSError`` on failure."""
+    serial = 0
+    while True:
+        path = directory / f"{_BACKUP_STEM}{at.astimezone(UTC):%Y%m%dT%H%M%SZ}-{serial:04d}.zip"
+        try:
+            with path.open("xb") as out:
+                out.write(data)
+        except FileExistsError:
+            serial += 1
+        except OSError:
+            with contextlib.suppress(OSError):
+                path.unlink(missing_ok=True)  # a half-written copy would stand as the newest
+            raise
+        else:
+            return path
 
 
 def _failure_code(exc: Exception) -> str:
@@ -287,7 +322,7 @@ class PresetOps:
             raise BackupBeforeRestoreFailedError(directory=self._cfg.backup_dir) from exc
 
     def _write_backup(self, data: bytes) -> Path | None:
-        """Write the pre-apply settings backup to disk, returning its path, or ``None`` when ``data`` is no archive.
+        """Write the pre-apply settings backup as a new dated file; its path, or ``None`` when ``data`` is no archive.
 
         Bytes that are not a readable settings archive are never stored: they would replace a copy that is. The
         operation goes on and meets its own refusal of those bytes further down.
@@ -301,14 +336,27 @@ class PresetOps:
         if not is_settings_archive(data):
             log.warning("pre-apply backup not stored: the daemon's /backup answer is not a settings archive")
             return None
-        path = self._cfg.backup_dir / "pre-apply-settings.zip"
+        directory = self._cfg.backup_dir
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
+            directory.mkdir(parents=True, exist_ok=True)
+            path = _write_new_copy(directory, self._mgr.clock.now(), data)
         except OSError as exc:
-            log.warning("could not persist pre-apply backup to %s: %s", path, exc)
+            log.warning("could not persist pre-apply backup to %s: %s", directory, exc)
             raise
+        self._prune_backups()
         return path
+
+    def _prune_backups(self) -> None:
+        """Drop the dated copies past the ``KEPT_BACKUPS`` most recent, at the top of the backup directory only.
+
+        The new copy is already on disk, so a prune the filesystem refuses is logged and the operation goes on.
+        """
+        directory = self._cfg.backup_dir
+        try:
+            for name in copies_to_prune(entry.name for entry in directory.iterdir() if entry.is_file()):
+                (directory / name).unlink()
+        except OSError as exc:
+            log.warning("could not prune old pre-apply backups in %s: %s", directory, exc)
 
     async def backup(self) -> bytes:
         """Return the daemon's current settings archive (a zip) for download."""

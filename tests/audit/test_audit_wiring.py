@@ -17,6 +17,7 @@ payload answers nothing.
 
 import json
 from collections.abc import Iterator
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
@@ -86,14 +87,17 @@ def profile_targets(path: Path) -> list[Any]:
     return [rec.get("target") for rec in records(path) if rec.get("event") == "profile.write"]
 
 
+DATED_BACKUP = "pre-apply-settings-*.zip"
+
+
 def stray_files(root: Path) -> list[str]:
     """Everything under the app's directories that is not one of its documented
-    artifacts — the pre-apply backup archive and the preset store. Any other
+    artifacts — the dated pre-apply backup archives and the preset store. Any other
     file the app wrote is a log by another name."""
     return sorted(
         str(p.relative_to(root))
         for p in root.rglob("*")
-        if p.is_file() and p.name != "pre-apply-settings.zip" and "presets" not in p.relative_to(root).parts
+        if p.is_file() and not fnmatch(p.name, DATED_BACKUP) and "presets" not in p.relative_to(root).parts
     )
 
 

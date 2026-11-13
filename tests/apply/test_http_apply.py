@@ -7,6 +7,7 @@ its GET renders the running state. So a change only round-trips if
 form->XML mapping in the writer surfaces as a failed readback."""
 
 import dataclasses
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -107,6 +108,11 @@ async def test_a_daemon_that_never_returns_reports_not_applied(
     assert result.outcome is RestoreOutcome.UNCONVERGED
 
 
+def newest_copy(directory: Path) -> Path | None:
+    """The most recent dated pre-apply copy in ``directory``, or ``None`` when it holds none."""
+    return max(directory.glob("pre-apply-settings-*.zip"), default=None)
+
+
 async def test_the_pre_apply_backup_is_written_to_disk(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
     tmp_path: Path,
@@ -115,7 +121,9 @@ async def test_the_pre_apply_backup_is_written_to_disk(
     # persisted before the POST, not just held in memory
     manager, _ = apply_via
     await manager.applyops.apply({}, {"title": "Renamed"})
-    assert (tmp_path / "pre-apply-settings.zip").read_bytes().startswith(b"PK\x03\x04")
+    newest = newest_copy(tmp_path)
+    assert newest is not None
+    assert zipfile.is_zipfile(newest)
 
 
 async def test_apply_verifies_through_the_post_restart_stale_window(
