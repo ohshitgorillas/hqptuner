@@ -184,3 +184,13 @@ async def test_taking_the_control_connection_down_leaves_the_phase_down_and_no_c
     await manager.take_control_down(TAKEN_DOWN_FOR)
     after = (manager.phase.standing.phase, manager.control is not None)
     assert (before, after) == ((Phase.READY, True), (Phase.DOWN, False))
+
+
+async def test_taking_the_control_connection_down_is_followed_at_once_by_a_redial(
+    stand: Stand, clock: VirtualClock
+) -> None:
+    standing = await stand(Phase.READY)
+    manager = standing.manager
+    await manager.take_control_down(TAKEN_DOWN_FOR)
+    await settled(clock)
+    assert (manager.control is not None, manager.phase.standing.phase) == (True, Phase.READY)

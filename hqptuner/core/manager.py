@@ -178,9 +178,10 @@ class ConnectionManager:
         return self._http
 
     async def take_control_down(self, reason: str) -> None:
-        """Close the control client, if one is held, break its readings and report the socket taken Down.
+        """Close the control client, if one is held, break its readings, report the socket taken Down and redial.
 
-        ``reason`` is why.
+        The redial ends the connect loop at its next wait, so the next dial is made at once and not after a status
+        interval; the dial cadence while Down is the loop's own and is not hastened. ``reason`` is why.
         """
         del reason
         control, self.control = self.control, None
@@ -188,6 +189,7 @@ class ConnectionManager:
             await control.close()
         self.readings.break_engine()
         self.phase.report(Fact.SOCKET_TAKEN, self.clock.monotonic())
+        self._supervisor.redial()
 
     async def refresh_http_forms(self) -> FormsOutcome:
         """Refresh the forms, then the device capability read for the device the config form selects.
