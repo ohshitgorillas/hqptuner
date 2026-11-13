@@ -215,6 +215,12 @@ case "$CMD" in
         # The polled form is the copy taken at connect; refresh refetches it
         # from the daemon (and rescans devices, which is what the route is for).
         curl -sf -X POST "$API/api/config/refresh" >/dev/null 2>&1 || true
+        # The refresh takes the control connection down, so state answers 503
+        # until the app is Ready again; read it back only then.
+        for _ in $(seq "$TRIES"); do
+          [ "$(get /api/health | jq -r '.phase')" = "Ready" ] && break
+          sleep 1
+        done
         if now=$(form_of) && livenow=$(live_of) \
           && [ "$(jq -n --argjson k "$keys" --argjson b "$baseline" --argjson n "$now" '[$k[] | $b[.] == $n[.]] | all')" = "true" ] \
           && [ "$(jq -n --argjson k "$LIVE_KEYS" --argjson b "$(cat "$livebase")" --argjson n "$livenow" '[$k[] | $b[.] == $n[.]] | all')" = "true" ]; then

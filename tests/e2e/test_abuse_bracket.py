@@ -351,15 +351,28 @@ def _await_junk_filter(app: stack_support.Stack, value: str) -> None:
     raise _ActiveProfileMismatchError(reported=_live_junk_filter(app), expected=value)
 
 
+def _close_after(app: stack_support.Stack, state: Path, run: Callable[[], None]) -> int:
+    """Open the bracket, let `run` do its writes, close, and answer how many device refreshes close asked for.
+
+    Each refresh is one turn of close's readback loop, counted at the HTTP fake's
+    own refresh hook, never from what the script prints.
+    """
+    refreshes: list[None] = []
+    app.http_state["_on_refresh"] = lambda: refreshes.append(None)
+    _bracket("open", state)
+    run()
+    refreshes.clear()
+    _bracket("close", state)
+    return len(refreshes)
+
+
 def _uploads_after(app: stack_support.Stack, state: Path, run: Callable[[], None]) -> int:
     """Open the bracket, let `run` do its writes, close, and answer how many baseline uploads reached the daemon.
 
     Read from the HTTP fake's own restore bookkeeping once `close` has returned,
     never from what the script prints.
     """
-    _bracket("open", state)
-    run()
-    _bracket("close", state)
+    _close_after(app, state, run)
     return int(app.http_state.get("_restore_attempts", 0))
 
 
@@ -405,3 +418,18 @@ def test_close_uploads_the_baseline_once_when_a_write_landed_and_never_when_none
 ) -> None:
     """A landed write changed the daemon, so close uploads the baseline once; a run that wrote nothing uploads none."""
     assert _uploads_after(app, state, make_run(app)) == uploads
+
+
+@pytest.mark.parametrize(
+    "make_run",
+    [
+        pytest.param(_run_with_an_apply, id="an-apply-landed"),
+        pytest.param(_run_with_a_live_write, id="a-live-write-landed"),
+        pytest.param(_run_with_a_preset_store_write, id="a-preset-store-write-landed"),
+    ],
+)
+def test_close_reads_state_back_on_its_first_turn_once_a_write_landed(
+    app: stack_support.Stack, state: Path, make_run: Callable[[stack_support.Stack], Callable[[], None]]
+) -> None:
+    """Close waits for the app to be ready after its refresh, so the readback settles without a second turn."""
+    assert _close_after(app, state, make_run(app)) == 1
