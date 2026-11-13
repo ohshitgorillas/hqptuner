@@ -21,6 +21,7 @@ means writing filter settings the user never chose.
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
@@ -31,6 +32,7 @@ from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
@@ -114,9 +116,13 @@ class AutopilotStore:
     reads as off.
     """
 
-    def __init__(self, path: Path) -> None:
-        """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
+    def __init__(self, path: Path, *, lock: AbstractContextManager[object] | None = None) -> None:
+        """Bind the store to the JSON file at ``path``, which is not touched until the first write.
+
+        ``lock`` stands in for the store's own ``threading.Lock``; a test passes one that reports contention.
+        """
         self._path = path
+        self._lock = threading.Lock() if lock is None else lock
 
     def _read_file(self) -> AutopilotFile:
         """Return the file as a dict, empty when absent.
@@ -148,11 +154,13 @@ class AutopilotStore:
 
     def enable(self) -> None:
         """Switch auto-pilot on."""
-        self._write(AutopilotState(enabled=True, presets=self.read().presets))
+        with self._lock:
+            self._write(AutopilotState(enabled=True, presets=self.read().presets))
 
     def disable(self) -> None:
         """Switch auto-pilot off."""
-        self._write(AutopilotState(enabled=False, presets=self.read().presets))
+        with self._lock:
+            self._write(AutopilotState(enabled=False, presets=self.read().presets))
 
     def for_preset(self, name: str) -> bool:
         """Whether the config preset saved under ``name`` carries auto-pilot on."""
@@ -160,7 +168,8 @@ class AutopilotStore:
 
     def set_for_preset(self, name: str, *, enabled: bool) -> None:
         """Record ``enabled`` as the auto-pilot state the config preset ``name`` carries."""
-        state = self.read()
-        presets = dict(state.presets)
-        presets[name] = enabled
-        self._write(AutopilotState(enabled=state.enabled, presets=presets))
+        with self._lock:
+            state = self.read()
+            presets = dict(state.presets)
+            presets[name] = enabled
+            self._write(AutopilotState(enabled=state.enabled, presets=presets))

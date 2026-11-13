@@ -20,6 +20,7 @@ facet starts unnarrowed.
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -272,6 +273,7 @@ class NarrowingStore:
     def __init__(self, path: Path) -> None:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
         self._path = path
+        self._lock = threading.Lock()
 
     def _read_file(self) -> NarrowingFile:
         """Return the file as a dict, empty when absent.
@@ -307,9 +309,10 @@ class NarrowingStore:
         read is not one we should be writing into.
         """
         stored = _validate(facets)
-        self._read_file()
-        with saving(NARROWING_STORE.what, self._path):
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            text = json.dumps({"schema": _SCHEMA, "facets": stored.to_json()}, indent=2)
-            atomicwrite.write(self._path, text.encode(), mode=atomicwrite.SHARED_MODE)
+        with self._lock:
+            self._read_file()
+            with saving(NARROWING_STORE.what, self._path):
+                self._path.parent.mkdir(parents=True, exist_ok=True)
+                text = json.dumps({"schema": _SCHEMA, "facets": stored.to_json()}, indent=2)
+                atomicwrite.write(self._path, text.encode(), mode=atomicwrite.SHARED_MODE)
         return stored

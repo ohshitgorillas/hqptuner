@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
@@ -54,6 +55,7 @@ from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner
@@ -226,13 +228,17 @@ class LivePresetStore:
     empty.
     """
 
-    def __init__(self, path: Path, *, platform: str = sys.platform) -> None:
+    def __init__(
+        self, path: Path, *, platform: str = sys.platform, lock: AbstractContextManager[object] | None = None
+    ) -> None:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write.
 
         ``platform`` is the ``sys.platform`` value whose naming limits a name being saved is held to.
+        ``lock`` stands in for the store's own ``threading.Lock``; a test passes one that reports contention.
         """
         self._path = path
         self._platform = platform
+        self._lock = threading.Lock() if lock is None else lock
 
     def _read_file(self) -> LiveFile:
         """Return the file as a dict, empty when absent.
@@ -280,18 +286,20 @@ class LivePresetStore:
 
     def save(self, name: str, record: LiveRecord) -> None:
         """Write (or overwrite) a preset. A name new to the store takes the stricter first-save rule."""
-        presets = self._presets()
-        key = names.validate_stored_name(name, InvalidSnapshotNameError, "snapshot", self._platform)
-        if key not in presets:
-            names.validate_new_name(key, InvalidSnapshotNameError, MixedScriptSnapshotNameError, "snapshot")
-        presets[key] = record.to_json()
-        self._write(presets)
+        with self._lock:
+            presets = self._presets()
+            key = names.validate_stored_name(name, InvalidSnapshotNameError, "snapshot", self._platform)
+            if key not in presets:
+                names.validate_new_name(key, InvalidSnapshotNameError, MixedScriptSnapshotNameError, "snapshot")
+            presets[key] = record.to_json()
+            self._write(presets)
 
     def delete(self, name: str) -> None:
         """Remove a preset. Raises ``LivePresetError`` if absent."""
-        presets = self._presets()
-        key = canonical_name(name)
-        if key not in presets:
-            raise SnapshotNotFoundError(name=name)
-        del presets[key]
-        self._write(presets)
+        with self._lock:
+            presets = self._presets()
+            key = canonical_name(name)
+            if key not in presets:
+                raise SnapshotNotFoundError(name=name)
+            del presets[key]
+            self._write(presets)

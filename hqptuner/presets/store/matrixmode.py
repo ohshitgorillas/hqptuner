@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__, atomicwrite
@@ -30,6 +31,7 @@ from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
@@ -140,13 +142,17 @@ class MatrixModeStore:
     empty.
     """
 
-    def __init__(self, path: Path, *, platform: str = sys.platform) -> None:
+    def __init__(
+        self, path: Path, *, platform: str = sys.platform, lock: AbstractContextManager[object] | None = None
+    ) -> None:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write.
 
         ``platform`` is the ``sys.platform`` value whose naming limits a name being written is held to.
+        ``lock`` stands in for the store's own ``threading.Lock``; a test passes one that reports contention.
         """
         self._path = path
         self._platform = platform
+        self._lock = threading.Lock() if lock is None else lock
 
     def _read_file(self) -> MatrixModeFile:
         """Return the file as a dict, empty when absent.
@@ -184,12 +190,13 @@ class MatrixModeStore:
         when it cannot be read at all: both are the caller's decision, not this method's, about whether losing a
         preset must wait on a store beside it that this HQPTuner cannot open.
         """
-        presets = self._read_file().get("presets", {})
-        if name not in presets:
-            return False
-        del presets[name]
-        self._save(presets)
-        return True
+        with self._lock:
+            presets = self._read_file().get("presets", {})
+            if name not in presets:
+                return False
+            del presets[name]
+            self._save(presets)
+            return True
 
     def write(self, name: str, mode: str) -> dict[str, str]:
         """Store ``mode`` against preset ``name`` and return the whole map.
@@ -200,9 +207,10 @@ class MatrixModeStore:
         """
         key = names.validate_stored_name(name, InvalidPresetNameError, "preset", self._platform)
         value = validate_mode(mode)
-        presets = self._read_file().get("presets", {})
-        presets[key] = value
-        if len(presets) > _MAX_PRESETS:
-            raise TooManyPresetsError(count=len(presets), limit=_MAX_PRESETS)
-        self._save(presets)
+        with self._lock:
+            presets = self._read_file().get("presets", {})
+            presets[key] = value
+            if len(presets) > _MAX_PRESETS:
+                raise TooManyPresetsError(count=len(presets), limit=_MAX_PRESETS)
+            self._save(presets)
         return presets

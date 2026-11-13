@@ -17,6 +17,7 @@ abuse guard and nothing else: HQPlayer offers under a hundred filters per chain,
 from __future__ import annotations
 
 import json
+import threading
 from typing import TYPE_CHECKING, Literal, TypedDict
 
 from hqptuner import __version__, atomicwrite
@@ -26,6 +27,7 @@ from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
@@ -141,9 +143,13 @@ class FavoriteStore:
     as empty.
     """
 
-    def __init__(self, path: Path) -> None:
-        """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
+    def __init__(self, path: Path, *, lock: AbstractContextManager[object] | None = None) -> None:
+        """Bind the store to the JSON file at ``path``, which is not touched until the first write.
+
+        ``lock`` stands in for the store's own ``threading.Lock``; a test passes one that reports contention.
+        """
         self._path = path
+        self._lock = threading.Lock() if lock is None else lock
 
     def _read_file(self) -> FavoritesFile:
         """Return the file as a dict, empty when absent.
@@ -166,15 +172,16 @@ class FavoriteStore:
     def _write_kind(self, kind: Kind, names: list[str]) -> list[str]:
         """Replace the set under ``kind`` and return what was stored, carrying the other kind through untouched."""
         stored = _validate(names)
-        data = self._read_file()
-        keep = {k: data[k] for k in _KINDS if k != kind and k in data}
-        with saving(FAVORITES_STORE.what, self._path):
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            atomicwrite.write(
-                self._path,
-                json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2).encode(),
-                mode=atomicwrite.SHARED_MODE,
-            )
+        with self._lock:
+            data = self._read_file()
+            keep = {k: data[k] for k in _KINDS if k != kind and k in data}
+            with saving(FAVORITES_STORE.what, self._path):
+                self._path.parent.mkdir(parents=True, exist_ok=True)
+                atomicwrite.write(
+                    self._path,
+                    json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2).encode(),
+                    mode=atomicwrite.SHARED_MODE,
+                )
         return stored
 
     def read(self) -> list[str]:

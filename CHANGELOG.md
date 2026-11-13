@@ -19,6 +19,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Settings staged while an apply runs are kept**, and two applies at once take turns.
 - **The last five pre-apply backups are kept** instead of only the newest.
 - **Presets and saved settings survive a crash or power loss mid-save.**
+- **Two saves at the same moment both land.**
 
 ## [1.20.1] — 2026-11-03
 

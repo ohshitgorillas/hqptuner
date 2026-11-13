@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from datetime import UTC, datetime
 from functools import partial
 from typing import TYPE_CHECKING, TypedDict
@@ -31,6 +32,7 @@ from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
@@ -257,13 +259,21 @@ class DescriptionStore:
     reads as empty.
     """
 
-    def __init__(self, path: Path, *, now: Callable[[], datetime] = _DEFAULT_NOW) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        now: Callable[[], datetime] = _DEFAULT_NOW,
+        lock: AbstractContextManager[object] | None = None,
+    ) -> None:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write.
 
         ``now`` supplies the instant stamped on a write; a test passes a fixed clock.
+        ``lock`` stands in for the store's own ``threading.Lock``; a test passes one that reports contention.
         """
         self._path = path
         self._now = now
+        self._lock = threading.Lock() if lock is None else lock
 
     def _read_file(self) -> DescriptionsFile:
         """Return the file as a dict, empty when absent.
@@ -302,12 +312,13 @@ class DescriptionStore:
         """
         key = _validate_name(name)
         body = _validate_text(text)
-        profiles = self._read_file().get("profiles", {})
-        if not body.strip():
-            profiles.pop(key, None)
-        else:
-            profiles[key] = _entry(body, self._now())
-        return self._save(profiles)
+        with self._lock:
+            profiles = self._read_file().get("profiles", {})
+            if not body.strip():
+                profiles.pop(key, None)
+            else:
+                profiles[key] = _entry(body, self._now())
+            return self._save(profiles)
 
     def merge(self, payload: bytes) -> dict[str, DescriptionEntry]:
         """Fold a stored payload (``export_bytes``, or a carried backup member) into this store and return the map.
@@ -325,7 +336,8 @@ class DescriptionStore:
         incoming = _storable(_clean(data).get("profiles", {}))
         if not incoming:
             return self.read()
-        return self._save({**self.read(), **incoming})
+        with self._lock:
+            return self._save({**self.read(), **incoming})
 
     def export_bytes(self) -> bytes:
         """Return the store's on-disk bytes, for carrying in a backup archive. Empty store, empty bytes."""
