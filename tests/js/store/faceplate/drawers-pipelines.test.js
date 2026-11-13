@@ -104,6 +104,11 @@ test("test_a_crossfeed_block_marks_its_crosspoints", async () => {
   assert.equal(pipelinesView().grid[0]?.[0]?.gen, "structural");
 });
 
+test("test_a_plain_pipeline_set_marks_no_crosspoint_generated", async () => {
+  await load(STEREO);
+  assert.equal(pipelinesView().grid[0]?.[0]?.gen, undefined);
+});
+
 test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", async () => {
   await load(STRUCTURAL);
   const flags = new Set(pipelinesView().pipes.flatMap((p) => p.stages.map((st) => st.blk === true)));
