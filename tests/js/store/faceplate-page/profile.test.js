@@ -152,6 +152,11 @@ test("test_a_switch_in_flight_is_busy", async () => {
   assert.equal(during, true);
 });
 
+test("test_a_finished_switch_is_no_longer_busy", async () => {
+  await switchProfile("Desk");
+  assert.equal(profileChoices().busy, false);
+});
+
 test("test_a_refused_switch_shows_the_engines_refusal", async () => {
   switchAnswer = bad(502, "MatrixSetProfile failed");
   await switchProfile("Desk");
