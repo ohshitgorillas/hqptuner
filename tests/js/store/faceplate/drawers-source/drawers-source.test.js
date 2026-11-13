@@ -286,6 +286,13 @@ test("test_a_timed_window_axis_counts_back_from_its_span", () => {
   assert.equal(sourceMeter().time.ticks[0]?.value, -30);
 });
 
+for (const window of ["30", "300"]) {
+  test(`test_a_timed_window_axis_ends_at_now_at_the_windows_end: ${window} s`, () => {
+    setApodWindow(window);
+    assert.deepEqual(sourceMeter().time.ticks.at(-1), { at: 1, value: 0 });
+  });
+}
+
 test("test_a_window_past_two_minutes_reads_its_axis_in_minutes", () => {
   setApodWindow("300");
   assert.equal(sourceMeter().time.ticks[0]?.value, -5);
