@@ -187,6 +187,13 @@ test("test_staged_reads_true_once_the_draft_differs", () => {
   assert.equal(staged.value, true);
 });
 
+// Break: staged reads whether any edit is set, not whether the differ list holds one.
+test("test_staged_reads_false_while_every_edit_matches_the_base", () => {
+  setHardware("cuda_dev", "2");
+  setHardware("cuda_dev", ENGINE.cuda_dev);
+  assert.equal(staged.value, false);
+});
+
 // --- the all-stations switch -------------------------------------------------------------------------------------
 
 test("test_setting_all_stations_turns_it_on", () => {
