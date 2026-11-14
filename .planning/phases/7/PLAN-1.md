@@ -3,7 +3,7 @@ phase: 7
 plan: 1
 requirements: []
 files:
-  - scripts/probes/capture_meter_start.py
+  - scripts/probes/meter/capture_meter_start.py
   - tests/support/fixtures/meter_start_capture.json
   - .planning/phases/7/CAPTURE.md
 ---
@@ -33,7 +33,7 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 
 ### Task 1: A direct start-capture probe for port 4322
 
-- **Files:** scripts/probes/capture_meter_start.py
+- **Files:** scripts/probes/meter/capture_meter_start.py
 - **Reads:** scripts/junkcal/junkcal_burst.py#main, hqptuner/engine/meterfeed.py#MeterFeed, hqptuner/engine/meterfeed.py#reduce_frame, hqptuner/engine/metering.py#HEADER, hqptuner/engine/control.py#ControlClient.get_status, scripts/probes/capture_meter_feed.py#capture
 - **Decisions:** D-03, D-05
 - **Action:** Write a read-only probe script that connects straight to the metering port at `127.0.0.1:4322`. The connection is a bare TCP connect with no control-channel command, the same way `scripts/probes/probe_metering_stream.py` and `scripts/junkcal/junkcal_burst.py` connect.
@@ -45,12 +45,12 @@ After a track starts, the visuals keep the same lag behind the sound that they h
   - **Two connect modes, chosen on the command line.** In the first mode, the probe connects at once and holds the connection through whatever starts the owner makes. In the second mode, it holds no connection until Status shows a start: `state` turns to playing, or `track_serial` changes while playing. It then connects a given number of seconds after that Status sample. The second mode is the planner's discretion: D-02 requires the connect-timing cause to be measured, and only a late connect shows what a late reader receives.
   - **Output.** The run window is a command-line argument in seconds. The output path is an argument that defaults under `tempfile.gettempdir()`, as the other probes do. Each run is appended to that file's list of runs, so several runs share one file. Each run carries its mode, its connect offset and its window. The spectrum offset the owner's page shows is a required command-line argument in seconds, recorded as `owner_spectrum_offset_s`, as `scripts/probes/capture_meter_feed.py` takes it, so a replay can run at the page's effective delay.
   - **Constraints.** Follow the docstring and usage style of the existing probes. The script must pass ruff, black and strict mypy, which cover `scripts/`. Do not import a `_private` name from `hqptuner`. Do not name a filter or measure anything about one.
-- **Verify:** `scripts/gate.sh make lint` prints `exit=0`. `.venv/bin/python scripts/probes/capture_meter_start.py` with no arguments exits non-zero and prints the usage, connecting to nothing. Testing scope: this is a measurement tool outside `hqptuner/`, so it gets no unit tests. Its stamps come from `MeterFeed`, which `tests/engine` already covers, and its read path follows the probes that were confirmed live. The live run in Task 2 is the evidence that it reads correctly, and testing stops there.
+- **Verify:** `scripts/gate.sh make lint` prints `exit=0`. `.venv/bin/python scripts/probes/meter/capture_meter_start.py` with no arguments exits non-zero and prints the usage, connecting to nothing. Testing scope: this is a measurement tool outside `hqptuner/`, so it gets no unit tests. Its stamps come from `MeterFeed`, which `tests/engine` already covers, and its read path follows the probes that were confirmed live. The live run in Task 2 is the evidence that it reads correctly, and testing stops there.
 
 ### Task 2: Capture track starts on the live engine and save the capture as a fixture
 
 - **Files:** tests/support/fixtures/meter_start_capture.json
-- **Reads:** .claude/agents/meter-probe.md, scripts/probes/capture_meter_start.py
+- **Reads:** .claude/agents/meter-probe.md, scripts/probes/meter/capture_meter_start.py
 - **Decisions:** D-02, D-04, D-05
 - **Action:** The `meter-probe` agent runs the Task 1 script while the owner starts the tracks. The executor never sends transport, and nothing writes to hqplayerd.
   - **The brief.** Brief `meter-probe` with the bare measurement question and the commands, nothing more. Example question: "at what wall time does each metering frame arrive beside its stamp, across these starts, with Status sampled". The brief must not state a cause, a hypothesis or an expected result. The agent refuses a steering brief with `REJECTED: STEERING`, and a refused agent is retired, so a rejected brief goes bare to a fresh one.
