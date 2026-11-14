@@ -259,7 +259,9 @@ jobs:
           echo "HQPTUNER_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
           echo "HQPTUNER_NOTARY_KEY=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
 
-      - run: scripts/package-macos.sh
+      - run: scripts/package-macos.sh freeze
+
+      - run: scripts/package-macos.sh sign
         env:
           HQPTUNER_NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           HQPTUNER_NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
