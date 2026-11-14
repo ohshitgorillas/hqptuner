@@ -11,6 +11,6 @@ version = 1
 "hqptuner/static/css/features/volume.css" = { lines = 407 }
 "hqptuner/static/store/actions.js" = { lines = 413 }
 "hqptuner/static/store/ui/prefs.js" = { lines = 428 }
-"scripts/gates/check_supply_chain.py" = { lines = 413 }
+"scripts/gates/check_supply_chain.py" = { lines = 448 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }

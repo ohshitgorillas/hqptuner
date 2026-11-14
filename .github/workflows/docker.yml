@@ -18,9 +18,9 @@ jobs:
     permissions:
       contents: read
 
-  # The one job that pushes a package, so the one that may write them. A job's
-  # permissions replace the workflow's, so contents: read is stated again for
-  # the checkout.
+  # Pushes the image, so it may write packages. A job's permissions replace the
+  # workflow's, so contents: read is stated again for the checkout. It holds no
+  # signing key: the build runs here, and a key never sits in a job that builds.
   build-push:
     needs: check
     runs-on: ubuntu-latest
@@ -28,6 +28,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -66,7 +68,8 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
 
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -75,3 +78,41 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Signs what build-push pushed, by digest, so a moved tag cannot carry the
+  # signature to another image. It checks out no code and runs no build step; the
+  # key is in the image-signing environment, which only main, beta and v* tags
+  # may enter. A signature is a package in the registry, so it needs
+  # packages: write; the Docker Hub login is the push for the other registry.
+  sign-image:
+    needs: build-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: image-signing
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Sign the image on both registries
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          DIGEST: ${{ needs.build-push.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "no image digest to sign" >&2; exit 1; }
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY "docker.io/${REPO}@${DIGEST}" "ghcr.io/${REPO}@${DIGEST}"

@@ -20,6 +20,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The last five pre-apply backups are kept** instead of only the newest.
 - **Presets and saved settings survive a crash or power loss mid-save.**
 - **Two saves at the same moment both land.**
+- **Downloads and Docker images can be checked as genuine** before installing.
 
 ## [1.20.1] — 2026-11-03
 

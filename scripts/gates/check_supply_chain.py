@@ -91,8 +91,9 @@ COPY_FROM = re.compile(r"^\s*COPY\s+(?:--\S+\s+)*?--from=(?P<image>\S+)", re.IGN
 STAGE_NAME = re.compile(r"\sAS\s+(?P<stage>\S+)\s*$", re.IGNORECASE)
 
 
-#: The jobs that may hold ``packages: write``, by workflow: the one that pushes the image.
-PACKAGE_WRITERS = {"docker.yml": frozenset({"build-push"})}
+#: The jobs that may hold ``packages: write``, by workflow: the one that pushes the image and the one that pushes its
+#: signature, which is a package in the registry too.
+PACKAGE_WRITERS = {"docker.yml": frozenset({"build-push", "sign-image"})}
 
 #: The workflows that must narrow the token to a read at the top: a caller's grant is the most a reusable one gets.
 READ_AT_TOP = frozenset({"check.yml"})
@@ -106,6 +107,14 @@ CONTENTS_READ = re.compile(r"^\s+contents:\s*read\b")
 ANY_SECRET = re.compile(r"\bsecrets\.")
 APPLE_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_)\w+")
 SIGNING_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_|SIMPLYSIGN_|GPG_|RELEASE_GPG_)\w+")
+
+#: A job reading the image-signing key, the one environment that holds it, and what makes a job a build.
+COSIGN_SECRET = re.compile(r"\bsecrets\.COSIGN_\w+")
+COSIGN_ENVIRONMENT = re.compile(r"^    environment:\s*image-signing\s*$")
+BUILD_STEP = re.compile(
+    r"\buses:\s*(?:actions/checkout|docker/build-push-action)@"
+    r"|\b(?:docker\s+(?:buildx\s+)?build|make|pyinstaller|nfpm|npm|npx|uv|pip3?|pipx)\s"
+)
 
 #: A job's call of the check workflow, its own ``if:``, and its ``needs:`` on one line.
 CHECK_CALL = re.compile(r"^    uses:\s*\./\.github/workflows/check\.yml\s*$")
@@ -309,6 +318,31 @@ def secret_failures(name: str, source: str) -> list[str]:
     return lines
 
 
+def cosign_failures(name: str, source: str) -> list[str]:
+    """One line per job that reads the image-signing key outside its environment, and per such job that builds."""
+    reads: dict[str, int] = {}
+    builds: dict[str, int] = {}
+    in_environment: set[str] = set()
+    for number, job, text in _job_lines(source):
+        if COSIGN_SECRET.search(text):
+            reads.setdefault(job, number)
+        if BUILD_STEP.search(text):
+            builds.setdefault(job, number)
+        if COSIGN_ENVIRONMENT.match(text):
+            in_environment.add(job)
+    lines = [
+        f"{name}:{number}: job {job}: reads a COSIGN secret and is not in environment: image-signing"
+        for job, number in reads.items()
+        if job not in in_environment
+    ]
+    lines += [
+        f"{name}:{builds[job]}: job {job}: reads a COSIGN secret and runs a build step"
+        for job in reads
+        if job in builds
+    ]
+    return sorted(lines, key=lambda line: int(line.split(":")[1]))
+
+
 def signing_check_failures(name: str, source: str) -> list[str]:
     """One line per job in the signing environment that does not wait on a check run on every trigger.
 
@@ -383,6 +417,7 @@ def main(argv: list[str]) -> int:
             container_failures,
             permission_failures,
             secret_failures,
+            cosign_failures,
             signing_check_failures,
         )
         for line in check(path.name, path.read_text(encoding="utf-8"))

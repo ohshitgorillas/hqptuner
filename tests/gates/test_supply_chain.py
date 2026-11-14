@@ -8,8 +8,8 @@ checkout laid down under ``tmp_path``.
 Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
 ``install_failures(name, source)``, ``dockerfile_failures(name, source)``,
 ``container_failures(name, source)``, ``permission_failures(name, source)``,
-``secret_failures(name, source)``, ``signing_check_failures(name, source)``, ``login_script_failures(name, source)``,
-``spec_failures(name, source)`` and ``main(argv)``.
+``secret_failures(name, source)``, ``cosign_failures(name, source)``, ``signing_check_failures(name, source)``,
+``login_script_failures(name, source)``, ``spec_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -44,6 +44,7 @@ DOCKERFILE_FAILURES = GATE.dockerfile_failures
 CONTAINER_FAILURES = GATE.container_failures
 PERMISSION_FAILURES = GATE.permission_failures
 SECRET_FAILURES = GATE.secret_failures
+COSIGN_FAILURES = GATE.cosign_failures
 SIGNING_CHECK_FAILURES = GATE.signing_check_failures
 LOGIN_SCRIPT_FAILURES = GATE.login_script_failures
 SPEC_FAILURES = GATE.spec_failures
@@ -335,10 +336,11 @@ WRITE_PACKAGES = "    permissions:\n      contents: read\n      packages: write"
     [
         (f"{READ}\n  packages: write", "build-push", "", 1),
         (READ, "build-push", WRITE_PACKAGES, 0),
+        (READ, "sign-image", WRITE_PACKAGES, 0),
         (READ, "check", WRITE_PACKAGES, 1),
         (READ, "build-push", "    permissions:\n      contents: read", 0),
     ],
-    ids=["workflow level", "the job that pushes", "another job", "a job that only reads"],
+    ids=["workflow level", "the job that pushes", "the job that signs", "another job", "a job that only reads"],
 )
 def test_packages_write_belongs_to_the_job_that_pushes_alone(top: str, job: str, grant: str, count: int) -> None:
     assert len(PERMISSION_FAILURES("docker.yml", workflow_granting(top, job, grant))) == count
@@ -532,6 +534,76 @@ def test_a_checkout_whose_signing_job_waits_on_no_check_exits_nonzero(tmp_path: 
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "release.yml").write_text(f"jobs:\n{signing_job('build')}", encoding="utf-8")
+    assert MAIN([str(tmp_path)]) == 1
+
+
+# --- the image-signing key --------------------------------------------------
+
+IMAGE_SIGNING_ENV = "    environment: image-signing\n"
+COSIGN_KEY_ENV = "        env:\n          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}\n"
+COSIGN_STEPS = f"      - uses: sigstore/cosign-installer@{SHA}\n      - run: cosign sign --key env://K x\n"
+
+
+def docker_job(job: str, environment: str, steps: str) -> str:
+    """A docker workflow whose one job, named ``job``, sits in ``environment`` and runs ``steps``."""
+    return f"jobs:\n  {job}:\n    runs-on: ubuntu-latest\n{environment}    steps:\n{steps}"
+
+
+@pytest.mark.parametrize(
+    ("environment", "count"),
+    [("", 1), (SIGNING_ENV, 1), (IMAGE_SIGNING_ENV, 0)],
+    ids=["no environment", "the signing environment", "image-signing"],
+)
+def test_a_job_reading_a_cosign_secret_sits_in_the_image_signing_environment(environment: str, count: int) -> None:
+    source = docker_job("sign-image", environment, COSIGN_STEPS + COSIGN_KEY_ENV)
+    assert len(COSIGN_FAILURES("docker.yml", source)) == count
+
+
+@pytest.mark.parametrize("secret", ["COSIGN_PRIVATE_KEY", "COSIGN_PASSWORD"])
+def test_each_cosign_secret_belongs_to_the_image_signing_environment(secret: str) -> None:
+    step = f"      - run: x\n        env:\n          S: ${{{{ secrets.{secret} }}}}\n"
+    assert len(COSIGN_FAILURES("docker.yml", docker_job("sign-image", "", step))) == 1
+
+
+@pytest.mark.parametrize(
+    ("step", "count"),
+    [
+        ("      - uses: docker/build-push-action@x\n", 1),
+        ("      - uses: actions/checkout@x\n", 1),
+        ("      - run: docker buildx build .\n", 1),
+        ("      - run: uv sync --locked\n", 1),
+        ("      - run: nfpm package\n", 1),
+        ("", 0),
+    ],
+    ids=["build-push action", "checkout", "docker build", "uv sync", "nfpm", "only cosign"],
+)
+def test_a_job_reading_a_cosign_secret_runs_no_build_step(step: str, count: int) -> None:
+    source = docker_job("sign-image", IMAGE_SIGNING_ENV, COSIGN_STEPS + COSIGN_KEY_ENV + step)
+    assert len(COSIGN_FAILURES("docker.yml", source)) == count
+
+
+def test_a_build_push_job_reading_the_cosign_key_fails_for_both_reasons() -> None:
+    steps = "      - uses: docker/build-push-action@x\n" + COSIGN_STEPS + COSIGN_KEY_ENV
+    assert len(COSIGN_FAILURES("docker.yml", docker_job("build-push", "", steps))) == 2
+
+
+@pytest.mark.parametrize(("key", "count"), [("", 0), (COSIGN_KEY_ENV, 2)], ids=["no key", "the key"])
+def test_only_a_job_that_reads_a_cosign_secret_is_held_to_the_signing_rules(key: str, count: int) -> None:
+    source = docker_job("build-push", "", "      - uses: docker/build-push-action@x\n" + key)
+    assert len(COSIGN_FAILURES("docker.yml", source)) == count
+
+
+def test_a_cosign_failure_names_its_file_job_and_line() -> None:
+    job = "sign-image"
+    line = COSIGN_FAILURES("docker.yml", docker_job(job, "", COSIGN_STEPS + COSIGN_KEY_ENV))[0]
+    assert line.startswith(f"docker.yml:8: job {job}:")
+
+
+def test_a_checkout_whose_cosign_key_sits_in_the_build_job_exits_nonzero(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    source = docker_job("build-push", "", f"      - uses: docker/build-push-action@{SHA}\n" + COSIGN_KEY_ENV)
+    (workflows / "docker.yml").write_text(source, encoding="utf-8")
     assert MAIN([str(tmp_path)]) == 1
 
 

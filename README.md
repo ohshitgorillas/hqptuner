@@ -161,6 +161,12 @@ Images are published to `ohshitgorillas/hqptuner` on Docker Hub (amd64 + arm64) 
 
 The same images are mirrored to `ghcr.io/ohshitgorillas/hqptuner` with identical tags, so an existing `ghcr.io/...` compose file keeps working and keeps updating. Either registry is fine; they're built from the same commit in the same job.
 
+The images are signed with [cosign](https://docs.sigstore.dev/cosign/). To check one against HQPTuner's public key, [`packaging/keys/cosign.pub`](packaging/keys/cosign.pub):
+
+```sh
+cosign verify --key https://raw.githubusercontent.com/ohshitgorillas/hqptuner/main/packaging/keys/cosign.pub ohshitgorillas/hqptuner:latest
+```
+
 To try a beta build, point the image at `ohshitgorillas/hqptuner:beta` in your `compose.yaml` and `docker compose pull && docker compose up -d`. Switch back by setting it to `:latest` and pulling again.
 
 **Docker Pro Tip:** Use [Watchtower](https://watchtower.nickfedor.com/) for automated updates of HQPTuner and your other containers.
