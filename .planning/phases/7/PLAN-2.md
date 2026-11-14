@@ -1,54 +1,142 @@
 ---
 phase: 7
 plan: 2
-requirements: []
 depends_on: [1]
+requirements: []
 files:
-  - docs/spec/timing.md
+  - tests/js/contracts/world.js
+  - tests/js/contracts/schedules.js
+  - tests/js/contracts/streams.js
+  - tests/js/contracts/smooth-probes.js
+  - tests/js/contracts/steady-lag.test.js
+  - tests/js/contracts/steady-motion.test.js
+  - tests/js/contracts/steady-spectrogram.test.js
 ---
 
-# Phase 7: Visuals stay in sync after a track starts - Plan 2: The owner's ruling on the lag after a start
+# Phase 7: Visuals stay in sync after a track starts - Plan 2: Smoothness tests, red against today's code
 
 ## Goal
 
-After a track starts, the visuals keep the same lag behind the sound that they hold for the rest of the track, whatever the track's sample rate. This plan turns the capture into the owner's ruling. It states how the playhead's lag is set after a start, and that ruling becomes the spec the fix is held to.
+After a track starts, the visuals keep the same lag behind the sound that they hold for the rest of the track, whatever the track's sample rate. This plan writes the general tests of D-08's three smoothness behaviors and shows them red against the code as it stands (AC8); Plan 4's fix makes them pass unedited (AC9).
 
 ## Must be true when done
 
-- `docs/spec/timing.md` states the owner's ruling on how the playhead's lag is set after a start, in the owner's approved words. The ruling sits in "The two clocks" and Rule 1.
-- The ruling says what the lag is measured against in playback terms, so a replay test can check it against an independently determined expectation.
-- The commit that changes `timing.md` cites `.planning/phases/7/CAPTURE.md` and carries the decision.
-- If the capture refutes the rush, the spec says so in the owner's words, and no anchor change is ruled.
+- Three test suites state, in the owner's terms, steady lag, steady motion and steady spectrogram, and each replays the Plan 1 capture and made-up bursty and drifting streams through the app's own feed store, meter loop, spectrogram history and Source drawer painter.
+- Run against today's code, each of the three suites fails on an assertion, never on an import or a collection error, on at least one replay, and each failing case names the replay and the paint where the behavior broke.
+- The capture replay covers every start the capture holds (the start from stopped, both same-rate track changes, both rate changes) at both metering rates, both as a reader holding one connection receives it and as the app's own reader receives it where State leaves playing, and the page joining at more than one point in an opening stretch.
+- The heard position is read from Status `position` by one stated method that a correct playhead can pass within one metering frame, and every assumption that places it and the stamps on one axis is named in `streams.js`'s header with the reading that supports it.
+- Nothing under `hqptuner/` changed, and the existing contract suites under `tests/js/contracts/` pass unedited.
+- `scripts/gate.sh make check` fails only on the new smoothness tests; every lint gate, and every other test, is green.
+- The three suites and their support files are committed while red, as D-09 (b) decided, each task in its own commit.
 
 ## Context
 
-- D-01 binds this plan. Today the lag is set once, at the first paint after a restart, to the newest frame end less the delay, and moves only on wall `dt` afterward. Any correction after the anchor changes the owner's v2.0.0 rule (`.planning/_archive-v2.0.0/5/CONTEXT.md` D-01: "drift and stall handling only if a measurement shows them needed"). So the owner rules on the capture's evidence first.
-- D-02 states what a ruled fix must deliver: one shared playhead whose lag after a start is the same at every rate and wherever the reader or loop connected. It allows no per-rate offset and no per-view correction.
-- `docs/spec/timing.md` is normative and owned by the owner's rulings. Its words are the owner's, verbatim.
+- D-08 binds every task: general tests, no assumption about the cause, red against today's code by `docs/spec/testing.md` rule 8, then the fix. The plan names the behaviors; the unit, the lane, the assertions and every value are the test writer's (repo `CLAUDE.md`). The three behaviors are three results (rule 17): the lag is a level read at each paint, the motion is the move each paint makes against the music's progress over its own wall time, and the spectrogram's scroll is read off its picture. Each gets its own suite.
+- D-09 binds every task. (a) What is heard, in the capture replay, is HQPlayer's Status `position`, not the stream's own `at`/`n` count; the suites measure the visuals' lag against it. (b) The suites are committed while red, before the fix lands. The authorization covers this plan's test files only (`streams.js`, `smooth-probes.js` and the three `steady-*.test.js` suites), and only their failing tests; every lint gate and every other test stays green in each commit. It ends when Plan 4's fix makes them pass.
+- The harness exists: `tests/js/contracts/world.js` `replay` runs a schedule through the real stack on a virtual clock, and `tests/js/contracts/schedules.js` holds seeded schedules and the owner's Safari capture. The new suites follow `trace-and-meters.test.js` and `spectrogram-picture.test.js`: replay each stream once, then every test reads one finding of it.
+- Already covered, so not restated (rule 12): contract 1 (each paint moves the playhead its wall time unless it stands at the newest end, never past it, never backward), contract 2 (over a run the picture moves left as far as the playhead's advance, within one column), contracts 3, 4, 6 and 7. Contract 1 allows the playhead to stand at the newest end, which D-08's steady motion forbids outside a real break; that difference is where steady motion bites.
+- Out of scope: any change under `hqptuner/`, any edit to the fixture, the repo-root `spectstutter.json` and `fuckedspecrogram.jpg`, any filter measurement.
+- `tests/js/contracts/` holds 9 files and the directory cap is 15; this plan adds 5, leaving 1.
 
 ## Tasks
 
-### Task 1: Write the owner's ruling on the lag after a start into the timing spec
+### Task 1: The replay world carries rate changes and the engine's Status
 
-- **Files:** docs/spec/timing.md
-- **Reads:** .planning/phases/7/CAPTURE.md, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules, .planning/_archive-v2.0.0/5/CONTEXT.md
-- **Decisions:** D-01, D-02
-- **Action:** Put a decision request to the owner. It states the cause the capture shows, the evidence (numbers quoted from `CAPTURE.md` with their commands), and your confidence. Each candidate rule it lays out must keep three things from the v2.0.0 law that D-02 does not reopen: the stamps stay the only authority for where the music is, `pacePaint` stays pure with `dt` its only time input, and there are no per-rate offsets or per-view corrections.
+- **Files:** tests/js/contracts/world.js, tests/js/contracts/schedules.js
+- **Reads:** tests/js/contracts/world.js#replay, tests/js/contracts/world.js#open, tests/js/contracts/schedules.js#Schedule, tests/js/support/apodpolls.js#poll, tests/js/support/apodpolls.js#newTrack, hqptuner/static/store/meter/feed.js#decode, hqptuner/static/store/meter/delay.js#effectiveDelay, hqptuner/static/store/signals.js#enginePlaying, hqptuner/static/store/meter/spectrogram.js#initSpectrogram, hqptuner/engine/meterfeed.py#reset
+- **Decisions:** D-03, D-04, D-08
+- **Action:** Today `replay` sends one `geometry` event before the first paint, stamps each frame from a running count of its `n` at one rate, and holds the engine's Status at one playing poll, so the delay is the user's offset alone. Make it able to replay a stream that also carries the following, each entering the page through the same feed-store path the page's own stream takes. Which arrivals a stream holds, and how faithful they are to what the owner's page receives, is the stream's to state (Task 2), not the harness's:
+  - **Geometry events mid-stream**, at their arrival times, so a rate change reaches the feed store as the wire sends it. A server reader's reconnect reaches the page the same way, as `MeterFeed.reset` in `hqptuner/engine/meterfeed.py` makes it: a geometry event, then stamps counting from 0. The replay sends it as exactly that and adds no other signal.
+  - **The stream's own stamps.** A stream that gives each frame its `at` and `n` (the capture does) is sent with them. The frames the replay hands back carry playback ms at the rate of the geometry they arrived under, read from the wire stamps, as `decode` in `hqptuner/static/store/meter/feed.js` converts them.
+  - **Status samples at their times**, through the Status signal the suite already drives (`poll` in `tests/js/support/apodpolls.js`, or `engineStatus`), with at least `state`, `track_serial`, `position` and `output_delay`. The loop then stops and starts where the engine's state does, and the effective delay is the engine's reported delay plus the user's offset, as `effectiveDelay` computes it.
+  - The existing schedules replay exactly as they do now: every existing contract suite passes with no edit to any `*.test.js` file. Extend the `Schedule` type in `schedules.js` only as far as the new fields need.
+  - Keep `world.js` free of `test()` and `assert` and reading no clock, as its header says. Add no export no test uses yet (knip covers `tests/js/`).
+- **Verify:** `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/trace-and-meters.test.js tests/js/contracts/spectrogram-picture.test.js tests/js/contracts/spectrogram-columns.test.js tests/js/contracts/render-cost.test.js` prints `exit=0`. `git diff --quiet -- 'tests/js/contracts/*.test.js' hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`. Testing scope: this is harness, so it gets no test of its own. The existing suites passing unedited show the old path is intact, and Task 2's capture replay is the evidence the new path works. Stop there.
 
-  Each candidate rule also states, in playback terms, what "the lag behind the sound" is measured against. Plan 3's replay tests need an expectation that does not come from the implementation's own arithmetic (`docs/spec/testing.md` rule 10).
+### Task 2: Steady lag on the captured starts
 
-  If the capture refuted the rush, the request says so, and the candidate rules include ruling no anchor change.
+- **Files:** tests/js/contracts/streams.js, tests/js/contracts/smooth-probes.js, tests/js/contracts/steady-lag.test.js
+- **Reads:** tests/support/fixtures/meter_start_capture.json, .planning/phases/7/CAPTURE.md#Status position and output_delay, .planning/phases/7/CAPTURE.md#Does each kind of change restart the stream, tests/js/contracts/schedules.js#SCHEDULES, tests/js/contracts/trace-probes.js#wallProbe, tests/js/contracts/trace-and-meters.test.js, hqptuner/engine/metering.py#run, hqptuner/engine/metering.py#_stream, hqptuner/engine/metering.py#IDLE_RECHECK, hqptuner/engine/meterfeed.py#reset, hqptuner/core/loader.py#_rest, hqptuner/config.py#status_interval, docs/spec/timing.md#Measured facts, docs/spec/testing.md
+- **Decisions:** D-02, D-03, D-04, D-08, D-09
+- **Action:** Write the stream module with the two streams the capture gives, and the steady-lag suite that replays them.
+  - **What is heard: how `position` is read.** In the capture replay, what is heard is HQPlayer's Status `position` as the capture's Status samples report it (D-09 (a)), never the stream's own `at`/`n` count. CAPTURE.md ("Status position and output_delay") records that it restarts at 0 on every serial change and advances at one second per wall second. It is reported in steps: on serial 35 the sample-to-sample moves are 107, 213 and 320 ms, and the samples sit up to about 100 ms either side of a straight line (standard deviation about 42 ms on every serial). A reading that holds or interpolates the samples follows that reporting grain, which is ten times the one-frame tolerance, so a correct playhead would fail steady lag on it and a playhead that follows it would fail steady motion. The suites therefore never read the samples one by one. The heard position is one straight line per playing stretch (one track serial while State is playing, from the first sample where `position` has moved off 0), fitted by least squares through that stretch's samples, with one slope shared by every stretch of the run and one intercept per stretch. The shared slope is what keeps a short stretch honest: fitted alone, serial 33's 9 s gives 1.0047, a 42 ms drift across it, where the run's long stretches give 0.99994 and 0.99999. The header states the method, the fitted slope, and each stretch's intercept standard error. The planner's reading on run 0 is a shared slope of 0.999987 and intercept errors of 1.4 to 6.4 ms, each under its stretch's own metering frame (10.7 ms at 96000, 23.2 ms at 44100). A reading within one track compares the line with itself, so its intercept error cancels. A reading across starts or rates compares two intercepts, so its fit error is the two errors combined (root of the sum of squares). If the test writer's fit puts any compared pair's combined error, at two standard errors, at or over the smaller frame of the pair, or any single stretch's error at or over its own frame, stop and report it to the owner; the tolerance is D-08's and does not move.
+  - **What is heard: one axis for stamps and position.** `position` restarts per track, the stamps count from the reader's connect (D-03), and nothing in the stream marks the stamp a track begins at. To read a lag, each track needs its stamp origin: the stamp of its first sample. The suite takes it by these three rules, each named as an assumption in the header with the reading that supports it, and from the held capture only, never from the code under test:
+    - **After a rate change** (serials 33 and 35), the origin is the first stamp of the first frame after the wire's own geometry event (37312.6 ms and 126210.0 ms). The assumption is that a new stream's first metered sample is the new track's first sample. Support: on that origin, the newest stamp leads the fitted heard position by 1189 ms at 96000 and 1192 ms at 44100 over the first 5 s after `position` moves, 3 ms apart across the two rates.
+    - **Across a gapless same-rate change** (serial 34; serial 32 follows a track with no origin, so the next rule takes it), the origin carries over: the new track's origin is the old one plus the old track's heard position, on its fitted line, at the wall time where the new track's line crosses 0. The assumption is that playback and stamps both run unbroken across the change, which CAPTURE.md shows for the stamps (no stamp break, no geometry event). Support: carried to serial 34, the same lead reads 1083 ms, the 107 ms drop CAPTURE.md block A finds independently after that change.
+    - **The start from stopped and the track after it** (serials 31 and 32) have no origin: no geometry event and no earlier track mark one. The suite reads their lag within their own track only, steady through the track and after the opening stretch (AC3), and leaves them out of every reading across starts and rates. The made-up streams of Task 3, whose heard clock is known, carry a start from stopped and a gapless change into those readings.
+    - The lead figures above support the origins and are not a reference: the suites read lag against the fitted `position` line, never against the newest stamp less a constant. Whether a cross-start reading is red or green rests on these assumptions, and the header says so.
+  - **The streams (`streams.js`).** Each stream states where its music is heard at each wall time, by the method above for the capture. That statement comes from the stream's own data, never from the code under test, and the module header says how it was found. This task adds two:
+    - **The capture, held.** Run 0 of `tests/support/fixtures/meter_start_capture.json` as the probe's one held connection received it: its frame events with their `at` and `n` at the arrival time of the frame that completed each, its geometry events, its Status samples, and `owner_spectrum_offset_s` as the page's offset. The capture holds no paint times, so paints come from the paint shapes `schedules.js` already generates. The fixture is read, never written. The header states where this is what the owner's page receives and where it is not. It is faithful at the two same-rate changes and through steady play, where State stays playing and the app's reader holds its connection. It is not what today's app reader delivers at the start from stopped, where that reader is not connected while State is 0, or at the two rate changes, where State is 0 for about 1 s (CAPTURE.md) and the reader drops the stream once the manager's Status read sees it. There it stands as one arrival shape of D-08's "however the data arrives", and as what the page receives if every Status read misses that stretch.
+    - **The capture as the app's reader receives it.** The same run, with the reader's own connect rule applied (`run` and `_stream` in `hqptuner/engine/metering.py`): it holds the stream while State is playing, has none while State is not, and rejoins as a fresh reader, which `MeterFeed.reset` makes a geometry event and then stamps counted from 0 at the join, with no frame from before it. At the start from stopped and both rate changes, the rejoin falls in a window the app's own pacing sets: the manager reads Status every `status_interval` while connected (`_rest` in `hqptuner/core/loader.py`, 1.0 s), and the reader re-checks every `IDLE_RECHECK` (1.0 s). The test writer reads both, states the window in the header, and sweeps more than one join point across it. After the two same-rate changes, where the reader holds, the stream adds the page joining late, with a fresh reader, at more than one point inside the opening stretch. Together these cover AC5. Each join's origin is the held capture's origin re-based to the join's stamp count, never the geometry event the reader re-sends at the join, which marks a connect and no track start. The owner cut the late-connect runs, so what a reader connecting at a join receives is unmeasured. The header states the assumption that it receives the captured stream from the join on; the capture cannot show whether a fresh reader gets an opening rush of its own, or misses the one the held reader saw when it joins more than about 250 ms after frames resume.
+  - **The behavior (`steady-lag.test.js`).** The delay between what is on screen and what is heard stays the same through a whole track, within one metering frame at the stream's own rate. It holds after every start, at every sample rate, wherever the page joined, however the data arrives (D-08 (1), AC3, AC4, AC5). AC3 reads the lag after the opening stretch. The test states how long that stretch is and where that length comes from (CAPTURE.md: the arrivals settle within about 250 ms of a rate change). Comparing across starts and rates reads the same lag, on the starts that have a stamp origin by the rules above. What is on screen is the playhead the replay hands back. The suite replays every stream `streams.js` exports, so Task 3's streams join it with no edit to the sweep.
+  - **Readings (`smooth-probes.js`).** Only the readings this suite uses go here, one probe per reading, returning plain values. Tasks 4 and 5 add their own. As in `trace-probes.js`, no `test()` and no `assert` live in it, and it holds no export no test uses (knip covers `tests/js/`).
+  - **Constraints.** One assertion per test (rule 2); a case sweep is one generated test per stream, never a loop of asserts. Replay each stream once per suite. The capture replay is 300 s of music, so keep the suite fast: measure the JS suite's time before and after, and report both. Copy no block from the existing suites (jscpd at 2.3% covers `tests/`).
+  - **Never reshape** a stream, a tolerance or the opening stretch to turn a case red (rule 8 and the repo's tests-first rule). If the suite is green on both capture streams, record the readings and go on to Task 3, which holds the stop rule for the whole suite.
+  - **Commit** the three files while the suite is red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js` against today's code. Every failure in its log is an `AssertionError` naming a replay; none is an import, a collection or a type error. The log's test names cover every start the capture holds (the start from stopped, both same-rate track changes, both rate changes) and more than one join point, on both the held stream and the app reader's stream. The header of `streams.js` states the `position` reading method, its shared slope and each stretch's intercept standard error, each under that stretch's metering frame, and names the three origin rules and the join assumption as assumptions. `git diff --quiet -- hqptuner/ tests/support/fixtures/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
+  - Testing scope. Outcomes: the lag holds after each captured start, across both rates, and across join points.
+  - Already covered: nothing reads lag against what is heard; contract 1 reads the playhead against wall time only.
+  - Smallest checks: one lag-steadiness reading per stream, plus one across-starts reading where a stream has more than one start.
+  - Sufficient evidence: the run with assertion failures only, and the suite reading every start the capture holds. Testing stops there.
 
-  The request also states where the connect-timing cause sits. Stamp 0 is the reader's connect moment (D-03), so that cause may sit on the server, in `hqptuner/engine/meterfeed.py` or `hqptuner/engine/metering.py`, rather than in the browser playhead. If the capture or the ruling places any part of the fix outside Plan 3's five leased files, the orchestrator sends Plan 3 back for revision before it executes.
+### Task 3: Steady lag on made-up bursty and drifting streams
 
-  The owner rules. Write the ruling into "The two clocks" paragraph and Rule 1 of `docs/spec/timing.md`, verbatim as the owner approves it, with `Edit`, soft-wrapped, and with no em dashes. Change no other rule's meaning. Text the ruling makes false elsewhere in the file is shown to the owner as part of the same approval, not reworded silently.
+- **Files:** tests/js/contracts/streams.js, tests/js/contracts/smooth-probes.js, tests/js/contracts/steady-lag.test.js
+- **Reads:** tests/js/contracts/streams.js, tests/js/contracts/schedules.js#bursts, tests/js/contracts/schedules.js#SCHEDULES, .planning/phases/7/CAPTURE.md, docs/spec/timing.md#Measured facts
+- **Decisions:** D-08
+- **Action:** Add the made-up streams to `streams.js`, so the steady-lag suite replays them beside the capture.
+  - **What is heard.** In a made-up stream, what is heard is the playback clock the stream itself is generated from; the header says so for each stream.
+  - **Made-up bursty streams.** Bursts land early and late against the music. A backlog lands ahead of wall time over an opening stretch after a start and then holds its lead, the shape the capture shows after each rate change. The streams run at more than one metering rate, with a rate change, a start from stopped and a gapless same-rate track change. Frame lengths are inside the measured range and change mid-feed (`docs/spec/timing.md` Rule 11).
+  - **Made-up drifting streams.** Over a whole track, the stamps run faster than the music heard in one stream and slower in another. The capture's 446 ms over 170 s (CAPTURE.md, block F) is the measured size to draw from.
+  - Touch `steady-lag.test.js` or `smooth-probes.js` only if a made-up stream needs a reading Task 2 did not add, and say which in the commit message. The constraints of Task 2 hold.
+  - **If the suite is green on every replay against today's code,** stop and report the readings to the owner. Never reshape a stream, a tolerance or the opening stretch to turn it red.
+  - **Commit** while the suite is red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js` against today's code. It prints a non-zero exit. Every failure in its log is an `AssertionError` naming a replay; none is an import, a collection or a type error. The log's test names include each bursty and each drifting stream. `git diff --quiet -- hqptuner/ tests/support/fixtures/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
+  - Testing scope. Outcomes: the lag holds through bursty and drifting arrivals.
+  - Already covered: the capture streams (Task 2).
+  - Smallest checks: the same lag reading per added stream, no new reading unless a stream needs one.
+  - Sufficient evidence: the red run with assertion failures only. Testing stops there.
 
-  The commit message carries the decision and cites `.planning/phases/7/CAPTURE.md`. The orchestrator commits.
+### Task 4: Steady motion
 
-  Do not draft a `CHANGELOG.md` entry, because the v2 changelog is the owner's alone. Do not touch code here; the code follows the ruling in Plan 3.
-- **Verify:** human-verify. The owner approves the changed `timing.md` text character for character. `scripts/gate.sh make lint` prints `exit=0`, which covers `check_docs.py`, `check_doc_refs.py` and spelling. `.claude/hooks/md-softwrap.py --check docs/spec/timing.md` passes. `git diff docs/spec/timing.md` touches only the ruling's text and the approved consequential lines. Testing scope: none; this is a spec change.
+- **Files:** tests/js/contracts/steady-motion.test.js, tests/js/contracts/smooth-probes.js, tests/js/contracts/streams.js
+- **Reads:** tests/js/contracts/streams.js, tests/js/contracts/trace-probes.js#wallProbe, tests/js/contracts/trace-and-meters.test.js, hqptuner/static/model/gauges/playhead.js#pacePaint
+- **Decisions:** D-08, D-09
+- **Action:** Write the suite for D-08 (2), on the streams of Tasks 2 and 3, with the music heard as Task 2 and Task 3 define it:
+  - **The behavior.** Each paint shows the moment of playback its own wall time calls for. Over a paint, the playhead moves as far as the music heard moves over that paint's wall time. In the capture replay, the music heard over a paint is read off the fitted `position` line of Task 2, never off the stepped Status samples, whose 107 to 320 ms jumps would fail a playhead that moves smoothly. It never freezes while the music moves, never jumps ahead and never steps back. The one exception is a real break such as a stop or a seek: in these replays, the stops the Status samples show, and the breaks the feed store marks after them. This is a different result from steady lag: lag is a level, and motion is each paint's move, so a playhead can hold its lag within a frame and still freeze, or stutter.
+  - **Already covered.** Contract 1 (`wallProbe`) checks each move against wall `dt` and lets the playhead stand at the newest end. This suite reads the move against the music heard, and allows no standing outside a real break. Do not restate `wallProbe`. Add a stream to `streams.js` only if steady motion needs a shape the streams of Tasks 2 and 3 lack, and say which in the commit message.
+  - **Constraints.** As in Task 2: one assertion per test, each stream replayed once, this suite's own readings added to `smooth-probes.js` and no unused one, no copied blocks, the suite's time reported.
+  - **If the suite is green on every replay against today's code,** stop and report the readings to the owner; do not reshape anything to turn it red.
+  - **Commit** while the suite is red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-motion.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint. `git diff --quiet -- hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
+  - Testing scope. Outcomes: no freeze, no jump ahead and no step back outside a real break, on every stream.
+  - Already covered: the wall-speed move and never-backward (contract 1).
+  - Smallest checks: one motion reading per stream, the real breaks taken from the stream's own Status and feed marks.
+  - Testing stops at the red run.
+
+### Task 5: Steady spectrogram
+
+- **Files:** tests/js/contracts/steady-spectrogram.test.js, tests/js/contracts/smooth-probes.js
+- **Reads:** tests/js/contracts/picture-probes.js#scrollProbe, tests/js/contracts/spectrogram-picture.test.js, tests/js/contracts/picture.js, tests/js/contracts/streams.js, hqptuner/static/store/meter/spectrogram.js#spectrogramRange
+- **Decisions:** D-08, D-09
+- **Action:** Write the suite for D-08 (3), on the streams of Tasks 2 and 3, with the music heard as they define it:
+  - **The behavior.** The spectrogram scrolls at a constant rate in playback time, with no stalls and no catch-up bursts. Read it off the picture the Source drawer's real painter draws, never off the playhead signal, so this suite can fail where steady motion passes: a history that falls behind or clears while the playhead moves, or a picture that holds and then jumps.
+  - **Already covered.** Contract 2 (`scrollProbe`) sums the scroll over a whole run against the playhead's advance. This suite reads it paint by paint, against the playback time each paint covers.
+  - **If no plausible wrong implementation** fails this suite and passes Task 4's, the two are one test (rule 12). Then write no duplicate: stop and report that to the owner.
+  - **Constraints.** As in Task 2, this suite's own readings added to `smooth-probes.js` and no unused one. The picture replay costs the most, so report the suite's time.
+  - **If the suite is green on every replay against today's code,** stop and report the readings to the owner.
+  - **Commit** while the suite is red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-spectrogram.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint. Then `scripts/gate.sh make check` fails, and the failures its log lists are all in `steady-lag.test.js`, `steady-motion.test.js` and `steady-spectrogram.test.js`; every lint gate and every other test passes. `git diff --quiet -- hqptuner/ 'tests/js/contracts/*.test.js'` exits 0 apart from the three new files.
+  - Testing scope. Outcomes: no stall and no catch-up burst in the picture, on every stream.
+  - Already covered: scroll over a run (contract 2), and the picture's consistency (contracts 3 and 7).
+  - Smallest checks: one per-paint scroll reading per stream.
+  - Testing stops at the red run and the `make check` readout.
 
 ## Notes
 
-- Plan 3's design follows this ruling. If the ruling needs an input the playhead model does not take today, or a file Plan 3 does not lease, Plan 3 goes back for revision before it executes. Examples would be a Status-derived stamp, or a change on the server side of the feed.
-- If the owner rules no anchor change for the rush, AC2 holds and no anchor fix lands this phase. D-02 still requires the connect-timing cause fixed, and Plan 3 Task 3 carries that.
+- **What is heard (D-09 (a)).** The owner decided that the capture replay measures lag against Status `position`; how it is read is this plan's (Task 2): one least-squares line per playing stretch with a shared slope, never the samples one by one. Over 127.5 to 299.9 s at 44100, `position` advances 0.9995 s per wall s (CAPTURE.md block E), while the stamps gain 446 ms on wall time (block F). The suites read that stretch against `position`; whether today's playhead is red there is the run's to show, not this plan's to predict.
+- **The planner's readings behind Task 2's method and origins** were taken on run 0 with the fixture read-only: per-serial least-squares lines through the playing Status samples once `position` leaves 0, shared slope pooled over all five serials, and the newest stamp minus the fitted heard position on each origin rule. They are reproducible from the fixture alone and are evidence for the method and the assumptions, not values for any test to assert.
+- **The app's reader at a start (D-04).** `run` in `hqptuner/engine/metering.py` streams only while State is playing, so at three of the five captured starts the page today receives a fresh reader's stream, not the held one. Task 2 replays both and says which is which.
+- **Red commits (D-09 (b)).** Tasks 2 to 5 commit their suites red; the owner decided this, as an exception to `~/dev/CLAUDE.md` 11.4 and the repo's "`make check` green before every commit" for these test files only. Plan 4's AC9 check is a diff against these commits.
+- The app reader's replay and the late joins stand in for the unmeasured connect-timing case (D-02, AC5) on an assumption the capture cannot confirm; the header of `streams.js` says so.
+- The capture's Status samples hold more than CAPTURE.md reports: `display_position`, `output_fill` (0.21 to 0.92 while playing), `input_fill` and `process_speed`. These suites need none of them. Plan 3's design may read them.
