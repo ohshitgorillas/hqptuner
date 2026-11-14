@@ -307,3 +307,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(hqptuner/config\.py|Dockerfile)$
+
+      # Reads every workflow: a remote action named by tag runs whatever commit
+      # the tag points at on the day of the run.
+      - id: supply-chain
+        name: release pipeline supply chain gate
+        entry: .venv/bin/python scripts/gates/check_supply_chain.py
+        language: system
+        pass_filenames: false
+        files: ^\.github/workflows/.*\.ya?ml$

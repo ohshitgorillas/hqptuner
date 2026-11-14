@@ -20,6 +20,7 @@ lint:
 	$(VENV)/python scripts/gates/testing/check_e2e_isolation.py
 	$(VENV)/python scripts/gates/check_openapi.py
 	$(VENV)/python scripts/gates/check_container_env.py
+	$(VENV)/python scripts/gates/check_supply_chain.py
 	$(VENV)/python scripts/gates/check_metadata.py
 	$(VENV)/filepawl check
 
