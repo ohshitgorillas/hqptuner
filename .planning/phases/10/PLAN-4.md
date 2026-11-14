@@ -78,14 +78,14 @@ Red-run rule for every task in this plan: "red against the base-commit export" m
 
 ## Notes
 
-Owner decision needed at the plan gate: Task 4 signs the image in a separate `sign-image` job that needs `build-push`, names the cosign environment from human setup 2, runs only the pinned cosign installer and `cosign sign`, and checks out no code. A gate rule, tests first, requires every job reading a `COSIGN_*` secret to name that environment and run no build step; its test case is a `build-push` that reads `COSIGN_PRIVATE_KEY`. The executor applies this shape in place of signing inside `build-push`.
+Task 4 signs the image in a separate `sign-image` job that needs `build-push`, names the cosign environment from human setup 2, runs only the pinned cosign installer and `cosign sign`, and checks out no code. A gate rule, tests first, requires every job reading a `COSIGN_*` secret to name that environment and run no build step; its test case is a `build-push` that reads `COSIGN_PRIVATE_KEY`. The executor applies this shape in place of signing inside `build-push`.
 
-Owner decision needed at the plan gate: Task 2 adds a third job in `environment: signing` (Linux packaging), beyond CONTEXT's two signing jobs (D-03, D-04). The cheaper alternative is signing inside `build`. Task 2 does not start until the owner has decided.
+Task 2 puts Linux packaging in its own job in `environment: signing`, on D-03 and D-04's reasoning: a signing key never sits in a job that runs PyInstaller.
 
 Human setup, owner actions outside the tree (D-09: "The owner creates the keys and secrets"):
 
-1. A GPG signing key for the packages. Secrets `RELEASE_GPG_PRIVATE_KEY` (ASCII-armored private key) and `RELEASE_GPG_PASSPHRASE`, in the `signing` environment, and the public half handed over for `packaging/keys/hqptuner-release.asc`. These secret names are proposals; the owner may rename them at the plan gate. Blocks Task 3.
-2. A cosign key pair (`cosign generate-key-pair`). Secrets `COSIGN_PRIVATE_KEY` and `COSIGN_PASSWORD`, in a new environment (proposed name `image-signing`) whose deployment branch rule admits `main`, `beta` and `v*` tags, the refs `docker.yml` runs on. Not at repository level: per F-035, a workflow edit pushed to any branch could read a repository secret and sign an arbitrary image. Not in `signing` either, whose branch rule admits `dev` and `v*` only (D-04). The environment name, and this departure from Plan 4's first draft, are the owner's to rule at the plan gate. `cosign.pub` handed over. Names are proposals. Blocks Task 4.
+1. A GPG signing key for the packages. Secrets `RELEASE_GPG_PRIVATE_KEY` (ASCII-armored private key) and `RELEASE_GPG_PASSPHRASE`, in the `signing` environment, and the public half handed over for `packaging/keys/hqptuner-release.asc`. Blocks Task 3.
+2. A cosign key pair (`cosign generate-key-pair`). Secrets `COSIGN_PRIVATE_KEY` and `COSIGN_PASSWORD`, in a new environment `image-signing` whose deployment branch rule admits `main`, `beta` and `v*` tags, the refs `docker.yml` runs on. Not at repository level: per F-035, a workflow edit pushed to any branch could read a repository secret and sign an arbitrary image. Not in `signing` either, whose branch rule admits `dev` and `v*` only (D-04). `cosign.pub` handed over. Blocks Task 4.
 
 Copy for owner approval (D-17). Every line below is a proposal until the owner approves it verbatim.
 

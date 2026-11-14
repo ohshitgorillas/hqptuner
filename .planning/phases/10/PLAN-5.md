@@ -51,5 +51,6 @@ Findings F-034, F-035, F-036, F-037, F-038, F-039, F-040, F-041 and F-042 are ea
 
 ## Notes
 
-- Owner decisions needed before this plan runs, because no plan fixes these clauses and CONTEXT holds no decision on them: (a) F-040's "the documented setup fetches `compose.yaml` from `main`, follows `:latest` and recommends Watchtower", where cosign signing protects nothing for a Watchtower pull that never verifies; (b) F-042's "pre-commit runs hooks labelled as LLM judges, with a model set in `pyproject.toml`, so repository text leaves the host". Each is fixed by a new task the owner approves, or declined or deferred with the owner's words quoted in the entry. The executor stops and asks if either is unruled.
+- F-040's Watchtower and `:latest` clause is covered by D-09 ("Full signing"): the entry notes that a Watchtower pull does not run `cosign verify`, and the README's verify step is for a manual pull.
+- F-042's LLM-judge clause is covered by D-06: those hooks are triviajudge's, which the owner runs on purpose, and the entry quotes D-06.
 - This plan runs last because its entries name the commits of Plans 1 to 4.
