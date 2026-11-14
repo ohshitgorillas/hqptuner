@@ -53,11 +53,14 @@ dev = [
     "uvloop",
 ]
 
-# What a release build job installs: the frozen bundle's tool and the backend
-# the project builds with, without the dev extras (uvloop has no Windows build;
-# scipy and playwright are test tooling).
+# `backend` is what the project builds with, taken from the lock because the
+# build isolation that would fetch it unhashed is off; the image installs it
+# alone. `build` is what a release build job installs: that backend and
+# PyInstaller, without the dev extras (uvloop has no Windows build; scipy and
+# playwright are test tooling).
 [dependency-groups]
-build = ["pyinstaller", "setuptools>=68"]
+backend = ["setuptools>=68"]
+build = [{ include-group = "backend" }, "pyinstaller"]
 
 # uv.lock is one universal lock over `requires-python`. A package that ships
 # wheels only and has none for one of these six targets on Python 3.14 fails
@@ -347,7 +350,7 @@ packages = [
 # a wheel install has no frontend to serve and no filter/shaper prose to join
 # against the live enumerations. Dev-only members of data/ (engine-enums.json,
 # the capture reference) are excluded by the glob.
-hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json", "data/tested-releases.json", "data/tray.png"]
+hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/easy-presets.json", "data/*-plain-names.json", "data/tested-releases.json", "data/tray.png"]
 
 [tool.setuptools.exclude-package-data]
 # The eqlab submodule ships only core/, the part the browser imports.

@@ -701,6 +701,9 @@ dev = [
 ]
 
 [package.dev-dependencies]
+backend = [
+    { name = "setuptools" },
+]
 build = [
     { name = "pyinstaller" },
     { name = "setuptools" },
@@ -740,6 +743,7 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
+backend = [{ name = "setuptools", specifier = ">=68" }]
 build = [
     { name = "pyinstaller" },
     { name = "setuptools", specifier = ">=68" },

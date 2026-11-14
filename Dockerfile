@@ -1,13 +1,36 @@
-FROM python:3.12-slim
+# The runtime dependencies come from uv.lock, hashes checked, into a venv that
+# the final stage copies; uv stays behind in this stage. uv is the image at the
+# release the lock was made with, named by its digest.
+FROM python:3.14-slim AS build
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff /uv /usr/local/bin/uv
+
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+WORKDIR /app
+COPY pyproject.toml uv.lock README.md ./
+# Nothing builds in this sync, so a package with no wheel for this platform
+# fails it. setuptools is in because the project builds with it below, isolation
+# off, which keeps the backend the locked one and not one fetched unhashed.
+RUN uv sync --locked --no-build --no-install-project --group backend
+
+COPY hqptuner ./hqptuner
+RUN uv sync --locked --no-editable --no-build-isolation-package hqptuner --group backend \
+    && uv pip uninstall --python /opt/venv/bin/python setuptools
+
+FROM python:3.14-slim
+
+COPY --from=build /opt/venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
 
 # Non-root runtime user; /state holds the two persistent dirs (backups incl.
 # the pending-filters park, and the preset store).
 RUN useradd --create-home --uid 1000 hqptuner && mkdir -p /state && chown hqptuner /state
 
 WORKDIR /app
-COPY pyproject.toml README.md ./
-COPY hqptuner ./hqptuner
-RUN pip install --no-cache-dir .
 
 # The SPA and the metadata JSON ship inside the wheel (pyproject package-data),
 # so the install is self-contained and needs no DATA_DIR override. Listen on all
