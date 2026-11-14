@@ -9,6 +9,7 @@ on:
       - scripts/package-linux.sh
       - scripts/package-macos.sh
       - scripts/package-windows.sh
+      - scripts/ci/install-uv.sh
       - hqptuner.spec
       - pyproject.toml
       - .github/workflows/release.yml
@@ -46,7 +47,7 @@ jobs:
         with:
           submodules: true
 
-      - run: curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+      - run: bash scripts/ci/install-uv.sh /usr/local/bin
       - run: uv venv --python 3.14 .venv
       - run: uv pip install . pyinstaller
 
@@ -220,10 +221,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$RUNNER_TEMP/uv" sh
-          echo "$RUNNER_TEMP/uv" >> "$GITHUB_PATH"
+      - run: bash scripts/ci/install-uv.sh "$RUNNER_TEMP/uv"
       - run: uv venv --python 3.14 .venv
       - run: uv pip install . pyinstaller
 
@@ -323,12 +321,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Install uv
-        shell: pwsh
-        run: |
-          $env:UV_INSTALL_DIR = "$env:RUNNER_TEMP\uv"
-          irm https://astral.sh/uv/install.ps1 | iex
-          "$env:RUNNER_TEMP\uv" >> $env:GITHUB_PATH
+      - run: bash scripts/ci/install-uv.sh "$RUNNER_TEMP/uv" ${{ matrix.arch }}
       - run: uv venv --python ${{ matrix.python }} .venv
       - run: uv pip install . pyinstaller
 

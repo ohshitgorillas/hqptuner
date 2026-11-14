@@ -5,7 +5,7 @@ names every line that fetches code a remote party can change under the same
 name. Cases drive the seams on literal workflow text, and ``main(argv)`` on a
 checkout laid down under ``tmp_path``.
 
-Seams are ``action_failures(name, source)`` and ``main(argv)``.
+Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -34,6 +34,7 @@ def _load_gate_module() -> ModuleType:
 
 GATE = _load_gate_module()
 ACTION_FAILURES = GATE.action_failures
+PIPE_FAILURES = GATE.pipe_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -76,6 +77,43 @@ def test_an_action_named_by_tag_names_its_ref() -> None:
 )
 def test_only_a_remote_action_not_named_by_a_full_sha_is_a_failure(ref: str, count: int) -> None:
     assert len(ACTION_FAILURES("release.yml", workflow_using(ref))) == count
+
+
+# --- pipe to shell ----------------------------------------------------------
+
+
+def workflow_running(command: str) -> str:
+    """A workflow whose one step runs the shell line ``command``."""
+    return f"jobs:\n  build:\n    steps:\n      - run: {command}\n"
+
+
+@pytest.mark.parametrize(
+    ("command", "count"),
+    [
+        ("curl -LsSf https://astral.sh/uv/install.sh | sh", 1),
+        ("curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh", 1),
+        ("wget -qO- https://example.org/install | sudo bash", 1),
+        ("irm https://astral.sh/uv/install.ps1 | iex", 1),
+        ("Invoke-RestMethod https://example.org/install.ps1 | Invoke-Expression", 1),
+        ('curl -LsSfO "$base/checksums.txt"', 0),
+        ('grep " $tarball\\$" checksums.txt | sha256sum -c -', 0),
+        ("bash scripts/ci/install-uv.sh /usr/local/bin", 0),
+    ],
+    ids=["curl sh", "curl env sh", "wget sudo bash", "irm iex", "Invoke-RestMethod", "download", "checksum", "script"],
+)
+def test_only_a_fetched_script_piped_into_a_shell_is_a_failure(command: str, count: int) -> None:
+    assert len(PIPE_FAILURES("release.yml", workflow_running(command))) == count
+
+
+def test_a_piped_install_names_its_file_and_line() -> None:
+    assert PIPE_FAILURES("release.yml", workflow_running("curl https://x | sh"))[0].startswith("release.yml:4:")
+
+
+def test_a_checkout_with_a_piped_install_exits_nonzero(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "release.yml").write_text(workflow_running("curl https://x | sh"), encoding="utf-8")
+    assert MAIN([str(tmp_path)]) == 1
 
 
 # --- main -------------------------------------------------------------------
