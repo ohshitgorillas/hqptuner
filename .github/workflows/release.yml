@@ -12,6 +12,7 @@ on:
       - scripts/ci/install-uv.sh
       - hqptuner.spec
       - pyproject.toml
+      - uv.lock
       - .github/workflows/release.yml
   workflow_dispatch:
 
@@ -48,8 +49,14 @@ jobs:
           submodules: true
 
       - run: bash scripts/ci/install-uv.sh /usr/local/bin
-      - run: uv venv --python 3.14 .venv
-      - run: uv pip install . pyinstaller
+      # Every package comes from uv.lock, hashes checked, and a lock out of date
+      # with pyproject.toml fails the step: the runtime dependencies and
+      # PyInstaller, not the dev extras. The first sync builds nothing, so a
+      # package with no wheel for this target fails it. The project builds in a
+      # second sync with build isolation off, so its backend is the locked
+      # setuptools and not one fetched unhashed.
+      - run: uv sync --locked --no-build --python 3.14 --group build --no-install-project
+      - run: uv sync --locked --python 3.14 --group build --no-editable --no-build-isolation-package hqptuner
 
       - name: Install nfpm
         env:
@@ -222,8 +229,9 @@ jobs:
           submodules: true
 
       - run: bash scripts/ci/install-uv.sh "$RUNNER_TEMP/uv"
-      - run: uv venv --python 3.14 .venv
-      - run: uv pip install . pyinstaller
+      # Locked, as in the build job.
+      - run: uv sync --locked --no-build --python 3.14 --group build --no-install-project
+      - run: uv sync --locked --python 3.14 --group build --no-editable --no-build-isolation-package hqptuner
 
       # The certificate goes into a keychain of its own, and codesign takes the
       # identity by the hash read back from it.
@@ -322,8 +330,9 @@ jobs:
           submodules: true
 
       - run: bash scripts/ci/install-uv.sh "$RUNNER_TEMP/uv" ${{ matrix.arch }}
-      - run: uv venv --python ${{ matrix.python }} .venv
-      - run: uv pip install . pyinstaller
+      # Locked, as in the build job.
+      - run: uv sync --locked --no-build --python ${{ matrix.python }} --group build --no-install-project
+      - run: uv sync --locked --python ${{ matrix.python }} --group build --no-editable --no-build-isolation-package hqptuner
 
       - run: scripts/package-windows.sh
 

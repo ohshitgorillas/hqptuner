@@ -206,6 +206,23 @@ def test_only_a_workflow_under_the_lock_rule_is_judged(name: str, count: int) ->
     assert len(INSTALL_FAILURES(name, job_running("push", "pip install requests"))) == count
 
 
+@pytest.mark.parametrize(
+    ("job", "command", "count"),
+    [
+        ("build", "uv pip install . pyinstaller", 1),
+        ("build-macos", "uv pip install . pyinstaller", 1),
+        ("build-windows", "uv pip install . pyinstaller", 1),
+        ("build", "uv pip install --python .venv/bin/python triviajudge", 1),
+        ("build", "uv sync --locked --python 3.14 --group build --no-install-project", 0),
+        ("build-windows", "uv sync --locked --python cpython-3.14-windows-x86_64-none --group build", 0),
+        ("smoke", "pip install requests", 0),
+    ],
+    ids=["linux", "macos", "windows", "triviajudge", "locked linux", "locked windows", "job outside the rule"],
+)
+def test_the_release_build_jobs_install_only_from_the_lock(job: str, command: str, count: int) -> None:
+    assert len(INSTALL_FAILURES("release.yml", job_running(job, command))) == count
+
+
 def test_a_checkout_with_an_unlocked_install_in_check_exits_nonzero(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)

@@ -49,7 +49,10 @@ PIPED_INSTALL = re.compile(
 JOB_HEADER = re.compile(r"^  (?P<job>[\w-]+):\s*$")
 
 #: The workflows whose Python installs must come from the lock, with the jobs of each; None is every job.
-LOCKED_JOBS: dict[str, frozenset[str] | None] = {"check.yml": None}
+LOCKED_JOBS: dict[str, frozenset[str] | None] = {
+    "check.yml": None,
+    "release.yml": frozenset({"build", "build-macos", "build-windows"}),
+}
 
 #: The one package a workflow may install without the lock, by workflow.
 UNLOCKED_INSTALL = {"check.yml": "triviajudge"}

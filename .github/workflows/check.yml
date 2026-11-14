@@ -36,14 +36,15 @@ jobs:
       # Every package comes from uv.lock, hashes checked, and a lock that is
       # out of date with pyproject.toml fails the step. The Makefile hardcodes
       # .venv/bin, so the sync lands there, as a dev host's venv does. The
-      # project and filepawl build from source, with build isolation off in a
-      # second sync so that their backend is the locked setuptools and not one
-      # fetched unhashed. uv may not fetch a Python: setup-python's is the one.
+      # first sync builds nothing. The project and filepawl build from source
+      # in a second sync, with build isolation off, so that their backend is the
+      # locked setuptools and not one fetched unhashed. uv may not fetch a
+      # Python: setup-python's is the one.
       - name: install
         env:
           UV_PYTHON_DOWNLOADS: never
         run: |
-          uv sync --locked --python 3.14 --extra dev --no-install-project --no-install-package filepawl
+          uv sync --locked --no-build --python 3.14 --extra dev --no-install-project --no-install-package filepawl
           uv sync --locked --python 3.14 --extra dev --no-build-isolation-package hqptuner --no-build-isolation-package filepawl
           npm ci
 
@@ -102,7 +103,7 @@ jobs:
         env:
           UV_PYTHON_DOWNLOADS: never
         run: |
-          uv sync --locked --python 3.14 --extra dev --no-install-project --no-install-package filepawl
+          uv sync --locked --no-build --python 3.14 --extra dev --no-install-project --no-install-package filepawl
           uv sync --locked --python 3.14 --extra dev --no-build-isolation-package hqptuner --no-build-isolation-package filepawl
           npm ci
 
