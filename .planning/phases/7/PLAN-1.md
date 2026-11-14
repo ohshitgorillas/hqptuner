@@ -18,8 +18,7 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 
 - A read-only capture taken straight off port 4322 is saved in the repo. It starts before a track starts, and it covers a start from stopped, a same-rate track change and a rate change, at two sample rates.
 - For every metering frame, the capture holds its arrival wall time beside its stamp. It also holds every geometry change, every connect and stream end, and Status position, track serial and `output_delay` sampled across the window.
-- The capture also holds runs where the probe connects at different points after a start. These show what a late reader receives, which a held connection cannot show.
-- A report states, from the capture, three things. First, whether the stamps run ahead of wall time after a start, and for how long at each rate. Second, whether each kind of track change restarts the stream. Third, how a late connect's stamps compare with wall time.
+- A report states, from the capture, two things. First, whether the stamps run ahead of wall time after a start, and for how long at each rate. Second, whether each kind of track change restarts the stream.
 - Nothing was written to hqplayerd, and no transport command was sent.
 
 ## Context
@@ -55,14 +54,13 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 - **Action:** The `meter-probe` agent runs the Task 1 script while the owner starts the tracks. The executor never sends transport, and nothing writes to hqplayerd.
   - **The brief.** Brief `meter-probe` with the bare measurement question and the commands, nothing more. Example question: "at what wall time does each metering frame arrive beside its stamp, across these starts, with Status sampled". The brief must not state a cause, a hypothesis or an expected result. The agent refuses a steering brief with `REJECTED: STEERING`, and a refused agent is retired, so a rejected brief goes bare to a fresh one.
   - **Run 1 (held connection).** One run in the held mode, started before any of the starts. It covers: a start from stopped at a first sample rate; a same-rate track change at that rate; a rate change to a second sample rate; and a same-rate track change at the second rate. The owner chooses the tracks and how each change is made, and the run records the owner's account of each change. Let each start run long enough that the frames reach steady wall-rate arrival afterward, so a later stretch of the same track is in the capture.
-  - **Late-connect runs.** At least three runs in the late-connect mode at different offsets after a start. The offsets span 0 s to the app reader's slowest connect after a start, which is the Status poll plus `IDLE_RECHECK`: `hqptuner/config.py` `poll_interval` and `status_interval`, and `hqptuner/engine/metering.py` `IDLE_RECHECK`. Read those values at run time; do not assume them.
+  - **Late-connect runs: cut by the owner.** The owner declined them on 2026-11-13. The capture is Run 1 alone, and the late-connect measurement is an open item.
   - **Window and footprint.** Each run goes under `timeout`. Run 1 covers four starts, each followed by a steady stretch, and 60 s cannot hold them. Before Run 1, ask the owner for a window sized to the four starts (for example 180 to 300 s); that is an authorization ask naming what it blocks. Other runs use 60 s unless the owner grants longer. Before each run, meter-probe records whether a `junkcal_burst.py` process and the dev container's own metering connection are present (`ps`, and `ss -tn` on port 4322). meter-probe reports its PIDs killed by PID and confirmed gone with `ps -p`.
   - **Save.** Copy the resulting runs file from scratch into the fixture path as captured, with no edits, trims or reordering. A capture that misses a required start is rerun; it is not patched.
 - **Verify:** human-verify. This needs the owner starting tracks on the live hqplayerd while meter-probe runs the capture. Afterwards, `.venv/bin/python -c` reading the fixture as JSON shows:
   - one held-mode run with frame records at two distinct metering rates;
   - at least one geometry change between them;
-  - Status samples whose `track_serial` takes at least four values;
-  - at least three late-connect runs with distinct offsets.
+  - Status samples whose `track_serial` takes at least four values.
 
   meter-probe's report shows no command other than reads, and every PID it launched gone.
 
@@ -77,17 +75,15 @@ After a track starts, the visuals keep the same lag behind the sound that they h
   - **What the change does to the stream.** Whether that kind of change ends the stream, emits a geometry event or breaks the stamps (an `at` that is not the previous `at + n`). This is D-04's question: does every track start re-anchor?
   - **Status fields.** What Status `position` and `output_delay` did across the start, and `output_delay` at each rate. This covers the flagged assumption that `output_delay` may misreport per rate.
 
-  For the late-connect runs, state how each connect's first stamps compare with wall time, by offset.
-
   Also give the peak event arrival rate during any rush against `QUEUE_DEPTH` 8 in `hqptuner/engine/meterfeed.py`. This bears on the flagged assumption about queue-overflow breaks.
 
   For what Status `position` and `output_delay` mean, and where hqplayerd taps metering, cite HQPlayer's own docs through the hqpdoc MCP tools (`hqp_find` first). Where the docs are silent, write "undocumented".
 
   Each number carries the command that produced it from the fixture. The report states measurements and their plain reading against the two candidate causes, confirmed, refuted or mixed. It proposes no fix and no rule; the ruling is Plan 2's. Pass `.claude/hooks/md-softwrap.py --check` on the file.
-- **Verify:** `.planning/phases/7/CAPTURE.md` names, for each of the two rates, a stamp lead over wall time after a start (a number, or "none" with its measurement). It names, for each kind of change captured, whether the stream restarted. It names, for each late-connect offset, the first stamps' lead. Every number in it is reproduced by the command it cites, run against the fixture. Testing scope: none; this is a measurement record.
+- **Verify:** `.planning/phases/7/CAPTURE.md` names, for each of the two rates, a stamp lead over wall time after a start (a number, or "none" with its measurement). It names, for each kind of change captured, whether the stream restarted. Every number in it is reproduced by the command it cites, run against the fixture. Testing scope: none; this is a measurement record.
 
 ## Notes
 
 - Plan shape: CONTEXT orders measure, then ruling, then fix. This plan is the measurement. Plan 2 (the ruling) and Plan 3 (the fix) depend on it in sequence.
-- The late-connect runs are the planner's reading of D-02: "connect timing measured" needs a reader that connects after a start. D-05's held run alone cannot show it.
+- The late-connect runs were the planner's reading of D-02: "connect timing measured" needs a reader that connects after a start. The owner cut them, so D-02's connect-timing half stays unmeasured and is an open item.
 - The owner's presence is required for Task 2. Run 1 needs a window longer than 60 s for its four starts, so the executor asks the owner for that window before Run 1.
