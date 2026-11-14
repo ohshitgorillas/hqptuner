@@ -8,7 +8,8 @@ checkout laid down under ``tmp_path``.
 Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
 ``install_failures(name, source)``, ``dockerfile_failures(name, source)``,
 ``container_failures(name, source)``, ``permission_failures(name, source)``,
-``secret_failures(name, source)``, ``signing_check_failures(name, source)`` and ``main(argv)``.
+``secret_failures(name, source)``, ``signing_check_failures(name, source)``, ``login_script_failures(name, source)``
+and ``main(argv)``.
 """
 
 import importlib.util
@@ -44,6 +45,7 @@ CONTAINER_FAILURES = GATE.container_failures
 PERMISSION_FAILURES = GATE.permission_failures
 SECRET_FAILURES = GATE.secret_failures
 SIGNING_CHECK_FAILURES = GATE.signing_check_failures
+LOGIN_SCRIPT_FAILURES = GATE.login_script_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -506,6 +508,67 @@ def test_a_checkout_whose_signing_job_waits_on_no_check_exits_nonzero(tmp_path: 
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "release.yml").write_text(f"jobs:\n{signing_job('build')}", encoding="utf-8")
+    assert MAIN([str(tmp_path)]) == 1
+
+
+# --- the SimplySign login script --------------------------------------------
+
+PIN = "$InstallerSha256 = '" + "0123456789abcdef" * 4 + "'\n"
+HASH_ONLY = "$actual = (Get-FileHash -LiteralPath $msi -Algorithm SHA256).Hash\n"
+CHECK = HASH_ONLY + "if ($actual -ne $InstallerSha256) { Fail 'x' }\n"
+REMOVAL = "Remove-Item Env:SIMPLYSIGN_OTPAUTH_URI\n"
+
+
+def login_script(*, pin: str = PIN, check: str = CHECK, removal: str = REMOVAL, late: str = "") -> str:
+    """A login script that pins, checks and removes as the arguments say, then installs and launches the app."""
+    return (
+        f"$Version = '9'\n{pin}{removal}Say '[1/4] install'\nInvoke-WebRequest -Uri $u -OutFile $msi\n{check}"
+        "$install = Start-Process -FilePath msiexec.exe -ArgumentList '/i' -Wait -PassThru\n"
+        f"{late}Start-Process -FilePath $App\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("script", "count"),
+    [
+        (login_script(), 0),
+        (login_script(check=""), 1),
+        (login_script(check="", late=CHECK), 1),
+        (login_script(check=HASH_ONLY), 1),
+        (login_script(pin="$InstallerSha256 = 'TODO'\n"), 1),
+        (login_script(pin=""), 1),
+    ],
+    ids=["checked", "no check", "check after msiexec", "hash never compared", "pin is no hash", "no pin"],
+)
+def test_the_installer_is_hash_checked_against_a_pin_before_msiexec(script: str, count: int) -> None:
+    assert len(LOGIN_SCRIPT_FAILURES("simplysign-login.ps1", script)) == count
+
+
+@pytest.mark.parametrize(
+    ("script", "count"),
+    [
+        (login_script(), 0),
+        (login_script(removal=""), 1),
+        (login_script(removal="", late=REMOVAL), 1),
+        (login_script(removal="# " + REMOVAL), 1),
+    ],
+    ids=["removed first", "never removed", "removed after the first Start-Process", "only commented out"],
+)
+def test_the_seed_leaves_the_environment_before_the_first_start_process(script: str, count: int) -> None:
+    assert len(LOGIN_SCRIPT_FAILURES("simplysign-login.ps1", script)) == count
+
+
+def test_a_login_script_failure_names_its_file() -> None:
+    assert LOGIN_SCRIPT_FAILURES("simplysign-login.ps1", login_script(removal=""))[0].startswith(
+        "simplysign-login.ps1:"
+    )
+
+
+def test_a_checkout_whose_login_script_never_checks_the_installer_exits_nonzero(tmp_path: Path) -> None:
+    script = tmp_path / "packaging" / "windows" / "simplysign-login.ps1"
+    script.parent.mkdir(parents=True)
+    script.write_text(login_script(check=""), encoding="utf-8")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
     assert MAIN([str(tmp_path)]) == 1
 
 

@@ -3,12 +3,16 @@
 # and the x64 signtool to the steps that follow, through GITHUB_ENV.
 # usage: pwsh packaging/windows/simplysign-login.ps1
 # Reads SIMPLYSIGN_EMAIL and SIMPLYSIGN_OTPAUTH_URI. The seed and the one-time
-# code are never written out.
+# code are never written out, and the seed leaves the process environment before
+# the installer or the app starts.
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $Version = '9.4.4.92'
+# The SHA-256 of the installer at $Installer: a new $Version needs the hash of a
+# fresh download of its URL.
+$InstallerSha256 = '8ec420fc27798b86078b7bd02fe7152097e1b3005bab51820eaca8e57df84da3'
 $Installer = "https://files.certum.eu/software/SimplySignDesktop/Windows/$Version/SimplySignDesktop-$Version-64-bit-en.msi"
 $App = 'C:\Program Files\Certum\SimplySign Desktop\SimplySignDesktop.exe'
 $CodeSigning = '1.3.6.1.5.5.7.3.3'
@@ -60,7 +64,7 @@ function Get-Totp([byte[]]$Key, [string]$Algorithm, [int]$Digits, [int]$Period, 
 
 # One field of the otpauth:// URI's query, or the default when it has none.
 function Get-SeedField([string]$Name, [string]$Default) {
-    if ($env:SIMPLYSIGN_OTPAUTH_URI -match "[?&]$Name=([^&]+)") { return [Uri]::UnescapeDataString($Matches[1]) }
+    if ($OtpauthUri -match "[?&]$Name=([^&]+)") { return [Uri]::UnescapeDataString($Matches[1]) }
     return $Default
 }
 
@@ -85,7 +89,8 @@ if ($ascii.GetString((ConvertFrom-Base32 'MZXW6YTBOI======')) -ne 'foobar' -or
 }
 
 if (-not $env:SIMPLYSIGN_EMAIL) { Fail 'SIMPLYSIGN_EMAIL is not set.' }
-if ($env:SIMPLYSIGN_OTPAUTH_URI -notlike 'otpauth://totp/*') { Fail 'SIMPLYSIGN_OTPAUTH_URI is not an otpauth://totp/ URI.' }
+$OtpauthUri = $env:SIMPLYSIGN_OTPAUTH_URI
+if ($OtpauthUri -notlike 'otpauth://totp/*') { Fail 'SIMPLYSIGN_OTPAUTH_URI is not an otpauth://totp/ URI.' }
 $seed = (Get-SeedField 'secret' '') -replace '[\s-]', ''
 if (-not $seed) { Fail 'SIMPLYSIGN_OTPAUTH_URI carries no secret.' }
 Write-Host "::add-mask::$seed"
@@ -93,11 +98,16 @@ $key = ConvertFrom-Base32 $seed
 $algorithm = (Get-SeedField 'algorithm' 'SHA1').ToUpperInvariant() -replace '-', ''
 $digits = [int](Get-SeedField 'digits' '6')
 $period = [int](Get-SeedField 'period' '30')
+# Everything below starts a process, and a child inherits the environment, so
+# the seed goes first.
+Remove-Item Env:SIMPLYSIGN_OTPAUTH_URI
 
 Say '[1/4] install SimplySign Desktop'
 if (-not (Test-Path -LiteralPath $App)) {
     $msi = Join-Path $env:RUNNER_TEMP 'SimplySignDesktop.msi'
     Invoke-WebRequest -Uri $Installer -OutFile $msi
+    $actual = (Get-FileHash -LiteralPath $msi -Algorithm SHA256).Hash
+    if ($actual -ne $InstallerSha256) { Fail "the installer's SHA-256 is $actual, not the pinned $InstallerSha256." }
     $install = Start-Process -FilePath msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Wait -PassThru
     if ($install.ExitCode -notin 0, 3010) { Fail "msiexec exited with $($install.ExitCode)." }
     if (-not (Test-Path -LiteralPath $App)) { Fail "the installer left no $App." }

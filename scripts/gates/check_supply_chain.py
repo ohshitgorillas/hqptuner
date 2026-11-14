@@ -123,6 +123,16 @@ SIGNS_MACOS = frozenset({"release.yml"})
 SIGNING_JOBS = {"release.yml": frozenset({"package-windows", "sign-macos"})}
 
 
+#: The SimplySign login script: the pinned hash of its installer, the hash taken and compared, the line that runs the
+#: installer, the removal of the seed from the environment, and the first process the script starts.
+INSTALLER_PIN = re.compile(r"^\s*\$InstallerSha256\s*=\s*'[0-9a-fA-F]{64}'\s*$")
+HASH_OF_FILE = re.compile(r"\bGet-FileHash\b.*-Algorithm\s+SHA256\b", re.IGNORECASE)
+HASH_COMPARED = re.compile(r"\$InstallerSha256\b.*\s-(?:ne|eq)\s|\s-(?:ne|eq)\s.*\$InstallerSha256\b", re.IGNORECASE)
+MSIEXEC = re.compile(r"\bmsiexec\b", re.IGNORECASE)
+SEED_REMOVED = re.compile(r"^\s*Remove-Item\s+Env:\\?SIMPLYSIGN_OTPAUTH_URI\b", re.IGNORECASE)
+START_PROCESS = re.compile(r"\bStart-Process\b", re.IGNORECASE)
+
+
 def action_failures(name: str, source: str) -> list[str]:
     """One line per remote action in a workflow that is not named by a full commit SHA."""
     lines: list[str] = []
@@ -322,6 +332,29 @@ def signing_check_failures(name: str, source: str) -> list[str]:
     ]
 
 
+def login_script_failures(name: str, source: str) -> list[str]:
+    """One line per way the SimplySign login script runs the installer unchecked or starts a process with the seed."""
+    code = [
+        (number, text) for number, text in enumerate(source.splitlines(), start=1) if not text.lstrip().startswith("#")
+    ]
+
+    def first(pattern: re.Pattern[str]) -> int | None:
+        return next((number for number, text in code if pattern.search(text)), None)
+
+    lines: list[str] = []
+    if not any(INSTALLER_PIN.match(text) for _, text in code):
+        lines.append(f"{name}:1: no $InstallerSha256 pinned to a full SHA-256")
+    msiexec, hashed, compared = first(MSIEXEC), first(HASH_OF_FILE), first(HASH_COMPARED)
+    if msiexec is not None and (hashed is None or compared is None or max(hashed, compared) > msiexec):
+        lines.append(
+            f"{name}:{msiexec}: msiexec runs before the installer's SHA-256 is taken and compared with the pin"
+        )
+    start, removed = first(START_PROCESS), first(SEED_REMOVED)
+    if start is not None and (removed is None or removed > start):
+        lines.append(f"{name}:{start}: the seed is still in the environment at the first Start-Process")
+    return lines
+
+
 def main(argv: list[str]) -> int:
     """Check the workflows of one checkout, this one unless a root is named, and say so in the exit status."""
     root = Path(argv[0]) if argv else ROOT
@@ -344,6 +377,10 @@ def main(argv: list[str]) -> int:
     dockerfile = root / "Dockerfile"
     if dockerfile.is_file():
         lines += dockerfile_failures(dockerfile.name, dockerfile.read_text(encoding="utf-8"))
+
+    login = root / "packaging" / "windows" / "simplysign-login.ps1"
+    if login.is_file():
+        lines += login_script_failures(login.name, login.read_text(encoding="utf-8"))
 
     for line in lines:
         print(line)
