@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   # A red tree must not publish an image. Every tag this workflow pushes —
@@ -16,11 +15,19 @@ jobs:
   # the pre-commit hooks run locally.
   check:
     uses: ./.github/workflows/check.yml
+    permissions:
+      contents: read
 
+  # The one job that pushes a package, so the one that may write them. A job's
+  # permissions replace the workflow's, so contents: read is stated again for
+  # the checkout.
   build-push:
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:

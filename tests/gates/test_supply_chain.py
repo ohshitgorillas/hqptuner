@@ -7,7 +7,7 @@ checkout laid down under ``tmp_path``.
 
 Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
 ``install_failures(name, source)``, ``dockerfile_failures(name, source)``,
-``container_failures(name, source)`` and ``main(argv)``.
+``container_failures(name, source)``, ``permission_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -40,6 +40,7 @@ PIPE_FAILURES = GATE.pipe_failures
 INSTALL_FAILURES = GATE.install_failures
 DOCKERFILE_FAILURES = GATE.dockerfile_failures
 CONTAINER_FAILURES = GATE.container_failures
+PERMISSION_FAILURES = GATE.permission_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -308,6 +309,62 @@ def test_a_build_container_failure_names_its_job_and_line() -> None:
 def test_a_checkout_with_an_undigested_dockerfile_base_exits_nonzero(tmp_path: Path) -> None:
     (tmp_path / "Dockerfile").write_text("FROM python:3.14-slim\n", encoding="utf-8")
     (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    assert MAIN([str(tmp_path)]) == 1
+
+
+# --- write permissions ------------------------------------------------------
+
+
+def workflow_granting(top: str, job: str, grant: str) -> str:
+    """A workflow with the top-level ``permissions:`` body ``top`` and one job, named ``job``, holding ``grant``."""
+    return f"permissions:\n{top}\njobs:\n  {job}:\n    runs-on: ubuntu-latest\n{grant}\n    steps: []\n"
+
+
+READ = "  contents: read"
+WRITE_PACKAGES = "    permissions:\n      contents: read\n      packages: write"
+
+
+@pytest.mark.parametrize(
+    ("top", "job", "grant", "count"),
+    [
+        (f"{READ}\n  packages: write", "build-push", "", 1),
+        (READ, "build-push", WRITE_PACKAGES, 0),
+        (READ, "check", WRITE_PACKAGES, 1),
+        (READ, "build-push", "    permissions:\n      contents: read", 0),
+    ],
+    ids=["workflow level", "the job that pushes", "another job", "a job that only reads"],
+)
+def test_packages_write_belongs_to_the_job_that_pushes_alone(top: str, job: str, grant: str, count: int) -> None:
+    assert len(PERMISSION_FAILURES("docker.yml", workflow_granting(top, job, grant))) == count
+
+
+def test_packages_write_in_another_workflow_is_a_failure() -> None:
+    assert len(PERMISSION_FAILURES("release.yml", workflow_granting(READ, "build-push", WRITE_PACKAGES))) == 1
+
+
+@pytest.mark.parametrize(
+    ("source", "count"),
+    [
+        ("name: check\njobs:\n  check:\n    steps: []\n", 1),
+        ("name: check\npermissions:\n  packages: read\njobs:\n  check:\n    steps: []\n", 1),
+        ("name: check\npermissions:\n  contents: write\njobs:\n  check:\n    steps: []\n", 1),
+        ("name: check\npermissions:\n  contents: read\njobs:\n  check:\n    steps: []\n", 0),
+    ],
+    ids=["none", "no contents", "contents write", "contents read"],
+)
+def test_check_declares_contents_read_at_the_top(source: str, count: int) -> None:
+    assert len(PERMISSION_FAILURES("check.yml", source)) == count
+
+
+def test_a_permission_failure_names_its_file_and_line() -> None:
+    line = PERMISSION_FAILURES("docker.yml", workflow_granting(f"{READ}\n  packages: write", "build-push", ""))[0]
+    assert line.startswith("docker.yml:3:")
+
+
+def test_a_checkout_with_packages_write_at_the_top_exits_nonzero(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "docker.yml").write_text(workflow_granting(f"{READ}\n  packages: write", "x", ""), encoding="utf-8")
     assert MAIN([str(tmp_path)]) == 1
 
 

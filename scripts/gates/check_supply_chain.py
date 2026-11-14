@@ -91,6 +91,17 @@ COPY_FROM = re.compile(r"^\s*COPY\s+(?:--\S+\s+)*?--from=(?P<image>\S+)", re.IGN
 STAGE_NAME = re.compile(r"\sAS\s+(?P<stage>\S+)\s*$", re.IGNORECASE)
 
 
+#: The jobs that may hold ``packages: write``, by workflow: the one that pushes the image.
+PACKAGE_WRITERS = {"docker.yml": frozenset({"build-push"})}
+
+#: The workflows that must narrow the token to a read at the top: a caller's grant is the most a reusable one gets.
+READ_AT_TOP = frozenset({"check.yml"})
+
+#: A ``packages: write`` grant, and a ``contents: read`` one indented under a top-level ``permissions:``.
+PACKAGES_WRITE = re.compile(r"^\s+packages:\s*write\b")
+CONTENTS_READ = re.compile(r"^\s+contents:\s*read\b")
+
+
 def action_failures(name: str, source: str) -> list[str]:
     """One line per remote action in a workflow that is not named by a full commit SHA."""
     lines: list[str] = []
@@ -153,18 +164,24 @@ def _install_problem(name: str, segment: str) -> str | None:
     return None
 
 
-def _job_lines(source: str) -> Iterator[tuple[int, str, str]]:
-    """Each step line of a workflow's jobs as its number, the job it sits in and its text; comments skipped."""
+def _scoped_lines(source: str) -> Iterator[tuple[int, str, str]]:
+    """Each line of a workflow as its number, its job (empty above the jobs) and its text; comments skipped."""
     in_jobs, job = False, ""
     for number, text in _logical_lines(source):
         if re.match(r"\S", text):
             in_jobs, job = text.startswith("jobs:"), ""
+            yield number, "", text
             continue
         header = JOB_HEADER.match(text)
         if in_jobs and header:
             job = header["job"]
-        elif job and not text.lstrip().startswith("#"):
+        elif not text.lstrip().startswith("#"):
             yield number, job, text
+
+
+def _job_lines(source: str) -> Iterator[tuple[int, str, str]]:
+    """Each step line of a workflow's jobs as its number, the job it sits in and its text; comments skipped."""
+    return ((number, job, text) for number, job, text in _scoped_lines(source) if job)
 
 
 def install_failures(name: str, source: str) -> list[str]:
@@ -213,6 +230,19 @@ def container_failures(name: str, source: str) -> list[str]:
     return lines
 
 
+def permission_failures(name: str, source: str) -> list[str]:
+    """One line per ``packages: write`` outside the job that pushes, and per workflow that lacks its top-level read."""
+    writers = PACKAGE_WRITERS.get(name, frozenset())
+    lines: list[str] = []
+    for number, job, text in _scoped_lines(source):
+        if PACKAGES_WRITE.match(text) and job not in writers:
+            where = f"job {job}" if job else "the workflow level"
+            lines.append(f"{name}:{number}: packages: write on {where}, which does not push a package")
+    if name in READ_AT_TOP and not any(CONTENTS_READ.match(text) for _, job, text in _scoped_lines(source) if not job):
+        lines.append(f"{name}:1: no top-level permissions with contents: read")
+    return lines
+
+
 def main(argv: list[str]) -> int:
     """Check the workflows of one checkout, this one unless a root is named, and say so in the exit status."""
     root = Path(argv[0]) if argv else ROOT
@@ -220,7 +250,7 @@ def main(argv: list[str]) -> int:
     lines = [
         line
         for path in workflows
-        for check in (action_failures, pipe_failures, install_failures, container_failures)
+        for check in (action_failures, pipe_failures, install_failures, container_failures, permission_failures)
         for line in check(path.name, path.read_text(encoding="utf-8"))
     ]
 
