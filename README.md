@@ -207,6 +207,16 @@ The icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab
 
 To update, quit HQPTuner and run the newer installer. Presets, backups and settings are kept in `%LOCALAPPDATA%\HQPTuner`, and uninstalling leaves them there.
 
+### Checking a download
+
+Each [release](https://github.com/ohshitgorillas/hqptuner/releases) also carries `SHA256SUMS`, the SHA-256 checksum of every package and installer in it. Download it into the same folder as your download, then run:
+
+```sh
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+On a Mac, `shasum -a 256 <file>` prints a file's checksum to compare against its line in `SHA256SUMS`.
+
 ### From a clone (no Docker)
 
 Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.
