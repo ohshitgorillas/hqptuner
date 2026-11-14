@@ -113,7 +113,26 @@ jobs:
           tar -xzf "$tarball" -C "$RUNNER_TEMP/bin" nfpm
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - run: scripts/package-linux.sh package
+      # The armored key is written under the runner's temp folder, and only this
+      # step's package stage sees it and its passphrase. A missing key fails the
+      # job, so no unsigned package leaves CI.
+      - name: Package and sign
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          NFPM_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+          HQPTUNER_GPG_KEY_FILE: ${{ runner.temp }}/release-signing.asc
+        run: |
+          if [ -z "$RELEASE_GPG_PRIVATE_KEY" ]; then
+            echo "No release signing key in the signing environment" >&2
+            exit 1
+          fi
+          (umask 077 && printf '%s\n' "$RELEASE_GPG_PRIVATE_KEY" > "$HQPTUNER_GPG_KEY_FILE")
+          unset RELEASE_GPG_PRIVATE_KEY
+          scripts/package-linux.sh package
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release-signing.asc"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

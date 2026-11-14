@@ -29,6 +29,16 @@ overrides:
       preremove: packaging/linux/rpm/preun
       postremove: packaging/linux/rpm/postun
 
+# Both packages are signed when HQPTUNER_GPG_KEY_FILE names a key and are left
+# unsigned otherwise; the passphrase is read from NFPM_PASSPHRASE.
+rpm:
+  signature:
+    key_file: ${HQPTUNER_GPG_KEY_FILE}
+
 deb:
   scripts:
     templates: packaging/linux/deb/templates
+  # The default "debsign" method writes an armored detached signature as the
+  # _gpgorigin member of the ar archive.
+  signature:
+    key_file: ${HQPTUNER_GPG_KEY_FILE}

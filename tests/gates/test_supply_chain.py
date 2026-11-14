@@ -461,10 +461,33 @@ def test_package_windows_sits_in_the_signing_environment_and_its_secrets_with_it
     assert len(SECRET_FAILURES("release.yml", source)) == count
 
 
-@pytest.mark.parametrize("secret", ["GPG_PRIVATE_KEY", "MACOS_CERT_PASSWORD", "NOTARY_KEY_ID"])
+@pytest.mark.parametrize(
+    "secret",
+    ["GPG_PRIVATE_KEY", "RELEASE_GPG_PRIVATE_KEY", "RELEASE_GPG_PASSPHRASE", "MACOS_CERT_PASSWORD", "NOTARY_KEY_ID"],
+)
 def test_every_signing_secret_belongs_to_the_signing_environment(secret: str) -> None:
     step = f"      - run: x\n        env:\n          S: ${{{{ secrets.{secret} }}}}\n"
     assert len(SECRET_FAILURES("docker.yml", f"jobs:\n  publish:\n    steps:\n{step}")) == 1
+
+
+def linux_jobs(build: str, environment: str) -> str:
+    """A release workflow whose build job holds the steps ``build`` and whose package-linux job has ``environment``."""
+    return (
+        f"jobs:\n  build:\n    runs-on: ubuntu-24.04\n    steps:\n{build}"
+        f"  package-linux:\n    runs-on: ubuntu-24.04\n{environment}    steps:\n      - run: x\n"
+    )
+
+
+@pytest.mark.parametrize(("build", "count"), [(BUILD_WITH_REPO_VALUE, 1), (CLEAN_BUILD, 0)], ids=["a secret", "none"])
+def test_the_linux_build_job_reads_no_secret(build: str, count: int) -> None:
+    source = linux_jobs(build, SIGNING_ENV) + release_with(CLEAN_BUILD, SIGNING_ENV + SIGN_STEPS)[6:]
+    assert len(SECRET_FAILURES("release.yml", source)) == count
+
+
+@pytest.mark.parametrize(("environment", "count"), [("", 1), (SIGNING_ENV, 0)], ids=["no environment", "signing"])
+def test_package_linux_sits_in_the_signing_environment(environment: str, count: int) -> None:
+    source = linux_jobs(CLEAN_BUILD, environment) + release_with(CLEAN_BUILD, SIGNING_ENV + SIGN_STEPS)[6:]
+    assert len(SECRET_FAILURES("release.yml", source)) == count
 
 
 CHECK_JOB = "  tag-check:\n    uses: ./.github/workflows/check.yml\n"

@@ -217,6 +217,20 @@ sha256sum --check --ignore-missing SHA256SUMS
 
 On a Mac, `shasum -a 256 <file>` prints a file's checksum to compare against its line in `SHA256SUMS`.
 
+The deb and rpm packages are also signed with HQPTuner's release key, [`packaging/keys/hqptuner-release.asc`](packaging/keys/hqptuner-release.asc). To check a package before installing it:
+
+```sh
+# Fedora, RHEL, AlmaLinux
+sudo rpm --import https://raw.githubusercontent.com/ohshitgorillas/hqptuner/main/packaging/keys/hqptuner-release.asc
+rpm --checksig hqptuner-X.Y.Z-1.x86_64.rpm
+
+# Debian, Ubuntu (ar comes with binutils)
+curl -fsSL https://raw.githubusercontent.com/ohshitgorillas/hqptuner/main/packaging/keys/hqptuner-release.asc | gpg --import
+ar x hqptuner_X.Y.Z_amd64.deb
+cat debian-binary control.tar.* data.tar.* > combined
+gpg --verify _gpgorigin combined
+```
+
 ### From a clone (no Docker)
 
 Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.

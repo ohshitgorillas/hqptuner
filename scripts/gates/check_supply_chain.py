@@ -105,7 +105,7 @@ CONTENTS_READ = re.compile(r"^\s+contents:\s*read\b")
 #: Any repository secret; the Apple certificate and notary key; and every secret that signs a release.
 ANY_SECRET = re.compile(r"\bsecrets\.")
 APPLE_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_)\w+")
-SIGNING_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_|SIMPLYSIGN_|GPG_)\w+")
+SIGNING_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_|SIMPLYSIGN_|GPG_|RELEASE_GPG_)\w+")
 
 #: A job's call of the check workflow, its own ``if:``, and its ``needs:`` on one line.
 CHECK_CALL = re.compile(r"^    uses:\s*\./\.github/workflows/check\.yml\s*$")
@@ -116,11 +116,11 @@ NEEDS = re.compile(r"^    needs:\s*(?P<jobs>\S.*?)\s*$")
 SIGNING_ENVIRONMENT = re.compile(r"^    environment:\s*signing\s*$")
 
 #: The jobs that run the build and so hold no secret, and the workflows that must hold a job signing the macOS app.
-SECRETLESS_JOBS = {"release.yml": frozenset({"build-macos"})}
+SECRETLESS_JOBS = {"release.yml": frozenset({"build", "build-macos"})}
 SIGNS_MACOS = frozenset({"release.yml"})
 
 #: The jobs that sign, named so that deleting their environment line fails even where no secret is visible.
-SIGNING_JOBS = {"release.yml": frozenset({"package-windows", "sign-macos"})}
+SIGNING_JOBS = {"release.yml": frozenset({"package-linux", "package-windows", "sign-macos"})}
 
 
 #: The SimplySign login script: the pinned hash of its installer, the hash taken and compared, the line that runs the
