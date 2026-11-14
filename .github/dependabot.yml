@@ -1,0 +1,17 @@
+version: 2
+
+updates:
+  # Rewrites the commit SHA of every remote action and the tag comment beside it.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+
+  # The lock is uv.lock: there is no requirements file and the dependencies carry
+  # no version bounds, so a pip entry would find nothing to update.
+  - package-ecosystem: uv
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
