@@ -29,17 +29,18 @@ jobs:
     uses: ./.github/workflows/check.yml
 
   # glibc 2.28 is the floor the packages promise, so the bundle is frozen on
-  # AlmaLinux 8 and runs on anything newer.
+  # AlmaLinux 8 and runs on anything newer. This job holds no credential: the
+  # frozen bundle goes to package-linux in an archive, because an uploaded
+  # artifact loses file modes and symlinks. The name must stay clear of linux-*,
+  # which is what publish attaches to the release.
   build:
     strategy:
       matrix:
         include:
           - runner: ubuntu-24.04
             arch: amd64
-            nfpm: x86_64
           - runner: ubuntu-24.04-arm
             arch: arm64
-            nfpm: arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
@@ -60,6 +61,45 @@ jobs:
       - run: uv sync --locked --no-build --python 3.14 --group build --no-install-project
       - run: uv sync --locked --python 3.14 --group build --no-editable --no-build-isolation-package hqptuner
 
+      - run: scripts/package-linux.sh freeze
+
+      - run: tar -czf bundle.tar.gz -C dist HQPTuner
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frozen-bundle-${{ matrix.arch }}
+          path: bundle.tar.gz
+          if-no-files-found: error
+
+  # The one job that packs the frozen bundle into the deb and the rpm, in the
+  # environment that will hold the package signing key. It installs nfpm and no
+  # Python package, and runs the package stage of the packaging script.
+  package-linux:
+    needs: [tag-check, build]
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+            nfpm: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            nfpm: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    environment: signing
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: frozen-bundle-${{ matrix.arch }}
+          path: ${{ runner.temp }}/frozen
+
+      - run: |
+          mkdir -p dist
+          tar -xzf "$RUNNER_TEMP/frozen/bundle.tar.gz" -C dist
+
       - name: Install nfpm
         env:
           NFPM_VERSION: 2.47.0
@@ -69,9 +109,11 @@ jobs:
           curl -LsSfO "$base/$tarball"
           curl -LsSfO "$base/checksums.txt"
           grep " $tarball\$" checksums.txt | sha256sum -c -
-          tar -xzf "$tarball" -C /usr/local/bin nfpm
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$tarball" -C "$RUNNER_TEMP/bin" nfpm
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - run: scripts/package-linux.sh
+      - run: scripts/package-linux.sh package
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -84,7 +126,7 @@ jobs:
   # Install, run and remove in a container with no systemd, on the oldest
   # supported release of each family and the newest Fedora.
   smoke:
-    needs: build
+    needs: package-linux
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +165,7 @@ jobs:
 
   # The runner VM boots systemd, so the deb lifecycle runs on it directly.
   lifecycle-deb:
-    needs: build
+    needs: package-linux
     strategy:
       fail-fast: false
       matrix:
@@ -162,7 +204,7 @@ jobs:
   # The rpm lifecycle needs systemd as PID 1 in an rpm distro, which a
   # `container:` job cannot give, so it boots one with docker.
   lifecycle-rpm:
-    needs: build
+    needs: package-linux
     strategy:
       fail-fast: false
       matrix:
@@ -479,7 +521,7 @@ jobs:
   # The release notes are that version's CHANGELOG.md section, verbatim.
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [tag-check, build, smoke, lifecycle-deb, lifecycle-rpm, sign-macos, smoke-macos, package-windows, smoke-windows]
+    needs: [tag-check, package-linux, smoke, lifecycle-deb, lifecycle-rpm, sign-macos, smoke-macos, package-windows, smoke-windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
