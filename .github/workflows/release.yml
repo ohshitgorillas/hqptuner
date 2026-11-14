@@ -210,8 +210,10 @@ jobs:
         run: kill "$(cat "$RUNNER_TEMP/standin.pid")"
 
   # PyInstaller does not cross-compile, so each architecture freezes on its own
-  # runner. The dmgs are signed with the Developer ID certificate and notarized,
-  # and publish attaches them to the release.
+  # runner. This job holds no credential: it runs the build, and the unsigned app
+  # goes to sign-macos in an archive, because an uploaded artifact loses the file
+  # modes and symlinks a frozen app depends on. The name must stay clear of
+  # macos-*, which is what publish attaches to the release.
   build-macos:
     strategy:
       fail-fast: false
@@ -232,6 +234,44 @@ jobs:
       # Locked, as in the build job.
       - run: uv sync --locked --no-build --python 3.14 --group build --no-install-project
       - run: uv sync --locked --python 3.14 --group build --no-editable --no-build-isolation-package hqptuner
+
+      - run: scripts/package-macos.sh freeze
+
+      - run: ditto -c -k --keepParent dist/HQPTuner.app "$RUNNER_TEMP/unsigned-app.zip"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-app-${{ matrix.arch }}
+          path: ${{ runner.temp }}/unsigned-app.zip
+          if-no-files-found: error
+
+  # The one job that signs the macOS app, in the environment that holds the
+  # certificate and the notary key. It runs the sign stage of the packaging
+  # script and nothing the build installed: no submodules, no Python packages.
+  # The dmgs are signed with the Developer ID certificate and notarized, and
+  # publish attaches them to the release.
+  sign-macos:
+    needs: build-macos
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    environment: signing
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned-app-${{ matrix.arch }}
+          path: ${{ runner.temp }}/unsigned
+
+      - run: ditto -x -k "$RUNNER_TEMP/unsigned/unsigned-app.zip" dist
 
       # The certificate goes into a keychain of its own, and codesign takes the
       # identity by the hash read back from it.
@@ -259,8 +299,6 @@ jobs:
           echo "HQPTUNER_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
           echo "HQPTUNER_NOTARY_KEY=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
 
-      - run: scripts/package-macos.sh freeze
-
       - run: scripts/package-macos.sh sign
         env:
           HQPTUNER_NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
@@ -281,7 +319,7 @@ jobs:
   # Each dmg runs on the macOS it was built on and on every newer one a runner
   # offers. The xcode-27 image is the one that runs macOS 27.
   smoke-macos:
-    needs: build-macos
+    needs: sign-macos
     strategy:
       fail-fast: false
       matrix:
@@ -439,7 +477,7 @@ jobs:
   # The release notes are that version's CHANGELOG.md section, verbatim.
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [tag-check, build, smoke, lifecycle-deb, lifecycle-rpm, build-macos, smoke-macos, package-windows, smoke-windows]
+    needs: [tag-check, build, smoke, lifecycle-deb, lifecycle-rpm, sign-macos, smoke-macos, package-windows, smoke-windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

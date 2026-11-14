@@ -7,7 +7,8 @@ checkout laid down under ``tmp_path``.
 
 Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
 ``install_failures(name, source)``, ``dockerfile_failures(name, source)``,
-``container_failures(name, source)``, ``permission_failures(name, source)`` and ``main(argv)``.
+``container_failures(name, source)``, ``permission_failures(name, source)``,
+``secret_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -41,6 +42,7 @@ INSTALL_FAILURES = GATE.install_failures
 DOCKERFILE_FAILURES = GATE.dockerfile_failures
 CONTAINER_FAILURES = GATE.container_failures
 PERMISSION_FAILURES = GATE.permission_failures
+SECRET_FAILURES = GATE.secret_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -56,7 +58,7 @@ def checkout_with(root: Path, ref: str) -> list[str]:
     """Lay a checkout holding one workflow that uses ``ref``; the argv naming it."""
     workflows = root / ".github" / "workflows"
     workflows.mkdir(parents=True)
-    (workflows / "release.yml").write_text(workflow_using(ref), encoding="utf-8")
+    (workflows / "ci.yml").write_text(workflow_using(ref), encoding="utf-8")
     return [str(root)]
 
 
@@ -365,6 +367,67 @@ def test_a_checkout_with_packages_write_at_the_top_exits_nonzero(tmp_path: Path)
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "docker.yml").write_text(workflow_granting(f"{READ}\n  packages: write", "x", ""), encoding="utf-8")
+    assert MAIN([str(tmp_path)]) == 1
+
+
+# --- signing secrets --------------------------------------------------------
+
+CLEAN_BUILD = "      - run: scripts/package-macos.sh freeze\n"
+BUILD_WITH_REPO_VALUE = "      - run: x\n        env:\n          T: ${{ secrets.GITHUB_TOKEN }}\n"
+BUILD_WITH_APPLE = "      - run: x\n        env:\n          P: ${{ secrets.MACOS_CERT_PASSWORD }}\n"
+SIGN_STEPS = "    steps:\n      - run: x\n        env:\n          N: ${{ secrets.NOTARY_KEY_ID }}\n"
+SIGNING_ENV = "    environment: signing\n"
+
+
+def release_with(build: str, sign: str) -> str:
+    """A release workflow whose build-macos job holds the steps ``build`` and whose sign-macos job is ``sign``."""
+    return (
+        f"jobs:\n  build-macos:\n    runs-on: macos-15\n    steps:\n{build}  sign-macos:\n    runs-on: macos-15\n{sign}"
+    )
+
+
+@pytest.mark.parametrize(("build", "count"), [(BUILD_WITH_REPO_VALUE, 1), (CLEAN_BUILD, 0)], ids=["a secret", "none"])
+def test_the_macos_build_job_reads_no_secret(build: str, count: int) -> None:
+    assert len(SECRET_FAILURES("release.yml", release_with(build, SIGNING_ENV + SIGN_STEPS))) == count
+
+
+def test_an_apple_secret_in_the_build_job_fails_twice_there() -> None:
+    """Once as a secret in the build, once as an Apple secret outside the signing environment."""
+    lines = SECRET_FAILURES("release.yml", release_with(BUILD_WITH_APPLE, SIGNING_ENV + SIGN_STEPS))
+    assert len([line for line in lines if "job build-macos" in line]) == 2
+
+
+@pytest.mark.parametrize(
+    ("sign", "count"),
+    [
+        (SIGN_STEPS, 1),
+        ("    environment: staging\n" + SIGN_STEPS, 1),
+        (SIGNING_ENV + SIGN_STEPS, 0),
+    ],
+    ids=["no environment", "another environment", "signing"],
+)
+def test_a_job_that_imports_the_apple_secrets_sits_in_the_signing_environment(sign: str, count: int) -> None:
+    assert len(SECRET_FAILURES("release.yml", release_with(CLEAN_BUILD, sign))) == count
+
+
+@pytest.mark.parametrize(
+    ("name", "count"), [("release.yml", 1), ("docker.yml", 0)], ids=["release", "another workflow"]
+)
+def test_a_release_with_no_job_that_signs_macos_fails(name: str, count: int) -> None:
+    source = f"jobs:\n  build-macos:\n    runs-on: macos-15\n    steps:\n{CLEAN_BUILD}"
+    assert len(SECRET_FAILURES(name, source)) == count
+
+
+def test_a_signing_secret_failure_names_its_file_and_line() -> None:
+    assert SECRET_FAILURES("release.yml", release_with(BUILD_WITH_REPO_VALUE, SIGNING_ENV + SIGN_STEPS))[0].startswith(
+        "release.yml:7:"
+    )
+
+
+def test_a_checkout_whose_apple_secrets_sit_outside_the_signing_environment_exits_nonzero(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "release.yml").write_text(release_with(CLEAN_BUILD, SIGN_STEPS), encoding="utf-8")
     assert MAIN([str(tmp_path)]) == 1
 
 

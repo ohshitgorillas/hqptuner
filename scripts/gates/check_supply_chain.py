@@ -102,6 +102,18 @@ PACKAGES_WRITE = re.compile(r"^\s+packages:\s*write\b")
 CONTENTS_READ = re.compile(r"^\s+contents:\s*read\b")
 
 
+#: Any repository secret, and the ones that hold the Apple signing certificate and the notary key.
+ANY_SECRET = re.compile(r"\bsecrets\.")
+APPLE_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_)\w+")
+
+#: A job's ``environment:`` key naming the one environment that holds the signing secrets.
+SIGNING_ENVIRONMENT = re.compile(r"^    environment:\s*signing\s*$")
+
+#: The jobs that run the build and so hold no secret, and the workflows that must hold a job signing the macOS app.
+SECRETLESS_JOBS = {"release.yml": frozenset({"build-macos"})}
+SIGNS_MACOS = frozenset({"release.yml"})
+
+
 def action_failures(name: str, source: str) -> list[str]:
     """One line per remote action in a workflow that is not named by a full commit SHA."""
     lines: list[str] = []
@@ -243,6 +255,29 @@ def permission_failures(name: str, source: str) -> list[str]:
     return lines
 
 
+def secret_failures(name: str, source: str) -> list[str]:
+    """One line per secret in the build job, per Apple secret outside the signing environment, per missing signer."""
+    secretless = SECRETLESS_JOBS.get(name, frozenset())
+    importers: dict[str, int] = {}
+    in_signing: set[str] = set()
+    lines: list[str] = []
+    for number, job, text in _job_lines(source):
+        if job in secretless and ANY_SECRET.search(text):
+            lines.append(f"{name}:{number}: job {job}: the build runs here and reads a secret: {text.strip()}")
+        if APPLE_SECRET.search(text):
+            importers.setdefault(job, number)
+        if SIGNING_ENVIRONMENT.match(text):
+            in_signing.add(job)
+    lines += [
+        f"{name}:{number}: job {job}: imports an Apple signing secret and is not in environment: signing"
+        for job, number in importers.items()
+        if job not in in_signing
+    ]
+    if name in SIGNS_MACOS and not importers:
+        lines.append(f"{name}:1: no job imports the Apple signing secrets, so nothing signs the macOS app")
+    return lines
+
+
 def main(argv: list[str]) -> int:
     """Check the workflows of one checkout, this one unless a root is named, and say so in the exit status."""
     root = Path(argv[0]) if argv else ROOT
@@ -250,7 +285,14 @@ def main(argv: list[str]) -> int:
     lines = [
         line
         for path in workflows
-        for check in (action_failures, pipe_failures, install_failures, container_failures, permission_failures)
+        for check in (
+            action_failures,
+            pipe_failures,
+            install_failures,
+            container_failures,
+            permission_failures,
+            secret_failures,
+        )
         for line in check(path.name, path.read_text(encoding="utf-8"))
     ]
 
