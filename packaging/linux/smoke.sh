@@ -28,6 +28,14 @@ esac
 # ---- 2. installed files -----------------------------------------------------
 [ -x /opt/hqptuner/HQPTuner ] || die "step 2: /opt/hqptuner/HQPTuner missing or not executable"
 [ -f /usr/lib/systemd/system/hqptuner.service ] || die "step 2: /usr/lib/systemd/system/hqptuner.service missing"
+# eqlab's developer tree stays out of the bundle, wherever PyInstaller put static.
+shopt -s globstar nullglob
+for dir in src tests .claude .git; do
+  for path in /opt/hqptuner/**/vendor/eqlab/"$dir"; do
+    die "step 2: $path is in the package"
+  done
+done
+shopt -u globstar nullglob
 
 # ---- 3. start the binary ----------------------------------------------------
 DATA=$(mktemp -d)

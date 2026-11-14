@@ -8,8 +8,8 @@ checkout laid down under ``tmp_path``.
 Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
 ``install_failures(name, source)``, ``dockerfile_failures(name, source)``,
 ``container_failures(name, source)``, ``permission_failures(name, source)``,
-``secret_failures(name, source)``, ``signing_check_failures(name, source)``, ``login_script_failures(name, source)``
-and ``main(argv)``.
+``secret_failures(name, source)``, ``signing_check_failures(name, source)``, ``login_script_failures(name, source)``,
+``spec_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -46,6 +46,7 @@ PERMISSION_FAILURES = GATE.permission_failures
 SECRET_FAILURES = GATE.secret_failures
 SIGNING_CHECK_FAILURES = GATE.signing_check_failures
 LOGIN_SCRIPT_FAILURES = GATE.login_script_failures
+SPEC_FAILURES = GATE.spec_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -568,6 +569,50 @@ def test_a_checkout_whose_login_script_never_checks_the_installer_exits_nonzero(
     script = tmp_path / "packaging" / "windows" / "simplysign-login.ps1"
     script.parent.mkdir(parents=True)
     script.write_text(login_script(check=""), encoding="utf-8")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    assert MAIN([str(tmp_path)]) == 1
+
+
+# --- the frozen bundle ------------------------------------------------------
+
+#: What the bundle leaves out of eqlab's tree, under the bundle's ``static``.
+EQLAB_DEV_DIRS = ("src", "tests", ".claude", ".git")
+
+
+def spec_excluding(dirs: tuple[str, ...]) -> str:
+    """A spec that names the eqlab directories in ``dirs`` as left out of the bundle."""
+    names = ", ".join(f'"static/vendor/eqlab/{name}"' for name in dirs)
+    return f"EXCLUDED = ({names})\na = Analysis([])\n"
+
+
+@pytest.mark.parametrize(
+    ("left_out", "count"),
+    [
+        (EQLAB_DEV_DIRS, 0),
+        (EQLAB_DEV_DIRS[1:], 1),
+        (EQLAB_DEV_DIRS[:2], 2),
+        ((), len(EQLAB_DEV_DIRS)),
+    ],
+    ids=["all four", "all but src", "src and tests", "none"],
+)
+def test_a_spec_fails_once_per_eqlab_directory_it_keeps(left_out: tuple[str, ...], count: int) -> None:
+    assert len(SPEC_FAILURES("hqptuner.spec", spec_excluding(left_out))) == count
+
+
+@pytest.mark.parametrize("missing", EQLAB_DEV_DIRS)
+def test_a_spec_that_keeps_one_eqlab_directory_names_it(missing: str) -> None:
+    kept = tuple(name for name in EQLAB_DEV_DIRS if name != missing)
+    assert [
+        line.endswith(f"vendor/eqlab/{missing}") for line in SPEC_FAILURES("hqptuner.spec", spec_excluding(kept))
+    ] == [True]
+
+
+def test_an_exclusion_that_is_only_a_comment_is_no_exclusion() -> None:
+    assert len(SPEC_FAILURES("hqptuner.spec", "# static/vendor/eqlab/src static/vendor/eqlab/tests\n")) == 4
+
+
+def test_a_checkout_whose_spec_leaves_eqlab_in_exits_nonzero(tmp_path: Path) -> None:
+    (tmp_path / "hqptuner.spec").write_text(spec_excluding(()), encoding="utf-8")
     (tmp_path / ".github" / "workflows").mkdir(parents=True)
     assert MAIN([str(tmp_path)]) == 1
 

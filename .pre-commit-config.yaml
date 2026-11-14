@@ -308,12 +308,13 @@ repos:
         pass_filenames: false
         files: ^(hqptuner/config\.py|Dockerfile)$
 
-      # Reads every workflow, the Dockerfile and the SimplySign login script: a
-      # remote action or a base image named by tag runs whatever the tag points
-      # at on the day of the run, and the login script holds the signing seed.
+      # Reads every workflow, the Dockerfile, the SimplySign login script and the
+      # PyInstaller spec: a remote action or a base image named by tag runs
+      # whatever the tag points at on the day of the run, the login script holds
+      # the signing seed, and the spec decides what the bundle carries.
       - id: supply-chain
         name: release pipeline supply chain gate
         entry: .venv/bin/python scripts/gates/check_supply_chain.py
         language: system
         pass_filenames: false
-        files: ^(\.github/workflows/.*\.ya?ml|Dockerfile|packaging/windows/simplysign-login\.ps1)$
+        files: ^(\.github/workflows/.*\.ya?ml|Dockerfile|packaging/windows/simplysign-login\.ps1|hqptuner\.spec)$

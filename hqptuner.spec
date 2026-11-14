@@ -18,7 +18,17 @@
 
 import sys
 import tomllib
-from pathlib import Path
+from pathlib import Path, PurePath
+
+# eqlab's source, tests, agent settings and git link sit beside the core/ the
+# browser imports, and none of them ships: pyproject.toml's exclude-package-data
+# and .dockerignore leave out the same four.
+EQLAB_DEV_TREE = (
+    "static/vendor/eqlab/src",
+    "static/vendor/eqlab/tests",
+    "static/vendor/eqlab/.claude",
+    "static/vendor/eqlab/.git",
+)
 
 a = Analysis(
     ["hqptuner/__main__.py"],
@@ -54,6 +64,10 @@ a = Analysis(
     excludes=[],
     noarchive=False,
 )
+
+a.datas = [
+    entry for entry in a.datas if not any(PurePath(entry[0]).is_relative_to(path) for path in EQLAB_DEV_TREE)
+]
 
 pyz = PYZ(a.pure)
 

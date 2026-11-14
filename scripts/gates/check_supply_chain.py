@@ -133,6 +133,10 @@ SEED_REMOVED = re.compile(r"^\s*Remove-Item\s+Env:\\?SIMPLYSIGN_OTPAUTH_URI\b", 
 START_PROCESS = re.compile(r"\bStart-Process\b", re.IGNORECASE)
 
 
+#: What eqlab's tree holds besides the part the browser imports, which the bundle leaves out of ``static``.
+EQLAB_DEV_DIRS = ("src", "tests", ".claude", ".git")
+
+
 def action_failures(name: str, source: str) -> list[str]:
     """One line per remote action in a workflow that is not named by a full commit SHA."""
     lines: list[str] = []
@@ -355,6 +359,16 @@ def login_script_failures(name: str, source: str) -> list[str]:
     return lines
 
 
+def spec_failures(name: str, source: str) -> list[str]:
+    """One line per eqlab developer directory the frozen bundle's spec does not leave out of ``static``."""
+    code = "\n".join(text for text in source.splitlines() if not text.lstrip().startswith("#"))
+    return [
+        f"{name}: does not leave out static/vendor/eqlab/{directory}"
+        for directory in EQLAB_DEV_DIRS
+        if f"static/vendor/eqlab/{directory}" not in code
+    ]
+
+
 def main(argv: list[str]) -> int:
     """Check the workflows of one checkout, this one unless a root is named, and say so in the exit status."""
     root = Path(argv[0]) if argv else ROOT
@@ -377,6 +391,10 @@ def main(argv: list[str]) -> int:
     dockerfile = root / "Dockerfile"
     if dockerfile.is_file():
         lines += dockerfile_failures(dockerfile.name, dockerfile.read_text(encoding="utf-8"))
+
+    spec = root / "hqptuner.spec"
+    if spec.is_file():
+        lines += spec_failures(spec.name, spec.read_text(encoding="utf-8"))
 
     login = root / "packaging" / "windows" / "simplysign-login.ps1"
     if login.is_file():
