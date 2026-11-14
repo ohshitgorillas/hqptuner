@@ -51,11 +51,14 @@ evidence: .planning/security/DISPOSITIONS.md:188,198,207 with commits, proofs an
 ### 6. Gates green locally and in CI
 expected: make check green; check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows pass on the phase's last dev commit (ci: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows)
 criterion: AC6
-status: pending_ci
+status: fail
 job: check,e2e,smoke,lifecycle-deb,lifecycle-rpm,smoke-macos,smoke-windows
-commit: e28b66fb48e004aa52856f5b385da87ba7e5d20b
+commit: df2e3991e958a37139f67b614ceefc2ff84bf523
+first_pass: fail
 source: model
-evidence: local half settled: `scripts/gate.sh make check` -> exit=0, 3240 passed / 181 deselected (pytest), # pass 4908 # fail 0 (JS). The seven required jobs run only on GitHub Actions (macOS, Windows, deb/rpm lifecycle), not on this host.
+evidence: Owner signed the lapsed Apple Developer agreement; release.yml re-dispatched on dev after run 43544379574 failed notarization with HTTP 403. The seven required jobs run only on GitHub Actions.
+cause: smoke-macos concluded skipped at df2e3991e958a37139f67b614ceefc2ff84bf523 (release run 43546761720, after the owner signed the Apple agreement): build-macos (macos-15-intel) notarized and passed, build-macos (macos-15, arm64) failed again at [3/4] sign and notarize with 'Error: HTTP status code: 403. A required agreement is missing or has expired.' The other six required jobs concluded success.
+fix: owner checks Apple agreements, then re-dispatch release.yml on dev
 
 ### 7. Changelog carries the Security entry
 expected: CHANGELOG.md [Unreleased] has a ### Security section with the four owner-approved bullets
@@ -68,9 +71,8 @@ evidence: CHANGELOG.md [Unreleased] ### Security has the four bullets character-
 
 total: 7
 passed: 6
-failed: 0
+failed: 1
 pending: 0
-pending_ci: 1
 skipped: 0
 blocked: 0
-reworked: 0
+reworked: 1
