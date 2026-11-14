@@ -18,6 +18,7 @@ Run:
 ```sh
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"
+.venv/bin/pip install triviajudge
 npm install
 .venv/bin/pre-commit install
 ```

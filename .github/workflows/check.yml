@@ -40,6 +40,12 @@ jobs:
           .venv/bin/pip install -e ".[dev]"
           npm ci
 
+      # Outside the dev extras on purpose: it is installed unpinned, so a
+      # release of it reaches CI without a lock bump. The make check and
+      # pre-commit gates call its console scripts.
+      - name: install triviajudge
+        run: .venv/bin/pip install triviajudge
+
       # The offline half of the suite only: `make check` selects -m "not live",
       # and no hqplayerd exists here to serve the live-marked tests. The idle
       # gate counts every delay a shared runner adds, so it runs on the
@@ -87,6 +93,12 @@ jobs:
           .venv/bin/pip install --upgrade pip
           .venv/bin/pip install -e ".[dev]"
           npm ci
+
+      # Outside the dev extras on purpose: it is installed unpinned, so a
+      # release of it reaches CI without a lock bump. The make check and
+      # pre-commit gates call its console scripts.
+      - name: install triviajudge
+        run: .venv/bin/pip install triviajudge
 
       # No HQPTUNER_CHROMIUM here: unset, the harness falls back to playwright's
       # own chromium, which is the browser this step installs.

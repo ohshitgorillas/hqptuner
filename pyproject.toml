@@ -28,10 +28,6 @@ dev = [
     "vulture",
     "types-beautifulsoup4",
     "mutmut",
-    # the trivia and archaeology gates in the Makefile and in pre-commit are its
-    # console scripts; the Claude Code plugin of the same name runs the hook
-    # modes and puts nothing on PATH
-    "triviajudge",
     # the length, directory-count, barrel and nesting gates; the mv extra is
     # rope, which `filepawl mv` uses to rewrite Python imports
     "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@53d93f0807646d4a39a6e05378927ae0787817a8",
