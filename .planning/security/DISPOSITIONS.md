@@ -185,6 +185,35 @@ Each finding of `.planning/security/REPORT.md` has one entry: its disposition, t
 - Owner ruling: "why the fuck would it ever do that"
 - Reason: exploiting it requires code already running on the machine
 
+### F-029 · Apply lanes aren't serialized, and the shared pending buffer is cleared blind
+
+- Disposition: Fixed for the serialization and the blind clears; the shared buffer's "one client's field applies under another's press" clause declined
+- Commits: `42807119` (the staged apply holds one queueing write lock), `8f4edaf8` (preset load and save, engine apply, uploaded restore and speaker apply queue behind the same lock), `382b2250` (an apply clears from the pending buffer only what it applied), `948dff3d` (the filter park releases only the uploads an apply carried)
+- Proof: `tests/apply/overlap/test_apply_queue.py::test_a_second_apply_pushes_nothing_while_the_first_is_held_at_the_daemon`, `tests/apply/overlap/test_apply_queue.py::test_a_lane_sends_nothing_to_the_daemon_while_an_apply_is_held`, `tests/apply/overlap/test_apply_keeps_restaged.py::test_a_field_staged_during_the_apply_is_still_staged_after_it`, `tests/apply/overlap/test_apply_keeps_restaged.py::test_a_field_re_staged_during_the_apply_holds_its_new_value_after_it`, `tests/apply/overlap/test_apply_keeps_restaged.py::test_a_live_key_staged_during_the_apply_is_still_staged_after_it`, `tests/matrix/test_park_release.py::test_a_filter_uploaded_during_the_apply_is_still_parked_after_it`
+- Owner ruling: "Keep shared, decline clause"
+- Reason: the pending buffer stays one app-wide object; a buffer per login session would break reload recovery and cross-tab staging, and needs a client identity the app lacks.
+- Note: a request that arrives while the lock is held waits and then runs; no refusal was added. `test_a_second_apply_that_waited_answers_success` and `test_a_lane_that_waited_answers_success` guard that; they pass against the code before the lock, so they are not proofs of the fix.
+- Residual, not fixed: preset and profile deletes run outside the write lock, so deleting the active preset while an apply's auto-save awaits the daemon's `/backup` brings the deleted preset back (`hqptuner/presets/presetlane.py:290-298`). The owner declined to file it.
+
+### F-030 · The pre-apply safety copy is a single slot that later passes overwrite, and nothing rolls back
+
+- Disposition: Fixed for the single slot, the per-pass overwrite and the unvalidated write; rollback declined
+- Commits: `f63e2c9c` (bytes that are not a readable settings archive never replace a stored copy), `930890d7` (safety copies are dated and the five most recent are kept), `32bd0c24` (each staged apply writes one safety copy, before its first restore)
+- Proof: `tests/presets/integrity/test_safety_copies.py::test_a_backup_that_is_no_archive_replaces_no_stored_copy`, `tests/presets/integrity/test_safety_copies.py::test_after_six_copies_the_five_most_recent_remain`, `tests/presets/integrity/test_safety_copies.py::test_two_copies_taken_at_the_same_instant_both_exist`, `tests/presets/integrity/test_safety_copies.py::test_the_later_of_two_copies_at_one_instant_survives_the_prune`, `tests/presets/integrity/test_safety_copies.py::test_an_apply_that_takes_two_restore_passes_leaves_one_new_copy`, `tests/presets/integrity/test_safety_copies.py::test_the_copy_an_apply_leaves_holds_the_state_before_its_first_restore`
+- Owner ruling: "No rollback, decline"
+- Reason: an unconverged outcome returns its report and keeps the buffer for a retry, as before; an automatic rollback would be an unasked restart that races a queued apply.
+- Note: operations that took no safety copy before (the uploaded restore, a standalone preset save, a speaker apply) still take none; the uploaded restore's safety copy is the one F-007 declined.
+
+### F-031 · JSON and preset stores write in place, so a torn file can leave the app refusing a store
+
+- Disposition: Fixed for the in-place writes and the interleaved writers; the clause "the API can't repair the store and it takes a disk edit" kept as it stands
+- Commits: `833793ae` (one fsynced temp-and-rename write, adopted by the connection store), `3149609e` (the six JSON stores write through it), `b1a24b91` (the preset store writes its XML, `store.json` and `active.json` through it), `7ba25a4c` (the park and the safety copy write through it, and the park skips a leftover temp file), `51d22885` (each JSON store serializes its read-modify-write behind one lock), `21f1e1e2` (the preset store takes one lock for its directory), `1f8dcaae` (the park, the safety copy and the connection store each hold their own lock)
+- Proof: `tests/test_atomic_write.py::test_a_write_killed_partway_leaves_the_previous_bytes`, `tests/test_atomic_write.py::test_a_refused_rename_leaves_no_temp_file`, `tests/presets/integrity/test_atomic_writes.py::test_a_write_killed_partway_leaves_the_store_reading_the_first_write`, `tests/presets/integrity/test_atomic_writes.py::test_a_preset_store_write_killed_partway_leaves_the_store_answering_the_first_write`, `tests/presets/integrity/test_atomic_writes.py::test_a_safety_copy_killed_partway_leaves_every_stored_copy_alone`, `tests/presets/integrity/test_atomic_writes.py::test_a_park_write_killed_partway_leaves_no_parked_file`, `tests/presets/integrity/test_atomic_writes.py::test_a_temp_file_left_in_the_park_is_not_a_parked_filter`, `tests/presets/integrity/test_store_locks.py::test_two_writes_to_one_json_store_both_land`, `tests/presets/integrity/test_store_locks.py::test_a_first_save_overlapping_an_autosave_toggle_leaves_autosave_on`, `tests/presets/integrity/test_store_locks.py::test_two_uploads_under_one_name_both_stay_parked`
+- Owner ruling: "already answered these"
+- Reason: `read_stamped` keeps refusing an unparseable file with the existing `StoreCorruptError` copy, and writes keep reading first, so no API path overwrites a corrupt store.
+- Note: `833793ae` adds the helper module, so its proofs fail at collection against the code before it; the rest fail by assertion against the code before their commits.
+- Note: the lock in `NarrowingStore.write`, the safety-copy lock in `PresetOps` and the lock in `ConnectionStore.write` are held by the commits alone, with no behavioral test, because each write replaces the whole document and ends last-wins either way.
+
 ### F-032 · Descriptions merged from an uploaded archive skip the write route's limits
 
 - Disposition: Fixed
