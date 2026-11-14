@@ -34,7 +34,7 @@ dev = [
     "triviajudge",
     # the length, directory-count, barrel and nesting gates; the mv extra is
     # rope, which `filepawl mv` uses to rewrite Python imports
-    "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@v0.11.0",
+    "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@53d93f0807646d4a39a6e05378927ae0787817a8",
     # hqptuner.spec builds the frozen bundle with it
     "pyinstaller",
     # the layering contract in [tool.importlinter] below is only enforced if the
