@@ -67,7 +67,7 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 ### Phase 4: API exposure and authentication
 
-**Goal:** Findings F-001, F-002, F-003, F-008, F-009, F-024, F-025, F-027 and F-028 are each fixed or carry an owner ruling
+**Goal:** Findings F-001, F-002, F-003, F-008, F-009, F-024, F-025, F-027 and F-028 are each fixed or carry an owner decision
 
 **Depends on:** Phase 1
 
@@ -75,8 +75,8 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 **Success Criteria:**
 
-1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
-2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's decision.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner decision.
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
@@ -99,7 +99,7 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 ### Phase 6: Connection host and stored credential
 
-**Goal:** Findings F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023 are each fixed or carry an owner ruling
+**Goal:** Findings F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023 are each fixed or carry an owner decision
 
 **Depends on:** Phase 4
 
@@ -107,14 +107,14 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 **Success Criteria:**
 
-1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
-2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's decision.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner decision.
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
 ### Phase 7: Remove the 4321-only mode
 
-**Goal:** HQPTuner requires both the 4321 control lane and the 8088 config lane. With the 8088 lane logged out, its credentials refused, or the page or daemon down, the app does not work, and no code path, fixture or UI branch keeps LIVE, playback or any other feature working over 4321 alone (owner ruling, 2026-11-09).
+**Goal:** HQPTuner requires both the 4321 control lane and the 8088 config lane. With the 8088 lane logged out, its credentials refused, or the page or daemon down, the app does not work, and no code path, fixture or UI branch keeps LIVE, playback or any other feature working over 4321 alone (owner decision, 2026-11-09).
 
 **Depends on:** Phase 6
 
@@ -130,7 +130,7 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 ### Phase 8: Config write path and input validation
 
-**Goal:** Findings F-006, F-007, F-010, F-011, F-012, F-013, F-014, F-016, F-018, F-019, F-026, F-032 and F-033 are each fixed or carry an owner ruling
+**Goal:** Findings F-006, F-007, F-010, F-011, F-012, F-013, F-014, F-016, F-018, F-019, F-026, F-032 and F-033 are each fixed or carry an owner decision
 
 **Depends on:** Phase 7
 
@@ -138,14 +138,14 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 **Success Criteria:**
 
-1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
-2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's decision.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner decision.
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
 ### Phase 9: Apply and store integrity
 
-**Goal:** Findings F-029, F-030 and F-031 are each fixed or carry an owner ruling
+**Goal:** Findings F-029, F-030 and F-031 are each fixed or carry an owner decision
 
 **Depends on:** Phase 8
 
@@ -153,13 +153,13 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 **Success Criteria:**
 
-1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's decision.
 2. Each fixed finding has a test or check that fails against the pre-fix code.
 3. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
 ### Phase 10: Release pipeline supply chain
 
-**Goal:** Findings F-034, F-035, F-036, F-037, F-038, F-039, F-040, F-041 and F-042 are each fixed or carry an owner ruling
+**Goal:** Findings F-034, F-035, F-036, F-037, F-038, F-039, F-040, F-041 and F-042 are each fixed or carry an owner decision
 
 **Depends on:** Phase 1
 
@@ -167,14 +167,14 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 **Success Criteria:**
 
-1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
-2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's decision.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner decision.
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
 ### Phase 11: Agent tooling and repo guards
 
-**Goal:** Findings F-043, F-044, F-045, F-046, F-047 and F-048 are each fixed or carry an owner ruling
+**Goal:** Findings F-043, F-044, F-045, F-046, F-047 and F-048 are each fixed or carry an owner decision
 
 **Depends on:** Phase 1
 
@@ -182,8 +182,8 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 
 **Success Criteria:**
 
-1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
-2. Every High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's decision.
+2. Every High finding in this phase is fixed, or declined or deferred only by an owner decision.
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 

@@ -20,7 +20,7 @@ files:
 
 ## Goal
 
-Findings F-034 to F-042 are each fixed or carry an owner ruling. This plan lands the phase's one offline gate and the pins on remote code that CI fetches by name: every action by commit SHA, uv by version and checksum, filepawl by commit.
+Findings F-034 to F-042 are each fixed or carry an owner decision. This plan lands the phase's one offline gate and the pins on remote code that CI fetches by name: every action by commit SHA, uv by version and checksum, filepawl by commit.
 
 ## Must be true when done
 

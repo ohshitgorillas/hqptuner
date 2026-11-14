@@ -22,7 +22,7 @@ files:
 
 ## Goal
 
-Findings F-034 to F-042 are each fixed or carry an owner ruling. This plan gives users something to check a download against. Each release attaches a SHA-256 checksum file, the deb and rpm carry GPG signatures, and the images are cosign-signed. The README says how to verify each.
+Findings F-034 to F-042 are each fixed or carry an owner decision. This plan gives users something to check a download against. Each release attaches a SHA-256 checksum file, the deb and rpm carry GPG signatures, and the images are cosign-signed. The README says how to verify each.
 
 ## Must be true when done
 
@@ -30,7 +30,7 @@ Findings F-034 to F-042 are each fixed or carry an owner ruling. This plan gives
 - The deb and rpm are GPG-signed through nfpm `signature` blocks. The key is read only in a job that runs no PyInstaller and no Python of a venv, sits in `environment: signing`, and needs the check. The public key is in the repository (D-09, AC4).
 - Every image `docker.yml` pushes is cosign-signed by digest on both registries, with the key in secrets and the public key in the repository (D-09, AC4).
 - `README.md` carries the owner-approved verification steps, and `CHANGELOG.md` `[Unreleased]` `### Security` carries the owner-approved bullets, each landed verbatim in the commit of the task that makes it true (D-09, D-17).
-- AC4 is human-verify at the next `v*` release, pending until then (owner ruling, CONTEXT AC4).
+- AC4 is human-verify at the next `v*` release, pending until then (owner decision, CONTEXT AC4).
 
 ## Context
 
@@ -78,9 +78,9 @@ Red-run rule for every task in this plan: "red against the base-commit export" m
 
 ## Notes
 
-Owner ruling needed at the plan gate: Task 4 signs the image in a separate `sign-image` job that needs `build-push`, names the cosign environment from human setup 2, runs only the pinned cosign installer and `cosign sign`, and checks out no code. A gate rule, tests first, requires every job reading a `COSIGN_*` secret to name that environment and run no build step; its test case is a `build-push` that reads `COSIGN_PRIVATE_KEY`. The executor applies this shape in place of signing inside `build-push`.
+Owner decision needed at the plan gate: Task 4 signs the image in a separate `sign-image` job that needs `build-push`, names the cosign environment from human setup 2, runs only the pinned cosign installer and `cosign sign`, and checks out no code. A gate rule, tests first, requires every job reading a `COSIGN_*` secret to name that environment and run no build step; its test case is a `build-push` that reads `COSIGN_PRIVATE_KEY`. The executor applies this shape in place of signing inside `build-push`.
 
-Owner ruling needed at the plan gate: Task 2 adds a third job in `environment: signing` (Linux packaging), beyond CONTEXT's two signing jobs (D-03, D-04). The cheaper alternative is signing inside `build`. Task 2 does not start until the owner has ruled.
+Owner decision needed at the plan gate: Task 2 adds a third job in `environment: signing` (Linux packaging), beyond CONTEXT's two signing jobs (D-03, D-04). The cheaper alternative is signing inside `build`. Task 2 does not start until the owner has decided.
 
 Human setup, owner actions outside the tree (D-09: "The owner creates the keys and secrets"):
 

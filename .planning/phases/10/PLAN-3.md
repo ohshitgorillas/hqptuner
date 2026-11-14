@@ -22,7 +22,7 @@ files:
 
 ## Goal
 
-Findings F-034 to F-042 are each fixed or carry an owner ruling. This plan settles where secrets and write tokens live. The macOS build runs with no secrets, and a separate signing job runs no build code. Both signing jobs sit in `environment: signing` behind a passing check. Write permissions go only where something is pushed. The SimplySign installer is hash-checked and the TOTP seed leaves the environment before anything starts. Frozen bundles stop carrying eqlab's developer tree.
+Findings F-034 to F-042 are each fixed or carry an owner decision. This plan settles where secrets and write tokens live. The macOS build runs with no secrets, and a separate signing job runs no build code. Both signing jobs sit in `environment: signing` behind a passing check. Write permissions go only where something is pushed. The SimplySign installer is hash-checked and the TOTP seed leaves the environment before anything starts. Frozen bundles stop carrying eqlab's developer tree.
 
 ## Must be true when done
 

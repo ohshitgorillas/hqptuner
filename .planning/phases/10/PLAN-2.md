@@ -22,7 +22,7 @@ files:
 
 ## Goal
 
-Findings F-034 to F-042 are each fixed or carry an owner ruling. This plan makes what ships the same set of packages CI tested: one hash-pinned uv lock that `check.yml`, every release build job and the image install from, on Python 3.14, from base images pinned by digest, with Dependabot keeping the pins current.
+Findings F-034 to F-042 are each fixed or carry an owner decision. This plan makes what ships the same set of packages CI tested: one hash-pinned uv lock that `check.yml`, every release build job and the image install from, on Python 3.14, from base images pinned by digest, with Dependabot keeping the pins current.
 
 ## Must be true when done
 
@@ -35,7 +35,7 @@ Findings F-034 to F-042 are each fixed or carry an owner ruling. This plan makes
 
 ## Context
 
-- Locked: D-01 (one uv lock, six targets, `check.yml` off `pip install -e ".[dev]"`), D-02 (all on 3.14; image on a digest-pinned 3.14 slim base), D-06 (triviajudge unpinned and outside the lock, owner ruling "it's my app I update it when I fucking want"), D-07 (dependabot), D-08 (the dev venv keeps its editable installs; the lock binds CI and the release builds only), D-11 (which images get digests).
+- Locked: D-01 (one uv lock, six targets, `check.yml` off `pip install -e ".[dev]"`), D-02 (all on 3.14; image on a digest-pinned 3.14 slim base), D-06 (triviajudge unpinned and outside the lock, owner decision "it's my app I update it when I fucking want"), D-07 (dependabot), D-08 (the dev venv keeps its editable installs; the lock binds CI and the release builds only), D-11 (which images get digests).
 - The `check.yml` coverage steps (`python coverage report`, `python coverage thresholds`, `js coverage thresholds`) are the accepted policy's text, matched by `test-policy check`: no task edits those three commands.
 - `requires-python` stays `>=3.12`, and mypy's `python_version` stays `3.12`. D-02 locks what the image, CI and the builds run, and a uv lock is universal across the range it is given. See the return marker.
 - Commit `24fb2153` renamed release.yml's check job to `tag-check` to keep it apart from the required `check` job; no task here renames a job.
@@ -91,11 +91,11 @@ Red-run rule for every task in this plan: "red against the base-commit export" m
 - **Files:** .github/dependabot.yml
 - **Reads:** .github/workflows/check.yml
 - **Decisions:** D-07
-- **Action:** Create `.github/dependabot.yml` (version 2) with two update entries at the repo root. One is `github-actions`, which rewrites the SHA pins and their tag comments. The other is the Python dependencies D-07 names as `pip`, written with the ecosystem value the owner rules in Notes question 2. This task blocks on that ruling: it is not started until the owner has answered, and the executor stops and asks rather than picking. If the owner rules `uv`, Plan 5 records the departure from D-07's `pip` in the F-039 disposition. Set each entry's `target-branch` to `dev`, where work lands, so update PRs open against it. Choose a weekly schedule, recorded in the commit message.
+- **Action:** Create `.github/dependabot.yml` (version 2) with two update entries at the repo root. One is `github-actions`, which rewrites the SHA pins and their tag comments. The other is the Python dependencies D-07 names as `pip`, written with the ecosystem value the owner picks in Notes question 2. This task waits for that decision: it is not started until the owner has answered, and the executor stops and asks rather than picking. If the owner picks `uv`, Plan 5 records the departure from D-07's `pip` in the F-039 disposition. Set each entry's `target-branch` to `dev`, where work lands, so update PRs open against it. Choose a weekly schedule, recorded in the commit message.
 - **Verify:** Testing scope: Dependabot's own parse is the only check that means anything, and it runs only on GitHub, so the local check is the schema and the rest is human-verify. `.venv/bin/python -c "import yaml,sys; d=yaml.safe_load(open('.github/dependabot.yml')); print(d['version'], [u['package-ecosystem'] for u in d['updates']])"` prints `2` and the two ecosystems. human-verify: after the owner pushes and the file reaches the default branch, the repository's Insights, Dependency graph, Dependabot page lists both ecosystems with no parse error (CONTEXT flags that the file may take effect only from `main`).
 
 ## Notes
 
 - Question 1, for the owner at the plan gate: `requires-python` and mypy's `python_version` stay at 3.12 in this plan. D-02 locks the image, CI and the builds to 3.14, and D-01's lock is universal, so neither has to move. If the owner reads "All on 3.14" as raising `requires-python` too, that changes `README.md` "Requirements" ("Python v3.12+") and `CONTRIBUTING.md` "Setup", both of which need approved copy.
-- Question 2, for the owner at the plan gate: D-07 names the `pip` ecosystem. The lock is `uv.lock`, and Dependabot updates a `uv.lock` through its `uv` ecosystem. `pip` reads requirements files and `pyproject.toml` version bounds, and this project has neither bounds nor a requirements file, so a `pip` entry alone would update nothing. Task 6 writes the value the owner rules. Recommended: `uv`.
+- Question 2, for the owner at the plan gate: D-07 names the `pip` ecosystem. The lock is `uv.lock`, and Dependabot updates a `uv.lock` through its `uv` ecosystem. `pip` reads requirements files and `pyproject.toml` version bounds, and this project has neither bounds nor a requirements file, so a `pip` entry alone would update nothing. Task 6 writes the value the owner picks. Recommended: `uv`.
 - Task 4 goes beyond D-01's evidence lines, which name `check.yml` and `release.yml` only. D-02's rejected options ("a 3.12 CI leg with its own lock, and one lock per interpreter") and F-037's remediation ("install from it in CI and every build job") both read as the image sharing the lock. Without it, F-037's image half stays open. See the return marker.
