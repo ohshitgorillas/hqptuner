@@ -147,3 +147,15 @@ def test_the_matrix_form_has_a_row_only_where_a_value_bearing_column_exists(
     columns: str, rows: list[dict[str, object]]
 ) -> None:
     assert parse_matrix_form(f'<form method="post">{columns}</form>')["rows"] == rows
+
+
+def test_an_edit_to_a_parsed_config_form_leaves_the_next_parse_of_the_same_page_as_the_page_states() -> None:
+    edited = {f["name"]: f for f in parse_config_form(_HTML)["fields"]}
+    edited["backend"]["value"] = "edited"
+    assert {f["name"]: f for f in parse_config_form(_HTML)["fields"]}["backend"]["value"] == "network"
+
+
+def test_an_edit_to_a_parsed_matrix_form_leaves_the_next_parse_of_the_same_page_as_the_page_states() -> None:
+    page = '<form method="post"><input name="source_0" value="1"></form>'
+    parse_matrix_form(page)["rows"][0]["source"] = "edited"
+    assert parse_matrix_form(page)["rows"] == [{"index": 0, "source": "1"}]

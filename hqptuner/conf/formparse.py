@@ -8,8 +8,10 @@ constraints, grouped by the form's own section/label structure. This is the sole
 persistent-config read path (docs/architecture.md §2.2).
 """
 
+import copy
 import re
 from collections.abc import Iterable, Iterator
+from functools import lru_cache
 
 from bs4 import BeautifulSoup, Tag
 
@@ -110,7 +112,20 @@ def parse_config_form(html: str) -> ConfigForm:
     are dropped. ``profiles`` is the preset ``profile`` select held apart from that list (the /config/profile/* CRUD
     form), or None on a page that carries no such select.
     """
-    soup = BeautifulSoup(html, "html.parser")
+    return copy.deepcopy(_cached_config_form(html))
+
+
+# Every refresh fetches the same pages, and building the tree is nearly all of
+# a parse's cost, so a page's form is parsed once and each caller gets a copy.
+_CACHED_PAGES = 8
+
+
+@lru_cache(maxsize=_CACHED_PAGES)
+def _cached_config_form(html: str) -> ConfigForm:
+    return _config_form_from(BeautifulSoup(html, "html.parser"))
+
+
+def _config_form_from(soup: BeautifulSoup) -> ConfigForm:
     fields: list[FormField] = []
     profiles: ProfileSelect | None = None
     for section, label, el in _walk_forms(soup):
@@ -235,8 +250,13 @@ def parse_matrix_form(html: str) -> MatrixForm:
     malformed gainunit markup (``value="dB""`` — stray quote), which the HTML
     parser reads as a normal value plus a junk attribute.
     """
-    base = parse_config_form(html)
+    return copy.deepcopy(_cached_matrix_form(html))
+
+
+@lru_cache(maxsize=_CACHED_PAGES)
+def _cached_matrix_form(html: str) -> MatrixForm:
     soup = BeautifulSoup(html, "html.parser")
+    base = _config_form_from(soup)
     fields: list[FormField] = []
     profile_field: FormField | None = None
     for f in base["fields"]:
