@@ -51,12 +51,12 @@ evidence: .planning/security/DISPOSITIONS.md:188,198,207 with commits, proofs an
 ### 6. Gates green locally and in CI
 expected: make check green; check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows pass on the phase's last dev commit (ci: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows)
 criterion: AC6
-status: fail
+status: pass
 job: check,e2e,smoke,lifecycle-deb,lifecycle-rpm,smoke-macos,smoke-windows
 commit: df2e3991e958a37139f67b614ceefc2ff84bf523
 first_pass: fail
 source: model
-evidence: Owner signed the lapsed Apple Developer agreement; release.yml re-dispatched on dev after run 43544379574 failed notarization with HTTP 403. The seven required jobs run only on GitHub Actions.
+evidence: release run 43546761720 attempt 2 at df2e3991e958a37139f67b614ceefc2ff84bf523: `gh api repos/ohshitgorillas/hqptuner/actions/runs/43546761720/attempts/2/jobs` -> every smoke (8), lifecycle-deb (2), lifecycle-rpm (2), smoke-macos (5) and smoke-windows (3) leg success; check run 43544373887 success (check, e2e). Local `scripts/gate.sh make check` exit=0 at e28b66fb, code-identical. ci-status still answers fail only because attempt 1's stale `smoke-macos` check run (skipped) stays on the commit under a name attempt 2 did not reuse.
 cause: smoke-macos concluded skipped at df2e3991e958a37139f67b614ceefc2ff84bf523 (release run 43546761720, after the owner signed the Apple agreement): build-macos (macos-15-intel) notarized and passed, build-macos (macos-15, arm64) failed again at [3/4] sign and notarize with 'Error: HTTP status code: 403. A required agreement is missing or has expired.' The other six required jobs concluded success.
 fix: owner checks Apple agreements, then re-dispatch release.yml on dev
 
@@ -70,8 +70,8 @@ evidence: CHANGELOG.md [Unreleased] ### Security has the four bullets character-
 ## Summary
 
 total: 7
-passed: 6
-failed: 1
+passed: 7
+failed: 0
 pending: 0
 skipped: 0
 blocked: 0
