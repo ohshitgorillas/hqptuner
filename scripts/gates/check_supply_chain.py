@@ -18,6 +18,11 @@ What a build installs is the same question one level down. One hashed lock,
 builds them installs by a ``uv sync --locked`` and from nothing else; a name
 handed to ``pip`` or ``uv pip`` is resolved afresh on the day of the run.
 
+A base image named by tag is the same thing again: the tag moves. The Dockerfile's
+images and the container that freezes the deb and the rpm are named by digest.
+The images the smoke and lifecycle jobs install the packages on stay on tags:
+they hold nothing that ships.
+
 Usage: ``python scripts/gates/check_supply_chain.py [checkout-root]``
 """
 
@@ -26,6 +31,10 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -63,6 +72,23 @@ PYTHON_INSTALL = re.compile(r"\bpip3?\s+install\b|\bpipx\s+install\b|\buv\s+(?:t
 #: A ``uv sync``, and the flag that makes it fail on a stale lock instead of resolving again.
 UV_SYNC = re.compile(r"\buv\s+sync\b")
 LOCKED_FLAG = re.compile(r"\s--locked(?:\s|$)")
+
+
+#: An image reference ending in a registry digest, the 64 hex characters of a sha256.
+PINNED_IMAGE = re.compile(r"@sha256:[0-9a-f]{64}$")
+
+#: The jobs whose ``container:`` freezes the packages that ship; the smoke and lifecycle images stay on tags.
+PINNED_CONTAINER_JOBS = {"release.yml": frozenset({"build"})}
+
+#: A ``container:`` key of a job and the image after it.
+CONTAINER = re.compile(r"^\s*container:\s*(?P<image>\S+)\s*$")
+
+#: A Dockerfile ``FROM`` and its image, after any ``--flag=value`` options; and a ``COPY --from`` that names one.
+FROM_IMAGE = re.compile(r"^\s*FROM\s+(?:--\S+\s+)*(?P<image>\S+)", re.IGNORECASE)
+COPY_FROM = re.compile(r"^\s*COPY\s+(?:--\S+\s+)*?--from=(?P<image>\S+)", re.IGNORECASE)
+
+#: The name a ``FROM ... AS name`` gives its stage; a later ``FROM`` or ``COPY --from`` may name it, not an image.
+STAGE_NAME = re.compile(r"\sAS\s+(?P<stage>\S+)\s*$", re.IGNORECASE)
 
 
 def action_failures(name: str, source: str) -> list[str]:
@@ -127,12 +153,8 @@ def _install_problem(name: str, segment: str) -> str | None:
     return None
 
 
-def install_failures(name: str, source: str) -> list[str]:
-    """One line per Python install, in a job that builds what ships, that does not come from the lock."""
-    if name not in LOCKED_JOBS:
-        return []
-    jobs = LOCKED_JOBS[name]
-    lines: list[str] = []
+def _job_lines(source: str) -> Iterator[tuple[int, str, str]]:
+    """Each step line of a workflow's jobs as its number, the job it sits in and its text; comments skipped."""
     in_jobs, job = False, ""
     for number, text in _logical_lines(source):
         if re.match(r"\S", text):
@@ -141,13 +163,53 @@ def install_failures(name: str, source: str) -> list[str]:
         header = JOB_HEADER.match(text)
         if in_jobs and header:
             job = header["job"]
-            continue
-        if text.lstrip().startswith("#") or not job or (jobs is not None and job not in jobs):
+        elif job and not text.lstrip().startswith("#"):
+            yield number, job, text
+
+
+def install_failures(name: str, source: str) -> list[str]:
+    """One line per Python install, in a job that builds what ships, that does not come from the lock."""
+    if name not in LOCKED_JOBS:
+        return []
+    jobs = LOCKED_JOBS[name]
+    lines: list[str] = []
+    for number, job, text in _job_lines(source):
+        if jobs is not None and job not in jobs:
             continue
         for segment in re.split(r"&&|\|\||;", text):
             problem = _install_problem(name, segment)
             if problem:
                 lines.append(f"{name}:{number}: job {job}: {problem}: {segment.strip()}")
+    return lines
+
+
+def dockerfile_failures(name: str, source: str) -> list[str]:
+    """One line per image a Dockerfile pulls, by ``FROM`` or ``COPY --from``, that no full digest names."""
+    stages: set[str] = {"scratch"}
+    lines: list[str] = []
+    for number, text in _logical_lines(source):
+        match = FROM_IMAGE.match(text) or COPY_FROM.match(text)
+        if match is None:
+            continue
+        image = match["image"]
+        if image.lower() not in stages and not PINNED_IMAGE.search(image):
+            lines.append(f"{name}:{number}: {image} is not pinned to a full sha256 digest")
+        stage = STAGE_NAME.search(text)
+        if stage and text.upper().startswith("FROM"):
+            stages.add(stage["stage"].lower())
+    return lines
+
+
+def container_failures(name: str, source: str) -> list[str]:
+    """One line per job whose container freezes what ships that no full digest names."""
+    jobs = PINNED_CONTAINER_JOBS.get(name, frozenset())
+    lines: list[str] = []
+    for number, job, text in _job_lines(source):
+        match = CONTAINER.match(text)
+        if job in jobs and match and not PINNED_IMAGE.search(match["image"]):
+            lines.append(
+                f"{name}:{number}: job {job}: container {match['image']} is not pinned to a full sha256 digest"
+            )
     return lines
 
 
@@ -158,16 +220,20 @@ def main(argv: list[str]) -> int:
     lines = [
         line
         for path in workflows
-        for check in (action_failures, pipe_failures, install_failures)
+        for check in (action_failures, pipe_failures, install_failures, container_failures)
         for line in check(path.name, path.read_text(encoding="utf-8"))
     ]
+
+    dockerfile = root / "Dockerfile"
+    if dockerfile.is_file():
+        lines += dockerfile_failures(dockerfile.name, dockerfile.read_text(encoding="utf-8"))
 
     for line in lines:
         print(line)
     if lines:
-        print(f"\n{len(lines)} problem(s). Pin every action by commit, check every download, install from the lock.")
+        print(f"\n{len(lines)} problem(s). Pin every action and image, check every download, install from the lock.")
         return 1
-    print(f"[ok] all {len(workflows)} workflows pin their remote code")
+    print(f"[ok] all {len(workflows)} workflows and the Dockerfile pin their remote code")
     return 0
 
 

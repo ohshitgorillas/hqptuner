@@ -40,7 +40,7 @@ jobs:
             nfpm: arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
-    container: almalinux:8
+    container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
     steps:
       - run: dnf -y install git binutils tar gzip
 

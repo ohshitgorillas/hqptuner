@@ -1,7 +1,7 @@
 # The runtime dependencies come from uv.lock, hashes checked, into a venv that
 # the final stage copies; uv stays behind in this stage. uv is the image at the
 # release the lock was made with, named by its digest.
-FROM python:3.14-slim AS build
+FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS build
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff /uv /usr/local/bin/uv
 
@@ -21,7 +21,7 @@ COPY hqptuner ./hqptuner
 RUN uv sync --locked --no-editable --no-build-isolation-package hqptuner --group backend \
     && uv pip uninstall --python /opt/venv/bin/python setuptools
 
-FROM python:3.14-slim
+FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 
 COPY --from=build /opt/venv /opt/venv
 ENV PATH=/opt/venv/bin:$PATH

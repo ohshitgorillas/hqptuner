@@ -6,7 +6,8 @@ name. Cases drive the seams on literal workflow text, and ``main(argv)`` on a
 checkout laid down under ``tmp_path``.
 
 Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
-``install_failures(name, source)`` and ``main(argv)``.
+``install_failures(name, source)``, ``dockerfile_failures(name, source)``,
+``container_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -37,6 +38,8 @@ GATE = _load_gate_module()
 ACTION_FAILURES = GATE.action_failures
 PIPE_FAILURES = GATE.pipe_failures
 INSTALL_FAILURES = GATE.install_failures
+DOCKERFILE_FAILURES = GATE.dockerfile_failures
+CONTAINER_FAILURES = GATE.container_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -227,6 +230,84 @@ def test_a_checkout_with_an_unlocked_install_in_check_exits_nonzero(tmp_path: Pa
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "check.yml").write_text(job_running("check", "pip install requests"), encoding="utf-8")
+    assert MAIN([str(tmp_path)]) == 1
+
+
+# --- image digests ----------------------------------------------------------
+
+#: An image digest as a registry prints it.
+DIGEST = "sha256:" + "0123456789abcdef" * 4
+
+
+@pytest.mark.parametrize(
+    ("dockerfile", "count"),
+    [
+        ("FROM python:3.14-slim\n", 1),
+        ("FROM python:3.14-slim AS build\n", 1),
+        ("FROM --platform=$BUILDPLATFORM python:3.14-slim\n", 1),
+        ("FROM python:3.14-slim@sha256:abc123\n", 1),
+        (f"FROM python:3.14-slim@{DIGEST}\n", 0),
+        (f"FROM python:3.14-slim@{DIGEST} AS build\nFROM build\n", 0),
+        ("FROM scratch\n", 0),
+        ("COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /bin/uv\n", 1),
+        (f"COPY --from=ghcr.io/astral-sh/uv:0.13.5@{DIGEST} /uv /bin/uv\n", 0),
+        (f"FROM python:3.14-slim@{DIGEST} AS build\nCOPY --from=build /opt/venv /opt/venv\n", 0),
+        ("# FROM python:3.14-slim\n", 0),
+    ],
+    ids=[
+        "tag",
+        "tag and stage",
+        "platform flag",
+        "short digest",
+        "digest",
+        "digest and stage reuse",
+        "scratch",
+        "copy from tag",
+        "copy from digest",
+        "copy from stage",
+        "comment",
+    ],
+)
+def test_only_an_image_without_a_full_digest_is_a_dockerfile_failure(dockerfile: str, count: int) -> None:
+    assert len(DOCKERFILE_FAILURES("Dockerfile", dockerfile)) == count
+
+
+def test_a_dockerfile_failure_names_its_file_and_line() -> None:
+    assert DOCKERFILE_FAILURES("Dockerfile", f"FROM python:3.14-slim@{DIGEST} AS a\nFROM python:3.14\n")[0].startswith(
+        "Dockerfile:2:"
+    )
+
+
+def job_with_container(job: str, image: str) -> str:
+    """A workflow whose one job, named ``job``, runs in the container ``image``."""
+    return f"jobs:\n  {job}:\n    runs-on: ubuntu-latest\n    container: {image}\n    steps: []\n"
+
+
+@pytest.mark.parametrize(
+    ("job", "image", "count"),
+    [
+        ("build", "almalinux:8", 1),
+        ("build", f"almalinux:8@{DIGEST}", 0),
+        ("build", "almalinux:8@sha256:abc123", 1),
+        ("smoke", "almalinux:8", 0),
+        ("smoke", "${{ matrix.distro.image }}", 0),
+        ("lifecycle-rpm", "almalinux/8-init", 0),
+    ],
+    ids=["build tag", "build digest", "build short digest", "smoke tag", "smoke matrix", "lifecycle tag"],
+)
+def test_only_the_build_container_must_carry_a_digest(job: str, image: str, count: int) -> None:
+    assert len(CONTAINER_FAILURES("release.yml", job_with_container(job, image))) == count
+
+
+def test_a_build_container_failure_names_its_job_and_line() -> None:
+    job = "build"
+    line = CONTAINER_FAILURES("release.yml", job_with_container(job, "almalinux:8"))[0]
+    assert line.startswith(f"release.yml:4: job {job}:")
+
+
+def test_a_checkout_with_an_undigested_dockerfile_base_exits_nonzero(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM python:3.14-slim\n", encoding="utf-8")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
     assert MAIN([str(tmp_path)]) == 1
 
 
