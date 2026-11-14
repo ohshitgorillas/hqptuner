@@ -35,7 +35,7 @@ Findings F-034 to F-042 are each fixed or carry an owner decision. This plan giv
 ## Context
 
 - Locked: D-09 (checksum file attached by `gh release create`, nfpm `signature` blocks for deb and rpm, cosign-signed images; the owner creates the keys and secrets and approves the README steps), D-17 (`### Security` bullets only for the checksum file, the signed packages and images, and the README steps; each approved before implementation), D-03 and D-04 (signing material meets no build code, and signing jobs sit in `signing` behind the check), which Task 2 applies to the GPG key.
-- Copy is a proposal until the owner approves it, character for character. The proposals are in Notes. A task whose approved copy is missing stops with a blocking question and drafts nothing new. Load the `copy-rules` skill before touching `README.md` or `CHANGELOG.md`. Markdown is edited with `Edit`, soft-wrapped.
+- The copy in Notes is owner-approved and lands character for character. A task drafts nothing new. Load the `copy-rules` skill before touching `README.md` or `CHANGELOG.md`. Markdown is edited with `Edit`, soft-wrapped.
 - `publish` downloads `pattern: linux-*` and `pattern: macos-*`, so an intermediate artifact must match neither.
 - Keyless cosign was rejected (D-09 "Rejected: ... checksums with keyless cosign"), so the cosign key is a key pair the owner makes.
 
@@ -87,7 +87,7 @@ Human setup, owner actions outside the tree (D-09: "The owner creates the keys a
 1. A GPG signing key for the packages. Secrets `RELEASE_GPG_PRIVATE_KEY` (ASCII-armored private key) and `RELEASE_GPG_PASSPHRASE`, in the `signing` environment, and the public half handed over for `packaging/keys/hqptuner-release.asc`. Blocks Task 3.
 2. A cosign key pair (`cosign generate-key-pair`). Secrets `COSIGN_PRIVATE_KEY` and `COSIGN_PASSWORD`, in a new environment `image-signing` whose deployment branch rule admits `main`, `beta` and `v*` tags, the refs `docker.yml` runs on. Not at repository level: per F-035, a workflow edit pushed to any branch could read a repository secret and sign an arbitrary image. Not in `signing` either, whose branch rule admits `dev` and `v*` only (D-04). `cosign.pub` handed over. Blocks Task 4.
 
-Copy for owner approval (D-17). Every line below is a proposal until the owner approves it verbatim.
+Copy approved by the owner (D-17). Every line below lands verbatim.
 
 Changelog bullet, `### Security`, Task 4. Approved by the owner, verbatim:
 
