@@ -5,7 +5,8 @@ names every line that fetches code a remote party can change under the same
 name. Cases drive the seams on literal workflow text, and ``main(argv)`` on a
 checkout laid down under ``tmp_path``.
 
-Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)`` and ``main(argv)``.
+Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
+``install_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -35,6 +36,7 @@ def _load_gate_module() -> ModuleType:
 GATE = _load_gate_module()
 ACTION_FAILURES = GATE.action_failures
 PIPE_FAILURES = GATE.pipe_failures
+INSTALL_FAILURES = GATE.install_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -113,6 +115,101 @@ def test_a_checkout_with_a_piped_install_exits_nonzero(tmp_path: Path) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "release.yml").write_text(workflow_running("curl https://x | sh"), encoding="utf-8")
+    assert MAIN([str(tmp_path)]) == 1
+
+
+# --- installs from the lock -------------------------------------------------
+
+
+def job_running(job: str, command: str) -> str:
+    """A workflow whose one job, named ``job``, runs the shell line ``command``."""
+    return f"jobs:\n  {job}:\n    steps:\n      - run: {command}\n"
+
+
+@pytest.mark.parametrize(
+    ("command", "count"),
+    [
+        ('pip install -e ".[dev]"', 1),
+        ('.venv/bin/pip install -e ".[dev]"', 1),
+        ("python -m pip install requests", 1),
+        ("uv pip install requests", 1),
+        ("uv pip install . pyinstaller", 1),
+        ("uv sync --python 3.14 --extra dev", 1),
+        ("uv sync --frozen --extra dev", 1),
+        ("uv tool install ruff", 1),
+        ("uv pip install triviajudge requests", 1),
+        ("uv pip install --python .venv/bin/python triviajudge==0.7.0 pytest", 1),
+        ("uv pip install --python .venv/bin/python pytest", 1),
+        ("uv sync --locked --python 3.14 --extra dev", 0),
+        ("uv sync --locked --python 3.14 --extra dev --no-install-project --no-install-package filepawl", 0),
+        ("uv pip install --python .venv/bin/python triviajudge", 0),
+        ("uv pip install triviajudge", 0),
+        ("npm ci", 0),
+        ("make check IDLE_GATE=off", 0),
+        ('bash scripts/ci/install-uv.sh "$RUNNER_TEMP/uv"', 0),
+    ],
+    ids=[
+        "pip",
+        "venv pip",
+        "python -m pip",
+        "uv pip",
+        "uv pip dot",
+        "sync unlocked",
+        "sync frozen",
+        "tool install",
+        "extra name",
+        "extra name after pin",
+        "other name",
+        "locked sync",
+        "locked sync, no project",
+        "triviajudge",
+        "triviajudge, bare",
+        "npm",
+        "make",
+        "install-uv",
+    ],
+)
+def test_only_a_locked_sync_or_a_triviajudge_install_passes_in_check(command: str, count: int) -> None:
+    assert len(INSTALL_FAILURES("check.yml", job_running("check", command))) == count
+
+
+@pytest.mark.parametrize("job", ["check", "e2e"])
+def test_an_unlocked_install_names_its_file_and_job(job: str) -> None:
+    line = INSTALL_FAILURES("check.yml", job_running(job, "pip install requests"))[0]
+    assert line.startswith(f"check.yml:4: job {job}:")
+
+
+@pytest.mark.parametrize(
+    ("step", "count"),
+    [
+        ("|\n          uv pip install --python .venv/bin/python \\\n            requests", 1),
+        ("|\n          uv pip install --python .venv/bin/python \\\n            triviajudge", 0),
+    ],
+    ids=["other name", "triviajudge"],
+)
+def test_an_install_continued_over_lines_is_judged_whole(step: str, count: int) -> None:
+    assert len(INSTALL_FAILURES("check.yml", job_running("check", step))) == count
+
+
+@pytest.mark.parametrize(
+    ("line", "count"),
+    [("# never pip install here", 0), ("- run: pip install requests", 1)],
+    ids=["comment", "step"],
+)
+def test_a_comment_naming_pip_install_is_not_an_install(line: str, count: int) -> None:
+    source = f"jobs:\n  check:\n    steps:\n      {line}\n"
+    assert len(INSTALL_FAILURES("check.yml", source)) == count
+
+
+@pytest.mark.parametrize(("name", "count"), [("docker.yml", 0), ("check.yml", 1)], ids=["other workflow", "check"])
+def test_only_a_workflow_under_the_lock_rule_is_judged(name: str, count: int) -> None:
+    assert len(INSTALL_FAILURES(name, job_running("push", "pip install requests"))) == count
+
+
+def test_a_checkout_with_an_unlocked_install_in_check_exits_nonzero(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "check.yml").write_text(job_running("check", "pip install requests"), encoding="utf-8")
     assert MAIN([str(tmp_path)]) == 1
 
 

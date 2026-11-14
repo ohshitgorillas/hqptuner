@@ -33,6 +33,10 @@ dev = [
     "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@53d93f0807646d4a39a6e05378927ae0787817a8",
     # hqptuner.spec builds the frozen bundle with it
     "pyinstaller",
+    # hqptuner and filepawl build from source on the locked sync, with build
+    # isolation off, so their backend comes from the lock and not unhashed from
+    # an index
+    "setuptools>=68",
     # the layering contract in [tool.importlinter] below is only enforced if the
     # gate that reads it is installed
     "import-linter",
@@ -47,6 +51,26 @@ dev = [
     # tests/engine/test_discovery.py runs the HQPlayer search on uvloop and
     # importorskips it — undeclared, the test skips on a freshly built venv.
     "uvloop",
+]
+
+# What a release build job installs: the frozen bundle's tool and the backend
+# the project builds with, without the dev extras (uvloop has no Windows build;
+# scipy and playwright are test tooling).
+[dependency-groups]
+build = ["pyinstaller", "setuptools>=68"]
+
+# uv.lock is one universal lock over `requires-python`. A package that ships
+# wheels only and has none for one of these six targets on Python 3.14 fails
+# `uv lock`; a package with a source archive still locks, so the release builds
+# refuse source builds as well.
+[tool.uv]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.14'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64' and python_version == '3.14'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.14'",
+    "sys_platform == 'darwin' and platform_machine == 'x86_64' and python_version == '3.14'",
+    "sys_platform == 'win32' and platform_machine == 'AMD64' and python_version == '3.14'",
+    "sys_platform == 'win32' and platform_machine == 'ARM64' and python_version == '3.14'",
 ]
 
 [tool.pytest.ini_options]

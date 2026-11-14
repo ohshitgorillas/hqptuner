@@ -31,20 +31,28 @@ jobs:
           node-version: "22"
           cache: npm
 
-      # The Makefile hardcodes .venv/bin, so CI builds the same venv layout a
-      # dev host has rather than reaching for a system interpreter.
+      - run: bash scripts/ci/install-uv.sh "$RUNNER_TEMP/uv"
+
+      # Every package comes from uv.lock, hashes checked, and a lock that is
+      # out of date with pyproject.toml fails the step. The Makefile hardcodes
+      # .venv/bin, so the sync lands there, as a dev host's venv does. The
+      # project and filepawl build from source, with build isolation off in a
+      # second sync so that their backend is the locked setuptools and not one
+      # fetched unhashed. uv may not fetch a Python: setup-python's is the one.
       - name: install
+        env:
+          UV_PYTHON_DOWNLOADS: never
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[dev]"
+          uv sync --locked --python 3.14 --extra dev --no-install-project --no-install-package filepawl
+          uv sync --locked --python 3.14 --extra dev --no-build-isolation-package hqptuner --no-build-isolation-package filepawl
           npm ci
 
-      # Outside the dev extras on purpose: it is installed unpinned, so a
-      # release of it reaches CI without a lock bump. The make check and
-      # pre-commit gates call its console scripts.
+      # Outside the lock on purpose: it is installed unpinned, so a release of
+      # it reaches CI without a lock bump. The make check and pre-commit gates
+      # call its console scripts. After the sync, which removes what the lock
+      # does not hold.
       - name: install triviajudge
-        run: .venv/bin/pip install triviajudge
+        run: uv pip install --python .venv/bin/python triviajudge
 
       # The offline half of the suite only: `make check` selects -m "not live",
       # and no hqplayerd exists here to serve the live-marked tests. The idle
@@ -87,18 +95,20 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - run: bash scripts/ci/install-uv.sh "$RUNNER_TEMP/uv"
+
+      # The same locked sync as the check job; see the comment there.
       - name: install
+        env:
+          UV_PYTHON_DOWNLOADS: never
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[dev]"
+          uv sync --locked --python 3.14 --extra dev --no-install-project --no-install-package filepawl
+          uv sync --locked --python 3.14 --extra dev --no-build-isolation-package hqptuner --no-build-isolation-package filepawl
           npm ci
 
-      # Outside the dev extras on purpose: it is installed unpinned, so a
-      # release of it reaches CI without a lock bump. The make check and
-      # pre-commit gates call its console scripts.
+      # Unpinned and outside the lock, as in the check job.
       - name: install triviajudge
-        run: .venv/bin/pip install triviajudge
+        run: uv pip install --python .venv/bin/python triviajudge
 
       # No HQPTUNER_CHROMIUM here: unset, the harness falls back to playwright's
       # own chromium, which is the browser this step installs.
