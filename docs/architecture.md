@@ -158,6 +158,8 @@ Two asymmetries are deliberate. A **write** refuses an unknown or out-of-domain 
 
 In a frozen build the shipped `data/*.json` travels inside the bundle and is read from there, while every store this document names (`state/*.json`, `presets/`, `backups/`) sits under the platform's per-user data directory, since the installed program is not the user's to write (`hqptuner/paths.py`). The Linux package's systemd unit points that directory at `/var/lib/hqptuner` (`packaging/linux/hqptuner.service`). A checkout and the container keep the paths written here.
 
+Every store write goes through `hqptuner/atomicwrite.py`: a uniquely named temp file in the target's directory is fsynced, renamed over the target, and the directory is fsynced, so a crash leaves the old file or the new one and never a partial. Each store instance serializes its read-modify-write behind one `threading.Lock`, and the preset store holds one lock for its whole directory (the preset XML files, `store.json` and `active.json`), so two writers to one store both land. A store file that does not parse is refused with its store's corrupt-file error and never overwritten.
+
 ## 6. Static metadata
 
 ### 6.1 Metadata joins live enumerations by name
