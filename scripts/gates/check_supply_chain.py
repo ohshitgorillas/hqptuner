@@ -102,9 +102,15 @@ PACKAGES_WRITE = re.compile(r"^\s+packages:\s*write\b")
 CONTENTS_READ = re.compile(r"^\s+contents:\s*read\b")
 
 
-#: Any repository secret, and the ones that hold the Apple signing certificate and the notary key.
+#: Any repository secret; the Apple certificate and notary key; and every secret that signs a release.
 ANY_SECRET = re.compile(r"\bsecrets\.")
 APPLE_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_)\w+")
+SIGNING_SECRET = re.compile(r"\bsecrets\.(?:MACOS_|NOTARY_|SIMPLYSIGN_|GPG_)\w+")
+
+#: A job's call of the check workflow, its own ``if:``, and its ``needs:`` on one line.
+CHECK_CALL = re.compile(r"^    uses:\s*\./\.github/workflows/check\.yml\s*$")
+JOB_IF = re.compile(r"^    if:")
+NEEDS = re.compile(r"^    needs:\s*(?P<jobs>\S.*?)\s*$")
 
 #: A job's ``environment:`` key naming the one environment that holds the signing secrets.
 SIGNING_ENVIRONMENT = re.compile(r"^    environment:\s*signing\s*$")
@@ -112,6 +118,9 @@ SIGNING_ENVIRONMENT = re.compile(r"^    environment:\s*signing\s*$")
 #: The jobs that run the build and so hold no secret, and the workflows that must hold a job signing the macOS app.
 SECRETLESS_JOBS = {"release.yml": frozenset({"build-macos"})}
 SIGNS_MACOS = frozenset({"release.yml"})
+
+#: The jobs that sign, named so that deleting their environment line fails even where no secret is visible.
+SIGNING_JOBS = {"release.yml": frozenset({"package-windows", "sign-macos"})}
 
 
 def action_failures(name: str, source: str) -> list[str]:
@@ -256,26 +265,61 @@ def permission_failures(name: str, source: str) -> list[str]:
 
 
 def secret_failures(name: str, source: str) -> list[str]:
-    """One line per secret in the build job, per Apple secret outside the signing environment, per missing signer."""
+    """One line per secret in the build job, per signing job outside the signing environment, per missing signer."""
     secretless = SECRETLESS_JOBS.get(name, frozenset())
+    first: dict[str, int] = {}
     importers: dict[str, int] = {}
+    apple = False
     in_signing: set[str] = set()
     lines: list[str] = []
     for number, job, text in _job_lines(source):
+        first.setdefault(job, number)
         if job in secretless and ANY_SECRET.search(text):
             lines.append(f"{name}:{number}: job {job}: the build runs here and reads a secret: {text.strip()}")
-        if APPLE_SECRET.search(text):
+        if SIGNING_SECRET.search(text):
             importers.setdefault(job, number)
+            apple = apple or APPLE_SECRET.search(text) is not None
         if SIGNING_ENVIRONMENT.match(text):
             in_signing.add(job)
+    signers = {
+        job: importers.get(job, first[job])
+        for job in importers.keys() | (SIGNING_JOBS.get(name, frozenset()) & first.keys())
+    }
     lines += [
-        f"{name}:{number}: job {job}: imports an Apple signing secret and is not in environment: signing"
-        for job, number in importers.items()
+        f"{name}:{number}: job {job}: signs or reads a signing secret and is not in environment: signing"
+        for job, number in sorted(signers.items(), key=lambda item: item[1])
         if job not in in_signing
     ]
-    if name in SIGNS_MACOS and not importers:
+    if name in SIGNS_MACOS and not apple:
         lines.append(f"{name}:1: no job imports the Apple signing secrets, so nothing signs the macOS app")
     return lines
+
+
+def signing_check_failures(name: str, source: str) -> list[str]:
+    """One line per job in the signing environment that does not wait on a check run on every trigger.
+
+    ``needs:`` is read as one line, a name or a flow list; a block list reads as no needs.
+    """
+    calls: set[str] = set()
+    limited: set[str] = set()
+    needs: dict[str, set[str]] = {}
+    signing: dict[str, int] = {}
+    for number, job, text in _job_lines(source):
+        if CHECK_CALL.match(text):
+            calls.add(job)
+        if JOB_IF.match(text):
+            limited.add(job)
+        found = NEEDS.match(text)
+        if found:
+            needs[job] = set(re.split(r"[\s,\[\]]+", found["jobs"])) - {""}
+        if SIGNING_ENVIRONMENT.match(text):
+            signing[job] = number
+    runs_always = calls - limited
+    return [
+        f"{name}:{number}: job {job}: in environment: signing and does not wait on a check that runs on every trigger"
+        for job, number in signing.items()
+        if not needs.get(job, set()) & runs_always
+    ]
 
 
 def main(argv: list[str]) -> int:
@@ -292,6 +336,7 @@ def main(argv: list[str]) -> int:
             container_failures,
             permission_failures,
             secret_failures,
+            signing_check_failures,
         )
         for line in check(path.name, path.read_text(encoding="utf-8"))
     ]

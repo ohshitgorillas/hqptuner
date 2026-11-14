@@ -20,10 +20,12 @@ permissions:
   contents: read
 
 jobs:
-  # A red tree must not publish a release, so tags are gated on the same
-  # `make check` as the image. Pushes to dev skip it.
+  # A red tree must neither be signed nor published, so every trigger of this
+  # workflow, a dev push, a tag and a dispatch, runs the same `make check` as the
+  # image. package-windows and sign-macos, the jobs in the signing environment,
+  # and publish wait on it. A dev push that touches these paths runs it twice,
+  # once here and once under check.yml's own trigger.
   tag-check:
-    if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/check.yml
 
   # glibc 2.28 is the floor the packages promise, so the bundle is frozen on
@@ -251,7 +253,7 @@ jobs:
   # The dmgs are signed with the Developer ID certificate and notarized, and
   # publish attaches them to the release.
   sign-macos:
-    needs: build-macos
+    needs: [tag-check, build-macos]
     strategy:
       fail-fast: false
       matrix:
@@ -386,7 +388,7 @@ jobs:
   # uninstaller are signed here, the one job that reads the SimplySign login,
   # with the certificate named by the thumbprint the login step exports.
   package-windows:
-    needs: build-windows
+    needs: [tag-check, build-windows]
     runs-on: windows-latest
     timeout-minutes: 10
     environment: signing

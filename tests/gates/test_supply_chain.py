@@ -8,7 +8,7 @@ checkout laid down under ``tmp_path``.
 Seams are ``action_failures(name, source)``, ``pipe_failures(name, source)``,
 ``install_failures(name, source)``, ``dockerfile_failures(name, source)``,
 ``container_failures(name, source)``, ``permission_failures(name, source)``,
-``secret_failures(name, source)`` and ``main(argv)``.
+``secret_failures(name, source)``, ``signing_check_failures(name, source)`` and ``main(argv)``.
 """
 
 import importlib.util
@@ -43,6 +43,7 @@ DOCKERFILE_FAILURES = GATE.dockerfile_failures
 CONTAINER_FAILURES = GATE.container_failures
 PERMISSION_FAILURES = GATE.permission_failures
 SECRET_FAILURES = GATE.secret_failures
+SIGNING_CHECK_FAILURES = GATE.signing_check_failures
 MAIN = GATE.main
 
 #: A commit SHA as GitHub prints it.
@@ -428,6 +429,83 @@ def test_a_checkout_whose_apple_secrets_sit_outside_the_signing_environment_exit
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
     (workflows / "release.yml").write_text(release_with(CLEAN_BUILD, SIGN_STEPS), encoding="utf-8")
+    assert MAIN([str(tmp_path)]) == 1
+
+
+def windows_job(secret: str, environment: str) -> str:
+    """A package-windows job with the steps ``secret`` and the environment lines ``environment``."""
+    return f"  package-windows:\n    runs-on: windows-latest\n{environment}    steps:\n{secret}"
+
+
+SIMPLYSIGN_STEP = "      - run: x\n        env:\n          E: ${{ secrets.SIMPLYSIGN_EMAIL }}\n"
+NO_STEP = "      - run: x\n"
+
+
+@pytest.mark.parametrize(
+    ("secret", "environment", "count"),
+    [
+        (SIMPLYSIGN_STEP, "", 1),
+        (SIMPLYSIGN_STEP, SIGNING_ENV, 0),
+        (NO_STEP, "", 1),
+        (NO_STEP, SIGNING_ENV, 0),
+    ],
+    ids=["secret, no environment", "secret, signing", "named, no environment", "named, signing"],
+)
+def test_package_windows_sits_in_the_signing_environment_and_its_secrets_with_it(
+    secret: str, environment: str, count: int
+) -> None:
+    source = "jobs:\n" + windows_job(secret, environment) + release_with(CLEAN_BUILD, SIGNING_ENV + SIGN_STEPS)[6:]
+    assert len(SECRET_FAILURES("release.yml", source)) == count
+
+
+@pytest.mark.parametrize("secret", ["GPG_PRIVATE_KEY", "MACOS_CERT_PASSWORD", "NOTARY_KEY_ID"])
+def test_every_signing_secret_belongs_to_the_signing_environment(secret: str) -> None:
+    step = f"      - run: x\n        env:\n          S: ${{{{ secrets.{secret} }}}}\n"
+    assert len(SECRET_FAILURES("docker.yml", f"jobs:\n  publish:\n    steps:\n{step}")) == 1
+
+
+CHECK_JOB = "  tag-check:\n    uses: ./.github/workflows/check.yml\n"
+TAGGED_CHECK_JOB = (
+    "  tag-check:\n    if: startsWith(github.ref, 'refs/tags/v')\n    uses: ./.github/workflows/check.yml\n"
+)
+OTHER_JOB = "  lint:\n    uses: ./.github/workflows/lint.yml\n"
+
+
+def signing_job(needs: str) -> str:
+    """A job in the signing environment that needs ``needs``."""
+    return f"  package-windows:\n    needs: {needs}\n{SIGNING_ENV}    runs-on: windows-latest\n    steps: []\n"
+
+
+SMOKE_JOB = "  smoke:\n    needs: build\n    steps: []\n"
+
+
+@pytest.mark.parametrize(
+    ("jobs", "count"),
+    [
+        (CHECK_JOB + signing_job("[build-windows, tag-check]"), 0),
+        (CHECK_JOB + signing_job("tag-check"), 0),
+        (CHECK_JOB + signing_job("build-windows"), 1),
+        (TAGGED_CHECK_JOB + signing_job("tag-check"), 1),
+        (OTHER_JOB + signing_job("lint"), 1),
+        (signing_job("build-windows"), 1),
+        (CHECK_JOB + SMOKE_JOB, 0),
+    ],
+    ids=["in a list", "alone", "not needed", "limited to tags", "another call", "no check job", "not a signing job"],
+)
+def test_a_signing_job_waits_on_a_check_that_runs_on_every_trigger(jobs: str, count: int) -> None:
+    assert len(SIGNING_CHECK_FAILURES("release.yml", f"jobs:\n{jobs}")) == count
+
+
+def test_a_signing_check_failure_names_its_file_job_and_line() -> None:
+    job = "package-windows"
+    line = SIGNING_CHECK_FAILURES("release.yml", f"jobs:\n{signing_job('build')}")[0]
+    assert line.startswith(f"release.yml:4: job {job}:")
+
+
+def test_a_checkout_whose_signing_job_waits_on_no_check_exits_nonzero(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "release.yml").write_text(f"jobs:\n{signing_job('build')}", encoding="utf-8")
     assert MAIN([str(tmp_path)]) == 1
 
 
