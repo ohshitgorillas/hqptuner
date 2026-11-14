@@ -129,7 +129,7 @@ function idOf(bins) {
 const levelsOf = (id) => ({ peak: -6 - ((id * 7) % 24), rms: -30 - ((id * 11) % 20) });
 
 /** Put the stores where a fresh playing track with a feed open finds them, on the replay's clock. */
-function open(/** @type {Schedule} */ { rate, delay }, span = "full") {
+function open(/** @type {Schedule} */ { rate, delay, geometry }, span = "full") {
   engineStatus.value = { metering: false };
   frames.next = null;
   useEventSource();
@@ -146,7 +146,36 @@ function open(/** @type {Schedule} */ { rate, delay }, span = "full") {
   poll();
   initMeterFeed(clock);
   initMeterLoop(clock);
+  if (!geometry) sendGeometry(rate);
+}
+
+/** Send the geometry event for `rate` down the stream the page holds. @param {number} rate */
+function sendGeometry(rate) {
   lastStream()?.emit("geometry", { rate, nyquist: rate / 2, channels: 1, bins: BINS });
+}
+
+//: What a schedule delivers at one wall time, in order: the geometry, then the Status sample, then the frame.
+const ORDER = { geometry: 0, status: 1, frame: 2 };
+
+/**
+ * @typedef {{ kind: "geometry", t: number, rate: number } | { kind: "status", t: number, fields: Record<string, string> }
+ *   | { kind: "frame", t: number, n: number, at?: number }} Arrival
+ */
+
+/**
+ * Everything the schedule delivers, in the order it reaches the page.
+ *
+ * @param {Schedule} schedule
+ * @returns {Arrival[]}
+ */
+function arrivals({ feed, geometry = [], status = [] }) {
+  /** @type {Arrival[]} */
+  const all = [
+    ...geometry.map((g) => /** @type {const} */ ({ ...g, kind: "geometry" })),
+    ...status.map((s) => /** @type {const} */ ({ ...s, kind: "status" })),
+    ...feed.map((f) => /** @type {const} */ ({ ...f, kind: "frame" })),
+  ];
+  return all.sort((x, y) => x.t - y.t || ORDER[x.kind] - ORDER[y.kind]);
 }
 
 /**
@@ -158,7 +187,9 @@ function open(/** @type {Schedule} */ { rate, delay }, span = "full") {
  */
 export function replay(schedule, observe, span = "full") {
   open(schedule, span);
-  const { rate, paints, feed } = schedule;
+  const { paints } = schedule;
+  const events = arrivals(schedule);
+  let rate = schedule.rate;
   /** @type {Frame[]} */
   const delivered = [];
   const canvas = pixelCanvas(SPEC_SIZE.width, SPEC_SIZE.height);
@@ -187,13 +218,22 @@ export function replay(schedule, observe, span = "full") {
   let samples = 0;
   let before = 0;
   paints.forEach((t, i) => {
-    for (; next < feed.length && feed[next].t <= t; next++) {
-      const id = delivered.length;
-      const { n } = feed[next];
-      const levels = levelsOf(id);
-      lastStream()?.emit("frame", { channels: [{ ...levels, bins: wireBins(id) }], at: samples, n });
-      delivered.push({ id, at: (samples * MS_PER_S) / rate, ms: (n * MS_PER_S) / rate, ...levels });
-      samples += n;
+    for (; next < events.length && events[next].t <= t; next++) {
+      const event = events[next];
+      if (event.kind === "geometry") {
+        rate = event.rate;
+        sendGeometry(rate);
+      } else if (event.kind === "status") {
+        poll(event.fields);
+      } else {
+        const id = delivered.length;
+        const { n } = event;
+        const at = event.at ?? samples;
+        const levels = levelsOf(id);
+        lastStream()?.emit("frame", { channels: [{ ...levels, bins: wireBins(id) }], at, n });
+        delivered.push({ id, at: (at * MS_PER_S) / rate, ms: (n * MS_PER_S) / rate, ...levels });
+        samples = at + n;
+      }
     }
     heard = null;
     frames.now = t;

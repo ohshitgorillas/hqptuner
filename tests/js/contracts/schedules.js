@@ -22,8 +22,14 @@ import { readFileSync } from "node:fs";
  * @property {number} rate  metering rate, Hz: what `n` counts in
  * @property {number} delay  s: the spectrum offset the page runs at, the engine reporting no delay of its own
  * @property {number[]} paints  wall, ms: when each animation frame ran, ascending
- * @property {Array<{ t: number, n: number }>} feed  one entry per frame: wall ms it reached the page, ascending, and its
- *   length in samples at `rate`
+ * @property {Array<{ t: number, n: number, at?: number }>} feed  one entry per frame: wall ms it reached the page,
+ *   ascending, its length in samples at the geometry it arrived under, and the wire's own `at` stamp where the stream has
+ *   one (samples counted from the feed's reset; the replay counts the lengths on from 0 where it has none)
+ * @property {Array<{ t: number, rate: number }>} [geometry]  geometry events, wall ms ascending, each the metering rate of
+ *   the frames after it; where a schedule has this it sends its first itself, and `rate` is the rate before any arrives
+ * @property {Array<{ t: number, fields: Record<string, string> }>} [status]  Status samples, wall ms ascending, each the
+ *   `state`, `track_serial`, `position` and `output_delay` the engine reported then; where a schedule has none, the
+ *   engine plays one track and reports no delay of its own
  */
 
 const MS_PER_S = 1000;
