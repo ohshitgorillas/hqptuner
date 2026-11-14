@@ -1,0 +1,35 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-d649da90",
+  "round": 2,
+  "base": "d649da90",
+  "head": "d649da90",
+  "base_id": "d649da900cea24522547758c31624b092cd5ce87",
+  "head_id": "d649da900cea24522547758c31624b092cd5ce87",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 62,
+      "severity": "low",
+      "claim": "The stop rule tests each stretch's intercept standard error against its own frame at one sigma. A cross-start or cross-rate lag reading compares two intercepts, so its error is the combined error of both. The plan's claim at line 27, that a correct playhead can pass within one metering frame, is therefore not guaranteed for those readings.",
+      "failure_scenario": "I fitted run 0 of the fixture with a shared slope and got 0.999987, which matches the plan. The intercept SEs were 4.8, 5.2, 6.2, 3.2 and 6.0 ms for serials 31 to 35. The plan quotes 1.4 to 6.4 ms, so its method differs from mine, but every value is under its frame, so the stop rule never fires. Compare serial 33 (96000, 10.7 ms frame) with serial 34: the difference has about 7 ms one-sigma error, and two sigma is about 14 ms, which is over 10.7 ms. A correct playhead can then read red on that comparison from fit error alone. Plan 4 would then go back to the owner for a fault in the test method, not in the code. Within-track readings are not affected, because a constant intercept error cancels. A fix is to apply the stop rule to the combined error of each compared pair at a stated confidence, not to each one-sigma SE alone.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "f90710a1",
+      "base_id": "d649da900cea24522547758c31624b092cd5ce87",
+      "head_id": "d649da900cea24522547758c31624b092cd5ce87"
+    }
+  ]
+}

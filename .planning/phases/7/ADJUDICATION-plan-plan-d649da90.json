@@ -1,0 +1,78 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-d649da90",
+  "round": 1,
+  "base": "d649da90",
+  "head": "d649da90",
+  "base_id": "d649da900cea24522547758c31624b092cd5ce87",
+  "head_id": "d649da900cea24522547758c31624b092cd5ce87",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 61,
+      "severity": "high",
+      "claim": "The plan says the lag is read against Status `position` (D-09 a), but it gives no way to put `position` and the playhead on one axis. `position` restarts at 0 on every serial change. The stamps count from the reader's connect, and nothing in the stream marks the stamp where a track begins. So the absolute lag that AC4 and the 'same lag after every start' reading compare across starts and rates cannot be derived from the capture.",
+      "failure_scenario": "The capture's Status shows `position` at 0.0000 from 37096 to 37902 ms after serial 33 while the stamps run on. Comparing serial 31 (44100) with serial 33 (96000) needs the stamp-ms where each track's position 0 sits. The fixture holds no such marker. The test writer must invent a stamp origin per track, and that invented origin alone decides whether the across-start and across-rate cases are red or green. Unlike the late-join case, the plan names no assumption here, so AC4 is not grounded in the data D-09 (a) chose.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "f90710a1",
+      "base_id": "d649da900cea24522547758c31624b092cd5ce87",
+      "head_id": "d649da900cea24522547758c31624b092cd5ce87"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 61,
+      "severity": "high",
+      "claim": "The heard reference is far noisier than the tolerance the plan uses. The capture's Status `position` moves in steps of about 106.7 ms (increments of 107/213/320 ms; values 0.0933, 0.3066, 0.5200, 0.7333). Against a line fitted per stretch it sits within roughly +-100 ms. The tolerance is one metering frame (10.7 ms at 96000, 23.2 ms at 44100). The plan only asks the header to say how position is read between samples, and does not deal with this.",
+      "failure_scenario": "Measured on run 0: residuals after a fit per stretch run -99..86, -87..95, -82..91, -100..90 and -101..95 ms. If the lag at each paint is read against position held or interpolated between samples, it swings by about 190 ms within a track. Even a playhead that is exactly right then fails steady lag. The only way to pass is to follow the quantized position, which jumps about 107 ms per step and breaks steady motion. Plan 4 then cannot make the suites pass unedited (AC9).",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "f90710a1",
+      "base_id": "d649da900cea24522547758c31624b092cd5ce87",
+      "head_id": "d649da900cea24522547758c31624b092cd5ce87"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 63,
+      "severity": "medium",
+      "claim": "Task 1 says each stream reaches the page 'the way the owner's page gets it', but the main capture stream does not. It replays the probe's single held connection with stamps continuous across the start from stopped and both rate changes. The app's own reader (`hqptuner/engine/metering.py` `run`/`_stream`) disconnects when State leaves playing. It reconnects only on a later State check (idle recheck 1 s), and calls `feed.reset()`, which restarts the stamps at 0 and re-sends geometry.",
+      "failure_scenario": "At the 44100-to-96000 change, State is 0 from about 36024 ms and 2 from 37096 ms. The frames resume at 37313 ms and the rush ends about 250 ms later. The app's reader reconnects some time between 37096 and about 38100 ms, so it may never see the rush the held replay delivers. What that fresh connect receives is the unmeasured late-connect case (CAPTURE.md line 80). So the 'capture' cases of steady lag and steady motion test a stream the owner's page never gets at three of the five starts. The real path rests only on the late-join stream's stated assumption, while the plan presents the held replay as the faithful one.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "f90710a1",
+      "base_id": "d649da900cea24522547758c31624b092cd5ce87",
+      "head_id": "d649da900cea24522547758c31624b092cd5ce87"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-4.md",
+      "line": 250,
+      "severity": "medium",
+      "claim": "Task 1's Verify accepts 'a case for a decision that does not exist yet fails at its missing export' as part of the red run. `docs/spec/testing.md` rule 8 says an import or missing-symbol failure 'is no evidence' of bite. For a new surface, rule 8 requires the plan to name the null stub each test fails against, and the plan names none.",
+      "failure_scenario": "A new pure decision in `playhead.js` with cases whose assertions any implementation satisfies would fail against HEAD only with a SyntaxError on the import (the missing export). This Verify accepts that as red, so a test that does not bite gets past the rule 8 check, which is what the repo's tests-first rule exists to stop.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "f90710a1",
+      "citation_missing": true,
+      "base_id": "d649da900cea24522547758c31624b092cd5ce87",
+      "head_id": "d649da900cea24522547758c31624b092cd5ce87"
+    }
+  ]
+}
