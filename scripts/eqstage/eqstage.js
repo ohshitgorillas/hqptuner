@@ -69,13 +69,24 @@ import { canonPipelines, editRow, lintRow, readBaseline, resolveEq, selectRows }
 const DEFAULT_URL = "http://127.0.0.1:8090";
 const DEFAULT_FS = 44100;
 
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
 /**
- * The app's base URL for a job, without a trailing slash.
+ * The app's base URL for a job, without a trailing slash. The login pair and
+ * the staged payload go to this URL, so it must be plain http to a loopback
+ * host; anything else rejects here, before a request is made.
  *
  * @param {Job} job
  * @returns {string}
  */
-const baseOf = (job) => String(job.url || DEFAULT_URL).replace(/\/$/, "");
+const baseOf = (job) => {
+  const base = String(job.url || DEFAULT_URL).replace(/\/$/, "");
+  const parsed = URL.parse(base);
+  if (!parsed || parsed.protocol !== "http:" || !LOOPBACK_HOSTS.has(parsed.hostname)) {
+    throw new Error(`url ${base}: only http to 127.0.0.1, localhost or [::1] is accepted`);
+  }
+  return base;
+};
 
 // Parametric-EQ stages only. A crossfeed `lp1` is an `iir:` stage too, and
 // counting it as a band makes a decomposed row look like it lost EQ it never had.
