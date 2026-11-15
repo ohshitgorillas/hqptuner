@@ -13,6 +13,10 @@ Wrappers (`sudo`, `env`, `timeout`, `nice`, `xargs`, ...) and their option
 values are looked through, stages are split with quoting respected, and
 `bash -c` / `sh -lc` bodies are checked as commands of their own.
 
+The hook gives guidance; CI's `make check` is what enforces. Input it cannot
+parse as JSON lets the call through. A command naming the manual that `shlex`
+cannot tokenize is refused (exit 2), not let through.
+
 Everything else passes: `make manual` and `scripts/build_manual.py` run
 pdftotext inside Python, where no Bash command names it, and `ls`, `git`,
 `stat` or `file` on the PDF read no content.

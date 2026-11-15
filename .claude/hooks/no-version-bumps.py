@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """PreToolUse hook: the version number is the user's, and no agent may set it.
 
-Wired session-wide from `.claude/settings.json`, so it binds every agent —
-orchestrator and subagents alike. Deliberately not a memory note or a line in
-CLAUDE.md: both are advisory, and the agent that must not bump is the same agent
-deciding whether this bump is the exception.
+Wired session-wide from `.claude/settings.json`, so it runs for every agent —
+orchestrator and subagents alike. The hook gives guidance; CI's `make check` is
+what enforces. Input it cannot parse as JSON lets the call through.
 
 A version is a product decision; `scripts/bump.sh` only executes it. The agent
 never chooses the number — not even the bump size for an obvious fix, and never
@@ -12,7 +11,9 @@ a re-release of a retracted version.
 
 Blocked:
 
-  * a Bash command naming `bump.sh`, however it is spelled or reached
+  * a Bash command whose text contains the literal name `bump.sh`; a name built
+    by glob, variable or another route passes, and a shell edit of a version
+    file is not caught
   * an Edit/Write that sets `__version__` in `hqptuner/__init__.py` or `version`
     in `pyproject.toml` — the hand-edit path around the script
 
@@ -33,7 +34,7 @@ import os
 import re
 import sys
 
-#: the bump script, by name, however the command reaches it
+#: the bump script's literal name in the command text
 BASH_BUMP = re.compile(r"\bbump\.sh\b")
 #: a version assignment in either version file
 VERSION_LINE = re.compile(r"""(?:^|\s)(?:__version__|version)\s*=\s*["']\d[^"']*["']""", re.MULTILINE)
