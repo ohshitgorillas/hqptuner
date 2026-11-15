@@ -1,0 +1,115 @@
+{
+  "status": "gaps",
+  "score": "5/8",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "The offline supply-chain gate fails on the pre-fix tree, passes at HEAD, is wired into make check and pre-commit, and enforces SHA-pinned actions, lock-only Python installs, digest-pinned shipped images and no pipe-to-shell",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "`.venv/bin/python scripts/gates/check_supply_chain.py` at HEAD 082d068d: `[ok] all 3 workflows and the Dockerfile pin their remote code`, exit 0. Its check functions, run in memory over `git show 1025d19c:<path>` for the three workflows, Dockerfile, hqptuner.spec and packaging/windows/simplysign-login.ps1, gave 64 problems: 36 unpinned actions, 7 unlocked installs (e.g. `check.yml:40: ... .venv/bin/pip install -e \".[dev]\"`, `release.yml:51: ... uv pip install . pyinstaller`), 3 pipe-to-shell (`release.yml:49`, `:225`, `release.yml:330: ... irm https://astral.sh/uv/install.ps1 | iex`), `Dockerfile:1: python:3.12-slim is not pinned`, `release.yml:41: job build: container almalinux:8 is not pinned`. Wiring: Makefile:23 (lint), .pre-commit-config.yaml:315-320 (`supply-chain`, files cover workflows, Dockerfile, the login script and the spec); `check_gates_wired.py`: `[ok] all 22 gate scripts are wired`. `scripts/gate.sh .venv/bin/pytest -q tests/gates/test_supply_chain.py --no-cov`: `157 passed`, exit=0."
+    },
+    {
+      "n": 2,
+      "truth": "Signing secrets sit only in jobs in environment: signing that wait on an always-running check; build-macos reads no secret; packages: write only on docker.yml's push jobs; check.yml declares contents: read; the SimplySign script checks the MSI hash before msiexec and drops the seed before the first Start-Process",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "release.yml: `tag-check` (`uses: ./.github/workflows/check.yml`, no `if:`); `sign-macos` and `package-windows` and `package-linux` each have `environment: signing` and `needs: [tag-check, ...]`; `build-macos` has no `secrets.` reference; Apple secrets appear only under `sign-macos`. check.yml:11-12 `permissions: contents: read`, and `on:` includes `workflow_call`. docker.yml: top-level `contents: read`, `check` call `contents: read`, `packages: write` only on `build-push` and `sign-image` (owner-approved option A, SUMMARY deviation, 11327b55). simplysign-login.ps1: `$InstallerSha256 = '8ec420fc...'` beside `$Version`; `Remove-Item Env:SIMPLYSIGN_OTPAUTH_URI` precedes the `[1/4]` block; inside it `Get-FileHash ... -Algorithm SHA256` and `if ($actual -ne $InstallerSha256) { Fail ... }` precede `Start-Process -FilePath msiexec.exe`. The gate run of truth 1 enforces each of these (secret_failures, signing_check_failures, permission_failures, login_script_failures) and flagged each at the base commit (`release.yml:234 ... not in environment: signing`, `release.yml:350 ... does not wait on a check`, `docker.yml:11`, `check.yml:1`, `simplysign-login.ps1:101` twice). pwsh is absent, so the script was not executed; the AC asks for the gate-run property, which is observed."
+    },
+    {
+      "n": 3,
+      "truth": "A bundle frozen from hqptuner.spec carries no file under vendor/eqlab/src, tests, .claude or .git",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "hqptuner.spec:25-30 names the four paths in EQLAB_DEV_TREE and :67-69 filters `a.datas` after Analysis by `PurePath(entry[0]).is_relative_to(path)`. Spot-check: PyInstaller 6.22.2's `format_binaries_and_datas([(\"hqptuner/static\", \"static\")])` over the real checkout (submodule holds .claude, .git, src, tests, core) gives 70 eqlab entries. After the spec's filter expression, 15 remain, all under `static/vendor/eqlab/core` or `package.json`, and none under the four dirs. Regression guard: packaging/linux/smoke.sh:31-37 fails step 2 on any `/opt/hqptuner/**/vendor/eqlab/{src,tests,.claude,.git}`, run by release.yml `smoke`. The CI smoke run itself has not happened (see left_to_ci)."
+    },
+    {
+      "n": 4,
+      "truth": "One hashed uv lock for six Python 3.14 targets governs check.yml, every release build job and the image",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "pyproject.toml:70-77 `required-environments` lists linux x86_64/aarch64, darwin arm64/x86_64, win32 AMD64/ARM64, all python 3.14. uv.lock carries 1275 `hash = \"sha256:` entries; filepawl is locked at `rev=53d93f08...` (uv.lock:494). `uv lock --check --offline`: `Resolved 96 packages`, exit 0, lock and pyproject unchanged. Installs: check.yml `check` and `e2e` both `uv sync --locked`, triviajudge alone by `uv pip install` (D-06); release.yml `build`, `build-macos`, `build-windows` each `uv sync --locked --no-build ...` then `uv sync --locked ...`; Dockerfile:18,21 `uv sync --locked`; Dockerfile:4,6,24 bases and uv image pinned `@sha256:`; release.yml `build` container `almalinux:8@sha256:2d0f...`."
+    },
+    {
+      "n": 5,
+      "truth": "macOS signing is out of the PyInstaller freeze, and the sign stage runs no venv Python",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "`grep codesign_identity|entitlements_file hqptuner.spec`: no match. scripts/package-macos.sh: `freeze()` (:67-70) is the only use of `.venv/bin/python`; `sign()` (:79 onward) parses notarytool JSON with `plutil -extract` (`json_field`), no python. release.yml `sign-macos` downloads `unsigned-app-*`, checks out no submodules and installs nothing; `smoke-macos` needs `sign-macos`; `publish` needs `sign-macos`."
+    },
+    {
+      "n": 6,
+      "truth": "A v* release's SHA256SUMS covers every asset, its deb and rpm verify against the published GPG key, and its images pass cosign verify",
+      "status": "FAILED",
+      "uat_item": 5,
+      "evidence": "Configuration exists: release.yml `publish` writes SHA256SUMS from the same `assets` array it attaches; packaging/linux/nfpm.yaml:35-36 (rpm) and :43-44 (deb) `signature: key_file: ${HQPTUNER_GPG_KEY_FILE}`; docker.yml `sign-image` runs `cosign sign --key env://COSIGN_PRIVATE_KEY` on both registries by digest; keys committed at packaging/keys/. No automated check exercises any of it: `grep -rln 'SHA256SUMS|nfpm.yaml|key_file|cosign sign' tests/ scripts/gates/` matches only tests/gates/test_supply_chain.py, whose one hit (:544) is a fixture string for the cosign placement rule. check_supply_chain.py's cosign_failures and secret_failures check where keys sit, not that a signing step, a signature block or the checksum step exists: deleting `sign-image`, the nfpm `signature:` blocks or the SHA256SUMS line leaves the gate at exit 0. No CI step runs `rpm -K`, a deb signature check or `cosign verify`. DISPOSITIONS F-040 says so itself: `No gate line of the base export names a missing checksum or signature`."
+    },
+    {
+      "n": 7,
+      "truth": "DISPOSITIONS.md has an entry for each of F-034 to F-042, each fixed part names its commit and a proof that fails against the pre-fix code, the triviajudge decline quotes the owner, settings halves carry a Note, and no clause is left with neither a fix nor an owner decision",
+      "status": "FAILED",
+      "uat_item": 6,
+      "evidence": ".planning/security/DISPOSITIONS.md:230-288 holds the nine entries; F-042 quotes \"it's my app I update it when I fucking want\"; F-034, F-035 and F-040 carry owner-action Notes. Missing proofs: F-042's filepawl pin has none (entry: `No gate rule or test holds the pin.`; the gate reads no pyproject.toml although D-10 lists it as a gate input; `grep -rn '53d93f08|filepawl.git' tests/ scripts/gates/` finds nothing). F-040's fixed parts (checksum file, deb/rpm signatures, image signatures) have no proof that fails against 1025d19c; its offline evidence is a one-off hand run with `gh` stubbed, plus tests of key placement only (truth 6). Undecided clauses: F-040's remediation (REPORT.md:1824-1865) asks for a signed checksum file. release.yml `publish` writes SHA256SUMS with `sha256sum` and signs nothing, and no owner decision declines the signature. F-040's compose.yaml-from-main, `:latest`, Watchtower and root-maintainer-script clauses are `as they were` with no owner decision (SUMMARY open items say the same). F-035's widening to package-linux and sign-image records no owner words (entry: `none are quoted here`)."
+    },
+    {
+      "n": 8,
+      "truth": "The release commit keeps the hashed lock current, so `uv sync --locked` passes on the next release",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "uv.lock:665-667 records the project itself: `name = \"hqptuner\"`, `version = \"1.20.1\"`, `source = { editable = \".\" }`. scripts/bump.sh:104-106 rewrites only pyproject.toml, hqptuner/__init__.py and CHANGELOG.md, and :120 commits what changed; it never runs `uv lock`. The release commit then has a pyproject version the lock does not record. The `uv sync --locked` steps in check.yml (check, e2e), release.yml (build, build-macos, build-windows) and Dockerfile:18,21 fail on it, so `tag-check`, every build job, `publish` and the image are red on the first release after this phase. DISPOSITIONS F-037 Note and SUMMARY open items record the break as unresolved."
+    }
+  ],
+  "passes": [
+    {
+      "k": 2,
+      "name": "Supply-chain gate bites and is wired in",
+      "evidence": "Gate exit 0 at HEAD (`[ok] all 3 workflows and the Dockerfile pin their remote code`). The same checks run in memory over the base commit 1025d19c exports give 64 problems (36 unpinned actions, 7 unlocked installs, 3 pipe-to-shell, 2 undigested images, and more). Wired at Makefile:23 and .pre-commit-config.yaml:315-320; check_gates_wired `[ok]`; tests/gates/test_supply_chain.py 157 passed. Lock-only installs (uv sync --locked) in check.yml and the build, build-macos and build-windows jobs, with triviajudge the one exception; `uv lock --check --offline` exit 0."
+    },
+    {
+      "k": 3,
+      "name": "Signing jobs, permissions and SimplySign hardening hold",
+      "evidence": "Same gate run at exit 0, with each rule flagged at the base commit. build-macos has no secrets; sign-macos and package-windows are in environment: signing and need `tag-check`, which has no `if:`. packages: write appears only on build-push and sign-image (owner-approved option A). check.yml has `contents: read` at the top. In simplysign-login.ps1, Get-FileHash plus `-ne $InstallerSha256` come before msiexec, and `Remove-Item Env:SIMPLYSIGN_OTPAUTH_URI` comes before the first Start-Process."
+    },
+    {
+      "k": 4,
+      "name": "Frozen bundle carries no eqlab developer tree",
+      "evidence": "hqptuner.spec:25-30,67-69 filter a.datas by the four paths. With PyInstaller 6.22.2, expanding `(\"hqptuner/static\", \"static\")` and applying that filter takes 70 eqlab entries to 15, all under core/ or package.json. packaging/linux/smoke.sh:31-37 guards the installed tree in the CI smoke job."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 5,
+      "name": "Release checksums, package signatures and image signatures verify",
+      "reason": "behavior unexercised: no automated check covers the checksum file, the deb/rpm GPG signatures or the cosign signatures. Deleting any of them leaves every gate and test green. The end-to-end proof waits on a v* release by owner decision.",
+      "evidence": "release.yml `publish` (SHA256SUMS), packaging/linux/nfpm.yaml:35-36,43-44 (signature blocks), docker.yml `sign-image` (cosign sign) exist. scripts/gates/check_supply_chain.py checks only where COSIGN_/RELEASE_GPG_ secrets sit (cosign_failures, secret_failures), not that the signing steps exist. tests/ and scripts/gates/ have no assertion on SHA256SUMS, nfpm `signature:` or `cosign sign` beyond the placement fixture at test_supply_chain.py:544. No CI job verifies a signature after it is made.",
+      "severity": "major",
+      "missing": "The smallest closing check: a supply-chain gate rule, with a test that is red against 1025d19c, requiring (a) nfpm.yaml rpm and deb `signature: key_file:` blocks, (b) release.yml `publish` writing SHA256SUMS over the same asset list it attaches, and (c) docker.yml signing `needs.build-push.outputs.digest` with `cosign sign`. Optionally, verify signatures in CI where the job already runs: `rpm -K` / deb signature check against packaging/keys/hqptuner-release.asc in `smoke`, and `cosign verify --key packaging/keys/cosign.pub` after signing in `sign-image`."
+    },
+    {
+      "k": 6,
+      "name": "Dispositions recorded for F-034 to F-042",
+      "reason": "behavior wrong. Two fixed parts carry no proof that fails against the pre-fix code, and some remediation clauses carry neither a fix nor a quoted owner decision (ROADMAP criteria 1 and 3, AC5).",
+      "evidence": ".planning/security/DISPOSITIONS.md F-042 (:288 on) says `No gate rule or test holds the pin` for filepawl, and scripts/gates/check_supply_chain.py never reads pyproject.toml. F-040 (:274 on) proves its fix by a one-off hand run and placement tests only. Its `Fixed` disposition leaves the remediation's `publish a signed checksum file` unmet: release.yml `publish` writes SHA256SUMS unsigned, and no owner decision declines that. Its compose.yaml/`:latest`/Watchtower/root-maintainer-script clauses are `as they were` with no owner decision. F-035 (:237 on) records its scope widening to package-linux and sign-image with no owner words.",
+      "severity": "major",
+      "missing": "Add a check that fails when filepawl's pyproject.toml requirement is not a 40-hex commit (e.g. a supply-chain gate rule over pyproject.toml), and cite it in F-042. Cite the gap-5 check as F-040's proof. For F-040, either sign SHA256SUMS or record the owner's decision declining a signed checksum file and the setup clauses, quoted. Record the owner's words for the F-035 widening, or mark it as scope taken with the owner's approval and its date and source."
+    },
+    {
+      "name": "The release commit leaves uv.lock stale, so every `uv sync --locked` fails on the next release",
+      "reason": "behavior wrong. scripts/bump.sh bumps the pyproject.toml version but never re-locks, and uv.lock records the project's version, so CI, the release builds and the image go red on the first release commit after this phase.",
+      "evidence": "uv.lock:665-667 (`name = \"hqptuner\"`, `version = \"1.20.1\"`, editable source). scripts/bump.sh:104-106 edits the version files and CHANGELOG.md only, then commits at :120. `uv sync --locked` steps run in .github/workflows/check.yml (check, e2e), .github/workflows/release.yml (build, build-macos, build-windows) and Dockerfile:18,21. SUMMARY open items and DISPOSITIONS F-037 Note leave the fix as an open owner decision.",
+      "severity": "major",
+      "missing": "scripts/bump.sh runs `uv lock` after the version rewrite, checks the lock is current, and commits uv.lock in the release commit. Add a test or gate proving a bumped tree still passes `uv lock --check`. bump.sh is owner-gated (a host hook blocks agents from naming it), so the owner must approve the change."
+    }
+  ],
+  "human_checks": [],
+  "left_to_ci": [
+    {
+      "uat_item": 1,
+      "reason": "CI-tagged (ci: smoke) and not run: origin/dev is df2e3991, 31 commits behind HEAD 082d068d, so no workflow has run on the phase's commits. Also, `package-linux` exits 1 without RELEASE_GPG_PRIVATE_KEY in `signing` (release.yml `Package and sign`), and smoke/lifecycle need it. So the clean-start rows stay red until the owner creates those secrets (D-09)."
+    },
+    {
+      "uat_item": 7,
+      "reason": "make check is the main session's run per the dispatch, and the CI jobs check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows have not run on HEAD (origin/dev 31 commits behind). sign-macos and package-windows also need the owner's secret moves into `signing` (D-05). smoke-macos runs on the `xcode-27` label, which actionlint flags as unknown (SUMMARY deviation)."
+    }
+  ]
+}
