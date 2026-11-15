@@ -328,3 +328,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(\.github/workflows/(release|docker)\.yml|packaging/linux/nfpm\.yaml|pyproject\.toml)$
+
+      # Reads .claude/settings.json: an allow rule that runs pip install or npx
+      # fetches code on the agent's say-so, and enabledMcpjsonServers switches
+      # on an MCP server the owner's local settings are meant to choose.
+      - id: agent-tooling
+        name: agent tooling settings gate
+        entry: .venv/bin/python scripts/gates/check_agent_tooling.py
+        language: system
+        pass_filenames: false
+        files: ^\.claude/settings\.json$

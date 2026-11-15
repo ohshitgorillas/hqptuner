@@ -22,6 +22,7 @@ lint:
 	$(VENV)/python scripts/gates/check_container_env.py
 	$(VENV)/python scripts/gates/check_supply_chain.py
 	$(VENV)/python scripts/gates/check_release_signatures.py
+	$(VENV)/python scripts/gates/check_agent_tooling.py
 	$(VENV)/python scripts/gates/check_metadata.py
 	$(VENV)/filepawl check
 
