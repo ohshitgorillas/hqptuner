@@ -99,7 +99,7 @@ if [ "$DRY" = 1 ]; then echo "  (dry run — nothing below is executed)"; fi
 
 say "[2/4] rewrite"
 
-echo "  pyproject.toml, hqptuner/__init__.py, CHANGELOG.md"
+echo "  pyproject.toml, hqptuner/__init__.py, CHANGELOG.md, uv.lock"
 if [ "$DRY" = 0 ]; then
   sed -i "s/^version = \"$CUR\"\$/version = \"$NEW\"/" pyproject.toml
   sed -i "s/^__version__ = \"$CUR\"\$/__version__ = \"$NEW\"/" hqptuner/__init__.py
@@ -111,6 +111,11 @@ if [ "$DRY" = 0 ]; then
     grep -q "\"$NEW\"" "$f" || { git checkout -- pyproject.toml hqptuner/__init__.py CHANGELOG.md
       die "$f did not take the new version — nothing changed."; }
   done
+
+  # uv.lock records the project's own version, and every build installs with
+  # `uv sync --locked`, which refuses a lock the version has left behind.
+  { uv lock -q && uv lock --check -q; } || { git checkout -- pyproject.toml hqptuner/__init__.py CHANGELOG.md uv.lock
+    die "uv.lock could not follow the new version — nothing changed."; }
 fi
 
 # ---- 3. commit --------------------------------------------------------------

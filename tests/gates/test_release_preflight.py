@@ -27,6 +27,7 @@ import os
 import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -45,6 +46,7 @@ def tool(name: str) -> str:
 #: happened to put first.
 GIT = tool("git")
 BASH = tool("bash")
+UV = tool("uv")
 
 
 #: The release script under test, found relative to this file: it lives in
@@ -79,7 +81,7 @@ CHANGELOG = (
     "- **The earlier thing works.** It did not before that release either.\n"
 )
 
-PYPROJECT = f'[project]\nname = "hqptuner"\nversion = "{START}"\n'
+PYPROJECT = f'[project]\nname = "hqptuner"\nversion = "{START}"\nrequires-python = ">=3.10"\n'
 
 INIT_PY = f'__version__ = "{START}"\n'
 
@@ -112,13 +114,21 @@ def child_env(home: Path) -> dict[str, str]:
     env["GIT_CONFIG_GLOBAL"] = str(home / "no-such-gitconfig")
     env["GIT_CONFIG_SYSTEM"] = str(home / "no-such-gitconfig")
     env["GIT_TERMINAL_PROMPT"] = "0"
+    env["UV_OFFLINE"] = "1"
+    env["UV_NO_PROGRESS"] = "1"
+    env["UV_CACHE_DIR"] = str(home / "uv-cache")
     return env
 
 
 def git(repo: Path, *args: str) -> None:
     """Run a git command in the miniature repo, refusing to continue if it fails."""
+    command(repo, GIT, *args)
+
+
+def command(repo: Path, *argv: str) -> None:
+    """Run a command in the miniature repo, refusing to continue if it fails."""
     done = subprocess.run(
-        [GIT, *args],
+        list(argv),
         cwd=repo,
         env=child_env(repo.parent),
         capture_output=True,
@@ -127,7 +137,7 @@ def git(repo: Path, *args: str) -> None:
         timeout=60,
     )
     if done.returncode != 0:
-        raise FixtureError(reason=f"git {' '.join(args)} failed: {done.stderr}")
+        raise FixtureError(reason=f"{' '.join(argv)} failed: {done.stderr}")
 
 
 def miniature_repo(tmp_path: Path, judge: str) -> Path:
@@ -146,6 +156,7 @@ def miniature_repo(tmp_path: Path, judge: str) -> Path:
     stub = repo / JUDGE_REL
     stub.write_text(judge, encoding="utf-8")
     stub.chmod(0o755)
+    command(repo, UV, "lock")
     git(repo, "init", "-b", "dev")
     git(repo, "config", "user.name", "Bump Fixture")
     git(repo, "config", "user.email", "bump@example.invalid")
@@ -203,3 +214,25 @@ def test_a_patch_bump_fails_when_the_release_sweep_flags_the_changelog(tmp_path:
     stops the bump."""
     repo = miniature_repo(tmp_path, RELEASE_JUDGE)
     assert run_bump(repo, "--patch", "--dry-run").returncode == 1
+
+
+# --- the lock follows the version -------------------------------------------
+
+
+def committed_lock_version(repo: Path) -> str:
+    """The version of ``hqptuner`` that ``uv.lock`` records in the tree the last commit holds."""
+    git(repo, "checkout", "--", ".")
+    git(repo, "clean", "-fdq", "--exclude=.venv")
+    lock = tomllib.loads((repo / "uv.lock").read_text(encoding="utf-8"))
+    versions = [entry.get("version") for entry in lock.get("package", []) if entry.get("name") == "hqptuner"]
+    if len(versions) != 1:
+        raise FixtureError(reason=f"uv.lock records hqptuner {len(versions)} times, not once")
+    return str(versions[0])
+
+
+def test_the_release_commit_carries_a_lock_that_matches_its_version(tmp_path: Path) -> None:
+    """``uv.lock`` records the project's own version, so a release commit that bumps it without re-locking fails
+    every ``uv sync --locked`` that builds it."""
+    repo = miniature_repo(tmp_path, constant_judge(0))
+    run_bump(repo, "--patch")
+    assert committed_lock_version(repo) == NEXT
