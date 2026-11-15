@@ -53,6 +53,14 @@ class SectionFileMissingError(ToolError):
         super().__init__(f"section {number} names {filename}, which is missing from {manual_rel}.")
 
 
+class SectionFileOutsideManualError(ToolError):
+    """INDEX.md names a section file that resolves outside the manual directory."""
+
+    def __init__(self, *, number: str, filename: str, manual_rel: Path) -> None:
+        """Name the section `number`, the escaping `filename`, and the manual directory it must stay under."""
+        super().__init__(f"section {number} names {filename}, which resolves outside {manual_rel}.")
+
+
 class SectionNotFoundError(ToolError):
     """No INDEX.md row carries the requested section number."""
 

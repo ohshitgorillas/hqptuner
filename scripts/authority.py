@@ -141,7 +141,14 @@ def resolve_docs_root() -> Path:
 
 ROOT = resolve_docs_root()
 FACTS = ROOT / "docs" / "guide" / "notes" / "manual-facts.txt"
-MANUAL = ROOT / "docs" / "official" / "manual"
+
+
+def manual_dir(root: Path) -> Path:
+    """Return the split-manual directory under the docs root `root`."""
+    return root / "docs" / "official" / "manual"
+
+
+MANUAL = manual_dir(ROOT)
 README = ROOT / "docs" / "official" / "hqplayerd-readme.txt"
 
 DEFAULT_CAP = 8
@@ -166,6 +173,11 @@ class Hit:
 
     citation: str
     text: str
+
+
+def is_inside(directory: Path, path: Path) -> bool:
+    """Return whether `path`, with symlinks and `..` resolved, lies inside `directory` resolved the same way."""
+    return path.resolve().is_relative_to(directory.resolve())
 
 
 def read_lines(path: Path) -> list[str]:
