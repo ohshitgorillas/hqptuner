@@ -47,16 +47,17 @@ evidence: hqptuner.spec:25-30,67-69 filter a.datas by the four paths. With PyIns
 ### 5. Release checksums, package signatures and image signatures verify
 expected: A v* tag release publishes a SHA-256 checksum file covering every asset; its deb and rpm verify against the published GPG key; its images pass cosign verify (human-verify: needs a v* tag release; owner decision: verified at the next release, pending until then)
 criterion: AC4
-status: pending_ci
+status: skipped
 job: release
 commit: 1ba1edb07f48ead997816c548400fffe7720de44
 first_pass: fail
 source: model
 evidence: Needs a v* tag run of release.yml; no tag contains 06990f15 (latest v1.20.1 predates it). Local structure proof at HEAD: scripts/gates/check_release_signatures.py -> `[ok] the release signs its checksums, packages and images, and every git dependency names a commit`; tests/gates/test_release_signatures.py -> 43 passed. End-to-end gpg/cosign verify of a published release waits on the next release by owner decision.
-reported: behavior unexercised: no automated check covers the checksum file, the deb/rpm GPG signatures or the cosign signatures. Deleting any of them leaves every gate and test green. The end-to-end proof waits on a v* release by owner decision.
+reported: fucking complete it so we can proceed asshole
 severity: major
 cause: scripts/gates/check_supply_chain.py checks only where COSIGN_ and RELEASE_GPG_ secrets sit, never that release.yml publish writes SHA256SUMS, that packaging/linux/nfpm.yaml carries rpm and deb signature blocks, or that docker.yml sign-image runs cosign sign; no CI job verifies a signature after it is made. Removing any of the three leaves every gate green.
 fix: 06990f15, retest
+reason: Owner decision 2026-11-14: close phase 10 without the end-to-end check. AC4's checksum, deb/rpm GPG and cosign verification of a published v* release is not yet run; no tag contains 06990f15. check_release_signatures.py [ok] and its 43 tests cover the workflow structure only.
 
 ### 6. Dispositions recorded for F-034 to F-042
 expected: .planning/security/DISPOSITIONS.md has one entry each for F-034 to F-042; each fixed part names its commit and a proof that fails against the pre-fix code; the triviajudge decline quotes the owner's decision; each GitHub-settings half names the owner's action in a Note
@@ -162,7 +163,6 @@ total: 14
 passed: 13
 failed: 0
 pending: 0
-pending_ci: 1
-skipped: 0
+skipped: 1
 blocked: 0
 reworked: 8
