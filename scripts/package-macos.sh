@@ -113,7 +113,7 @@ sign() {
         --entitlements packaging/macos/entitlements.plist "$path" || die "codesign failed on $path."
     done 3< <(
       while IFS= read -r path; do
-        case "$(file -b "$path")" in *Mach-O*) echo "$path" ;; esac
+        case "$(file -b "$path")" in (*Mach-O*) echo "$path" ;; esac
       done < <(find "$APP" -type f) | awk -F/ '{ print NF "\t" $0 }' | sort -t$'\t' -k1,1nr | cut -f2-
     )
     retry_on "$TIMESTAMP_ERROR" codesign --sign "$identity" --force --timestamp --options runtime \
