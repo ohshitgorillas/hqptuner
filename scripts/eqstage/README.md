@@ -31,7 +31,7 @@ A variable that is not set, or a login the app refuses or does not answer, stops
   "dry_run": false, "force_gainunit": false, "fs": 44100 }
 ```
 
-- **`url`** — the app's base URL, default `http://127.0.0.1:8090`. Only `http` to `127.0.0.1`, `localhost` or `[::1]` (any port) is accepted; any other scheme or host stops the run before the login.
+- **`url`** — the app's base URL, default `http://127.0.0.1:8090`. Only `http` to `127.0.0.1`, `localhost` or `[::1]` (any port) is accepted; any other scheme or host stops the run before the login. A redirect from the app fails the request instead of being followed.
 - **`rows`** — `"all"` (default) or a list of baseline row indices. Unselected rows are staged byte-identical to their baseline: the field replaces the whole row set, so every row must be present.
 - **`eq`** — `{"bands":[…]}` (types `peak`/`lshelf`/`hshelf`, params `f g q bw s`), `{"process":"iir:…"}` for a literal process string, or any eqlab chain source (`{"from":"snapshot","name":…}`, `{"from":"parametric_eq","path":…}`, `{"from":"xml","path":…,"row":…}`) — so what eqlab measured is what gets staged.
 - **`mode`** — `replace_tail` (default) swaps the trailing run of parametric-EQ stages and keeps any lead-in (crossfeed `lp1`, `delay`, a convolution); `append` keeps everything and adds the bands after it.

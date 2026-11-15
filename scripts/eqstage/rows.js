@@ -91,7 +91,7 @@ export function lintRow(row, index) {
  * @returns {Promise<any>}
  */
 async function getJson(fetchImpl, url) {
-  const res = await fetchImpl(url, { method: "GET" });
+  const res = await fetchImpl(url, { method: "GET", redirect: "error" });
   if (!res.ok) throw new Error(`GET ${url} failed: ${res.status} ${res.statusText}`);
   return res.json();
 }

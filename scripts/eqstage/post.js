@@ -38,6 +38,7 @@ export async function postStage(base, payload, fetchImpl) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    redirect: "error",
   });
   if (!res.ok) throw new Error(`POST ${url} failed: ${res.status} ${res.statusText}`);
   return res.json();
@@ -57,7 +58,7 @@ export async function postStage(base, payload, fetchImpl) {
  */
 export async function verifyPending(base, payload, fetchImpl) {
   const url = `${base}/api/config/pending`;
-  const res = await fetchImpl(url, { method: "GET" });
+  const res = await fetchImpl(url, { method: "GET", redirect: "error" });
   if (!res.ok) throw new Error(`GET ${url} failed: ${res.status} ${res.statusText}`);
   const pending = await res.json();
   for (const lane of /** @type {const} */ (["live", "http"])) {
@@ -110,6 +111,7 @@ export async function loggedInFetch(base, credentials, fetchImpl) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...credentials, remember: false }),
+      redirect: "error",
     });
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : String(cause);
