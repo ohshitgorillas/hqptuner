@@ -21,14 +21,15 @@ Aborts before any write unless the engine is stopped.
 """
 
 import asyncio
+import importlib.util
 import io
 import os
 import re
 import sys
-import tempfile
 import zipfile
 from collections.abc import Awaitable, Callable
 from pathlib import Path
+from types import ModuleType
 
 import httpx
 
@@ -39,7 +40,6 @@ from hqptuner.engine.control import ControlClient
 PLUGIN = "loudness"
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-OUT = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe"
 SETTLE_TRIES = 40
 SETTLE_WAIT = 1.0
 # which questions to run, comma-separated in PROBE_STEPS
@@ -48,6 +48,18 @@ STEPS = set((os.environ.get("PROBE_STEPS") or "q1,q2,q3,q4").split(","))
 
 class CliError(Exception):
     """A condition that stops this probe cold; `main` prints it and owns the exit code."""
+
+
+def _backup_dir() -> ModuleType:
+    """Load `backup_dir.py` from the probes directory above this script's own."""
+    path = Path(__file__).resolve().parent.parent / "backup_dir.py"
+    spec = importlib.util.spec_from_file_location("backup_dir", path)
+    if spec is None or spec.loader is None:
+        message = f"no importable module at {path}"
+        raise CliError(message)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def strip_plugin(xml: bytes, plugin_type: str) -> bytes:
@@ -240,6 +252,10 @@ async def _later_steps(http: HttpConfigClient, original: bytes, active: str | No
 
 async def _run() -> int:
     """Establish whether an absent post-process plugin element can be brought back, reverting the config afterwards."""
+    backup = _backup_dir().prepare()
+    problem: str | None = backup.problem
+    if problem:
+        raise CliError(problem)
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
@@ -257,11 +273,10 @@ async def _run() -> int:
 
     http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
     raw = httpx.AsyncClient(base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=60.0)
-    OUT.mkdir(parents=True, exist_ok=True)
     findings: list[str] = []
     # captured BEFORE the try: the revert in the finally reads them
     pristine = await backup(http)
-    (OUT / "pristine-settings.zip").write_bytes(pristine)
+    backup.archive.write_bytes(pristine)
     original = engineconf.base_config_xml(pristine, active)
     if not original:
         message = "no working config in /backup — nothing to probe against"

@@ -12,9 +12,8 @@ readback, never by the POST's 200.
 import asyncio
 import os
 import sys
-import tempfile
-from pathlib import Path
 
+import backup_dir
 import httpx
 
 from hqptuner.conf import engineconf
@@ -23,7 +22,6 @@ from hqptuner.engine.control import ControlClient
 
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-ARCHIVE = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe" / "pristine-settings.zip"
 SETTLE_TRIES = 60
 SETTLE_WAIT = 1.0
 
@@ -45,14 +43,17 @@ async def _settle(http: HttpConfigClient) -> None:
 
 async def _run() -> int:
     """Restore the pristine archive over the daemon's settings and report whether the readback matches it exactly."""
+    backup = backup_dir.prepare()
+    if backup.problem:
+        raise CliError(backup.problem)
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
         raise CliError(message)
-    if not ARCHIVE.is_file():
-        message = f"no pristine archive at {ARCHIVE}"
+    if not backup.archive.is_file():
+        message = f"no pristine archive at {backup.archive}"
         raise CliError(message)
-    pristine = ARCHIVE.read_bytes()
+    pristine = backup.archive.read_bytes()
 
     control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
     await control.connect()

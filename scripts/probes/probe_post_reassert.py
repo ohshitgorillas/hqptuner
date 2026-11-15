@@ -27,11 +27,10 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 import zipfile
 from collections.abc import Awaitable, Callable
-from pathlib import Path
 
+import backup_dir
 import httpx
 
 from hqptuner.conf import engineconf
@@ -41,7 +40,6 @@ from hqptuner.engine.control import ControlClient
 
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-OUT = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe"
 SETTLE_TRIES = 40
 SETTLE_WAIT = 1.0
 
@@ -149,6 +147,9 @@ async def _poll_correction(http: HttpConfigClient, was: dict[str, object]) -> di
 
 async def _run() -> int:
     """Establish whether a POST /matrix re-asserts post-process wiped by a profile switch, and whether it persists."""
+    backup = backup_dir.prepare()
+    if backup.problem:
+        raise CliError(backup.problem)
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
@@ -166,8 +167,7 @@ async def _run() -> int:
     http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
     active = (await control.get_active_config()) or None
     pristine = await _rpc(http.backup)
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "pristine-settings.zip").write_bytes(pristine)
+    backup.archive.write_bytes(pristine)
     before_xml = engineconf.base_config_xml(pristine, active)
     config_rows = _matrix_rows(before_xml)
     target_rows = _profile_rows(before_xml, target)
