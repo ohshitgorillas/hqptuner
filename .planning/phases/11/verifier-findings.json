@@ -1,0 +1,102 @@
+{
+  "status": "gaps",
+  "score": "5/7",
+  "base_note": "The dispatch named 65274f07~1 as the phase base, but `git rev-parse 65274f07~1` is 330f436890d5 (the wave-1 merge). The commit before the phase's first commit is 215a92b6 (docs: plan phase 11). Plans 2-4 (989408ad, a6f50659, 858c5359, 28b39655, 96ba7d4f, 04c0211e) sit between 215a92b6 and 330f4368, so this pass used 215a92b6 as the base. `git diff 215a92b6 330f4368 -- .claude/settings.json` is empty, so the AC1 base run gives the same result at either commit.",
+  "not_settled_here": "Item 7 (make check green on HEAD) is the coordinator's single suite run, which this pass was told not to run. Items 8-14 are CI jobs, so they cannot be settled offline. None of them is counted in the score.",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "Agent-tooling gate red on base, green on last commit, wired",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "Ran `.venv/bin/python scripts/gates/check_agent_tooling.py <git archive 215a92b6 export>`: printed pip install, npx prettier and enabledMcpjsonServers fault lines, `3 problem(s)`, rc=1. On HEAD it printed `[ok] the tracked settings allow no package fetch and enable no MCP server`, rc=0. Wired at Makefile:25 inside `lint:` (Makefile:5), which `check:` depends on (Makefile:108). Pre-commit hook id `agent-tooling` is at .pre-commit-config.yaml:333-340, with `files: ^\\.claude/settings\\.json$`. `check_gates_wired.py` prints `[ok] all 24 gate scripts are wired into the Makefile and pre-commit`. On HEAD, .claude/settings.json allow has no pip/npx rule and there is no enabledMcpjsonServers key. tests/gates/test_agent_tooling.py passed in the named run (35 passed across the four phase test files)."
+    },
+    {
+      "n": 2,
+      "truth": "Tracked settings deny git commit --no-verify",
+      "status": "FAILED",
+      "uat_item": 2,
+      "evidence": ".claude/settings.json on HEAD has no `deny` key. `Bash(git commit *)` (settings.json:24) matches `git commit --no-verify` and `git commit -n`. check_agent_tooling.py has two checks only (FETCHES_CODE, enabledMcpjsonServers) and no deny check. The records attribute the decline to the owner: commit 65274f07 body ('Owner approval (D-13), quoted: \"no no verify deny, pip/prettier fine, whatever\"'), DISPOSITIONS.md:306 and :336, and the SUMMARY deviation. The AC1 text and UAT item 2 were never changed to match."
+    },
+    {
+      "n": 3,
+      "truth": "eqstage refuses non-loopback url and fails on redirect",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "scripts/eqstage/eqstage.js:82-89 `baseOf` throws unless the protocol is `http:` and the hostname is in {127.0.0.1, localhost, [::1]}. It is called first in runJob (:136) and before loggedInFetch in main (:211). main's catch sets process.exitCode=1 (:218-221). Spot-check: `echo '{\"url\":\"http://192.0.2.1:8090\",...}' | node scripts/eqstage/eqstage.js` printed `eqstage: url http://192.0.2.1:8090: only http to 127.0.0.1, localhost or [::1] is accepted`, rc=1, with no request made. `redirect: \"error\"` is set at post.js:41 (stage POST), :61 (pending GET), :114 (login POST) and rows.js:94 (baseline GET). The cookie wrapper at post.js:126 spreads the caller's init. A named run of tests/js/eqstage/eqstage-url.test.js and eqstage-redirect.test.js gave `# tests 10`, `# pass 10`. Both files are in the test-js glob (Makefile:106). Bite: before the fix, baseOf was a bare string transform and no fetch set `redirect`, so the recorder sees requests and the sink is hit, as recorded in DISPOSITIONS.md F-044 Proof."
+    },
+    {
+      "n": 4,
+      "truth": "hqp_section refuses filenames outside the manual",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "scripts/hqpdoc_tools.py:264-265 raises SectionFileOutsideManualError when `authority.is_inside(manual, manual / filename)` is false, before is_file/read_text. is_inside (authority.py:178-180) resolves symlinks and `..`, and an absolute filename makes `manual / filename` the absolute path. The MCP server calls `tools.tool_hqp_section(_str_arg(args, \"number\"))` (hqpdoc_mcp.py:129), so it uses the default root. The same cause is closed in manual_sections (authority.py:211), search_manual (:239), tool_hqp_page (hqpdoc_tools.py:284) and _manual_label_to_file (:118). tests/test_hqpdoc_section.py (parent, absolute and symlink cases) and tests/test_authority_sections.py passed in the named pytest run. Before the fix, `MANUAL / filename` was read with no check."
+    },
+    {
+      "n": 5,
+      "truth": "Probe backup directory ownership and mode checked",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "scripts/probes/backup_dir.py:58-75 `prepare()` mkdirs at 0700 and lstat-checks for a plain directory, uid == current user, and no group/other bits. restore_pristine.py:46-48, probe_post_reassert.py:150-152, probe_profile_post_process.py:165-167 and absent_plugin/probe_absent_plugin.py:255-258 each raise CliError on `backup.problem` before the credential check, any connection and any write. tests/test_probe_backup_dir.py passed in the named run: owner, mode and symlink cases, plus a parametrized test that each of the 4 scripts exits 1 naming the wide directory. Before the fix, no script checked the directory, so the refusal named the missing credentials instead."
+    },
+    {
+      "n": 6,
+      "truth": "Dispositions F-043 to F-048 and narrowed credential exemption",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "`grep -c '^### F-04[3-8]' .planning/security/DISPOSITIONS.md` = 6. Each entry has Disposition, Commits and Proof lines. Declined parts quote the owner: F-043 residual 'Yes, keep them all', hooks in tree 'Keep in tree, decline clause', F-044 'Fix url only, leave agent', F-045 'Diff, owner accepts', F-046 fail-open 'Document fail-open'. The host actions (pruning settings.local.json and ~/.claude/settings.json, enabling hqpdoc locally, the opal-hqptuner skill edit) are Notes. CLAUDE.md:46 and .claude/skills/live-daemon/SKILL.md:34 exempt only the stock pair by value, username `hqplayer` and password `password`, and make every other management password a secret. A grep for 'not secret' or 'print freely' finds no other exemption site in the tracked rule files. The F-046 docstring claims hold: manual-by-tool.py exits 2 on an unclosed quote and 0 on non-JSON input."
+    },
+    {
+      "n": 7,
+      "truth": "The three write probes still capture the pristine archive after switching to the shared backup directory",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "scripts/probes/absent_plugin/probe_absent_plugin.py:255 `backup = _backup_dir().prepare()` binds a local `backup` in `_run`. This shadows the module-level `async def backup(http)` at :115. `symtable` confirms `backup` is local and assigned in `_run`. As a result, :278 `pristine = await backup(http)` and :294 `await backup(http)` call the BackupDir dataclass instance and raise TypeError (not callable). The crash happens on every run with a safe directory, after the control connect and the state check and before the archive is written. Before 04c0211e, :263 and :279 called the function. mypy did not catch it because `_backup_dir()` returns ModuleType, so `prepare()` is Any. probe_post_reassert.py and probe_profile_post_process.py import the module as `backup_dir` and are not affected. No test exercises the safe path of `_run`; tests/test_probe_backup_dir.py covers only the refusal path."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Agent-tooling gate red on base, green on last commit, wired",
+      "evidence": "Gate on a 215a92b6 export: 3 fault lines, rc=1. On HEAD: `[ok] ...`, rc=0. Makefile:25 in `lint`. .pre-commit-config.yaml `agent-tooling` hook. check_gates_wired `[ok]`. No pip/npx allow and no enabledMcpjsonServers in .claude/settings.json."
+    },
+    {
+      "k": 3,
+      "name": "eqstage refuses non-loopback url and fails on redirect",
+      "evidence": "eqstage.js:82-89 baseOf allowlist, checked before the first request. The CLI spot-check exited rc=1 naming the url. `redirect: \"error\"` at post.js:41,61,114 and rows.js:94. Named node run: 10/10 pass for eqstage-url and eqstage-redirect tests."
+    },
+    {
+      "k": 4,
+      "name": "hqp_section refuses filenames outside the manual",
+      "evidence": "hqpdoc_tools.py:264-265 SectionFileOutsideManualError is raised before the read. tests/test_hqpdoc_section.py parent, absolute and symlink cases pass in the named run. MCP route hqpdoc_mcp.py:129."
+    },
+    {
+      "k": 5,
+      "name": "Probe backup directory ownership and mode checked",
+      "evidence": "backup_dir.py:58-75 lstat checks for owner, mode and plain directory. All four scripts refuse before credentials and connection. tests/test_probe_backup_dir.py passes, including the per-script exit-1 case."
+    },
+    {
+      "k": 6,
+      "name": "Dispositions F-043 to F-048 and narrowed credential exemption",
+      "evidence": "Six `### F-04[3-8]` entries, with owner quotes on each declined part and Notes for the host actions. CLAUDE.md:46 and live-daemon SKILL.md:34 exempt only `hqplayer`/`password` by value."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 2,
+      "name": "Tracked settings deny git commit --no-verify",
+      "reason": "missing: the deny rule and its gate check do not exist. The planning records say the owner declined them, but AC1 and UAT item 2 still require them.",
+      "evidence": ".claude/settings.json has no `deny` key, and `Bash(git commit *)` at :24 allows `git commit --no-verify`. scripts/gates/check_agent_tooling.py has no deny check. The decline is quoted in the 65274f07 commit body and in DISPOSITIONS.md:306 and :336: \"no no verify deny, pip/prettier fine, whatever\".",
+      "severity": "minor",
+      "missing": "Either the owner confirms the recorded decline and AC1/item 2 are closed against it, or the `git commit *--no-verify*` (and `-n`) deny rule is added with its gate check, with the owner's approval of the settings edit (D-13)."
+    },
+    {
+      "name": "The three write probes still capture the pristine archive after switching to the shared backup directory",
+      "reason": "behavior wrong: 04c0211e shadows the module function `backup` with a local BackupDir in probe_absent_plugin.py `_run`, so the probe raises TypeError on every run with a safe directory and never writes the pristine archive that restore_pristine reads back (D-18).",
+      "evidence": "scripts/probes/absent_plugin/probe_absent_plugin.py:255 `backup = _backup_dir().prepare()`. :278 `pristine = await backup(http)` and :294 `await push(http, await backup(http), original, active)` now call the BackupDir instance. :115 `async def backup(http)` is unreachable from `_run`. The failure comes after the control connect and before any write, so the daemon is not touched. tests/test_probe_backup_dir.py exercises only the refusal path.",
+      "severity": "major",
+      "missing": "Rename the local in `_run` (for example `backup_store`) so `backup(http)` resolves to the module function again. Add an offline test that drives `_run` past the directory check with a stubbed client and asserts the archive is written to `backup_dir.prepare().archive`. The test must be red against 04c0211e."
+    }
+  ],
+  "human_checks": []
+}
