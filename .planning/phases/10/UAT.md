@@ -47,10 +47,12 @@ evidence: hqptuner.spec:25-30,67-69 filter a.datas by the four paths. With PyIns
 ### 5. Release checksums, package signatures and image signatures verify
 expected: A v* tag release publishes a SHA-256 checksum file covering every asset; its deb and rpm verify against the published GPG key; its images pass cosign verify (human-verify: needs a v* tag release; owner decision: verified at the next release, pending until then)
 criterion: AC4
-status: pending
+status: pending_ci
+job: release
+commit: 1ba1edb07f48ead997816c548400fffe7720de44
 first_pass: fail
 source: model
-evidence: release.yml `publish` (SHA256SUMS), packaging/linux/nfpm.yaml:35-36,43-44 (signature blocks), docker.yml `sign-image` (cosign sign) exist. scripts/gates/check_supply_chain.py checks only where COSIGN_/RELEASE_GPG_ secrets sit (cosign_failures, secret_failures), not that the signing steps exist. tests/ and scripts/gates/ have no assertion on SHA256SUMS, nfpm `signature:` or `cosign sign` beyond the placement fixture at test_supply_chain.py:544. No CI job verifies a signature after it is made.
+evidence: Needs a v* tag run of release.yml; no tag contains 06990f15 (latest v1.20.1 predates it). Local structure proof at HEAD: scripts/gates/check_release_signatures.py -> `[ok] the release signs its checksums, packages and images, and every git dependency names a commit`; tests/gates/test_release_signatures.py -> 43 passed. End-to-end gpg/cosign verify of a published release waits on the next release by owner decision.
 reported: behavior unexercised: no automated check covers the checksum file, the deb/rpm GPG signatures or the cosign signatures. Deleting any of them leaves every gate and test green. The end-to-end proof waits on a v* release by owner decision.
 severity: major
 cause: scripts/gates/check_supply_chain.py checks only where COSIGN_ and RELEASE_GPG_ secrets sit, never that release.yml publish writes SHA256SUMS, that packaging/linux/nfpm.yaml carries rpm and deb signature blocks, or that docker.yml sign-image runs cosign sign; no CI job verifies a signature after it is made. Removing any of the three leaves every gate green.
@@ -159,7 +161,8 @@ evidence: smoke-windows concluded success at f494fab5b9da75cac0bcde19d652fec1506
 total: 14
 passed: 13
 failed: 0
-pending: 1
+pending: 0
+pending_ci: 1
 skipped: 0
 blocked: 0
 reworked: 8
