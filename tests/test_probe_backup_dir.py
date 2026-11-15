@@ -27,6 +27,9 @@ PROBES_DIR = Path(__file__).resolve().parents[1] / "scripts" / "probes"
 #: every script that reads or writes the archive, relative to the probes directory
 SCRIPTS = [
     "restore_pristine.py",
+    "probe_post_reassert.py",
+    "probe_profile_post_process.py",
+    "absent_plugin/probe_absent_plugin.py",
 ]
 
 
@@ -98,6 +101,7 @@ def _run_against_wide_directory(
     probe_out.chmod(0o755)
     (probe_out / "pristine-settings.zip").write_bytes(b"archive")
     monkeypatch.syspath_prepend(str(PROBES_DIR))
+    monkeypatch.syspath_prepend(str((PROBES_DIR / script).parent))
     module = _load_file(monkeypatch, PROBES_DIR / script, "probe_script_under_test")
     code: int = asyncio.run(module.main())
     return code, capsys.readouterr().err
