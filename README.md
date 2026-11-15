@@ -221,6 +221,13 @@ Each [release](https://github.com/ohshitgorillas/hqptuner/releases) also carries
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
+`SHA256SUMS.asc` is the signature of `SHA256SUMS`, made with HQPTuner's release key, [`packaging/keys/hqptuner-release.asc`](packaging/keys/hqptuner-release.asc). To check that `SHA256SUMS` itself is genuine:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ohshitgorillas/hqptuner/main/packaging/keys/hqptuner-release.asc | gpg --import
+gpg --verify SHA256SUMS.asc SHA256SUMS
+```
+
 On a Mac, `shasum -a 256 <file>` prints a file's checksum to compare against its line in `SHA256SUMS`.
 
 The deb and rpm packages are also signed with HQPTuner's release key, [`packaging/keys/hqptuner-release.asc`](packaging/keys/hqptuner-release.asc). To check a package before installing it:

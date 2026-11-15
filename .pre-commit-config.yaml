@@ -318,3 +318,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(\.github/workflows/.*\.ya?ml|Dockerfile|packaging/windows/simplysign-login\.ps1|hqptuner\.spec)$
+
+      # Reads the release and image workflows, the package config and
+      # pyproject.toml: a deleted signing step fails nothing else, and a git
+      # dependency named by branch or tag moves under the same name.
+      - id: release-signatures
+        name: release signatures gate
+        entry: .venv/bin/python scripts/gates/check_release_signatures.py
+        language: system
+        pass_filenames: false
+        files: ^(\.github/workflows/(release|docker)\.yml|packaging/linux/nfpm\.yaml|pyproject\.toml)$
