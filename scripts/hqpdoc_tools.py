@@ -24,6 +24,7 @@ docs/official/manual/INDEX.md — see `with_warning`.
 
 import re
 from collections.abc import Callable
+from pathlib import Path
 
 import authority
 from hqpdoc_errors import (
@@ -38,6 +39,7 @@ from hqpdoc_errors import (
     ReadmeHeadingNumberNotFoundError,
     ReadmeMissingError,
     SectionFileMissingError,
+    SectionFileOutsideManualError,
     SectionNotFoundError,
 )
 
@@ -83,10 +85,11 @@ def with_warning(text: str) -> str:
     return f"{warning}\n{text}" if warning else text
 
 
-def require_manual() -> None:
-    """Raise a `ToolError` naming `make manual` when docs/official/manual/INDEX.md is missing."""
-    if not INDEX.is_file():
-        raise ManualMissingError(manual_rel=MANUAL.relative_to(ROOT))
+def require_manual(root: Path = ROOT) -> None:
+    """Raise a `ToolError` naming `make manual` when docs/official/manual/INDEX.md under `root` is missing."""
+    manual = authority.manual_dir(root)
+    if not (manual / "INDEX.md").is_file():
+        raise ManualMissingError(manual_rel=manual.relative_to(root))
 
 
 def _line_number_from_citation(citation: str) -> int | None:
@@ -112,7 +115,8 @@ def _manual_label_to_file(hit_citation: str, sections: dict[str, str]) -> str | 
         if section_label == label:
             return filename
     # search_manual labels a section file INDEX.md does not list by its bare filename.
-    return label if (MANUAL / label).is_file() else None
+    path = MANUAL / label
+    return label if authority.is_inside(MANUAL, path) and path.is_file() else None
 
 
 def _locate_by_citation(lines: list[str], hit: "authority.Hit") -> tuple[list[str], int] | None:
@@ -242,29 +246,42 @@ def tool_hqp_toc() -> str:
     return section_table + "\n\n" + "\n".join(readme_lines)
 
 
-def tool_hqp_section(number: str) -> str:
-    """Print the one docs/official/manual/ section file whose INDEX.md row carries `number`."""
-    require_manual()
+def tool_hqp_section(number: str, *, root: Path = ROOT) -> str:
+    """Print the one docs/official/manual/ section file whose INDEX.md row carries `number`.
+
+    `root` is the docs root the manual is read from; the MCP server leaves it at the repo's own.
+    """
+    require_manual(root)
+    manual = authority.manual_dir(root)
+    manual_rel = manual.relative_to(root)
+    index = manual / "INDEX.md"
     number = number.strip().rstrip(".")
-    for line in read_lines(INDEX):
+    for line in read_lines(index):
         row = authority.INDEX_ROW.match(line)
         if row and row.group(1).rstrip(".") == number:
             filename = row.group(3)
-            path = MANUAL / filename
+            path = manual / filename
+            if not authority.is_inside(manual, path):
+                raise SectionFileOutsideManualError(number=number, filename=filename, manual_rel=manual_rel)
             if not path.is_file():
-                raise SectionFileMissingError(number=number, filename=filename, manual_rel=MANUAL.relative_to(ROOT))
+                raise SectionFileMissingError(number=number, filename=filename, manual_rel=manual_rel)
             return path.read_text(encoding="utf-8", errors="replace")
-    raise SectionNotFoundError(number=number, index_rel=INDEX.relative_to(ROOT))
+    raise SectionNotFoundError(number=number, index_rel=index.relative_to(root))
 
 
-def tool_hqp_page(page: int) -> str:
-    """Print the manual text between "[page N]" and the next marker, across section files in filename order."""
-    require_manual()
+def tool_hqp_page(page: int, *, root: Path = ROOT) -> str:
+    """Print the manual text between "[page N]" and the next marker, across section files in filename order.
+
+    `root` is the docs root the manual is read from; the MCP server leaves it at the repo's own.
+    A `*.txt` that resolves outside the manual directory (a symlink) is skipped.
+    """
+    require_manual(root)
+    manual = authority.manual_dir(root)
     target = str(page)
     out: list[str] = []
     current_page: str | None = None
-    for path in sorted(MANUAL.glob("*.txt")):
-        if path.name == "manual.txt":
+    for path in sorted(manual.glob("*.txt")):
+        if path.name == "manual.txt" or not authority.is_inside(manual, path):
             continue
         for line in read_lines(path):
             marker = authority.PAGE.match(line)
@@ -274,7 +291,7 @@ def tool_hqp_page(page: int) -> str:
             if current_page == target:
                 out.append(line)
     if not out:
-        raise PageNotFoundError(page=page, manual_rel=MANUAL.relative_to(ROOT))
+        raise PageNotFoundError(page=page, manual_rel=manual.relative_to(root))
     return "\n".join(out)
 
 
