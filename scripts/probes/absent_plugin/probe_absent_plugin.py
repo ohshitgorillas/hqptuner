@@ -35,6 +35,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions, serialize_matrix_form
+from hqptuner.core.network import Network
 from hqptuner.engine.control import ControlClient
 
 PLUGIN = "loudness"
@@ -250,10 +251,10 @@ async def _later_steps(http: HttpConfigClient, original: bytes, active: str | No
     return out
 
 
-async def _run() -> int:
+async def _run(network: Network) -> int:
     """Establish whether an absent post-process plugin element can be brought back, reverting the config afterwards."""
-    backup = _backup_dir().prepare()
-    problem: str | None = backup.problem
+    backup_dir = _backup_dir().prepare()
+    problem: str | None = backup_dir.problem
     if problem:
         raise CliError(problem)
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
@@ -261,7 +262,7 @@ async def _run() -> int:
         message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
         raise CliError(message)
 
-    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
+    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")), opener=network.open_stream)
     await control.connect()
     state = await control.get_state()
     if state.get("state") != "0":
@@ -271,12 +272,19 @@ async def _run() -> int:
     active = (await control.get_active_config()) or None
     await control.close()
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
-    raw = httpx.AsyncClient(base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=60.0)
+    http = HttpConfigClient(
+        HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0, transport=network.http_transport(HOST, HTTP_PORT))
+    )
+    raw = httpx.AsyncClient(
+        base_url=f"http://{HOST}:{HTTP_PORT}",
+        auth=httpx.DigestAuth(user, password),
+        timeout=60.0,
+        transport=network.http_transport(HOST, HTTP_PORT),
+    )
     findings: list[str] = []
     # captured BEFORE the try: the revert in the finally reads them
     pristine = await backup(http)
-    backup.archive.write_bytes(pristine)
+    backup_dir.archive.write_bytes(pristine)
     original = engineconf.base_config_xml(pristine, active)
     if not original:
         message = "no working config in /backup — nothing to probe against"
@@ -305,12 +313,12 @@ async def _run() -> int:
     return 0
 
 
-async def main() -> int:
-    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
+async def main(network: Network | None = None) -> int:
+    """Run the probe over ``network`` (the real one if omitted); a `CliError` becomes a printed reason, exit 1."""
     errors: list[CliError] = []
     result = 0
     try:
-        result = await _run()
+        result = await _run(network or Network())
     except CliError as exc:
         errors.append(exc)
     if errors:

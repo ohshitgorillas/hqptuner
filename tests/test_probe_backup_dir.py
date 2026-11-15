@@ -12,15 +12,22 @@ Nothing here dials a daemon.
 """
 
 import asyncio
+import contextlib
 import importlib.util
 import os
 import stat
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
+from conftest import DaemonFactory
+from fake_config_xml import cfg_xml
+from fake_network import NETWORK
 from narrow import FixtureError
+
+from hqptuner.conf import engineconf
 
 PROBES_DIR = Path(__file__).resolve().parents[1] / "scripts" / "probes"
 
@@ -113,3 +120,40 @@ def test_script_exits_one_naming_the_wide_directory(
 ) -> None:
     code, err = _run_against_wide_directory(probe_out, monkeypatch, capsys, script)
     assert (code, str(probe_out) in err) == (1, True)
+
+
+def _absent_plugin_probe(
+    probe_out: Path, monkeypatch: pytest.MonkeyPatch, control_port: int, http_port: int
+) -> ModuleType:
+    """Load the absent-plugin probe set to run no steps against the fakes, with a private backup directory."""
+    probe_out.mkdir(mode=0o700)
+    for name, value in {
+        "HQPTUNER_HQP_HOST": "127.0.0.1",
+        "HQPTUNER_HQP_CONTROL_PORT": str(control_port),
+        "HQPTUNER_HQP_HTTP_PORT": str(http_port),
+        "HQPTUNER_HQP_USERNAME": "hqplayer",
+        "HQPTUNER_HQP_PASSWORD": "password",
+        "PROBE_STEPS": "none",
+    }.items():
+        monkeypatch.setenv(name, value)
+    script = "absent_plugin/probe_absent_plugin.py"
+    monkeypatch.syspath_prepend(str(PROBES_DIR))
+    monkeypatch.syspath_prepend(str((PROBES_DIR / script).parent))
+    return _load_file(monkeypatch, PROBES_DIR / script, "probe_script_under_test")
+
+
+def _kept_config(probe_out: Path) -> bytes | None:
+    """The working config the pristine archive in ``probe_out`` holds, or None when no archive was written."""
+    archive = probe_out / "pristine-settings.zip"
+    return engineconf.base_config_xml(archive.read_bytes(), None) if archive.is_file() else None
+
+
+async def test_absent_plugin_probe_keeps_the_daemons_config_in_a_safe_directory(
+    probe_out: Path, monkeypatch: pytest.MonkeyPatch, daemon: DaemonFactory, http_daemon: dict[str, Any]
+) -> None:
+    control_port, _log, _state = await daemon()
+    served = cfg_xml(http_daemon)
+    module = _absent_plugin_probe(probe_out, monkeypatch, control_port, http_daemon["_port"])
+    with contextlib.suppress(Exception):
+        await module.main(NETWORK)
+    assert _kept_config(probe_out) == served
