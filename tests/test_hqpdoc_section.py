@@ -1,4 +1,4 @@
-"""``hqp_section`` reads the section file INDEX.md names, and only from the manual directory.
+"""``hqp_section`` and ``hqp_page`` read only files that live inside the manual directory.
 
 The manual directory is built by ``make manual``, so each test lays out its own
 docs root under ``tmp_path`` and hands it to the tool. A row that names a file
@@ -51,3 +51,12 @@ def test_section_row_naming_a_file_inside_the_manual_reads_that_file(tmp_path: P
     (manual / "04-06-filter.txt").write_text(INSIDE_TEXT, encoding="utf-8")
     (manual / "INDEX.md").write_text(index_row("04-06-filter.txt"), encoding="utf-8")
     assert hqpdoc_tools.tool_hqp_section("4.6", root=tmp_path) == INSIDE_TEXT
+
+
+def test_page_text_is_not_read_from_a_symlink_pointing_outside_the_manual(tmp_path: Path, manual: Path) -> None:
+    outside = manual.parent / "outside.txt"
+    outside.write_text(f"[page 7]\n{SENTINEL}\n", encoding="utf-8")
+    (manual / "link.txt").symlink_to(outside)
+    (manual / "INDEX.md").write_text("", encoding="utf-8")
+    with pytest.raises(ToolError):
+        hqpdoc_tools.tool_hqp_page(7, root=tmp_path)

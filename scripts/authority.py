@@ -199,12 +199,16 @@ def search_facts(term: str) -> list[Hit]:
     return hits
 
 
-def manual_sections() -> dict[str, str]:
-    """Map each section filename to "§<number> <title>", read out of the generated INDEX.md table."""
+def manual_sections(root: Path = ROOT) -> dict[str, str]:
+    """Map each section filename to "§<number> <title>", read out of the generated INDEX.md table.
+
+    A row whose filename resolves outside the manual directory is left out, so no caller opens it.
+    """
+    manual = manual_dir(root)
     sections: dict[str, str] = {}
-    for line in read_lines(MANUAL / "INDEX.md"):
+    for line in read_lines(manual / "INDEX.md"):
         row = INDEX_ROW.match(line)
-        if row:
+        if row and is_inside(manual, manual / row.group(3)):
             sections[row.group(3)] = f"§{row.group(1)} {row.group(2)}"
     return sections
 
@@ -223,12 +227,16 @@ def search_section(path: Path, label: str, term: str) -> list[Hit]:
     return hits
 
 
-def search_manual(term: str) -> list[Hit]:
-    """Search every split manual section in section order, skipping the unsplit dump and the front matter."""
-    sections = manual_sections()
+def search_manual(term: str, root: Path = ROOT) -> list[Hit]:
+    """Search every split manual section in section order, skipping the unsplit dump and the front matter.
+
+    A `*.txt` that resolves outside the manual directory (a symlink) is skipped.
+    """
+    manual = manual_dir(root)
+    sections = manual_sections(root)
     hits: list[Hit] = []
-    for path in sorted(MANUAL.glob("*.txt")):
-        if path.name in ("manual.txt", "00-00-front-matter.txt"):
+    for path in sorted(manual.glob("*.txt")):
+        if path.name in ("manual.txt", "00-00-front-matter.txt") or not is_inside(manual, path):
             continue
         hits.extend(search_section(path, sections.get(path.name, path.name), term))
     return hits

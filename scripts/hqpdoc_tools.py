@@ -115,7 +115,8 @@ def _manual_label_to_file(hit_citation: str, sections: dict[str, str]) -> str | 
         if section_label == label:
             return filename
     # search_manual labels a section file INDEX.md does not list by its bare filename.
-    return label if (MANUAL / label).is_file() else None
+    path = MANUAL / label
+    return label if authority.is_inside(MANUAL, path) and path.is_file() else None
 
 
 def _locate_by_citation(lines: list[str], hit: "authority.Hit") -> tuple[list[str], int] | None:
@@ -268,14 +269,19 @@ def tool_hqp_section(number: str, *, root: Path = ROOT) -> str:
     raise SectionNotFoundError(number=number, index_rel=index.relative_to(root))
 
 
-def tool_hqp_page(page: int) -> str:
-    """Print the manual text between "[page N]" and the next marker, across section files in filename order."""
-    require_manual()
+def tool_hqp_page(page: int, *, root: Path = ROOT) -> str:
+    """Print the manual text between "[page N]" and the next marker, across section files in filename order.
+
+    `root` is the docs root the manual is read from; the MCP server leaves it at the repo's own.
+    A `*.txt` that resolves outside the manual directory (a symlink) is skipped.
+    """
+    require_manual(root)
+    manual = authority.manual_dir(root)
     target = str(page)
     out: list[str] = []
     current_page: str | None = None
-    for path in sorted(MANUAL.glob("*.txt")):
-        if path.name == "manual.txt":
+    for path in sorted(manual.glob("*.txt")):
+        if path.name == "manual.txt" or not authority.is_inside(manual, path):
             continue
         for line in read_lines(path):
             marker = authority.PAGE.match(line)
@@ -285,7 +291,7 @@ def tool_hqp_page(page: int) -> str:
             if current_page == target:
                 out.append(line)
     if not out:
-        raise PageNotFoundError(page=page, manual_rel=MANUAL.relative_to(ROOT))
+        raise PageNotFoundError(page=page, manual_rel=manual.relative_to(root))
     return "\n".join(out)
 
 
