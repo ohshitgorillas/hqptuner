@@ -115,7 +115,7 @@ function bursts(ns, rate, rand, { burst: [lo, hi], jitter, stall }) {
  * @param {() => number} gap
  * @returns {number[]}
  */
-function paintsEvery(spanMs, gap) {
+export function paintsEvery(spanMs, gap) {
   /** @type {number[]} */
   const out = [];
   for (let t = 3; t <= spanMs; t += gap()) out.push(t);
