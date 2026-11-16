@@ -1,0 +1,49 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-af639b46",
+  "round": 1,
+  "base": "af639b46",
+  "head": "0f787961",
+  "base_id": "af639b465fd26ea4bca89227183f436b93ffc8a3",
+  "head_id": "0f78796111ec71cf194a95668fa6d6baaf040902",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 73,
+      "severity": "high",
+      "claim": "The stop rule's intercept error, 'residual standard deviation over the root of the stretch's sample count', assumes the Status residuals are independent. In both fixtures they are not: the measured lag-1 autocorrelation is 0.57 to 0.61 on every serial. So the error is understated by about 1.5 to 1.8 times, and the across-rate pair (16, 17) that carries AC4 meets the same stop condition the owner already refused to waive on the first capture.",
+      "failure_scenario": "I refit capture 2 run 0 by the plan's method (midpoint timing, shared slope 1.0000096, residual SD 42.0 ms). The iid errors reproduce the planner's figures: 2.84 ms on serial 16 and 2.53 ms on serial 17. The residual ACF is 0.58, 0.27, 0.06, ... on every serial. A Newey-West factor (1.48 to 1.65) or 10-sample block means (ratio 1.62 to 1.74) give a corrected combined error for (16, 17) of about 5.7 to 6.4 ms. At two standard errors that is 11.3 to 12.7 ms, at or over the 10.67 ms frame. That is the same roughly 6 to 9 percent false-red rate the owner rejected for capture 1's (33, 35) and (34, 35), per the plan-2 report and the Revision note. Executed as written, the test writer computes the iid figure (7.6 ms), the stop rule does not fire, and an across-rate assertion ships that a correct playhead fails on fit noise alone. Plan 5 then has to 'fix the code' against noise, because its tests may not be edited (AC9). The plan's own note that output_delay differs by 5.4 ms between rates in this capture, fed as is, adds a systematic term the error budget leaves out.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0f787961",
+      "base_id": "af639b465fd26ea4bca89227183f436b93ffc8a3",
+      "head_id": "0f78796111ec71cf194a95668fa6d6baaf040902"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 87,
+      "severity": "high",
+      "claim": "AC5 says replays where the reader connects at different points in the opening stretch give lags within one frame of each other. The plan never compares lag across join points. Join replays are read only within their own track ('its readings compare lags within that track'), and the only cross-replay readings are the start pairs.",
+      "failure_scenario": "Take a playhead that anchors at the newest end less the delay at its first paint and then moves on wall dt, which is today's rule. One join lands at +100 ms into the rush and another at +800 ms. Each holds a steady lag through its own track, so each within-track reading (lag after the opening stretch against lag later) is green. But the two levels differ by the part of the about 560 ms rush already arrived at the join, which is far beyond one frame. AC5, and D-02's 'does not depend on when the server's reader ... connected', go untested, and the Plan 5 fix can pass AC9 while the dependence remains. The check list at line 97 ('one lag-steadiness reading per stream, plus one across-starts reading per compared pair') confirms that no cross-join reading is planned. Re-basing each join to the held capture's origin would put all joins on one heard line with no fit error, but no task compares them.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0f787961",
+      "base_id": "af639b465fd26ea4bca89227183f436b93ffc8a3",
+      "head_id": "0f78796111ec71cf194a95668fa6d6baaf040902"
+    }
+  ]
+}
