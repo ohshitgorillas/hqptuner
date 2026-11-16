@@ -62,8 +62,27 @@
 // where State is not playing across each rate change, once more as the app's reader receives it (it drops, then rejoins
 // 0 to 2.0 s after Status shows playing) at three points of that window. The second capture's shape has State staying
 // playing, so the app's reader holds there and is the first reader.
+//
+// THE MADE-UP STREAMS. What is heard in a made-up stream is the playback clock the stream is generated from: the settled
+// line less `output_delay`, by the heard-clock rule above, the same for every start. A stretch with a `made` entry draws
+// its frames and its bursts from a seeded stream: frame lengths come from the pools of the generated schedules (17.4 to
+// 23.1 ms, all inside the 17.3 to 23.2 ms measured feed event range) and change in the middle of the stretch;
+// a burst of 1 to 12 frames (up to the 262 ms the arrival measurement shows between
+// bursts) lands where its last stamp is on the line, early or late by up to 40 ms against it. The opening rush of a
+// made-up rate change and start is a backlog landing ahead of wall time and then holding its lead, drawn from the
+// measured sizes: leads of 18, 170, 340, 545 and 500 ms at +0, 100, 200, 300 and 500 ms (the measured 11 to 23 ms at +0, and
+// 538 to 566 ms at +300) and a settled lead of 490 ms (the measured 419 to 539 ms).
+//   made_up_bursty: a start from stopped at 44100 whose first frames land after a rush, a gapless same-rate track change,
+//     and a rate change to 96000 after a rush, each frame length changing mid-feed.
+//   made_up_stamps_faster and made_up_stamps_slower: one 44100 stretch of two tracks, a start from stopped and a gapless
+//     same-rate change, whose stamps gain on wall time at 2.5 ms per second in one and lose 2.5 ms per second in the other,
+//     from the first track's start to the end of the second. 2.5 ms per second lies between the 2.97 and 2.12 ms per second
+//     of the two captures ("mean lead in first bin ... change" lines of
+//     `.venv/bin/python -I scripts/probes/meter/arrival_patterns.py tests/support/fixtures/meter_start_capture.json` and
+//     the same with `meter_start_capture_2.json`; Steady play at 44100 above). The heard clock follows the line, so the
+//     drift is the stamps against wall time, as in the captured streams.
 
-import { paintsEvery } from "./schedules.js";
+import { lengths, paintsEvery, random } from "./schedules.js";
 
 /** @typedef {import("./schedules.js").Schedule} Schedule */
 /**
@@ -113,6 +132,14 @@ const US = 1000;
  * @property {number} mean  the settled lead
  */
 /**
+ * A stretch whose frames and bursts are drawn from a seeded stream instead of the fixed grouping of the captures.
+ *
+ * @typedef {object} Made
+ * @property {number} seed
+ * @property {number[]} burst  the fewest and the most frames in a burst
+ * @property {number} jitter  wall ms a burst may land early or late against where its last stamp is on the line
+ */
+/**
  * @typedef {object} Stretch
  * @property {number} rate
  * @property {number} from  wall ms of its first frame
@@ -120,6 +147,7 @@ const US = 1000;
  * @property {Rush | null} rush
  * @property {{ at: number, ms: number, lost: number } | null} drop  a gap in the frames that loses `lost` ms of music
  * @property {{ from: number, per: number } | null} drift  stamps gain `per` ms on each wall ms after `from`
+ * @property {Made} [made]
  */
 /**
  * @typedef {object} Track
@@ -187,12 +215,52 @@ const settled = (s, w) => w - s.from + (s.rush ? s.rush.mean : 0) + bent(s, w);
 
 /**
  * The events of stretch `s`, in groups of GROUP that land together when the last of the group is on the wire, stamped in
- * samples from `at0` on.
+ * samples from `at0` on; a made-up stretch lands them in bursts of its own.
  *
  * @param {Stretch} s
  * @param {number} at0
  */
 function events(s, at0) {
+  return s.made ? madeEvents(s, s.made, at0) : fixedEvents(s, at0);
+}
+
+/**
+ * The events of a made-up stretch: frames whose lengths change mid-feed, in bursts drawn from `made`. A burst is due when
+ * its last stamp is on the line (`arrived`) and lands up to `made.jitter` ms before or after that, never before a burst
+ * ahead of it.
+ *
+ * @param {Stretch} s
+ * @param {Made} made
+ * @param {number} at0
+ */
+function madeEvents(s, { seed, burst: [lo, hi], jitter }, at0) {
+  const rand = random(seed);
+  const ns = lengths(rand, s.rate, arrived(s, s.to));
+  /** @type {Array<{ t: number, n: number, at: number }>} */
+  const feed = [];
+  let [w, at, music, last] = [Math.ceil(s.from), at0, 0, Math.ceil(s.from)];
+  for (let i = 0; i < ns.length;) {
+    const group = ns.slice(i, i + lo + Math.floor(rand() * (hi - lo + 1)));
+    i += group.length;
+    music += (group.reduce((a, b) => a + b, 0) * MS) / s.rate;
+    while (w < s.to && arrived(s, w) + 1e-6 < music) w++;
+    if (arrived(s, w) + 1e-6 < music) break;
+    last = Math.max(last, Math.round(Math.min(s.to, Math.max(s.from, w + (rand() * 2 - 1) * jitter))));
+    for (const n of group) {
+      feed.push({ t: last, n, at });
+      at += n;
+    }
+  }
+  return { feed, end: at };
+}
+
+/**
+ * The events of a captured stretch: groups of GROUP, each landing when the last of it is on the wire.
+ *
+ * @param {Stretch} s
+ * @param {number} at0
+ */
+function fixedEvents(s, at0) {
   const n = EVENT_SAMPLES[s.rate];
   const ms = (n * MS) / s.rate;
   /** @type {Array<{ t: number, n: number, at: number }>} */
@@ -506,5 +574,82 @@ const SECOND = {
   ],
 };
 
-/** Every replay stream the smoothness suites run, in the order of their captures. @type {Stream[]} */
-export const STREAMS = [...streams(FIRST), ...streams(SECOND)];
+const BURSTS = [1, 12];
+const JITTER_MS = 40;
+const MADE_RUSH = rush([18, 170, 340, 545, 500], 490);
+const MADE_OUTPUT_DELAY = { 44100: 503000, 96000: 501000 };
+const DRIFT_PER_MS = 0.0025;
+const DRIFT_FROM_MS = 4000;
+const DRIFT_END_MS = 64000;
+
+/** @type {Spec} */
+const BURSTY = {
+  name: "made_up_bursty",
+  outputDelay: MADE_OUTPUT_DELAY,
+  end: 44000,
+  appReads: false,
+  stretches: [
+    {
+      rate: 44100,
+      from: 4217,
+      to: 27048,
+      rush: MADE_RUSH,
+      drop: null,
+      drift: null,
+      made: { seed: 11, burst: BURSTS, jitter: JITTER_MS },
+    },
+    {
+      rate: 96000,
+      from: 28217,
+      to: 44000,
+      rush: MADE_RUSH,
+      drop: null,
+      drift: null,
+      made: { seed: 12, burst: BURSTS, jitter: JITTER_MS },
+    },
+  ],
+  tracks: [
+    { serial: 1, T: 4000, kind: "start_from_stopped_at_44100", rate: 44100, stopped: 0, slow: 0, hear: 4217 + 503 },
+    { serial: 2, T: 16000, kind: "same_rate_change_at_44100", rate: 44100, stopped: 0, slow: 0, hear: 16100 },
+    { serial: 3, T: 28000, kind: "rate_change_44100_to_96000", rate: 96000, stopped: 0, slow: 0, hear: 28217 + 501 },
+  ],
+};
+
+/**
+ * A 44100 stretch of two tracks whose stamps drift against wall time by `per` ms on each wall ms.
+ *
+ * @param {string} name
+ * @param {number} per
+ * @param {number} seed
+ * @returns {Spec}
+ */
+const drifting = (name, per, seed) => ({
+  name,
+  outputDelay: MADE_OUTPUT_DELAY,
+  end: DRIFT_END_MS,
+  appReads: false,
+  stretches: [
+    {
+      rate: 44100,
+      from: 0,
+      to: DRIFT_END_MS,
+      rush: null,
+      drop: null,
+      drift: { from: DRIFT_FROM_MS, per },
+      made: { seed, burst: BURSTS, jitter: JITTER_MS },
+    },
+  ],
+  tracks: [
+    { serial: 1, T: DRIFT_FROM_MS, kind: "start_from_stopped_at_44100", rate: 44100, stopped: 0, slow: 0, hear: 4100 },
+    { serial: 2, T: 34000, kind: "same_rate_change_at_44100", rate: 44100, stopped: 0, slow: 0, hear: 34100 },
+  ],
+});
+
+/** Every replay stream the smoothness suites run, the captures' first and the made-up ones after. @type {Stream[]} */
+export const STREAMS = [
+  ...streams(FIRST),
+  ...streams(SECOND),
+  ...streams(BURSTY),
+  ...streams(drifting("made_up_stamps_faster", DRIFT_PER_MS, 21)),
+  ...streams(drifting("made_up_stamps_slower", -DRIFT_PER_MS, 22)),
+];

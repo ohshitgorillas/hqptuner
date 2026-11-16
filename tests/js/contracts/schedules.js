@@ -49,7 +49,7 @@ const SAFARI_FILE = new URL("../../support/fixtures/safari_paint_schedule.json",
  * @param {number} seed
  * @returns {() => number}
  */
-function random(seed) {
+export function random(seed) {
   let s = seed;
   return () => {
     s = (s + 0x6d2b79f5) | 0;
@@ -67,7 +67,7 @@ function random(seed) {
  * @param {number} spanMs
  * @returns {number[]}
  */
-function lengths(rand, rate, spanMs) {
+export function lengths(rand, rate, spanMs) {
   /** @type {number[]} */
   const out = [];
   let music = 0;
