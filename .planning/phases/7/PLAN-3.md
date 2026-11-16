@@ -11,6 +11,7 @@ files:
   - tests/js/contracts/steady-motion.test.js
   - tests/js/contracts/steady-spectrogram.test.js
   - tests/support/fixtures/meter_start_capture_3.json
+  - scripts/probes/meter/arrival_patterns.py
 ---
 
 # Phase 7: Visuals stay in sync after a track starts - Plan 3: Made-up streams, steady motion and steady spectrogram, red against today's code
@@ -96,10 +97,11 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 ### Task 4: A frame lands at the same moment whatever the source rate
 
 - **Waits on the owner:** the third capture, `tests/support/fixtures/meter_start_capture_3.json`, a 192000 track started from stopped and rate changes into and out of 192000 from 44100. Do not start this task until that file is on disk.
-- **Files:** tests/support/fixtures/meter_start_capture_3.json, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/smooth-probes.js
+- **Files:** tests/support/fixtures/meter_start_capture_3.json, scripts/probes/meter/arrival_patterns.py, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/smooth-probes.js
 - **Reads:** tests/support/fixtures/meter_start_capture_3.json, scripts/probes/meter/arrival_patterns.py, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js
 - **Decisions:** D-08, D-09, D-10, D-11
 - **Action:** Commit the third capture as the owner captured it, in its own commit. Then measure it with `scripts/probes/meter/arrival_patterns.py` and add streams reproducing its 192000 arrival patterns, as Plan 2's Task 4 did for the first two captures, with the measured values and the command line cited in the `streams.js` header.
+  - **The measurement script crashes on this capture.** `arrival_patterns.py` prints every start and then stops in `print_drift` with `ZeroDivisionError: division by zero` (`return (cap.pb[b] - cap.pb[a]) / (cap.t[b] - cap.t[a])`). Fix it in its own commit before measuring, so it still reproduces CAPTURE.md's figures on the first capture.
   - **The behavior (D-11).** When a frame lands on screen does not depend on the source rate. A frame of a 44100 track and a frame of a 192000 track land at exactly the same moment relative to when they are heard: the lag after a start at one rate equals the lag at every other rate, within floating-point error, on every stream, both directions of every rate change.
   - **Already covered.** Plan 2's Task 5 compares lag across a rate change within one metering frame of the finer rate. D-11 replaces that tolerance for the comparison across rates; the comparisons across starts at one rate and across join points are not changed by this task.
   - `tests/js/contracts/` has one slot left under its cap, so extend the existing files rather than adding one.
