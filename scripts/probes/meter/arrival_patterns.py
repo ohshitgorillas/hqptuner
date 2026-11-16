@@ -295,7 +295,7 @@ def bin_lead(cap: Capture, lo: float) -> float:
 
 def bin_ratio(cap: Capture, lo: float) -> float:
     """Return stamp ms per wall ms over the 10 s bin starting at ``lo``, last frame at or before each end."""
-    a = bisect.bisect_right(cap.t, lo) - 1
+    a = max(bisect.bisect_right(cap.t, lo) - 1, 0)
     b = bisect.bisect_right(cap.t, lo + BIN_MS) - 1
     return (cap.pb[b] - cap.pb[a]) / (cap.t[b] - cap.t[a])
 
@@ -333,7 +333,8 @@ def print_drift(cap: Capture) -> None:
     print("steady stretches (no stretch with no frames inside; 10 s bins, none begun within 3 s of a resume):")
     for n, (a, b) in enumerate(stretches(cap)):
         lo, hi = cap.t[a], cap.t[b]
-        floor = lo + SKIP_AFTER_RESUME_MS if n else 0.0
+        # the first stretch counts the bin its first frame falls in, and no bin that ends before that frame
+        floor = lo + SKIP_AFTER_RESUME_MS if n else max(0.0, lo - BIN_MS)
         starts = [
             k * BIN_MS
             for k in range(int(floor // BIN_MS), int(hi // BIN_MS) + 1)
