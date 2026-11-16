@@ -71,6 +71,28 @@
 //     192000.
 //   Status cadence: the app's own `status_interval` of 1.0 s between reads, the reply time on top.
 //
+// THE PAINTS. Every replay paints at 60 Hz, 1000 / 60 = 16.667 ms apart, as a browser does, and the paint times are the same
+// in every stream of a pair.
+//
+// THE RESOLUTION (D-12). A page reads the lead of a start off the arrivals at its paints, so two starts of one stream can
+// be matched no finer than the stream lets the page read them. A paint first sees an arrival up to one paint (16.667 ms)
+// after it lands and the lead it sees is that much below the line's; arrivals land at whole wall ms (GRAIN_MS, 1 ms); a
+// made-up burst lands up to its jitter (40 ms) early or late. A seen lead is in [-(paint + grain + jitter), +jitter] of
+// the line's, and two starts of one stream differ by at most the width of that interval, paint + grain + 2 jitter:
+// 16.667 + 1 + 2 * 0 = 17.667 ms for the three captured streams (no jitter), 16.667 + 1 + 2 * 40 = 97.667 ms for the
+// made-up ones. `Stream.resolution` carries it, from `resolutionOf`.
+//
+// THE PAIRS (D-12). PAIRS holds streams identical in everything but the source rate, so the page holds the same information
+// at both rates: the stretches, rush, seeds, bursts, jitter, drift, Status and `output_delay` are the same, so are the
+// arrival wall times, the lead and the delay, and so are the playback ms in each burst, since every frame is 20 ms
+// (PAIR_FRAME_MS), a whole number of samples at 44100 (882) and at 192000 (3840), and its ends fall on a 10 ms grid at both.
+// Natural frames do not share ends: 23.22 ms at 44100 and 5.33 ms at 192000 coincide every 147 frames (3.41 s), and the
+// 4096-sample frames of the third capture are 21.33 ms; 20 ms is inside the measured 17.3 to 23.2 ms. The pair is the 44100
+// against 192000 the owner asked for: `first` runs 44100, 192000, 44100 and `second` 192000, 44100, 192000, so serial 1 is
+// a start from stopped with a rush, serial 2 a same-rate change, serial 3 and 4 a rate change each way, serial 5 a steady
+// play drifting 2.5 ms per second. Across a rate change the stamps count on from the earlier rate's samples, so they
+// differ between the two streams by the ratio of the rates; the break restarts the playhead and nothing is read across it.
+//
 // The streams: the first capture's start sequence, the second's and the third's, each replayed as the reader that holds
 // the connection receives it, with a page joining late at two points in each start's opening stretch; and the first capture's shape,
 // where State is not playing across each rate change, once more as the app's reader receives it (it drops, then rejoins
@@ -98,7 +120,7 @@
 //     the same with `meter_start_capture_2.json`; Steady play at 44100 above). The heard clock follows the line, so the
 //     drift is the stamps against wall time, as in the captured streams.
 
-import { lengths, paintsEvery, random } from "./schedules.js";
+import { gridLengths, lengths, paintsEvery, random } from "./schedules.js";
 
 /** @typedef {import("./schedules.js").Schedule} Schedule */
 /**
@@ -120,6 +142,7 @@ import { lengths, paintsEvery, random } from "./schedules.js";
  * @property {string} point  where its reader joined: the reader that holds is one point, each join another
  * @property {Schedule} schedule
  * @property {Read[]} reads
+ * @property {number} resolution  playback ms: the most two starts of this stream may differ by (see THE RESOLUTION)
  */
 
 const MS = 1000;
@@ -129,7 +152,10 @@ const OPEN_MS = 1500;
 //: A track's lag is read until this long before the next serial change: State goes to 0 up to 1075 ms before it, and
 //: the frames of a second capture's rate change stop up to 1258 ms before it.
 const CLOSE_MS = 1300;
-const PAINT_MS = 50;
+//: A browser paints at 60 Hz.
+const PAINT_MS = MS / 60;
+//: Arrivals land at whole wall ms.
+const GRAIN_MS = 1;
 const READ_DELAY_MS = 1;
 const STATUS_GAP_MS = 1000;
 const STATUS_PHASE_MS = 500;
@@ -154,6 +180,7 @@ const US = 1000;
  * @property {number} seed
  * @property {number[]} burst  the fewest and the most frames in a burst
  * @property {number} jitter  wall ms a burst may land early or late against where its last stamp is on the line
+ * @property {number} [frameMs]  when set, every frame is this long, playback ms, instead of drawn (see THE PAIRS)
  */
 /**
  * @typedef {object} Stretch
@@ -249,9 +276,10 @@ function events(s, at0) {
  * @param {Made} made
  * @param {number} at0
  */
-function madeEvents(s, { seed, burst: [lo, hi], jitter }, at0) {
+function madeEvents(s, { seed, burst: [lo, hi], jitter, frameMs }, at0) {
   const rand = random(seed);
-  const ns = lengths(rand, s.rate, arrived(s, s.to));
+  const span = arrived(s, s.to);
+  const ns = frameMs ? gridLengths(s.rate, frameMs, span) : lengths(rand, s.rate, span);
   /** @type {Array<{ t: number, n: number, at: number }>} */
   const feed = [];
   let [w, at, music, last] = [Math.ceil(s.from), at0, 0, Math.ceil(s.from)];
@@ -412,6 +440,10 @@ function reads({ spec, parts }, { rebase = 0, after = 0, only = -1 } = {}) {
     });
 }
 
+/** The resolution of `spec`'s streams, playback ms (THE RESOLUTION): paint + grain + 2 jitter. @param {Spec} spec */
+const resolutionOf = ({ stretches }) =>
+  PAINT_MS + GRAIN_MS + 2 * Math.max(0, ...stretches.map((s) => s.made?.jitter ?? 0));
+
 /**
  * The schedule of the stream between wall times `a` and `b`: the frames, geometry and Status that reach the page then.
  *
@@ -463,6 +495,7 @@ function joined(all, { j, from, track }, name, point) {
     point,
     schedule: sched,
     reads: reads(all, { rebase, after, only: track.serial }),
+    resolution: resolutionOf(all.spec),
   };
 }
 
@@ -483,6 +516,7 @@ function streams(spec) {
     point: "the reader that holds",
     schedule: schedule(all, name, { a: 0, b: spec.end, geometry, feed: all.feed }),
     reads: reads(all),
+    resolution: resolutionOf(spec),
   };
   const late = spec.tracks.flatMap((track) =>
     JOINS_MS.map((d) => {
@@ -695,6 +729,64 @@ const drifting = (name, per, seed) => ({
     { serial: 2, T: 34000, kind: "same_rate_change_at_44100", rate: 44100, stopped: 0, slow: 0, hear: 34100 },
   ],
 });
+
+const PAIR_FRAME_MS = 20;
+
+/**
+ * One spec of a pair (THE PAIRS): five tracks over three stretches at `r1`, `r2`, `r1`. Everything in it but the rates
+ * is the same whichever rates are given.
+ *
+ * @param {string} name
+ * @param {[number, number]} rates
+ * @returns {Spec}
+ */
+function pairSpec(name, [r1, r2]) {
+  const drifts = /** @type {Stretch["drift"]} */ (null);
+  const made = (seed = 0) => ({ seed, burst: BURSTS, jitter: JITTER_MS, frameMs: PAIR_FRAME_MS });
+  const stretch = (rate = r1, [from, to, seed] = [0, 0, 0], drift = drifts) => {
+    return { rate, from, to, rush: MADE_RUSH, drop: null, drift, made: made(seed) };
+  };
+  const track = (serial = 0, T = 0, kind = "", [rate, hear] = [r1, T + 100]) => ({
+    serial,
+    T,
+    kind,
+    rate,
+    hear,
+    stopped: 0,
+    slow: 0,
+  });
+  return {
+    name,
+    outputDelay: { [r1]: MADE_OUTPUT_DELAY[44100], [r2]: MADE_OUTPUT_DELAY[44100] },
+    end: DRIFT_END_MS,
+    appReads: false,
+    stretches: [
+      stretch(r1, [4217, 27048, 31]),
+      stretch(r2, [28217, 39048, 32]),
+      stretch(r1, [40217, DRIFT_END_MS, 33], { from: 52000, per: DRIFT_PER_MS }),
+    ],
+    tracks: [
+      track(1, 4000, `start_from_stopped_at_${r1}`, [r1, 4217 + 503]),
+      track(2, 16000, `same_rate_change_at_${r1}`),
+      track(3, 28000, `rate_change_${r1}_to_${r2}`, [r2, 28217 + 503]),
+      track(4, 40000, `rate_change_${r2}_to_${r1}`, [r1, 40217 + 503]),
+      track(5, 52000, `steady_play_at_${r1}_with_drift`),
+    ],
+  };
+}
+
+/**
+ * Every pair the rate-agnostic lag check runs: `first` runs at `rates[0]`, `rates[1]`, `rates[0]` and `second`, the same
+ * streams in the same order, at the other rates.
+ *
+ * @type {Array<{ name: string, rates: [number, number], first: Stream[], second: Stream[] }>}
+ */
+export const PAIRS = [/** @type {[number, number]} */ ([44100, 192000])].map(([a, b]) => ({
+  name: `paired_${a}_against_${b}`,
+  rates: [a, b],
+  first: streams(pairSpec(`paired_${a}_then_${b}`, [a, b])),
+  second: streams(pairSpec(`paired_${b}_then_${a}`, [b, a])),
+}));
 
 /** Every replay stream the smoothness suites run, the captures' first and the made-up ones after. @type {Stream[]} */
 export const STREAMS = [

@@ -18,10 +18,11 @@ import { replay } from "./world.js";
  * @typedef {{ count: number, first: string }} Finding
  */
 /**
- * What one read saw: how many paints fell in its window, how far the lag moved across them, and the lag's median. The
- * lag is the stamp heard at the paint's wall time less the playhead, playback ms; a paint with no playhead makes it NaN.
+ * What one read saw: how many paints fell in its window, how far the lag moved across them, the lag's median and the lag
+ * at each paint, in paint order. The lag is the stamp heard at the paint's wall time less the playhead, playback ms; a
+ * paint with no playhead makes it NaN.
  *
- * @typedef {{ n: number, spread: number, level: number }} Lag
+ * @typedef {{ n: number, spread: number, level: number, lags: number[] }} Lag
  */
 
 /**
@@ -42,7 +43,7 @@ export function lagProbe(reads) {
       series.map((lags) => {
         const sorted = [...lags].sort((a, b) => a - b);
         const spread = lags.some(Number.isNaN) ? NaN : sorted[sorted.length - 1] - sorted[0];
-        return { n: lags.length, spread, level: sorted[Math.floor(sorted.length / 2)] };
+        return { n: lags.length, spread, level: sorted[Math.floor(sorted.length / 2)], lags };
       }),
   };
 }

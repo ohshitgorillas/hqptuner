@@ -10,13 +10,21 @@
 // first ran against the code. The stream
 // list is the module's own, so a stream added there joins this suite with no edit here.
 //
-// The lag is also the same everywhere. Each track's lag is its median over the same window. Two starts at one rate are the
-// same when they are within one metering frame of it. Two starts at different rates are the same when they differ by no
-// more than floating-point error: when a frame lands on screen does not depend on the source rate, paints fall at the same
-// wall times at every rate, and any difference is a rate leaking into the playhead. The set compared: every pair of starts
-// of one stream; each start against the one before it where the rate changed, named for the direction (44100 to 192000,
-// 192000 to 44100 and the rest); and for each start, every pair of the points the page joined at, the reader that holds
-// counting as one. None is dropped.
+// The lag is also the same everywhere, in two contracts (D-12).
+//
+// Each start's true lag. Each track's lag is its median over the same window. Two starts at one rate are the same when
+// they are within one metering frame of it. Two starts at different rates are the same when they are within the
+// resolution of their stream (`resolution` in streams.js, its paint interval, arrival grain and jitter, arithmetic in
+// the header there): a page reads the lead of a start off the arrivals at its paints, so no playhead can match two starts
+// finer than the stream lets it read them, and a rate that leaks into the playhead shows as more than that. The set
+// compared: every pair of starts of one stream; each start against the one before it where the rate changed, named for
+// the direction (44100 to 192000, 192000 to 44100 and the rest); and for each start, every pair of the points the page
+// joined at, the reader that holds counting as one. None is dropped.
+//
+// The lag does not depend on the source rate. Each pair of streams (PAIRS in streams.js) holds the same information at two
+// rates: the same arrival wall times, the same playback ms in each burst, the same lead, delay and Status but for the
+// rate. The page then has nothing to tell the rates apart by, so at every paint of every read the lag at one rate equals
+// the lag at the other within floating-point error, and any difference is the rate's alone.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js
 
@@ -24,7 +32,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { lagProbe } from "./smooth-probes.js";
-import { STREAMS } from "./streams.js";
+import { PAIRS, STREAMS } from "./streams.js";
 import { replay } from "./world.js";
 
 //: Paints a window must hold for the reading to count as one.
@@ -32,8 +40,8 @@ const MIN_PAINTS = 20;
 const SAMPLES_PER_FRAME = 1024;
 const MS_PER_S = 1000;
 const TENTH = 10;
-//: Two lags at different rates may differ by this much, ms: a nanosecond, above the rounding of sums of a few 10^5 ms
-//: held as doubles (below 10^-10 ms) and far below anything the eye or the ear can place.
+//: The same lag at two rates, holding the same information, may differ by this much, ms: a nanosecond, above the rounding
+//: of sums of a few 10^5 ms held as doubles (below 10^-10 ms) and far below anything the eye or the ear can place.
 const FLOAT_MS = 1e-6;
 
 /** @type {Map<string, ReturnType<typeof look>>} */
@@ -78,22 +86,21 @@ const finer = (a, b) => Math.min(frameMs(a.rate), frameMs(b.rate));
 
 /**
  * The lags `a` and `b` stand at, as the most they differ by past what they may: one frame of their rate to a tenth of a ms
- * when it is the same, floating-point error when the rates differ, ms.
+ * when it is the same, the resolution of their stream when the rates differ, ms.
  *
- * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number] }} a
- * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number] }} b
+ * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number], resolution: number }} a
+ * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number], resolution: number }} b
  */
 function apart(a, b) {
-  const sameRate = a.read.rate === b.read.rate;
-  const excess = Math.max(0, Math.abs(a.lag.level - b.lag.level) - (sameRate ? finer(a.read, b.read) : FLOAT_MS));
+  const room = a.read.rate === b.read.rate ? finer(a.read, b.read) : Math.max(a.resolution, b.resolution);
   return {
     read: Math.min(a.lag.n, b.lag.n) >= MIN_PAINTS,
-    apart: sameRate ? Math.round(excess * TENTH) / TENTH : excess,
+    apart: Math.round(Math.max(0, Math.abs(a.lag.level - b.lag.level) - room) * TENTH) / TENTH,
   };
 }
 
 /** @param {import("./streams.js").Stream} stream @param {number} k */
-const reading = (stream, k) => ({ read: stream.reads[k], lag: seen(stream)[k] });
+const reading = (stream, k) => ({ read: stream.reads[k], lag: seen(stream)[k], resolution: stream.resolution });
 
 const SAME = { read: true, apart: 0 };
 
@@ -136,4 +143,34 @@ for (const [key, points] of joins) {
       );
     }
   }
+}
+
+/**
+ * The most two series of lags differ by at one paint, past floating-point error, ms, and whether both held paints to
+ * read. A paint with a lag in one series and none in the other differs by an unbounded amount.
+ *
+ * @param {ReturnType<typeof look>[number]} a
+ * @param {ReturnType<typeof look>[number]} b
+ */
+function atEveryPaint(a, b) {
+  const apartAt = (/** @type {number} */ x, /** @type {number} */ y) => {
+    if (Number.isNaN(x) && Number.isNaN(y)) return 0;
+    return Number.isNaN(x - y) ? Infinity : Math.abs(x - y) - FLOAT_MS;
+  };
+  return {
+    read: a.lags.length === b.lags.length && a.lags.filter(Number.isFinite).length >= MIN_PAINTS,
+    apart: Math.max(0, ...a.lags.map((x, i) => apartAt(x, b.lags[i]))),
+  };
+}
+
+for (const { rates, first, second } of PAIRS) {
+  first.forEach((a, i) => {
+    const b = second[i];
+    a.reads.forEach((read, k) => {
+      const other = b.reads[k];
+      test(`test_at_every_paint_the_lag_is_the_same_at_${rates[0]}_and_${rates[1]}_after_serial_${read.serial}_a_${read.kind}_and_a_${other.kind}_in_${a.name}`, () => {
+        assert.deepEqual(atEveryPaint(seen(a)[k], seen(b)[k]), SAME);
+      });
+    });
+  });
 }

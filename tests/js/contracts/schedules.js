@@ -81,6 +81,20 @@ export function lengths(rand, rate, spanMs) {
 }
 
 /**
+ * The frame lengths, samples at `rate`, of `spanMs` of music cut into frames of `frameMs` each. A `frameMs` that is a
+ * multiple of 10 is a whole number of samples at 44100, 48000, 96000 and 192000 alike, so the same music is cut at the
+ * same playback ms at each of them.
+ *
+ * @param {number} rate
+ * @param {number} frameMs
+ * @param {number} spanMs
+ * @returns {number[]}
+ */
+export function gridLengths(rate, frameMs, spanMs) {
+  return Array.from({ length: Math.ceil(spanMs / frameMs) }, () => Math.round((frameMs * rate) / MS_PER_S));
+}
+
+/**
  * The arrivals of frames of `ns` samples in bursts of `burst[0]` to `burst[1]` frames. A burst lands where its music
  * would have played out, early or late by up to `jitter` ms. A `stall` holds back every burst due inside it until its
  * end, so the backlog lands together.

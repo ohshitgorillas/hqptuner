@@ -1,14 +1,14 @@
 # Phase 7: the playhead's design (Plan 4)
 
-Status: proposed, awaiting the owner's approval of the spec text in section 6. Nothing under `hqptuner/` and no test has changed. Section 7 holds the owner's decision and is empty until it is given.
+Status: proposed, awaiting the owner's approval of the spec text in section 6. Nothing under `hqptuner/` has changed. The tests changed once, in Task 2, which D-12 ordered; section 3 reads its result. Section 7 holds the owner's decisions.
 
-What this record rests on: the red run of the suites of Plans 2 and 3 at HEAD `91d11ab3` (log `/tmp/gate-node-lgpuT5LB.log`, 733 tests, 588 pass, 145 fail); the three captures through `tests/js/contracts/streams.js`; `docs/spec/timing.md`; the code named in each section. D-10 and D-11 are read as the owner wrote them in `CONTEXT.md`.
+What this record rests on: the red run of the suites of Plans 2 and 3 after Task 2's change to the tests, against today's code (log `/tmp/gate-node-0DsPBroO.log`, 748 tests, 628 pass, 120 fail, every failure an `AssertionError`); the three captures through `tests/js/contracts/streams.js`; `docs/spec/timing.md`; the code named in each section. The first run, at HEAD `91d11ab3` with paints 50 ms apart (log `/tmp/gate-node-lgpuT5LB.log`, 733 tests, 145 fail), is what Task 1's readings in section 1 were first taken from; each figure below that the 60 Hz paints of Task 2 moved has been read again and is the new one. D-10, D-11 and D-12 are read as the owner wrote them in `CONTEXT.md`.
 
 ## 1. Diagnosis
 
 ### What is red and what is green
 
-- All 145 failures are in `tests/js/contracts/steady-lag.test.js`. Every test of `steady-motion.test.js` and `steady-spectrogram.test.js` passes against today's rule. The defect is lag, not motion and not the picture, which is what D-11 says of the motion suite.
+- All 120 failures are in `tests/js/contracts/steady-lag.test.js`. Every test of `steady-motion.test.js` and `steady-spectrogram.test.js` passes against today's rule, with the paints at 60 Hz as they were at 50 ms. The 15 cases of the paired check (section 3) pass. The defect is lag, not motion and not the picture, which is what D-11 says of the motion suite.
 - The lag is read against each stream's own heard clock (D-10), never against Status `position`.
 - The streams set the spectrum offset to 0.69 s (`OFFSET_S`), so every lag level reads about 690 ms above its anchor error. Only differences between levels, and the spread inside one read, are findings.
 
@@ -25,16 +25,16 @@ What this record rests on: the red run of the suites of Plans 2 and 3 at HEAD `9
 
 Read from the red run. The cases of group B-other and group C in the appendix fail on this.
 
-- The held reader of the second capture, serial 16 (a rate change at 96000 to 44100, State stays 2). The replay shows the first paint after the restart at T+253 ms, 64 ms after the first frame landed, with the playhead at 56975.6 against a heard stamp of 58122.1. The anchor is the newest end less the delay, so it sat 457 ms below the settled line, about the settled lead of that start (514 ms, the figure in `streams.js`) less the lead the first paint saw. Level 1151.90 against 706.33 for serial 14, a start from stopped with no rush: `+   apart: 445.5668924240255,` in `test_the_lag_after_serial_14_a_start_from_stopped_at_96000_is_the_lag_after_serial_16_a_rate_change_96000_to_44100_in_capture_2_shape_held_reader`.
-- The held reader of the first capture, serial 33 (the same kind of change, State goes to 0 across it). The loop had stopped with State 0, so its playhead is null until T+653 ms. That first paint comes after the rush has landed, and the anchor is within 10 ms of the line (level 680.00 against the 690 ms offset, a lag error of -10 ms). So the same kind of rush leaves an error of -10 ms there and +457 ms in the second capture, because the loop's first paint with frames fell at a different point of the rush. This is the D-02 candidate "when the loop connected", and the red run shows it at work. It is a reading, not a fit: two replays, read paint by paint with a scratch script that is not kept.
-- The pages that join late. The cases of group C compare the reader that holds with a page joining 400 ms or 900 ms after a serial change, and the joins with each other, and differ by up to 437.8 ms (`+   apart: 437.8,` in `test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_16`). A join's first paint sees whatever of the rush has landed by then. Same property as above; I did not trace each of the 85 cases paint by paint, so for the 85 it is the property they are consistent with, unconfirmed case by case.
+- The held reader of the second capture, serial 16 (a rate change at 96000 to 44100, State stays 2). The replay shows the first paint after the restart at T+236.3 ms, 16 ms after the first group of frames landed (T+220 ms), with the playhead at 56975.6, 1129.8 ms behind the heard stamp. The anchor is the newest end less the delay, so the lag stands 445 ms above the 690 ms offset (level 1135.23 below), about the settled lead of that start (514 ms, the figure in `streams.js`) less the lead the first paint saw, which by arithmetic from the rush table is 69 ms (one group of five frames, 116 ms, had landed 47 ms into the stretch). Level 1135.23 against 706.33 for serial 14, a start from stopped with no rush: `+   apart: 411.2,` in `test_the_lag_after_serial_14_a_start_from_stopped_at_96000_is_the_lag_after_serial_16_a_rate_change_96000_to_44100_in_capture_2_shape_held_reader`, the 428.9 ms between the two levels less the 17.667 ms resolution of that stream (section 3).
+- The held reader of the first capture, serial 33 (the same kind of change, State goes to 0 across it). The loop had stopped with State 0, so its playhead is null until T+653 ms. That first paint comes after the rush has landed, and the anchor is within 10 ms of the line (level 680.00 against the 690 ms offset, a lag error of -10 ms). So the same kind of rush leaves an error of -10 ms there and +445 ms in the second capture, because the loop's first paint with frames fell at a different point of the rush. This is the D-02 candidate "when the loop connected", and the red run shows it at work. It is a reading, not a fit: two replays, read paint by paint with a scratch script that is not kept.
+- The pages that join late. The cases of group C compare the reader that holds with a page joining 400 ms or 900 ms after a serial change, and the joins with each other, and differ by up to 428.4 ms (`+   apart: 428.4,` in `test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_19`; the first run's largest, 437.8 ms in the serial 16 case, reads 421.1 now). A join's first paint sees whatever of the rush has landed by then. Same property as above; I did not trace each of the 85 cases of the first run, nor the 64 that stay red, paint by paint, so for them it is the property they are consistent with, unconfirmed case by case.
 
 ### Property 2: nothing corrects the playhead after the anchor (part 4)
 
 Read from the red run. The cases of group A and group B-drift fail on this.
 
-- `+   moved: 72.3,` in `test_the_lag_holds_through_serial_36_a_steady_play_at_44100_with_drift_in_capture_1_shape_held_reader`: the lag moves by 95.49 ms over the read (level 764.99; spread 95.49 less one frame of 23.2 ms is the 72.3). The read holds 644 paints of 50 ms, 32.2 s, and the stream's drift is 2.97 ms per second: 32.2 s at 2.97 ms per second is 95.6 ms. The lag moves exactly as far as the stamps drift against wall time, which is what a playhead that moves on `dt` alone must do. The made-up faster and slower streams give the same: 544 paints, 27.2 s at 2.5 ms per second is 68.0 ms, read 67.87.
-- The cases of group B-drift fail because one of the two reads they compare is a drifting one, so the two lags differ by what the drift has added (`+   apart: 26.7,` for serial 31 against serial 36 of the first capture).
+- `+   moved: 72.4,` in `test_the_lag_holds_through_serial_36_a_steady_play_at_44100_with_drift_in_capture_1_shape_held_reader`: the lag moves by 95.58 ms over the read (level 731.66; spread 95.58 less one frame of 23.2 ms is the 72.4). The read holds 32.2 s of paints and the stream's drift is 2.97 ms per second: 32.2 s at 2.97 ms per second is 95.6 ms. The lag moves exactly as far as the stamps drift against wall time, which is what a playhead that moves on `dt` alone must do. The made-up faster and slower streams give the same: 27.2 s at 2.5 ms per second is 68.0 ms, and the cases read `+   moved: 44.7,`, 44.7 ms past one frame of 23.2, a spread of 67.9.
+- The cases of group B-drift fail because one of the two reads they compare is a drifting one, so the two lags differ by what the drift has added (`+   apart: 10,` for serial 31 against serial 36 of the first capture).
 
 ### Property 3: the cap at the newest end (part 3)
 
@@ -42,8 +42,9 @@ No case of the red run shows it. At the 1.19 s effective delay of these streams 
 
 ### Unconfirmed
 
-- The cross-rate cases of group B-other (the `across_the_change` cases and the pairs whose two starts differ in rate) fail on property 1. They would also fail the float-error clause of D-11 if the anchor were perfect, which section 3 shows. I could not separate the two causes in these cases from the red run.
-- The 85 cases of group C: see above.
+- The cross-rate cases of group B-other (the `across_the_change` cases and the pairs whose two starts differ in rate) fail on property 1. The paired check of section 3 shows the rate is no part of the lag, so the rate does not enter these cases. What I did not do is trace each of the 26 paint by paint.
+- A 5.4 ms difference at the second capture's serial 16: the lag at the restart paint is 1129.8 ms and 1135.23 ms as the read holds it. I did not trace where the 5.4 ms is gained.
+- The cases of group C: see above.
 - Why the first capture's loop paints later than the second's. State 0 across the change stops the loop, so its first paint with frames waits for Status to show playing. That the second capture's State stays 2 and its first paint falls inside the rush is read from the replay; that State is what separates the two is a reading of the stream definitions, not a test of it.
 - Fields not relied on: Status `output_fill`, `display_position` and `process_speed`. The hqpdoc MCP tools were not available to this executor. `.planning/phases/7/CAPTURE.md` ("What HQPlayer's own docs say") records that the readme and the manual name no Status field of this kind, and `docs/spec/protocol.md` line 301 lists `output_fill` and `process_speed` with units only. The rule below reads none of the three. It reads the stamps, the wall time a paint takes arrivals at, and the effective delay, which already reaches the page.
 
@@ -98,26 +99,31 @@ A budget with the provisional values, by arithmetic from the figures above and n
 
 D-01 of this phase says a correction after the anchor changes the owner's v2.0.0 rule ("wall speed, arrivals do not steer it; drift and stall handling only if a measurement shows them needed"). The measurements are `.planning/phases/7/CAPTURE.md` (a gain of 446 ms over 170 s at 44100 with no change, and lead after a rate change) and the second capture's drift (2.12 ms per second), as Plan 2 Task 3 prints them. They show the stamps do drift against wall time and do run ahead by up to 606 ms after a start, and the red run shows the lag follows both. The change is that arrivals now steer the playhead through the ceiling, by a bounded share of wall speed. A burst landing early or late still changes nothing about its speed beyond that bound, because the ceiling is a maximum over a span and the share bounds the move.
 
-## 3. D-11: what no rule can do
+## 3. D-12: the paired check and each start's true lag
 
-D-11 and the suite pin that the lag at one rate equals the lag at another within floating-point error: `FLOAT_MS = 1e-6` in `steady-lag.test.js` line 37. The rule above cannot reach that, and I believe no rule can, from these inputs. The reasons are in the test code, not guessed:
+D-11 asked for one exact check across rates. The first draft of this section argued that no rule can match each captured start's lag to floating-point error, because the page reads each start's lead off arrivals seen at paints. The owner's D-12 splits the check in two, and Task 2 built both contracts and ran them against today's code. Nothing under `hqptuner/` changed.
 
-1. The heard clock of each start follows that start's own settled lead. The leads are 514, 539, 514, 419, 514 (first and second captures), 526, 577, 498 ms (third capture), listed in the `streams.js` header. Two starts have equal lag to 1e-6 ms only if the playhead reproduces each start's lead to 1e-6 ms.
-2. The page sees an arrival at the paint that takes it. In the replay `frames.now` is set at the paint, after the frames that reached the page by then are delivered (`world.js`), and the paints are 50 ms apart (`PAINT_MS`). Arrivals land at whole milliseconds (`fixedEvents`). A lead seen at a paint is below the arrival's own lead by the part of a paint between the two, 0 to 50 ms. The best reading of the line is the greatest over a span, within the best phase of the span, never exact.
-3. The made-up streams land bursts early or late by up to 40 ms (`JITTER_MS`) against the line. There the line is not in the data to any precision finer than the jitter.
+### The rate-agnostic check, exact
 
-So the float-error clause holds only where an estimate happens to be exact. What the rule can do is bring each start's lag to the same value within the part of a paint between a landing and the paint that sees it (up to 50 ms in the replays), and closer where the span finds a good phase. Where one metering frame is below a paint (a frame is 5.33 ms at 192000, 10.67 ms at 96000, 23.2 ms at 44100, against a paint of 50 ms in the replays and about 16.7 ms in a browser), even the same-rate clause is not certain; whether it holds is Plan 5's check against the suites.
+`PAIRS` in `tests/js/contracts/streams.js` holds two streams that are identical in everything but the source rate, 44100 against 192000 (the rates the owner asked for). `steady-lag.test.js` compares, at every paint of every read, the lag at one rate with the lag at the other, within `FLOAT_MS = 1e-6` ms. The cases are the five serials of the pair (a start from stopped with a rush, a same-rate change, a rate change each way, a steady play whose stamps drift 2.5 ms per second) on the reader that holds and on pages joining 400 ms and 900 ms after each serial change: 15 cases, named `test_at_every_paint_the_lag_is_the_same_at_44100_and_192000_after_serial_N_...`. How a pair holds the same information at both rates is in the `streams.js` header ("THE PAIRS"): the same arrival wall times, rush, jitter, drift, Status and delay, and every frame 20 ms, a whole number of samples at both rates, so every burst carries the same playback ms and ends on a frame end that both rates share.
 
-### The choices for the owner
+Result against today's code: all 15 are green. Read off the held reader with a scratch script that is not kept, the lag level at the five serials is 702.667, 702.667, 1149.333, 1109.333 and 1123.333 ms in both streams, and the largest difference between the two at any paint is 0, 0, 1.6e-9, 4.5e-9 and 9.8e-9 ms. The paints are 60 Hz, 16.667 ms apart.
 
-This record picks none.
+What that says about the cause: the rate is not one. The lag at a paint is a function of what arrived, the lead and the delay, and today's playhead reads nothing of the rate. The same pair shows the lag is not the same from track to track at either rate (702.667 ms at the start from stopped against 1149.333 ms at the rate change that follows it, with the same rush in both), which is property 1 of section 1 at work with the rate removed. So the red cross-rate cases of the captured starts are property 1 and 2 and not a rate leak. By D-12 the check is committed green. It has no red run against today's code, so it has no bite proof: it is a guard the rule of Plan 5 has to keep green, and a rule that reads the rate into the playhead turns it red.
 
-- (a) Cross-rate cases read as same-rate cases do: within one metering frame of the finer rate. Changes `apart` in `steady-lag.test.js` for the cases that differ in rate and drops `FLOAT_MS`.
-- (b) A tolerance of one paint for any two lags. Needs a statement of what the page's resolution is, 50 ms in the replays and 16.7 ms in a browser.
-- (c) Keep `FLOAT_MS` and read each cross-rate case that stays red as a defect of the rule. Plan 5 then returns to the owner with those cases and no rule can turn them green.
-- (d) Change the streams so each arrival lands on a paint and the made-up streams carry no jitter. Each start still has its own settled lead (point 1), so the heard clock would also need one lead for all starts, which no longer reproduces the captures. This rewrites Plan 3's streams and is the largest change.
+### Each start's true lag
 
-Whichever the owner picks is a change to Plan 3's committed test, made by the owner's decision, not by Plan 5. The spec text in section 6 does not depend on the choice.
+The comparisons across the captured starts hold within the resolution the stream's own paints and arrivals allow. `Stream.resolution` in `streams.js` is computed from the stream's own timing and replaces `FLOAT_MS` for the comparisons between starts at different rates: paint + grain + 2 jitter, which is 16.667 + 1 + 2 * 0 = 17.667 ms for the three captured streams (no jitter) and 16.667 + 1 + 2 * 40 = 97.667 ms for the made-up ones. The arithmetic is in the `streams.js` header ("THE RESOLUTION"). The comparisons between starts at one rate stay at one metering frame of that rate, as before.
+
+Result against today's code: of the 30 comparisons between starts at different rates, 4 are green and 26 are red; they miss by 0.8 to 455.5 ms past the resolution (`+   apart: 411.2,` for serial 14 against serial 16 of the second capture, section 1). All 26 fail on property 1 or 2 of section 1, the anchor and the drift, and none on the rate. The suites at 60 Hz: 748 tests, 628 pass, 120 fail. The motion and the spectrogram suites stay green at 60 Hz.
+
+### What this leaves for the owner
+
+This record picks none; the question is the owner's.
+
+A comparison between two starts at 96000 or at 192000 stays at one metering frame (10.667 and 5.333 ms), below the resolution of 17.667 ms that the paints and arrivals allow a page to read them at. Eight of the red cases of the captured streams are such comparisons whose two lags differ by less than the resolution and more than one frame: the joins of the first capture's serial 33 (`+   apart: 2.7,`) and of the third capture's serials 22 and 23 (`+   apart: 1.3,` to `4.7`). A rule that reads each start to within the resolution can still miss them. D-12 replaced the cross-rate tolerance only, so I changed no same-rate one. If the owner wants these read at the resolution too, that is one more change to `apart` in `steady-lag.test.js`, made before Plan 5 writes the rule, not by it.
+
+The spec text in section 6 does not depend on the result; no sentence of it is proved wrong.
 
 ## 4. The split (testing rule 17)
 
@@ -213,11 +219,15 @@ Before: no row. After:
 | Opening rush | After a start or a rate change the stamps run ahead of wall time and are within 50 ms of their settled lead by 355 ms after the first frame at most; that lead is 419 to 577 ms; frames resume up to 217 ms after the serial change | `scripts/probes/meter/arrival_patterns.py` on the three captures, "lead at +0,100,200,300,500" and "mean lead" |
 ```
 
-## 7. The owner's decision
+## 7. The owner's decisions
 
-Pending. To be filled with the owner's approval, or the owner's changes and the re-approved text, character for character, and with the choice among (a) to (d) of section 3.
+The D-11 choice, decided 2026-11-16 as D-12 (`.planning/phases/7/CONTEXT.md`, commit `963cf714`), replacing options (a) to (d) of the earlier draft of section 3: D-11's one exact cross-rate check is split into two contracts. Paired replay streams identical in everything but the source rate, with the same arrival wall times, the same playback ms per burst, the same lead and delay, give the same lag within floating-point error. Each start's true lag, across the captured starts, holds within the resolution the stream's own paints and arrivals allow, a tolerance computed from that stream's timing and never a round figure. The replays paint at 60 Hz. The heard clock stays the stamps' settled line less the output delay; the owner's ears are the check on that assumption, not a test. Built in Task 2; its result is section 3.
+
+The approval of the spec text in section 6: pending. To be filled with the owner's approval, or the owner's changes and the re-approved text, character for character.
 
 ## Appendix: every failing case of the run, cited by its exact test name
+
+The run is the one after Task 2 (log `/tmp/gate-node-0DsPBroO.log`). Of the first run's 145 names, 26 are green after Task 2 (they are not listed: 4 cross-rate comparisons, now read at their stream's resolution, and 22 group C join comparisons at one rate, which the tolerance does not touch, so the 60 Hz paints moved them) and one is red that was green: `test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_1_shape_serial_36` (`+   apart: 1.9,`, a same-rate join case; it moved with the paint rate, the one thing that changed for it, and I did not trace it further).
 
 Group A, 18 cases, property 2 (nothing corrects the playhead after the anchor): the lag moves with the drift.
 
@@ -253,7 +263,7 @@ Group B-drift, 10 cases, property 2: one of the two reads compared is a drifting
 - test_the_lag_after_serial_34_a_same_rate_change_at_96000_is_the_lag_after_serial_36_a_steady_play_at_44100_with_drift_in_capture_1_shape_held_reader
 - test_the_lag_after_serial_35_a_rate_change_96000_to_44100_is_the_lag_after_serial_36_a_steady_play_at_44100_with_drift_in_capture_1_shape_held_reader
 
-Group B-other, 32 cases, property 1 (the anchor takes what the first paint sees), the cross-rate ones also under section 3.
+Group B-other, 28 cases, property 1 (the anchor takes what the first paint sees). The comparisons across a rate change are 26 cases in all, across this group and B-drift, and the paired check of section 3 shows the rate is not their cause.
 
 - test_the_lag_after_serial_14_a_start_from_stopped_at_96000_is_the_lag_after_serial_16_a_rate_change_96000_to_44100_in_capture_2_shape_held_reader
 - test_the_lag_after_serial_14_a_start_from_stopped_at_96000_is_the_lag_after_serial_17_a_rate_change_44100_to_96000_in_capture_2_shape_held_reader
@@ -269,18 +279,14 @@ Group B-other, 32 cases, property 1 (the anchor takes what the first paint sees)
 - test_the_lag_after_serial_20_a_start_from_stopped_at_192000_is_the_lag_after_serial_21_a_rate_change_192000_to_44100_in_capture_3_shape_held_reader
 - test_the_lag_after_serial_20_a_start_from_stopped_at_192000_is_the_lag_after_serial_22_a_rate_change_44100_to_192000_in_capture_3_shape_held_reader
 - test_the_lag_after_serial_20_a_start_from_stopped_at_192000_is_the_lag_after_serial_23_a_same_rate_change_at_192000_in_capture_3_shape_held_reader
-- test_the_lag_after_serial_21_a_rate_change_192000_to_44100_is_the_lag_after_serial_22_a_rate_change_44100_to_192000_in_capture_3_shape_held_reader
-- test_the_lag_after_serial_21_a_rate_change_192000_to_44100_is_the_lag_after_serial_23_a_same_rate_change_at_192000_in_capture_3_shape_held_reader
 - test_the_lag_after_serial_2_a_same_rate_change_at_44100_is_the_lag_after_serial_3_a_rate_change_44100_to_96000_in_made_up_bursty_held_reader
 - test_the_lag_after_serial_31_a_start_from_stopped_at_44100_is_the_lag_after_serial_33_a_rate_change_44100_to_96000_in_capture_1_shape_held_reader
 - test_the_lag_after_serial_31_a_start_from_stopped_at_44100_is_the_lag_after_serial_34_a_same_rate_change_at_96000_in_capture_1_shape_held_reader
 - test_the_lag_after_serial_32_a_same_rate_change_at_44100_is_the_lag_after_serial_33_a_rate_change_44100_to_96000_in_capture_1_shape_held_reader
 - test_the_lag_after_serial_32_a_same_rate_change_at_44100_is_the_lag_after_serial_34_a_same_rate_change_at_96000_in_capture_1_shape_held_reader
 - test_the_lag_after_serial_33_a_rate_change_44100_to_96000_is_the_lag_after_serial_34_a_same_rate_change_at_96000_in_capture_1_shape_held_reader
-- test_the_lag_after_serial_33_a_rate_change_44100_to_96000_is_the_lag_after_serial_35_a_rate_change_96000_to_44100_in_capture_1_shape_held_reader
 - test_the_lag_after_serial_34_a_same_rate_change_at_96000_is_the_lag_after_serial_35_a_rate_change_96000_to_44100_in_capture_1_shape_held_reader
 - test_the_lag_is_the_same_across_the_change_192000_to_44100_at_serial_21_in_capture_3_shape_held_reader
-- test_the_lag_is_the_same_across_the_change_44100_to_192000_at_serial_22_in_capture_3_shape_held_reader
 - test_the_lag_is_the_same_across_the_change_44100_to_96000_at_serial_17_in_capture_2_shape_held_reader
 - test_the_lag_is_the_same_across_the_change_44100_to_96000_at_serial_33_in_capture_1_shape_held_reader
 - test_the_lag_is_the_same_across_the_change_44100_to_96000_at_serial_3_in_made_up_bursty_held_reader
@@ -288,27 +294,19 @@ Group B-other, 32 cases, property 1 (the anchor takes what the first paint sees)
 - test_the_lag_is_the_same_across_the_change_96000_to_44100_at_serial_18_in_capture_2_shape_held_reader
 - test_the_lag_is_the_same_across_the_change_96000_to_44100_at_serial_35_in_capture_1_shape_held_reader
 
-Group C, 85 cases, property 1 for a page that joins at a different point.
+Group C, 64 cases, property 1 for a page that joins at a different point.
 
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_1_shape_serial_31
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_1_shape_serial_33
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_1_shape_serial_34
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_1_shape_serial_35
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_1_shape_serial_36
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_14
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_15
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_16
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_17
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_18
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_20
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_21
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_22
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_23
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_bursty_serial_1
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_bursty_serial_2
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_bursty_serial_3
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_stamps_faster_serial_1
-- test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_stamps_faster_serial_2
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_stamps_slower_serial_2
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_in_capture_1_shape_serial_33
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_in_capture_1_shape_serial_35
@@ -322,19 +320,14 @@ Group C, 85 cases, property 1 for a page that joins at a different point.
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_in_capture_1_shape_serial_35
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_in_capture_3_shape_serial_21
 - test_the_lag_is_the_same_for_a_page_joining_400_ms_after_the_serial_change_and_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
-- test_the_lag_is_the_same_for_a_page_joining_900_ms_after_the_serial_change_and_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
-- test_the_lag_is_the_same_for_a_page_joining_900_ms_after_the_serial_change_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_1_shape_serial_35
-- test_the_lag_is_the_same_for_a_page_joining_900_ms_after_the_serial_change_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_3_shape_serial_21
 - test_the_lag_is_the_same_for_a_page_joining_900_ms_after_the_serial_change_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
 - test_the_lag_is_the_same_for_a_page_joining_900_ms_after_the_serial_change_and_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
-- test_the_lag_is_the_same_for_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_1_shape_serial_35
 - test_the_lag_is_the_same_for_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
 - test_the_lag_is_the_same_for_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_and_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
-- test_the_lag_is_the_same_for_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_1_shape_serial_35
-- test_the_lag_is_the_same_for_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_3_shape_serial_21
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_1_shape_serial_33
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_1_shape_serial_34
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_1_shape_serial_35
+- test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_1_shape_serial_36
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_2_shape_serial_16
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_2_shape_serial_17
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_capture_2_shape_serial_18
@@ -350,15 +343,11 @@ Group C, 85 cases, property 1 for a page that joins at a different point.
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_400_ms_after_the_serial_change_in_made_up_stamps_slower_serial_2
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_1_shape_serial_33
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_1_shape_serial_34
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_14
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_15
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_16
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_17
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_18
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_2_shape_serial_19
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_20
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_21
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_22
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_capture_3_shape_serial_23
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_bursty_serial_1
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_bursty_serial_2
@@ -367,11 +356,7 @@ Group C, 85 cases, property 1 for a page that joins at a different point.
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_stamps_faster_serial_2
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_a_page_joining_900_ms_after_the_serial_change_in_made_up_stamps_slower_serial_2
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_in_capture_1_shape_serial_33
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_in_capture_3_shape_serial_21
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_1000_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_1_shape_serial_33
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_1_shape_serial_35
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_1900_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
 - test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_in_capture_1_shape_serial_33
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_in_capture_3_shape_serial_21
-- test_the_lag_is_the_same_for_the_reader_that_holds_and_the_apps_reader_rejoining_300_ms_after_Status_shows_playing_in_capture_3_shape_serial_22
