@@ -19,14 +19,15 @@ files:
   - tests/js/components/chrome/app.test.js
   - CHANGELOG.md
   - tests/e2e/test_login.py
-  - scripts/daemon_standin.py
+  - scripts/ci/daemon_standin.py
   - packaging/linux/lifecycle.sh
   - .github/workflows/release.yml
   - packaging/windows/smoke.sh
-  - scripts/apilogin.py
+  - scripts/ci/apilogin.py
   - scripts/fuzz/fuzz.py
   - scripts/authority.py
   - scripts/sweep.py
+  - scripts/sweepslide.py
   - tests/test_fuzz.py
   - scripts/abuse.sh
   - scripts/eqstage/post.js
@@ -54,7 +55,7 @@ Findings F-001, F-002, F-003, F-008, F-009, F-024, F-025, F-027 and F-028 are ea
 - Builds on Plan 1: the login route (any host the login names is checked against that host; no host rule, owner ruling in Plan 1 Notes), the cookie, the gate and its 401 code. The routes `GET /api/connection` and `GET /api/discover` sit behind the gate, so the panel's Detect and Connect cannot work before a login; Save can, through the login route.
 - Read in this tree: `hqptuner/static/components/Setup.js` renders the panel (Close button, Escape and scrim click call `closeSetup`); `hqptuner/static/components/App.js` renders `.app` with `inert` while `setupOpen` is set, and `Setup` beside it; `hqptuner/static/store/setup.js` holds `form`, `verdict` (eight members, `data-verdict` on the panel), `submitConnection`, `openSetup`; `hqptuner/static/lib/api.js` `failure` builds an `ApiFailure` with `status` and `code`, `upload` sends no `Content-Type` of its own (keep it, D-06); `hqptuner/static/app.js` boots health, setup, the meter feed `effect` and `startPolling`.
 - CI facts: `release.yml` `lifecycle-deb` runs `packaging/linux/lifecycle.sh` on the runner, `lifecycle-rpm` runs it inside an `almalinux/8-init` container started by `docker run` with no network flag; `smoke-windows` runs `packaging/windows/smoke.sh` in Git Bash with no Python set up, and that script already drives inline PowerShell. No hqplayerd exists in any of these jobs, so a login needs a stand-in that answers Digest on 8088. Installed packages dial `127.0.0.1` by default (`hqptuner/config.py` `hqp_host`), and the Windows installer sets only `HQPTUNER_LISTEN_HOST`. Recalled: smoke-windows' fresh-install steps answer `/api/health` from an empty LOCALAPPDATA (phases/2/UAT.md, phase 2); those steps stay as they are.
-- The local caller harness, used by Tasks 6 and 7 on this host, where hqplayerd is live production: start `scripts/daemon_standin.py` (Task 4) on an ephemeral loopback port, and `.venv/bin/python -m hqptuner` on another, with `HQPTUNER_HQP_HOST=127.0.0.1`, `HQPTUNER_HQP_HTTP_PORT` at the stand-in, `HQPTUNER_HQP_CONTROL_PORT` and `HQPTUNER_HQP_METERING_PORT` at ports nothing listens on, `HQPTUNER_CONTAINER_HOST_ALIAS=127.0.0.254`, and every store variable `tests/conftest.py` `_REPO_PATH_ENVS` names pointed into a fresh temp directory, so nothing reaches the real daemon or the repo's `state/`. Record both PIDs, stop them by PID and confirm with `ps -p` (`~/dev/CLAUDE.md` 4.1).
+- The local caller harness, used by Tasks 6 and 7 on this host, where hqplayerd is live production: start `scripts/ci/daemon_standin.py` (Task 4) on an ephemeral loopback port, and `.venv/bin/python -m hqptuner` on another, with `HQPTUNER_HQP_HOST=127.0.0.1`, `HQPTUNER_HQP_HTTP_PORT` at the stand-in, `HQPTUNER_HQP_CONTROL_PORT` and `HQPTUNER_HQP_METERING_PORT` at ports nothing listens on, `HQPTUNER_CONTAINER_HOST_ALIAS=127.0.0.254`, and every store variable `tests/conftest.py` `_REPO_PATH_ENVS` names pointed into a fresh temp directory, so nothing reaches the real daemon or the repo's `state/`. Record both PIDs, stop them by PID and confirm with `ps -p` (`~/dev/CLAUDE.md` 4.1).
 
 ## Tasks
 
@@ -78,7 +79,7 @@ Findings F-001, F-002, F-003, F-008, F-009, F-024, F-025, F-027 and F-028 are ea
 
 ### Task 4: The Linux lifecycle jobs log in against a stand-in daemon
 
-- **Files:** scripts/daemon_standin.py, packaging/linux/lifecycle.sh, .github/workflows/release.yml
+- **Files:** scripts/ci/daemon_standin.py, packaging/linux/lifecycle.sh, .github/workflows/release.yml
 - **Action:** Add a stdlib-only stand-in for hqplayerd's 8088 credential wire, for CI jobs that have no daemon: on a given host and port it answers a request with no `Authorization` header with 401 and a Digest challenge in the shape `tests/support/fake_http.py` `_DIGEST_CHALLENGE` uses, and any request carrying one with 200 and an empty body, on every path. That is all Plan 1's status-only pair check needs. It is a table, not an implementation of Digest (`docs/testing.md` rule 13 spirit), and it never verifies a digest, so it proves the callers log in, not that a pair is right. `lifecycle.sh` logs in once after step 1's health check, with the app's stock pair and without asking to stay logged in, keeps the cookie in a jar under a temp directory it removes on exit, and sends it on every gated call. It logs in again after the reinstall restarts the service in step 3, since a session login does not need to outlive a restart. A session login writes no file (Plan 1 Task 3), so step 2's disk check still proves the favorite landed. Keep it that way: never log in with "save password" here, which would write the record and the login secret into `/var/lib/hqptuner` and make that check pass on its own. In `release.yml`, `lifecycle-deb` starts the stand-in on `127.0.0.1:8088` before the lifecycle step and stops it after. `lifecycle-rpm` starts it on the runner the same way and gives the Alma container the runner's network (`--network host` on its `docker run`), so the app inside dials `127.0.0.1:8088` and reaches it. Running it inside `almalinux/8-init` instead would need a Python that image does not reliably carry. Add no third-party action (phase 8 owns the pinning of the ones there).
 - **Verify:** Testing scope: the stand-in's two answers, checked by hand on this host on an ephemeral port (never 8088, which the production daemon holds): `curl -s -o /dev/null -w '%{http_code}'` without credentials prints 401 with a `WWW-Authenticate: Digest` header, and `curl --digest -u u:p` prints 200. Stop the stand-in by PID and confirm with `ps -p`. `bash -n` and `shellcheck -S warning` on `packaging/linux/lifecycle.sh` exit 0; `scripts/gate.sh make check` prints `exit=0` (ruff, black and mypy cover `scripts/`). Required jobs `lifecycle-deb` and `lifecycle-rpm`, human-verify after Task 5: the owner pushes `dev` and reads the run; both pass on both architectures. This script cannot run here: it refuses unless `GITHUB_ACTIONS=true` and installs packages.
 
@@ -90,8 +91,8 @@ Findings F-001, F-002, F-003, F-008, F-009, F-024, F-025, F-027 and F-028 are ea
 
 ### Task 6: The Python dev scripts log in
 
-- **Files:** scripts/apilogin.py, scripts/fuzz/fuzz.py, scripts/authority.py, scripts/sweep.py, tests/test_fuzz.py
-- **Action:** `fuzz.py` (its `httpx.Client`), `authority.py` (`enum`'s `GET /api/enumerations`) and `sweep.py` (its Playwright browser) each log in before their first gated request, with the pair `hqpcreds` exports (`HQPTUNER_HQP_USERNAME`, `HQPTUNER_HQP_PASSWORD`; `sweep.py`'s docstring already sources it), without asking to stay logged in. Each stops with a message naming the refused or unanswered login, never carrying on into a stream of 401s. One shared helper in `scripts/` is allowed if two of the three can use it. `fuzz.py` loads its siblings from `scripts/fuzz/`, which bounds what it can import. `sweep.py` logs its browser context in before `page.goto`, so its screenshots are of the app and not of the login screen. Keep `tests/test_fuzz.py`'s cases as they are; add a case only for a login function `fuzz.py` gains.
+- **Files:** scripts/ci/apilogin.py, scripts/fuzz/fuzz.py, scripts/authority.py, scripts/sweep.py, tests/test_fuzz.py
+- **Action:** `fuzz.py` (its `httpx.Client`), `authority.py` (`enum`'s `GET /api/enumerations`) and `sweep.py` (its Playwright browser) each log in before their first gated request, with the pair `hqpcreds` exports (`HQPTUNER_HQP_USERNAME`, `HQPTUNER_HQP_PASSWORD`; `sweep.py`'s docstring already sources it), without asking to stay logged in. Each stops with a message naming the refused or unanswered login, never carrying on into a stream of 401s. Owner ruling: one shared login helper, `scripts/ci/apilogin.py`, is the single source of the login for all three scripts, since `scripts/` is at its file cap. A script that cannot import it is an open item reported to the owner, never given its own copy. `fuzz.py` loads its siblings from `scripts/fuzz/`, which bounds what it can import. `sweep.py` logs its browser context in before `page.goto`, so its screenshots are of the app and not of the login screen. Keep `tests/test_fuzz.py`'s cases as they are; add a case only for a login function `fuzz.py` gains.
 - **Verify:** Testing scope: per script, one run against the local caller harness (Context) with the stand-in up, where the first gated request is answered with something other than 401 (a 503 `not_loaded` is expected with no control daemon), and one with the stand-in stopped, where the script stops naming the login. `sweep.py` runs with one `--tab` and the default viewport into a temp directory (it starts Chromium; disclose it first). `scripts/gate.sh make check` prints `exit=0`. Harness processes stopped by PID and confirmed gone with `ps -p`.
 
 ### Task 7: abuse.sh and eqstage log in

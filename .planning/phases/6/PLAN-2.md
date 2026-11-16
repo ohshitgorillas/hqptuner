@@ -14,15 +14,14 @@ files:
   - .filepawl.toml
 ---
 
-# Phase 6: Connection host and stored credential - Plan 2: The Connection panel lists daemons and reports the host rule
+# Phase 6: Connection host and stored credential - Plan 2: The Connection panel reports the host rule
 
 ## Goal
 
-Findings F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023 are each fixed or carry an owner ruling. This plan closes the browser side of F-021 and carries Plan 1's host rule to the user: discovered daemons are listed for the user to choose and never fill the host field silently, a refused save says why in the backend's own sentence, the password row and its note say what is kept and how, and the daemon link works for an IPv6 host.
+Findings F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023 are each fixed or carry an owner ruling. This plan carries Plan 1's host rule to the user (F-021 carries an owner ruling, Task 1): a refused save says why in the backend's own sentence, the password row and its note say what is kept and how, and the daemon link works for an IPv6 host.
 
 ## Must be true when done
 
-- Opening the Connection panel or pressing Detect lists every answering daemon; the host field changes only when the user picks one (D-07).
 - A save refused for a host change without credentials, for an invalid host or for a pinned value shows the backend's sentence and leaves the panel open.
 - The password row and the stored-password note read in the owner-approved wording, including that the stored password is not encrypted (D-17, F-023).
 - The "port 8088" link for an IPv6 host the browser can follow is `http://[<address>]:8088/auth`.
@@ -31,18 +30,16 @@ Findings F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023 are each fixe
 ## Context
 
 - Builds on Plan 1: the save refuses an invalid host and a host change without both credentials, each with its own error code (`hqptuner/api/errors.py` `STATUS`), and the pinned refusal `login_values_pinned` as the login does.
-- Locked: D-07, D-17 (every visible text change in owner-approved wording), D-18 (`tests/js/store/setup.test.js` `test_discovery_fills_a_host_field_the_user_has_not_touched` is replaced as an owner-approved behavior change, not edited to pass).
+- Locked: D-07 [overruled by owner 2026-11-08: discovery keeps filling the host field; Task 1 struck], D-17 (every visible text change in owner-approved wording).
 - The login path (`logIn` in `hqptuner/static/store/setup.js`) keeps sending a host the user typed: the backend checks the typed pair at that host (D-01, unchanged by this phase), and `test_save_while_logged_out_sends_the_host_the_user_typed` stays as it is.
 - Frontend layout binds by `docs/design-system.md`, read before any CSS; reuse the panel's `setup-options` list and `setup-fill` button before writing new CSS. Copy stays out of assertions and selectors (`docs/testing.md` rule 9). No em dashes in copy (gated).
 - `CLAUDE.local.md`: this tree ends at `make check`; there is no `:8090` container for v1, so the visual check is the `e2e` CI job and the owner's own look.
 
 ## Tasks
 
-### Task 1: Discovery lists the daemons it found, and the user picks one
+### Task 1: Struck by owner ruling (F-021)
 
-- **Files:** hqptuner/static/store/setup.js, hqptuner/static/components/Setup.js, hqptuner/static/css/features/setup.css, tests/js/store/setup.test.js, tests/js/components/chrome/setup.test.js
-- **Action:** `runDiscovery` keeps the answering daemons in panel state instead of writing `form.value.host` when exactly one answers; the panel renders them as a list with a prompt, each entry picking its address into the host field through `fillHost` (which marks the field touched). No answer count fills the field on its own, on open or on Detect (D-07, F-021). Each entry shows what the daemon said it is (`Daemon`'s `address`, `name`, `product`, `platform` from `GET /api/discover`), in the owner-approved list and prompt wording (D-17); if it is not in hand when this task runs, stop and ask. Rewrite the comments this reverses: `Setup.js`'s header ("what it finds fills the host field ... nothing to list"), `openSetup`'s ("the sweep's answer is the one that should win"), `runDiscovery`'s and `detectHosts`'s docstrings. Replace `test_discovery_fills_a_host_field_the_user_has_not_touched` (D-18). Keep `hostTouched` only if something still reads it.
-- **Verify:** Testing scope, store lane for the decision and component lane for the render: after a discovery that answers one daemon the host field still holds what `loadConnection` seeded; after one that answers two, the panel state holds both addresses; picking an entry puts its address in the host field; the rendered panel shows one pickable entry per answering daemon, selected by a `data-testid` or wire value, never by copy. `test_discovery_leaves_a_host_the_user_typed_alone` stays green unchanged. Bite: the first and third red against the commit before this one (the replaced test is the D-18 change). `scripts/gate.sh make check` prints `exit=0` (JS suite at lines 95 / branches 90 / functions 85, knip, jscpd, css-dead).
+- **Action:** None. Owner ruling 2026-11-08: discovery filling the host field is not a credential leak, because nothing connects until the user presses Save or logs in, with the filled host on screen. Discovery behavior, its comments and `test_discovery_fills_a_host_field_the_user_has_not_touched` stay as they are. Commit nothing for this task; report it as struck, not skipped.
 
 ### Task 2: A refused save shows the backend's sentence
 
@@ -70,6 +67,6 @@ Findings F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023 are each fixe
 
 ## Notes
 
-- **Copy (D-17), each pending owner approval before its task:** the discovered-daemon list and its prompt (Task 1), the `CHANGELOG.md` `[Unreleased]` `### Security` entry (Task 2), the blank-password placeholder (Task 3), the stored-unencrypted note (Task 4). Shown as the server sends it, no panel copy: the three refusal sentences of Task 2.
+- **Copy (D-17), each pending owner approval before its task:** the `CHANGELOG.md` `[Unreleased]` `### Security` entry (Task 2), the blank-password placeholder (Task 3), the stored-unencrypted note (Task 4). Shown as the server sends it, no panel copy: the three refusal sentences of Task 2.
 - The Windows meaning of "owner-only" (Plan 5 Task 3) bears on the stored-unencrypted note's wording; the note should not claim a file protection Windows does not give (CONTEXT flagged assumption).
 - Shared with Plan 3, which runs after this one: `hqptuner/static/store/setup.js`, `hqptuner/static/components/Setup.js`, the two JS test files, `CHANGELOG.md`, `.filepawl.toml`.

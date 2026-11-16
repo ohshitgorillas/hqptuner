@@ -1,0 +1,47 @@
+{
+  "phase": "8",
+  "trigger": "risk_surface",
+  "discriminator": "plan-4",
+  "round": 1,
+  "base": "00869dfd",
+  "head": "00e726e1",
+  "base_id": "00869dfdbcb87a0bc6270b9de3ff6cf7be6fd424",
+  "head_id": "00e726e1f1e464bc99cb4b9537d7840bcdcf3d97",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/presets/names.py",
+      "line": 112,
+      "severity": "medium",
+      "claim": "_is_device_name compares the part before the first period without stripping trailing spaces, so the Windows build accepts a device name followed by spaces and an extension, e.g. 'CON .bak' or 'NUL  .x'. Win32's DOS-device check (RtlIsDosDeviceName_U) trims those spaces before it compares, on Windows releases before 11.",
+      "failure_scenario": "Windows build, POST /api/profile/save with name 'CON .bak'. validate_stored_name passes it: no colon, and 'CON '.upper() is not in _DEVICE_NAMES. _path then joins '<store>\\CON .bak.xml' and resolves it to the console device. save writes the preset bytes to the console instead of a file, and a later read finds no preset. The same input with LPT1/COM1 writes to a port. The expectation comes from Win32 path normalization, not from the plan text, which describes the period-only split the code implements. The plan's Notes say behavior on Windows was never checked.",
+      "ruling": "survived",
+      "convergent": false,
+      "base_id": "00869dfdbcb87a0bc6270b9de3ff6cf7be6fd424",
+      "head_id": "00e726e1f1e464bc99cb4b9537d7840bcdcf3d97"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/presets/store/presets.py",
+      "line": 333,
+      "severity": "low",
+      "claim": "import_missing guards only _stored_name with its try/except. The new containment refusal is raised from self.exists(valid) and self.save(...) inside the loop, so a single preset whose store file is a symlink pointing outside the store aborts the whole migration. The docstring promises an unrepresentable daemon name is skipped rather than raising.",
+      "failure_scenario": "Store dir holds Studio.xml as a symlink to ~/shared/Studio.xml, which worked before this range. The daemon's data/cfgs lists 'Studio' and 'New', in that order. import_missing calls exists('Studio'), and _path raises InvalidPresetNameError(OUTSIDE_STORE). The exception leaves the loop, so 'New' is never imported. loader._load_http_lane catches PresetError and only logs 'preset migration skipped'. migrate_once has already set _migrated=True, so the import is not retried for the rest of the process.",
+      "ruling": "survived",
+      "convergent": false,
+      "base_id": "00869dfdbcb87a0bc6270b9de3ff6cf7be6fd424",
+      "head_id": "00e726e1f1e464bc99cb4b9537d7840bcdcf3d97"
+    }
+  ]
+}

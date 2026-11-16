@@ -1,0 +1,35 @@
+{
+  "phase": "8",
+  "trigger": "risk_surface",
+  "discriminator": "plan-1",
+  "round": 2,
+  "base": "f1bcc93c",
+  "head": "35c6a137",
+  "base_id": "f1bcc93cd4a73e8dc7acfae200d2f7213a17a7e2",
+  "head_id": "35c6a137ab4f0c5e003b07cd87c25b8b48502321",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/api/routes/pending.py",
+      "line": 210,
+      "severity": "high",
+      "claim": "The fix refuses only code points below U+0020. XML 1.0's Char production also excludes U+FFFE, U+FFFF and the surrogates U+D800-U+DFFF, so a staged text or number value can still reach apply_edits with a character the file cannot hold. The high finding (raw unencodable characters written into hqplayerd.xml through free inputs) is therefore only partly closed.",
+      "failure_scenario": "Send POST /api/config/stage {\"http\":{\"title\":\"a\\ufffeb\"}}. ord(0xFFFE) >= 0x20 passes refuse_control_chars, and title is a text input, so check_offered also passes. On apply, presetconf.apply_edits(b'<hqplayerd><title value=\"old\"/></hqplayerd>', {'title':'a\\ufffeb'}) returns b'<title value=\"a\\xef\\xbf\\xbeb\"/>', and expat rejects it with 'not well-formed (invalid token): line 1, column 26'. I ran this offline. U+FFFF behaves the same, and so does every number input (fixed_volume, volume_max). For a lone surrogate, the body {\"http\":{\"title\":\"a\\ud800b\"}} gets through FastAPI's request.json() (json.loads) and StageBody: I checked that pydantic model_validate on the json.loads result accepts 'a\\ud800b'. The surrogate also passes the new check. apply_edits then raises UnicodeEncodeError: 'utf-8' codec can't encode character '\\ud800' ... surrogates not allowed. That is an unhandled crash on apply, and the buffer still holds the value. The new tests only parametrize C0 characters, so nothing catches these inputs.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "1c9453b2",
+      "base_id": "f1bcc93cd4a73e8dc7acfae200d2f7213a17a7e2",
+      "head_id": "35c6a137ab4f0c5e003b07cd87c25b8b48502321"
+    }
+  ]
+}

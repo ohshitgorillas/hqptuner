@@ -30,9 +30,9 @@ files:
   - tests/apply/test_manager_network.py
   - tests/api/test_http_client_network.py
   - tests/api/login/test_login_network.py
-  - tests/engine/test_ungated_readers_network.py
+  - tests/api/test_ungated_readers_network.py
   - tests/api/test_discovery_network.py
-  - tests/engine/test_metering_network.py
+  - tests/api/test_metering_network.py
   - tests/test_desktop.py
   - .filepawl.toml
 ---
@@ -151,7 +151,7 @@ Every offline test reaches each fake daemon it talks to in-process, so no offlin
 
 ### Task 5: The ungated /about and /log readers reach the daemon through the network
 
-- **Files:** hqptuner/engine/release.py, hqptuner/core/loader.py, hqptuner/core/engineread.py, tests/engine/test_ungated_readers_network.py
+- **Files:** hqptuner/engine/release.py, hqptuner/core/loader.py, hqptuner/core/engineread.py, tests/api/test_ungated_readers_network.py
 - **Action:** `release.fetch_about` takes an `HttpOptions` (or none) the way `logtail.fetch_log` does, and keeps a 10-second timeout, the value `_HTTP_TIMEOUT` and `HttpOptions`' default both hold today. Its other caller, `scripts/pytest_plugins/tested_release.py`, keeps working unchanged on the default. `connect_and_load` passes the manager network's transport for `(cfg.hqp_host, cfg.hqp_http_port)`. Both `fetch_log` calls in `engineread`, in `refresh_device_caps` and `read_log_tail`, do the same. Caller-side delta: three calls.
 - **Verify:** Testing scope:
   - Outcome (a): a manager built with the network connects and holds the release the in-process-only 8088 fake's `/about` prints.
@@ -160,7 +160,7 @@ Every offline test reaches each fake daemon it talks to in-process, so no offlin
   - Bite: one null stub per call site, each ignoring the network. Each check fails by assertion.
   - Already covered: existing release, logtail and devicecaps tests stay green on the default.
   - Testing stops there.
-  - Commands: red runs, then `scripts/gate.sh .venv/bin/pytest tests/engine/test_ungated_readers_network.py -q` green, then `scripts/gate.sh make check` green.
+  - Commands: red runs, then `scripts/gate.sh .venv/bin/pytest tests/api/test_ungated_readers_network.py -q` green, then `scripts/gate.sh make check` green.
 
 ### Task 6: Discovery sweeps and describes daemons through the network
 
@@ -189,14 +189,14 @@ Every offline test reaches each fake daemon it talks to in-process, so no offlin
 
 ### Task 7: The metering reader streams from the daemon through the network
 
-- **Files:** hqptuner/engine/metering.py, hqptuner/api/lifespan.py, tests/support/fake_metering.py, tests/engine/test_metering_network.py
+- **Files:** hqptuner/engine/metering.py, hqptuner/api/lifespan.py, tests/support/fake_metering.py, tests/api/test_metering_network.py
 - **Action:** `MeteringReader` takes the stream opener as a keyword next to `pace` and `monotonic`, defaulting to `asyncio.open_connection`. `_stream` dials through it, and still reads host and port at dial time so that `retarget` keeps working. The lifespan constructs the reader with the manager's opener. `fake_metering` gains an in-process stream fake: an asyncio callback that sends `frames` copies of the caller's frame and then parks until the reader hangs up. The fake still derives nothing (rule 13). Its TCP `spawn` stays until plan 4, because `junkcal_rig` and two api tests use it until plans 2 and 3.
 - **Verify:** Testing scope:
   - Outcome (a): a reader handed the network's opener, with a playing context, ingests frames from an in-process-only 4322 fake. The band readout or the feed is non-empty where, with no stream, it reads empty.
   - Outcome (b): an app built with the network with metering on shows that stream on its meter feed or status bands.
   - Bite: the null stub is the opener accepted and ignored, and the lifespan passing none. Each check fails by assertion.
   - Testing stops there.
-  - Commands: red runs, then `scripts/gate.sh .venv/bin/pytest tests/engine/test_metering_network.py -q` green, then `scripts/gate.sh make check` green.
+  - Commands: red runs, then `scripts/gate.sh .venv/bin/pytest tests/api/test_metering_network.py -q` green, then `scripts/gate.sh make check` green.
 
 ### Task 8: The desktop launcher knocks on its listen port through a handed socket
 

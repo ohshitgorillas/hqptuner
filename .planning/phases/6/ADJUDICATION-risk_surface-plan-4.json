@@ -1,0 +1,34 @@
+{
+  "phase": "6",
+  "trigger": "risk_surface",
+  "discriminator": "plan-4",
+  "round": 1,
+  "base": "ca7d073b",
+  "head": "5b73a1e3",
+  "base_id": "ca7d073b44837b520bf29849e370602aa5e368d2",
+  "head_id": "5b73a1e3b718f220ef015c6ce217a5b93d990ff6",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/api/deps.py",
+      "line": 68,
+      "severity": "medium",
+      "claim": "`Mgr` now resolves through `_held_manager`, which holds the 8088 client until the dependency exits. Under FastAPI 0.141.1 a request-scoped yield dependency exits only after `await response(...)` finishes (fastapi/routing.py:140-146). So the never-ending METER SSE route (`hqptuner/api/routes/meter.py:19`, `meter_feed(manager: Mgr)`, a StreamingResponse that stays open) pins the client that was in service when the page opened, for as long as the page stays open, even though that route never touches the 8088 client.",
+      "failure_scenario": "Open the METER page with metering on, so the GET /api/meter/feed stream holds client A. Save new credentials or a new host through POST /api/connection. The setter sees A in `_holders` and skips the close. A, with its keep-alive pool to the old host/pair, stays open until the browser tab closes, not 'once its in-flight requests finish' (PLAN-4 must-be-true, AC5/D-11). Each further METER tab, or each EventSource reconnect made between saves, pins one more replaced client. No test covers a streaming route holding the client, because the Task 5 tests drive `holding_http` directly.",
+      "ruling": "survived",
+      "convergent": false,
+      "base_id": "ca7d073b44837b520bf29849e370602aa5e368d2",
+      "head_id": "5b73a1e3b718f220ef015c6ce217a5b93d990ff6"
+    }
+  ]
+}

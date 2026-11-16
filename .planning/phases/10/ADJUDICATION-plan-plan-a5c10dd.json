@@ -1,0 +1,105 @@
+{
+  "phase": "10",
+  "trigger": "plan",
+  "discriminator": "plan-a5c10dd",
+  "round": 1,
+  "base": "3bcc8c2c",
+  "head": "a5c10dd6",
+  "base_id": "3bcc8c2cb06b76a08fef880ce07fd73e2320ce5e",
+  "head_id": "a5c10dd6f635a576d05915c5b6ee0a7976b32adf",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/10/PLAN-1.md",
+      "line": 31,
+      "severity": "medium",
+      "claim": "The plans claim the gate goes red on the base-commit export once for each rule they add. That check cannot fail for any rule after Plan 1 Task 1, because the export's 36 tag-pinned `uses:` refs already make the whole gate exit non-zero.",
+      "failure_scenario": "Plan 1 Task 2 (pipe-to-shell), Plan 2 Tasks 2, 3 and 5 (lock and digest rules), Plan 3 Tasks 1 and 3 to 6, and Plan 5 Task 1 (lines 49-50) each verify only that the gate 'exits non-zero against the base-commit export'. Take a new rule that never matches anything, such as a pipe regex that misses `curl -LsSf ... | env UV_INSTALL_DIR=... sh` at release.yml:49 (the `| env ... sh` form). Every one of those verify steps still passes, because the SHA-pin rule keeps the exit at 1. Plan 5 then cites one exit line as the pre-fix proof for nine findings (Success Criterion 3) without showing that any rule other than the SHA-pin rule bites on the real pre-fix files. Only Plan 1 Task 1 requires the output to name its refs.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "a5c10dd6",
+      "base_id": "3bcc8c2cb06b76a08fef880ce07fd73e2320ce5e",
+      "head_id": "a5c10dd6f635a576d05915c5b6ee0a7976b32adf"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/10/PLAN-2.md",
+      "line": 58,
+      "severity": "medium",
+      "claim": "Task 2 deals with the project's own setuptools backend but not the git-sourced filepawl. A locked sync of the `dev` extras has to build filepawl from source, and its `setuptools>=68` backend is fetched unhashed into an isolated build env, so AC1's 'check.yml installs only from the hashed lock (triviajudge excepted)' is false and no gate rule can see it.",
+      "failure_scenario": "pyproject.toml:37 names filepawl as `git+https://...filepawl.git@<sha>`. filepawl's pyproject has `[build-system] requires = [\"setuptools>=68\"]`. `uv sync --locked --extra dev` in check.yml resolves that build requirement from PyPI at build time, and uv.lock does not hash it. So a compromised setuptools release still runs code in the check job, the same path Task 2 names as 'the failure to avoid' for the project's own backend. Task 2's six-target `--no-build` dry resolution also either fails on filepawl or is narrowed to leave the dev set out, which hides the gap.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "a5c10dd6",
+      "base_id": "3bcc8c2cb06b76a08fef880ce07fd73e2320ce5e",
+      "head_id": "a5c10dd6f635a576d05915c5b6ee0a7976b32adf"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/10/PLAN-3.md",
+      "line": 75,
+      "severity": "medium",
+      "claim": "AC2 says the gate run confirms that `package-windows` names `environment: signing`, but no gate rule in any plan checks it. Task 3's rule covers only jobs that import the Apple secrets. Task 4's rule (every `environment: signing` job needs the check) is vacuously true for a job that drops the environment.",
+      "failure_scenario": "Delete `environment: signing` from `package-windows` (release.yml:350). The SimplySign secrets then come from repository level, and the job no longer needs `tag-check`. check_supply_chain.py still exits 0. The Task 3 rule passes because the job uses no MACOS_/NOTARY_ secrets, and the Task 4 rule passes because the job no longer names the environment. AC2's package-windows half, and F-035's 'both signing jobs' fix, have no check that fails.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "a5c10dd6",
+      "base_id": "3bcc8c2cb06b76a08fef880ce07fd73e2320ce5e",
+      "head_id": "a5c10dd6f635a576d05915c5b6ee0a7976b32adf"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/10/PLAN-5.md",
+      "line": 39,
+      "severity": "medium",
+      "claim": "Plan 5 requires that 'Every clause of each finding's What the code shows is either named as fixed or quoted as ruled'. Two clauses have no task in Plans 1-4 and no owner ruling in CONTEXT, so Plan 5 cannot write those entries without breaking its own rule.",
+      "failure_scenario": "F-042 (REPORT.md:1925): 'Pre-commit runs hooks labelled as LLM judges ... so repository text leaves the host'. No plan touches it, and D-06 rules only on pinning triviajudge. F-040 (REPORT.md:1841, and its title '...with auto-update encouraged'): the documented setup fetches compose.yaml from `main`, follows `:latest` and recommends Watchtower. Cosign signing does nothing for a Watchtower pull that never verifies, and no plan changes the README or compose.yaml or records a ruling. The F-040 entry ('Fixed in the tree') and the F-042 entry ('Fixed for filepawl ... triviajudge declined') leave these clauses with neither a fix nor a ruling.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "a5c10dd6",
+      "base_id": "3bcc8c2cb06b76a08fef880ce07fd73e2320ce5e",
+      "head_id": "a5c10dd6f635a576d05915c5b6ee0a7976b32adf"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/10/PLAN-4.md",
+      "line": 80,
+      "severity": "medium",
+      "claim": "Plan 4 keeps the GPG key out of build jobs and inside `environment: signing` (line 27). The new cosign image-signing key goes into repository-level secrets in `build-push`, a job with no environment, so it recreates F-035's exposure for a new signing key.",
+      "failure_scenario": "Human setup 2 puts COSIGN_PRIVATE_KEY and COSIGN_PASSWORD at repository level. Per F-035 (REPORT.md:1643), anyone with write access can push a workflow edit to any branch that reads repository secrets with no environment rule in the way. That person can then sign an arbitrary image that passes the README's `cosign verify --key cosign.pub`. That defeats F-040's fix against the exact prerequisite it names ('registry ... write access, by theft'). No gate rule ties the cosign secrets to `environment: signing`, as Plan 3 Task 3 does for the Apple secrets.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "a5c10dd6",
+      "base_id": "3bcc8c2cb06b76a08fef880ce07fd73e2320ce5e",
+      "head_id": "a5c10dd6f635a576d05915c5b6ee0a7976b32adf"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/10/PLAN-3.md",
+      "line": 84,
+      "severity": "low",
+      "claim": "Task 5's verify greps for `env:SIMPLYSIGN_OTPAUTH_URI` (case-sensitive) and expects to see both the read and the removal. The Action prescribes the removal as `Remove-Item Env:SIMPLYSIGN_OTPAUTH_URI` with a capital E, so the grep cannot match the removal line.",
+      "failure_scenario": "The script is implemented exactly as the Action says: `$env:SIMPLYSIGN_OTPAUTH_URI` read once, then `Remove-Item Env:SIMPLYSIGN_OTPAUTH_URI`. `grep -n 'env:SIMPLYSIGN_OTPAUTH_URI'` prints only the read line. The verify then reports that the removal is missing, or the executor quietly reinterprets the check. As written, the check does not test what it says.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "a5c10dd6",
+      "base_id": "3bcc8c2cb06b76a08fef880ce07fd73e2320ce5e",
+      "head_id": "a5c10dd6f635a576d05915c5b6ee0a7976b32adf"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "phase": "4",
+  "trigger": "risk_surface",
+  "discriminator": "plan-1",
+  "round": 1,
+  "base": "063d0e79",
+  "head": "a666a057",
+  "base_id": "063d0e794c98cc7a5c3fd299c92a785195871c56",
+  "head_id": "a666a0578ebab661246df91a236d9024b40520fb",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/api/login.py",
+      "line": 97,
+      "severity": "high",
+      "claim": "The login mints its cookie for the pair in force after apply_connection (cfg.hqp_username/cfg.hqp_password), not for the pair it checked. When HQPTUNER_HQP_HOST/USERNAME/PASSWORD are pinned in the environment, layer_onto_config (hqptuner/core/connection.py:142-147) leaves those fields alone. So a login checked against a caller-named host gets a valid token for the real, pinned daemon pair, and HQPTuner is never retargeted.",
+      "failure_scenario": "Docker install as shipped: compose.yaml:29-31 passes HQPTUNER_HQP_HOST, HQPTUNER_HQP_USERNAME and HQPTUNER_HQP_PASSWORD through. A LAN peer runs a listener on 10.0.0.66:8088 that answers 200 to GET /config, then sends POST /api/login {\"host\":\"10.0.0.66\",\"username\":\"x\",\"password\":\"y\"}. check_pair returns ACCEPTED and _differs is True. apply_connection writes connection.json, but layer_onto_config changes nothing because all three fields are pinned. mint() then signs a token over the real pinned pair, and the response sets a valid hqptuner_login cookie. The peer can now call every gated /api route against the real production daemon with HQPTuner's stored credentials. No retarget happens and nothing visible changes. The owner ruling (PLAN-1 Notes, 'No host rule at login') accepted only that a LAN peer could retarget HQPTuner to its own daemon. Here the peer gets control of the real daemon instead. Partial pin, host only: the record's attacker pair is layered in while the host stays real. The peer is logged in under its own pair, HQPTuner still drives the real daemon (control lane), and the 8088 lane is broken by the wrong pair. Under pins, the login should mint only when the verified (host, username, password) equals what is in force after apply, and refuse otherwise.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "d2d55a38",
+      "base_id": "063d0e794c98cc7a5c3fd299c92a785195871c56",
+      "head_id": "a666a0578ebab661246df91a236d9024b40520fb"
+    }
+  ]
+}

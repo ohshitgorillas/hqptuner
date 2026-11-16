@@ -1,0 +1,81 @@
+{
+  "phase": "9",
+  "trigger": "plan",
+  "discriminator": "plan-1bf222d",
+  "round": 1,
+  "base": "1bf222da5231004422344b9fcccf6794ce395355",
+  "head": "1bf222da5231004422344b9fcccf6794ce395355",
+  "base_id": "1bf222da5231004422344b9fcccf6794ce395355",
+  "head_id": "1bf222da5231004422344b9fcccf6794ce395355",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/9/PLAN-1.md",
+      "line": 20,
+      "severity": "high",
+      "claim": "The plans add test files to directories already at filepawl's dircount test cap of 30, so `filepawl check` (run by `make check` via Makefile:24 and by pre-commit) goes red and the 'make check prints exit=0' truths cannot be met as written.",
+      "failure_scenario": "No [tool.filepawl.dircount] table in pyproject.toml, so the default cap_tests=30 applies (filepawl/config.py:262-264). `git ls-files` counts 30 .py files in tests/apply. Plan 1 Tasks 1 and 3 add tests/apply/test_apply_queue.py and tests/apply/test_apply_keeps_restaged.py, which makes 32 files, over the cap of 30, so the dircount gate fails. tests/presets has 29 files. Plan 2 adds test_safety_copies.py (30), Plan 3 adds test_atomic_writes.py (31, red) and Plan 4 adds test_store_locks.py (32). D-13 lists the caps for the source directories but none of these test-directory caps, and every task's Files list pins the paths that fail.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0ed3fb9b792e7d4c8e5b4b87f22b91566552c9a3",
+      "citation_missing": true,
+      "base_id": "1bf222da5231004422344b9fcccf6794ce395355",
+      "head_id": "1bf222da5231004422344b9fcccf6794ce395355"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/9/PLAN-5.md",
+      "line": 39,
+      "severity": "medium",
+      "claim": "Plan 5 records F-031 as plainly 'Fixed' and requires every clause of the finding to be named fixed or quoted as ruled, but the clause 'the API can't repair the store and it takes a disk edit' is kept unchanged by D-11 and has no owner ruling to quote.",
+      "failure_scenario": "REPORT.md F-031 'What the code shows' says that because read_stamped refuses unparseable bytes and writes read first, the API cannot repair the store. CONTEXT puts 'an API path that overwrites a corrupt store (D-11)' out of scope. D-11 sits under 'Decisions', not under the quoted owner rulings like D-03 and D-04. Executed as written, Plan 5 Task 1 cannot meet its own rule ('none is left out'). It either claims a clause fixed that the code still shows, or it leaves the clause out.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0ed3fb9b792e7d4c8e5b4b87f22b91566552c9a3",
+      "citation_missing": true,
+      "base_id": "1bf222da5231004422344b9fcccf6794ce395355",
+      "head_id": "1bf222da5231004422344b9fcccf6794ce395355"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/9/PLAN-3.md",
+      "line": 53,
+      "severity": "medium",
+      "claim": "The shared helper copies ConnectionStore's `os.open(..., mode)` exclusive-create pattern but now writes binary payloads (zip safety copies, WAV park uploads, preset XML). The plan never asks for `os.O_BINARY`, so on Windows the low-level fd is opened in text mode and its bytes are rewritten.",
+      "failure_scenario": "hqptuner/core/connection.py:134 opens with `os.O_WRONLY | os.O_CREAT | os.O_EXCL` and no O_BINARY, which is harmless only because it writes text JSON. A mode argument means os.open. On Windows the CRT translates LF to CRLF on such an fd, so a safety-copy zip or a parked .wav written through the helper is corrupted on disk. The Task 1 'win32' case runs on Linux, so it cannot see this, and smoke-windows never reads a copy back.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0ed3fb9b792e7d4c8e5b4b87f22b91566552c9a3",
+      "citation_missing": true,
+      "base_id": "1bf222da5231004422344b9fcccf6794ce395355",
+      "head_id": "1bf222da5231004422344b9fcccf6794ce395355"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/9/PLAN-2.md",
+      "line": 57,
+      "severity": "low",
+      "claim": "The planned name `pre-apply-settings-<stamp>[serial].zip` does not sort lexically in creation order once a serial is added for a same-instant collision, so a name-sorted 'five most recent' prune deletes the wrong copies.",
+      "failure_scenario": "Two copies at the same stamp get names `pre-apply-settings-S.zip` (first) and `pre-apply-settings-S-1.zip` (second). '-' (0x2D) sorts before '.' (0x2E), so the first copy sorts as the newer one, and serials 10 and up sort before 2. The plan justifies the stamp by 'sorts lexically in time order', but with collisions in the window the prune keeps an older copy and removes a newer one. A clock with coarse resolution reaches this, and so does tests/support/virtual_clock.py, whose `now` is one fixed instant (line 159).",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0ed3fb9b792e7d4c8e5b4b87f22b91566552c9a3",
+      "citation_missing": true,
+      "base_id": "1bf222da5231004422344b9fcccf6794ce395355",
+      "head_id": "1bf222da5231004422344b9fcccf6794ce395355"
+    }
+  ]
+}

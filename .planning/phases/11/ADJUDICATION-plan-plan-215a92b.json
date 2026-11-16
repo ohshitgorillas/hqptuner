@@ -1,0 +1,63 @@
+{
+  "phase": "11",
+  "trigger": "plan",
+  "discriminator": "plan-215a92b",
+  "round": 1,
+  "base": "78fa6152",
+  "head": "215a92b6",
+  "base_id": "78fa6152e80e1711b68442ab653dc33363f4ed30",
+  "head_id": "215a92b6b3428abcb7952e0a324130f1c01302ce",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/11/PLAN-5.md",
+      "line": 37,
+      "severity": "high",
+      "claim": "F-045's fix updates only CLAUDE.md:46 and live-daemon SKILL.md:34. The host skill `opal-hqptuner` (~/.claude/skills/opal-hqptuner/SKILL.md:13) also carries the same exemption, and it is binding: it says \"These credentials are not secret ... Reading, sourcing, or echoing them in shell commands, logs, and hand-back reports is expected and necessary - do not flag or redact them.\" No plan changes that file, and no plan records changing it as an owner host-action Note.",
+      "failure_scenario": "CLAUDE.md's Host section tells agents to load the host skill before touching host state. After Plan 5 lands, an agent working against the live daemon loads opal-hqptuner and follows its \"do not flag or redact\" order. It then echoes this host's non-stock HQPTUNER_HQP_PASSWORD into commands, logs and hand-back reports, which is the exact leak F-045 describes. Plan 6 Task 3 (PLAN-6.md:54-56) still records F-045 as fixed, with no Note naming this site. AC5 requires every host action to be a Note, and ~/dev/CLAUDE.md rule 10.2 puts a same-cause instance in scope, so both are missed.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "215a92b6",
+      "base_id": "78fa6152e80e1711b68442ab653dc33363f4ed30",
+      "head_id": "215a92b6b3428abcb7952e0a324130f1c01302ce"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/11/PLAN-1.md",
+      "line": 60,
+      "severity": "medium",
+      "claim": "Task 3 allows edits to module docstrings only, and its Verify requires `git diff -U0 .claude/hooks/` to show every changed line inside the docstrings. That leaves the comment on BASH_BUMP at no-version-bumps.py:35 unchanged, and that comment makes the same over-promise F-046 asks to correct: \"#: the bump script, by name, however the command reaches it\".",
+      "failure_scenario": "Task 3 runs as written. The docstring now promises only a literal-name match, but line 35, one line above the regex the finding cites (lines 36-37), still claims the hook catches the script however the command reaches it. Executed to the letter, the plan cannot correct that line, because the Verify forbids any change outside the docstrings. F-046's disposition then says the hook no longer promises more than a name match while the file still does.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "215a92b6",
+      "base_id": "78fa6152e80e1711b68442ab653dc33363f4ed30",
+      "head_id": "215a92b6b3428abcb7952e0a324130f1c01302ce"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/11/PLAN-3.md",
+      "line": 50,
+      "severity": "low",
+      "claim": "Task 2 leaves `_ManualLocator` and `_manual_label_to_file` unchanged. Its reason is that they open only names manual_sections() returns, or a bare name search_manual found inside the directory. That reason is false for a symlink inside the directory that points outside it, which Plan 3 Task 1 itself counts as an escape for hqp_section.",
+      "failure_scenario": "A force-tracked `docs/official/manual/zz.txt` symlink points to a file outside the manual directory. search_manual globs MANUAL/*.txt, which follows the link, and search_section returns the outside file's matching lines. `_manual_label_to_file` passes the bare name because is_file() follows the link, and `_ManualLocator.locate` reads the outside file for context lines. hqp_find therefore prints outside content even though hqp_section now refuses the same symlink. That breaks Plan 3's own goal that the hqpdoc tools read nothing outside docs/official/manual/.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "215a92b6",
+      "base_id": "78fa6152e80e1711b68442ab653dc33363f4ed30",
+      "head_id": "215a92b6b3428abcb7952e0a324130f1c01302ce"
+    }
+  ]
+}

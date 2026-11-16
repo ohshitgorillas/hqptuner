@@ -1,0 +1,134 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-d0e64444",
+  "round": 1,
+  "base": "d0e64444",
+  "head": "d0e64444",
+  "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+  "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-1.md",
+      "line": 98,
+      "severity": "high",
+      "claim": "Task 7 sends every LIVE batch through deps.ensure_form on the /config page, but the LIVE lane does not depend on that page. The LIVE store reads /api/state and the enumerations (hqptuner/static/store/live/derive.js:1-12), not GET /api/config. config_form is only filled when an 8088 client exists and answers (forms.py:74-76). So Task 7 refuses every LIVE write on an install with no 8088 credentials or with refused credentials. D-01's premise that the check 'refuses no UI action' is false for LIVE.",
+      "failure_scenario": "An install with 4321 reachable and 8088 credentials empty or refused: config_form stays None, so POST /api/config/live with a valid listed filter answers 503 not_loaded (or 502). That LIVE write works today. The suite breaks the same way: live_api and chain_api build on live_app, which is control-only with no credentials (tests/support/apps.py:175, fixtures_clients.py:58-77). The LIVE tests on them (about 20 calls across tests/live/test_live_chain.py, tests/api/test_api_routes.py, tests/apply/test_live_routed_batches.py, tests/api/test_live_direct_refusal.py) go red. Line 113 says no test replacement is planned, so execution stops at Task 7.",
+      "ruling": "refuted",
+      "convergent": false,
+      "counter_evidence": {
+        "file": "docs/architecture.md",
+        "line": 35,
+        "note": "Owner ruling 2026-11-09: HQPTuner requires both the 4321 and the 8088 lane; with 8088 logged out, refused or down the app does not work. A LIVE write refused without the 8088 lane is the intended behavior, not a regression; recorded in docs/architecture.md section 2.4 (commit 9c6c8bf8) and phase 7 CONTEXT D-01, removal of the 4321-only mode is phase 11."
+      },
+      "citation_missing": true,
+      "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+      "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-1.md",
+      "line": 91,
+      "severity": "high",
+      "claim": "Task 6 turns red a known, certain set of existing stage tests, but the plan says 'Test replacements: none is planned' (line 113). The shared http_client fixture puts the control lane at a closed port (tests/support/fixtures_clients.py:134-140). Forms load only inside connect_and_load after a 4321 connect, or in the 4321 poll (core/loader.py:36-70, 184). So config_form never loads on that app.",
+      "failure_scenario": "After Task 6, http_client.post('/api/config/stage', json={'http': {'title': 'Renamed'}}) answers 503 not_loaded and stages nothing. That reds tests/api/test_api_write.py:52-114 and tests/api/test_api_config_ops.py:128-142 (apply-and-save reports and persists the preset), and the other http_client stage suites (audit, matrix profiles, autosave, pipeline apply, filter upload). They cannot be fixed without editing tests, so the plan stalls mid-execution on an owner ruling it never gathered up front.",
+      "ruling": "downgraded",
+      "convergent": false,
+      "counter_evidence": {
+        "file": "tests/support/fixtures_clients.py",
+        "line": 134,
+        "note": "Confirmed: http_client never loads config_form, so its stage tests go red at Task 6. Not high: the plan already routed such reds to the owner rather than editing them. Under the owner's 2026-11-09 ruling the fixtures move to the supported install (PLAN-1 Task 6, fixtures first)."
+      },
+      "citation_missing": true,
+      "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+      "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-1.md",
+      "line": 105,
+      "severity": "medium",
+      "claim": "Task 8 keeps only mgr.readings.credentials_ok as it was. The same 401 also sets the HTTP client's own credentials_ok to False (HttpConfigClient._mark, hqptuner/conf/httpconf.py:216-218), and forms.refresh copies that field into readings on every refresh, even one where no request answered (hqptuner/lanes/http/forms.py:103-104). So D-02's 'credentials_ok unchanged' is undone at the next poll.",
+      "failure_scenario": "The apply meets a 401 after a served backup and restore, and raises the new engine-fault error with readings.credentials_ok still True. The daemon is restarting, so the next poll's three getters all raise ConnectError and never call _mark. _record_credentials still copies the client's stale False into readings. decline_error then answers CredentialsRefusedError for every later apply, which is the misreport F-013 describes. The planned lane test reads readings right after the apply and passes anyway.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+      "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-1.md",
+      "line": 78,
+      "severity": "medium",
+      "claim": "Tasks 4, 6 and 7 all add a refusal before the merge (stage) or before _stand_autopilot_down (live), but no task orders the value-ceiling check against the page-choices and not-loaded checks. Task 4's own tests, written green at Task 4, can then go red at Task 6 or Task 7, and the plan forbids editing them.",
+      "failure_scenario": "Task 4's LIVE case posts a 1 MiB value for a page field such as filter and expects invalid_input. If Task 7 puts its choices check first, the same request answers route_refused (409), or not_loaded on an app with no polled /config. The stage case of a 1 MiB title on an app with no polled /config answers not_loaded once Task 6 runs first. Either way a passing Task 4 test turns red with no fix the plan allows.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+      "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 62,
+      "severity": "medium",
+      "claim": "Task 3's two wiring cases need the fake 8088 to serve a crafted /backup: a data/cfgs member that declares an over-ceiling size, or one with a corrupt deflate stream. The fake has no knob for that. _backup_response and _backup_zip build the archive from state with writestr only (tests/support/fake_http.py:101-112, 280-293). tests/support/fake_http.py is not in Plan 2's files list, and the task never says to add a knob, unlike Plan 1 Task 8.",
+      "failure_scenario": "The executor cannot write the 'app connects with no preset imported' bite cases without editing tests/support/fake_http.py. That file is outside the plan's declared files, so plan-overlap ordering and scope checks miss it. Any new knob also has to follow the _STATE locking rule (fake_http.py:30-38, 505-511), which the plan never mentions.",
+      "ruling": "refuted",
+      "convergent": false,
+      "counter_evidence": {
+        "file": "tests/support/fake_http.py",
+        "line": 286,
+        "note": "The fake serves arbitrary archive bytes already: with _stale above zero, _backup_response returns st['_pre_backup'] verbatim (fake_http.py:286-292), so a crafted /backup needs no new knob and no edit to fake_http.py."
+      },
+      "citation_missing": true,
+      "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+      "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-4.md",
+      "line": 48,
+      "severity": "low",
+      "claim": "Task 1 says validate_name is 'the one rule' and that names.py 'gains a second public function for a new name'. names.validate_new_name already exists, and PresetStore.save already calls it for first saves, skipping migrations and overwrites (hqptuner/presets/store/presets.py:233-239). The stated caller-side delta and design ignore it.",
+      "failure_scenario": "Followed as written, a third name validator is added beside validate_new_name, with its own call in PresetStore.save next to the existing conditional one. save then runs two overlapping new-name rules with different exemption rules (migration and overwrite), so whether `a:b` is refused depends on which branch the save takes.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+      "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-4.md",
+      "line": 68,
+      "severity": "low",
+      "claim": "Task 4 edits hqptuner/static/store/plainnames.js, which holds literal NUL bytes as template-string separators (lines 89 and 145). The agent's Edit and Write tools refuse a file with NUL bytes, and the plan gives no other way to edit it.",
+      "failure_scenario": "The executor's first Edit on plainnames.js is refused. It then has to improvise a shell rewrite that keeps the NUL separators byte-exact. Dropping one would merge the family and variant rank keys in ranks() and in the sort key, and silently reorder Simplified dropdowns.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9",
+      "head_id": "d0e64444fb28c40840f15bc238c27eb98eb513d9"
+    }
+  ]
+}

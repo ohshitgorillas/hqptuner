@@ -1,0 +1,35 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-1a75edf8",
+  "round": 2,
+  "base": "b369faf1",
+  "head": "40dbd28a",
+  "base_id": "b369faf1f8fe02e2e00074adc02898bd1c3edcda",
+  "head_id": "40dbd28a0302435ee21ca762630d67e10608e935",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-5.md",
+      "line": 56,
+      "severity": "low",
+      "claim": "The fix adds a required test to Task 1's Action (an edit made while engineRestarting is true and ready is still true is held, not sent), but Task 1's Verify was not updated. Its 'Testing scope ... stop there' still lists only Apply-inert and held-then-sent, and its bite proof still says 'the two new tests'.",
+      "failure_scenario": "The test writer follows the Verify scope, which ends with 'stop there', and writes only the two listed tests. The restart-window hold that closes finding 3 (D-08, HQPTuner's own restart) then ships with no test. A later regression that drops the engineRestarting check passes every gate.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "3a788957",
+      "base_id": "b369faf1f8fe02e2e00074adc02898bd1c3edcda",
+      "head_id": "40dbd28a0302435ee21ca762630d67e10608e935"
+    }
+  ]
+}

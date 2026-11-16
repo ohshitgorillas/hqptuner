@@ -58,6 +58,8 @@ files:
   - tests/speakers/test_speakers_rideout.py
   - tests/test_cover_floor.py
   - tests/support/fake_network.py
+  - tests/support/fake_discovery.py
+  - tests/support/fake_metering.py
 ---
 
 # Phase 5: Offline tests reach their fake daemons in-process - Plan 3: Test files that build their own clients and fakes move onto the in-process network
@@ -91,8 +93,8 @@ Every offline test reaches each fake daemon it talks to in-process, so no offlin
 
 ### Task 2: The remaining engine tests reach their fakes in-process
 
-- **Files:** tests/engine/http/test_http_unreachable_names_address.py, tests/engine/test_devicecaps.py, tests/engine/test_discovery.py, tests/engine/test_logtail.py
-- **Action:** Apply the plan's rule. In `test_discovery.py`, every search takes the network's datagram factory and opener. Its responders become plan 1's in-process responder, and its alias and silent control daemons become network registrations. The uvloop case and the real-timer ledger case keep running on their own loops, and still list what they list today. `test_logtail.py`'s "nothing listening" port stays an address nobody registers.
+- **Files:** tests/engine/http/test_http_unreachable_names_address.py, tests/engine/test_devicecaps.py, tests/engine/test_discovery.py, tests/engine/test_logtail.py, tests/support/fake_discovery.py
+- **Action:** Apply the plan's rule. In `test_discovery.py`, every search takes the network's datagram factory and opener. Its responders become plan 1's in-process responder, and its alias and silent control daemons become network registrations. The uvloop case and the real-timer ledger case keep running on their own loops, and still list what they list today. `test_logtail.py`'s "nothing listening" port stays an address nobody registers. Once `test_discovery.py` no longer calls `fake_discovery.responder`, delete `responder` and what only it used from `tests/support/fake_discovery.py`, so vulture finds nothing dead.
 - **Verify:** The plan's check over these four files. Rule 8 exemption: refactor only.
 
 ### Task 3: The login, connection, alias and release API tests reach their fakes in-process
@@ -103,8 +105,8 @@ Every offline test reaches each fake daemon it talks to in-process, so no offlin
 
 ### Task 4: The other API tests reach their fakes in-process
 
-- **Files:** tests/api/test_advisor_hidden.py, tests/api/test_api_routes.py, tests/api/test_control_failure_reads.py, tests/api/test_filter_upload_guards.py, tests/api/test_log_refusal_when_hqplayer_has_none.py, tests/api/test_meter_feed_route.py, tests/api/test_refusal_codes_have_status.py, tests/api/test_status_bands.py, tests/support/fake_network.py
-- **Action:** Apply the plan's rule. The metering streams in `test_meter_feed_route.py` and `test_status_bands.py` move to plan 1's in-process 4322 fake, with the same frames and counts. The custom `handler=` in `test_log_refusal_when_hqplayer_has_none.py` keeps its handler class and serves at an in-process address. The TCP announcements plan 2 task 4 added for these files' own fakes go with the TCP fakes.
+- **Files:** tests/api/test_advisor_hidden.py, tests/api/test_api_routes.py, tests/api/test_control_failure_reads.py, tests/api/test_filter_upload_guards.py, tests/api/test_log_refusal_when_hqplayer_has_none.py, tests/api/test_meter_feed_route.py, tests/api/test_refusal_codes_have_status.py, tests/api/test_status_bands.py, tests/support/fake_network.py, tests/support/fake_metering.py
+- **Action:** Apply the plan's rule. The metering streams in `test_meter_feed_route.py` and `test_status_bands.py` move to plan 1's in-process 4322 fake, with the same frames and counts. The custom `handler=` in `test_log_refusal_when_hqplayer_has_none.py` keeps its handler class and serves at an in-process address. The TCP announcements plan 2 task 4 added for these files' own fakes go with the TCP fakes. Once neither metering test calls `fake_metering.spawn`, delete `spawn` and what only it used from `tests/support/fake_metering.py`, so vulture finds nothing dead.
 
   `test_control_failure_reads.py` keeps a real reset. Its three tests are about what the user is shown when the control connection is reset under a command. Today `_serve_resetting` resets by closing a socket set to linger for zero seconds. On an AF_UNIX socketpair that close gives the client a clean end of file, not a reset. Moved as it is, the file would lose its premise while `test_a_reset_control_connection_does_not_show_the_user_the_socket_text` stayed green even against code that shows the user raw socket text. So:
   - `fake_network` gains a reset for a stream fake: the fake's end closes so that the client's next read fails in the kernel with `ECONNRESET`. `ControlClient._as_control_error` then meets it in its `OSError` branch, exactly as over TCP.

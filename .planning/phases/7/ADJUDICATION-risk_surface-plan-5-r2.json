@@ -1,0 +1,20 @@
+{
+  "phase": "7",
+  "trigger": "risk_surface",
+  "discriminator": "plan-5",
+  "round": 2,
+  "base": "0abfd055",
+  "head": "585e5fbe",
+  "base_id": "0abfd0554fff899fe608ec18cb07859b23eb8418",
+  "head_id": "585e5fbec105d2dca65102d8cae5c6f116941087",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": []
+}

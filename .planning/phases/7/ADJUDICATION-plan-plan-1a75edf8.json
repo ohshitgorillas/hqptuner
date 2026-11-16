@@ -1,0 +1,81 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-1a75edf8",
+  "round": 1,
+  "base": "1a75edf8",
+  "head": "1a75edf8",
+  "base_id": "1a75edf8dee1918f272df6610cfc1179ba006375",
+  "head_id": "1a75edf8dee1918f272df6610cfc1179ba006375",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-4.md",
+      "line": 26,
+      "severity": "high",
+      "claim": "Plan 4 refuses engine writes only in an HTTP middleware. No task covers the auto-pilot background task, which writes SetJunkFilter over 4321 with no `ready` check, so a feature keeps working over 4321 alone. That breaks D-02 ('every engine write is refused') and ROADMAP SC1 and the phase goal.",
+      "failure_scenario": "Auto-pilot is on and metering is enabled. The 8088 lane goes down or its credentials are refused, so `ready` is false and 4321 stays reachable. `hqptuner/api/lifespan.py:112` keeps `autopilotops.run` going. `autopilotops._move` gates only on `context_from`, which checks `manager.reachable` alone (`hqptuner/engine/trackcontext.py:46`). `act` then calls `lane.apply_now(mgr, {\"junk_filter\": index})` (`hqptuner/core/autopilotops.py:76`) and the engine filter switches over 4321 alone. The readiness gate never sees this write because it is not a request. Plan 4's AC1 tests only `POST /api/autopilot`, so they stay green.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "40dbd28a",
+      "citation_missing": true,
+      "base_id": "1a75edf8dee1918f272df6610cfc1179ba006375",
+      "head_id": "1a75edf8dee1918f272df6610cfc1179ba006375"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-4.md",
+      "line": 26,
+      "severity": "medium",
+      "claim": "The poll loop's chain-change re-assert sends LIVE-set values to the engine over 4321 whatever `ready` says, and no plan task holds or refuses it. LIVE behavior therefore keeps working with the 8088 lane down, against D-02 and SC1.",
+      "failure_scenario": "The user sets a value on the dormant LIVE card while both lanes are up. That value is held in `readings.live.chain` (`hqptuner/lanes/live/lane.py:140-145`). Then 8088 goes down. A source-mode track change swaps the chain. `loader.poll` calls `lane.chain_entered` (`hqptuner/core/loader.py`, before `refresh_http_forms`), which calls `reassert_chain`, which calls `apply_live` (`lane.py:156`). The engine receives filter or shaper setters while the app is not ready, and the fake 4321 logs commands that AC1's intent forbids.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "40dbd28a",
+      "citation_missing": true,
+      "base_id": "1a75edf8dee1918f272df6610cfc1179ba006375",
+      "head_id": "1a75edf8dee1918f272df6610cfc1179ba006375"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-5.md",
+      "line": 54,
+      "severity": "medium",
+      "claim": "The LIVE hold is keyed on the browser's `ready` signal alone. During HQPTuner's own apply restart, the browser's last health reading still says ready, so a LIVE edit is sent and refused instead of held. D-08 says the hold covers 'every not-ready state, HQPTuner's own restart included'.",
+      "failure_scenario": "The user clicks Apply on a restarting change. `duringEngineWrite` sets `engineRestarting` (`hqptuner/static/store/enginewrite.js:40-41`) but refreshes health only in its `finally`. The fast poll refreshes health only every 1-2 s (`store/sync.js:64`). On the server, `restarting` has already cleared `connected`, so `manager.ready` is false. A LIVE edit made inside that window (App.js marks the page `inert` only for `setupOpen`, `components/App.js:52`) passes the `ready` check in `writeLive`. The edit is POSTed, and Plan 4's gate refuses it with `daemon_unavailable`. The edit is dropped with an error, not held and sent when both lanes come back.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "40dbd28a",
+      "citation_missing": true,
+      "base_id": "1a75edf8dee1918f272df6610cfc1179ba006375",
+      "head_id": "1a75edf8dee1918f272df6610cfc1179ba006375"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-4.md",
+      "line": 77,
+      "severity": "medium",
+      "claim": "Plan 4 ships a user-visible behavior change with no `CHANGELOG.md` entry in its commit. Its own Notes admit this and leave it open. The repo rule requires an entry for every user-visible change under `[Unreleased]`, in the same commit.",
+      "failure_scenario": "Task 3 commits the readiness gate. From that commit on, the volume knob, matrix profile switch, auto-pilot toggle and live-snapshot apply are refused while 8088 is down. Before it, all four worked. No task in Plan 4 writes or asks the owner for an entry. D-16's single owner entry covers only held LIVE edits and Apply not firing, and it lands later, in Plan 5 Task 1's commit. So the gate commit breaks the CLAUDE.md changelog binding, and the refusals for these four controls may never get an entry at all.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "40dbd28a",
+      "citation_missing": true,
+      "base_id": "1a75edf8dee1918f272df6610cfc1179ba006375",
+      "head_id": "1a75edf8dee1918f272df6610cfc1179ba006375"
+    }
+  ]
+}

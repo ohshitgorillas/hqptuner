@@ -1,0 +1,35 @@
+{
+  "phase": "6",
+  "trigger": "plan",
+  "discriminator": "plan-5d5b046d",
+  "round": 2,
+  "base": "5d5b046d",
+  "head": "0afcd8d9",
+  "base_id": "5d5b046d6985225e7e9d2c5865e5ca7883a7e643",
+  "head_id": "0afcd8d9ed38d553eae870d096aaeed5ba79a547",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/6/PLAN-1.md",
+      "line": 54,
+      "severity": "medium",
+      "claim": "Task 1 adds an httpx.URL parse step to the validator, but its refuse set, which the plan calls 'the boundary', has no case that passes the LDH check and then fails the parse. So the step that closes the rest of F1/F-015 has no test, and deleting it leaves every case green.",
+      "failure_scenario": "`999.1.1.1` is not an IPv4 address to `ipaddress` but passes the LDH rule (every label is 1-3 digits, no hyphen). Against the repo's httpx, `httpx.URL('http://999.1.1.1:8088')` and `httpx.AsyncClient(base_url=...)` both raise `InvalidURL: Invalid IPv4 address: '999.1.1.1'`, so only the parse step refuses it. Every listed refuse case (`a\\x7fb`, the emoji host, `-a.local`, `a:b`, and the rest) is already refused by the LDH or ipaddress branch. If an executor leaves the parse step out, or a later edit removes it, the suite stays green. The validator then accepts `999.1.1.1` at the save, `build_http_client` raises, and Plan 3 Task 1's read-time validator also passes the record, so `create_app` fails on every start. The prior r1 case `xn--zz` no longer shows this: the repo's httpx now builds both the URL and the client for it.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0afcd8d9",
+      "base_id": "5d5b046d6985225e7e9d2c5865e5ca7883a7e643",
+      "head_id": "0afcd8d9ed38d553eae870d096aaeed5ba79a547"
+    }
+  ]
+}

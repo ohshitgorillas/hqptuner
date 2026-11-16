@@ -1,0 +1,34 @@
+{
+  "phase": "10",
+  "trigger": "risk_surface",
+  "discriminator": "plan-3",
+  "round": 1,
+  "base": "1335f068d7ddcaf36bbb5538cbfefe2cc4a0a1a3",
+  "head": "21428263c02581451da4fcf34b513be1b7f593d0",
+  "base_id": "1335f068d7ddcaf36bbb5538cbfefe2cc4a0a1a3",
+  "head_id": "21428263c02581451da4fcf34b513be1b7f593d0",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "scripts/gates/check_supply_chain.py",
+      "line": 336,
+      "severity": "low",
+      "claim": "permission_failures only recognizes the literal block spelling `packages: write`, so the gate misses workflow-level or job-level grants that also give packages: write, like `permissions: write-all` or a quoted `packages: \"write\"`.",
+      "failure_scenario": "I took HEAD docker.yml and replaced its top-level `permissions:\\n  contents: read` with `permissions: write-all`. Then I added `packages: \"write\"` under the top-level permissions. In both cases permission_failures('docker.yml', ...) returned [] (checked by running it). The token gets packages: write in every job, including the reusable check job, which installs an unpinned triviajudge. The gate that exists to confine that grant to build-push passes anyway.",
+      "ruling": "survived",
+      "convergent": false,
+      "base_id": "1335f068d7ddcaf36bbb5538cbfefe2cc4a0a1a3",
+      "head_id": "21428263c02581451da4fcf34b513be1b7f593d0"
+    }
+  ]
+}

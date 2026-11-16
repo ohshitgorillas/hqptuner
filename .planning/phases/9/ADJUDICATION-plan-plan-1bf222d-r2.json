@@ -1,0 +1,36 @@
+{
+  "phase": "9",
+  "trigger": "plan",
+  "discriminator": "plan-1bf222d",
+  "round": 2,
+  "base": "1bf222da5231004422344b9fcccf6794ce395355",
+  "head": "1bf222da5231004422344b9fcccf6794ce395355",
+  "base_id": "1bf222da5231004422344b9fcccf6794ce395355",
+  "head_id": "1bf222da5231004422344b9fcccf6794ce395355",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/9/PLAN-1.md",
+      "line": 44,
+      "severity": "medium",
+      "claim": "Fix 1 names the new test subdirectory `tests/apply/concurrent/`, which is the name of a stdlib package. It tells the executor to lay it out 'the way tests/api/surface and tests/api/login sit under tests/api', and both of those carry an `__init__.py`. The plan never says to leave the new directories without one.",
+      "failure_scenario": "The executor copies the cited pattern and adds tests/apply/concurrent/__init__.py. tests/apply has no __init__.py, so the package root is computed as `concurrent`, and pytest's default prepend import mode tries to import `concurrent.test_apply_queue`. asyncio has already loaded the stdlib `concurrent` (asyncio_mode=auto), so that import fails with ModuleNotFoundError and the file is never collected. mypy (files includes \"tests\", strict) maps the same file to the module `concurrent.test_apply_queue`, which shadows the stdlib `concurrent`, and is expected to error. Either way `make check` goes red. tests/presets/integrity/ has no such clash. Fix: rename the directory to a non-stdlib name, or state that the new directories get no __init__.py. Without __init__.py, collection is fine: the five new basenames are unique across tests/ and scripts/.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "0ed3fb9b792e7d4c8e5b4b87f22b91566552c9a3",
+      "citation_missing": true,
+      "base_id": "1bf222da5231004422344b9fcccf6794ce395355",
+      "head_id": "1bf222da5231004422344b9fcccf6794ce395355"
+    }
+  ]
+}

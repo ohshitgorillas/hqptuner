@@ -1,0 +1,49 @@
+{
+  "phase": "7",
+  "trigger": "risk_surface",
+  "discriminator": "plan-3",
+  "round": 1,
+  "base": "2b60c982",
+  "head": "6da05cb7",
+  "base_id": "2b60c982143b3a7f9c7d131b54b87de9d114d7de",
+  "head_id": "6da05cb75eb89291caeb5e9266a1f2d07faf6841",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "tests/presets/test_autosave.py",
+      "line": 224,
+      "severity": "high",
+      "claim": "The diff rebuilds `test_live_write_still_succeeds_when_autosave_cannot` (and `test_failed_autosave_carries_an_error_string`, line 244) so that it removes the 8088 client mid-run with `lose_http_client` and still asserts that `POST /api/config/live` lands on the engine over 4321. That breaks PLAN-3's must-be-true 'No test asserts a feature succeeding with the 8088 lane down', CONTEXT AC4, and the phase goal that no fixture keeps a feature working over 4321 alone.",
+      "failure_scenario": "live_api is ready on both lanes, then `lose_http_client` sets `manager.http_client = None`, then `POST /api/config/live {junk_filter: 1}`. The test asserts `/api/state` filter_junk == '1', so a 4321 live write succeeding with no 8088 client is pinned as passing behavior. The second case asserts the fold's `daemon_unavailable` code, which also only exists after the write has landed. Per the plan, this case should have been removed and named in the hand-back. Instead it was kept and rewired to keep asserting success. When Plan 4's D-02 write gate lands, the test pins the opposite of AC1 (refusal, and no 4321 command sent).",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "85faba08",
+      "base_id": "2b60c982143b3a7f9c7d131b54b87de9d114d7de",
+      "head_id": "6da05cb75eb89291caeb5e9266a1f2d07faf6841"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "tests/support/apps.py",
+      "line": 139,
+      "severity": "medium",
+      "claim": "Two fixtures reach not-working states by writing manager internals, and both states are ones no running app can be in. `lose_http_client` nulls `manager.http_client`. `half_wired_client` (tests/api/test_api_errors.py:44) sets `readings.config_form/matrix_form/speakers_form = None`. The refusal tests built on them therefore pin answers for fabricated states. This breaks docs/testing.md rules 1 and 3 (internal state off-limits, no monkeypatching internals) and PLAN-3 Context: a state no ready app can reach goes to the owner.",
+      "failure_scenario": "(a) `readings.http_ok` is set only at the lifecycle refreshes (hqptuner/core/loader.py:123). After `lose_http_client`, with no poll advanced, `/api/health` still reads `ready: true` while there is no 8088 client. The real path to no client is `POST /api/connection` with a blank pair: it calls `retarget()`, the next lifecycle refresh then sets `http_ok` false, and the app goes unready. So nocreds_client and the live_api no-credentials cases in test_api_error_codes.py:61-66 and test_autosave.py run on a ready-with-no-client app that production never presents. (b) `forms.refresh` (hqptuner/lanes/http/forms.py:83-102) never clears a loaded form when a fetch fails; it records only the error. So a ready app whose /config, /matrix and /speakers then fail keeps serving the stale form with HTTP 200. `test_form_routes_after_a_failed_fetch_are_bad_gateway` asserts 502 only because the fixture hand-clears the forms first. The (form None, error set) state is reachable only by a half-connected start, which D-11 forbids. The case should have gone to the owner instead of having its state fabricated.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "85faba08",
+      "base_id": "2b60c982143b3a7f9c7d131b54b87de9d114d7de",
+      "head_id": "6da05cb75eb89291caeb5e9266a1f2d07faf6841"
+    }
+  ]
+}

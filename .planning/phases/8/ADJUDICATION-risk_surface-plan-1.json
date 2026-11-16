@@ -1,0 +1,61 @@
+{
+  "phase": "8",
+  "trigger": "risk_surface",
+  "discriminator": "plan-1",
+  "round": 1,
+  "base": "d2cac81f",
+  "head": "f1bcc93c",
+  "base_id": "d2cac81f71bff0d1a016136357891970ad7a15c5",
+  "head_id": "f1bcc93cd4a73e8dc7acfae200d2f7213a17a7e2",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/conf/xmledit.py",
+      "line": 179,
+      "severity": "high",
+      "claim": "attr_escape covers only & < > \" ', and nothing on the stage path refuses control characters in free-text or number fields. A C0 control character is therefore written raw into hqplayerd.xml, which makes the file ill-formed. Tab, LF and CR are also written raw, and XML attribute-value normalization turns them into spaces when the daemon parses the file, so the value does not round-trip. This breaks architecture 4.7's claim that every value is escaped and read back unescaped.",
+      "failure_scenario": "Send POST /api/config/stage {\"http\":{\"title\":\"a\\u0001b\"}}. check_choices passes it because title is a text input, then POST /api/config/apply sends it to the restore lane. Ran presetconf.apply_edits(b'<hqplayerd><title value=\"old\"/>...</hqplayerd>', {\"title\":\"a\\x01b\"}): it gives b'<title value=\"a\\x01b\"/>', and expat rejects it with 'not well-formed (invalid token): line 1, column 26'. That archive is restored onto the production daemon. Nothing in hqptuner/ checks well-formedness first. The same path is open for log_file and for every number input (fixed_volume, volume_max, ...), because none of them has choices to check. With title \"a\\tb\", the daemon's parser normalizes the value to \"a b\", the readback differs from \"a\\tb\", and the apply diverges and retries restore passes. The project already refuses control characters in the other attribute writers (matrixpayload RowControlCharsError, NameControlCharsError), so this is a gap in that rule.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "35c6a137",
+      "base_id": "d2cac81f71bff0d1a016136357891970ad7a15c5",
+      "head_id": "f1bcc93cd4a73e8dc7acfae200d2f7213a17a7e2"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/api/routes/pending.py",
+      "line": 180,
+      "severity": "medium",
+      "claim": "The stage ceilings check only the length of each value and the number of top-level keys. Key names, live-argument names and the number of arguments inside a live bucket have no limit, so the buffer can still be grown past what D-09/F-018 says it bounds.",
+      "failure_scenario": "Send 256 POST /api/config/stage requests, each with {\"http\":{\"<50 MB key name>\":\"1\"}}. Every value is 1 character and the key count stays at 256 or under, so refuse_long_values and the MAX_STAGED_KEYS check (line 202) both pass. PendingStore keeps all 256 names, about 12.8 GB, until apply or discard. In the same way, one request {\"live\":{\"<any known live setting>\":{\"a0\":\"1\", ... \"a999999\":\"1\"}}} passes, because the ceiling counts body.live.keys() and not the arguments inside each bucket. The million arguments are stored in the buffer and returned in every snapshot.",
+      "ruling": "survived",
+      "convergent": false,
+      "base_id": "d2cac81f71bff0d1a016136357891970ad7a15c5",
+      "head_id": "f1bcc93cd4a73e8dc7acfae200d2f7213a17a7e2"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/api/routes/pending.py",
+      "line": 202,
+      "severity": "low",
+      "claim": "stage is a sync `def`, so FastAPI runs it on the threadpool. The key-ceiling check and the later store.stage merge are separate steps with no lock, so concurrent requests can each pass the check and then all merge, which takes the buffer past MAX_STAGED_KEYS.",
+      "failure_scenario": "Send about 40 concurrent POST /api/config/stage requests, the default threadpool size, each with 250 new http keys, to an empty buffer. Each thread computes len(store.http | body.http) of 250 or less before any merge and passes. check_offered and the live check run between the check and the merge, which widens the window. Each request then merges, and the buffer can hold up to about 10,000 keys. That breaks the acceptance criterion that a buffer pushed past the key ceiling is refused at stage. The overshoot is bounded by the threadpool size.",
+      "ruling": "survived",
+      "convergent": false,
+      "base_id": "d2cac81f71bff0d1a016136357891970ad7a15c5",
+      "head_id": "f1bcc93cd4a73e8dc7acfae200d2f7213a17a7e2"
+    }
+  ]
+}

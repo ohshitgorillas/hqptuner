@@ -1,0 +1,53 @@
+{
+  "phase": "5",
+  "trigger": "risk_surface",
+  "discriminator": "plan-1",
+  "round": 1,
+  "base": "518330b1",
+  "head": "eb54bd46",
+  "base_id": "518330b13ca9582004bc35ca53b055babc74f44a",
+  "head_id": "eb54bd467e0100755a74ff1801af03798fa6306b",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "pyproject.toml",
+      "line": 233,
+      "severity": "medium",
+      "claim": "Commit d2025f73, inside the plan-1 range, adds a project-wide ruff `ignore` for PLR0911, PLR0912, PLR0913 and PLR0915. This widens three per-file ignores and three noqa sites into a global gate exemption. PLAN-1.md:57 locks 'no gate change and no exemption (Success Criterion 4)', and the commit message cites no owner approval for any site.",
+      "failure_scenario": "Any new function in hqptuner/, scripts/ or tests/ with more than 5 arguments, 6 returns, 12 branches or 50 statements now passes `make check`. Before this range, ruff's PLR checks failed it. The range therefore ships a loosened lint gate that its own plan says it would not make, and the hard rule says the owner must approve each site before it is written.",
+      "ruling": "refuted",
+      "convergent": false,
+      "counter_evidence": {
+        "file": "pyproject.toml",
+        "line": 233,
+        "note": "The owner directed this change in session b0cb4135 at 2026-11-08T03:36:18Z: 'ruff should not be limiting the number of anything anywhere to force arbitrary refactors wtf'. d2025f73 is the owner's chore and sits in the range only because the range runs to HEAD. It is not plan-1 work, so PLAN-1.md's no-exemption criterion does not govern it. Removing a count limit at the owner's word is not a per-site exemption."
+      },
+      "base_id": "518330b13ca9582004bc35ca53b055babc74f44a",
+      "head_id": "eb54bd467e0100755a74ff1801af03798fa6306b"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": "hqptuner/engine/junkadvisor.py",
+      "line": 143,
+      "severity": "low",
+      "claim": "The `# noqa: PLR0913` directives on `classify` and `verdicts` were removed. The 'Owner-approved for this site' comments that justified them were kept, at lines 143-144 and the matching comment above `verdicts`. They now justify an exemption that no longer exists.",
+      "failure_scenario": "A reader or the triviajudge comment screen meets 'Owner-approved for this site: the junk run is a sixth argument...' above a plain `def classify(` with no noqa. The comment states a gate exemption that is absent, so it is now stale decision archaeology.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "34ff3147",
+      "base_id": "518330b13ca9582004bc35ca53b055babc74f44a",
+      "head_id": "eb54bd467e0100755a74ff1801af03798fa6306b"
+    }
+  ]
+}
