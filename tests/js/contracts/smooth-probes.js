@@ -1,9 +1,11 @@
 // What the smoothness suites measure of a replay: for each read of a stream (the wall window one track is heard in, and the
 // stamp its music sits at), the lag between what is heard and the playhead on screen, and the move each paint makes against
-// the music heard over the paint's wall time. No test() and no assert lives here.
+// the music heard over the paint's wall time, and the columns the spectrogram's picture scrolls over each paint against the
+// columns that music is worth. No test() and no assert lives here.
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
+import { W, scrolledBy, signatures } from "./picture.js";
 import { replay } from "./world.js";
 
 /** @typedef {import("./world.js").Paint} Paint */
@@ -53,6 +55,8 @@ const SLACK = 0.25;
 //: reader rejoins 0 to 2.0 s after it.
 const BREAK_MS = 2000;
 const SHOWN_DIGITS = 1;
+//: How far a paint's scroll may stray from the music's, columns, beside the share SLACK allows: the scroll moves whole columns.
+const COLUMN_ROOM = 1;
 
 /**
  * A finding that starts out unseen.
@@ -98,19 +102,18 @@ export function seenOnce(make) {
  * the first to the second. A paint that starts a window pairs with none before it.
  *
  * @param {Read[]} reads
- * @param {(k: number, paint: Paint, before: Paint, music: number, world: World) => void} reading
- * @returns {{ see: (paint: Paint, world: World) => void }}
+ * @param {(k: number, paint: Paint, before: Paint, music: number) => void} reading
+ * @returns {{ see: (paint: Paint) => void }}
  */
 function paired(reads, reading) {
   /** @type {Paint | null} */
   let before = null;
   return {
-    see: (paint, world) => {
+    see: (paint) => {
       const prior = before;
       if (prior) {
         reads.forEach((r, k) => {
-          if (prior.t >= r.from && paint.t <= r.to)
-            reading(k, paint, prior, r.heard(paint.t) - r.heard(prior.t), world);
+          if (prior.t >= r.from && paint.t <= r.to) reading(k, paint, prior, r.heard(paint.t) - r.heard(prior.t));
         });
       }
       before = paint;
@@ -168,9 +171,58 @@ export function motionProbe(reads, status) {
     if (move > music * (1 + SLACK)) note(found[k].jumped, paint.i, what);
   });
   return {
+    see: (paint) => {
+      broken = inBreak(paint);
+      walk.see(paint);
+    },
+    done: () => found,
+  };
+}
+
+/**
+ * The columns the spectrogram's picture scrolls over each paint, read off its pixels, against the columns the music heard over
+ * the paint's wall time is worth, outside a real break: the paints whose picture scrolled short of them (`stalled`), past
+ * them (`burst`) or could no longer be read although the music moves (`unread`), and how many paints were read. A paint is
+ * read from the first one of a window whose picture can be read, since a picture that has just been cleared holds too few
+ * columns to match until the music has filled them.
+ *
+ * @param {Read[]} reads
+ * @param {Array<{ t: number, fields: Record<string, string> }>} status  the stream's Status samples
+ * @returns {{ see: (paint: Paint, world: World) => void, done: () => Array<{ read: number, stalled: Finding,
+ *   burst: Finding, unread: Finding }> }}
+ */
+export function scrollStepProbe(reads, status) {
+  const found = reads.map(() => ({ read: 0, stalled: finding(), burst: finding(), unread: finding() }));
+  const readable = reads.map(() => false);
+  const inBreak = breaks(status);
+  let broken = false;
+  let before = new Int32Array(W);
+  let after = new Int32Array(W);
+  /** @type {number | null | undefined} */
+  let scrolled;
+  let span = 1;
+  const walk = paired(reads, (k, paint, prior, music) => {
+    if (broken || paint.head === null || prior.head === null) return;
+    scrolled ??= scrolledBy(before, after);
+    const owed = (music * W) / span;
+    const room = COLUMN_ROOM + SLACK * owed;
+    const what = `scrolled ${scrolled} columns while the music moved ${owed.toFixed(SHOWN_DIGITS)}`;
+    if (scrolled === null && !readable[k]) return;
+    readable[k] = true;
+    found[k].read++;
+    if (scrolled === null)
+      note(found[k].unread, paint.i, `could not be read while the music moved ${owed.toFixed(SHOWN_DIGITS)} columns`);
+    else if (scrolled < owed - room) note(found[k].stalled, paint.i, what);
+    else if (scrolled > owed + room) note(found[k].burst, paint.i, what);
+  });
+  return {
     see: (paint, world) => {
       broken = inBreak(paint);
-      walk.see(paint, world);
+      span = world.span;
+      signatures(world.canvas, after);
+      scrolled = undefined;
+      walk.see(paint);
+      [before, after] = [after, before];
     },
     done: () => found,
   };
