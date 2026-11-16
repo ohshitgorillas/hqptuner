@@ -88,7 +88,8 @@ After a track starts, the visuals keep the same lag behind the sound that they h
   - **Constraints.** As in Plan 2's Task 4, this suite's own readings added to `smooth-probes.js` and no unused one. The picture replay costs the most, so report the suite's time.
   - **If the suite is green on every replay against today's code,** stop and report the readings to the owner.
   - **Commit** while the suite is red (D-09 (b)).
-- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-spectrogram.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint. Then `scripts/gate.sh make check` fails, and the failures its log lists are all in `steady-lag.test.js`, `steady-motion.test.js` and `steady-spectrogram.test.js`; every lint gate and every other test passes. `git diff --name-only --diff-filter=M <pre-plan HEAD> HEAD -- hqptuner/ 'tests/js/contracts/*.test.js' ':!tests/js/contracts/steady-lag.test.js'` prints nothing; the two new suites are added files, and `steady-lag.test.js` is Plan 2's, which Task 1 may extend.
+  - **Owner ruling, 2026-11-16.** The suite came back green on all 189 tests against today's code (17106 paints, no stall, no burst). The owner keeps it as written and it commits green, as Task 2 did under D-11: it guards the picture, which steady motion does not read. The red-run verify below is waived for this task only.
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-spectrogram.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint (waived by the owner ruling above: it exits 0). Then `scripts/gate.sh make check` fails, and the failures its log lists are all in `steady-lag.test.js`, `steady-motion.test.js` and `steady-spectrogram.test.js`; every lint gate and every other test passes. `git diff --name-only --diff-filter=M <pre-plan HEAD> HEAD -- hqptuner/ 'tests/js/contracts/*.test.js' ':!tests/js/contracts/steady-lag.test.js'` prints nothing; the two new suites are added files, and `steady-lag.test.js` is Plan 2's, which Task 1 may extend.
   - Testing scope. Outcomes: no stall and no catch-up burst in the picture, on every stream.
   - Already covered: scroll over a run (contract 2), and the picture's consistency (contracts 3 and 7).
   - Smallest checks: one per-paint scroll reading per stream.
@@ -96,7 +97,7 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 
 ### Task 4: A frame lands at the same moment whatever the source rate
 
-- **Waits on the owner:** the third capture, `tests/support/fixtures/meter_start_capture_3.json`, a 192000 track started from stopped and rate changes into and out of 192000 from 44100. Do not start this task until that file is on disk.
+- **The third capture is on disk,** `tests/support/fixtures/meter_start_capture_3.json`, made by the owner on 2026-11-16 (`scripts/probes/meter/capture_meter_start.py held 240 0.69`, exit 0, one connection, ended by window, 33402 frames, 1180 Status samples). It holds a 192000 start from stopped, a change to 44100, a change back to 192000 and a gapless 192000 track change. It is complete; commit it as captured.
 - **Files:** tests/support/fixtures/meter_start_capture_3.json, scripts/probes/meter/arrival_patterns.py, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/smooth-probes.js
 - **Reads:** tests/support/fixtures/meter_start_capture_3.json, scripts/probes/meter/arrival_patterns.py, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js
 - **Decisions:** D-08, D-09, D-10, D-11
