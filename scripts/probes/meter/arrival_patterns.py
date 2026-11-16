@@ -10,10 +10,11 @@ ahead of wall time. A track start is a change of Status ``track_serial``. Status
 when a track is first heard and that it advances at wall speed; it is never fitted and never read as a clock.
 
 Per start it prints the frame gaps over 250 ms within 3 s of the serial change and the shift in median lead, the
-opening rush after each stretch with no frames, and the Status shape around the change. The app's reader is read
-from ``run`` and ``_stream`` in ``hqptuner/engine/metering.py`` and ``_rest`` in ``hqptuner/core/loader.py``: it is
-connected only while the manager's last Status read shows playing and a subscriber is attached, checks State at each
-frame and each ``IDLE_RECHECK``, and waits ``IDLE_RECHECK`` after letting go before it checks again.
+opening rush after each stretch with no frames and after a first frame near it, and the Status shape around the
+change. The app's reader is read from ``run`` and ``_stream`` in ``hqptuner/engine/metering.py`` and ``_rest`` in
+``hqptuner/core/loader.py``: it is connected only while the manager's last Status read shows playing and a subscriber
+is attached, checks State at each frame and each ``IDLE_RECHECK``, and waits ``IDLE_RECHECK`` after letting go before
+it checks again.
 
 Then the drift in each steady stretch and the capture's ``output_delay`` per rate.
 """
@@ -129,7 +130,7 @@ def print_rush(cap: Capture, i: int) -> None:
     """Print the opening rush after the resume at frame ``i``: CAPTURE.md block B."""
     t0 = cap.t[i]
     base = cap.pb[i] - cap.frame_ms[i]
-    print(f"  resume t={t0:.0f} ms rate={cap.rate[i]} gap={t0 - cap.t[i - 1]:.0f} ms")
+    print(f"  resume t={t0:.0f} ms rate={cap.rate[i]} {f'gap={t0 - cap.t[i - 1]:.0f} ms' if i else 'first frame'}")
     print(
         "    lead at +0,100,200,300,500,1000 ms:",
         [round(lead_at(cap, base, t0, d)) for d in (0, 100, 200, 300, 500, 1000)],
@@ -248,7 +249,7 @@ def print_start(cap: Capture, k: int, sample: Record, edges: tuple[float, float]
         f"state {before['status']['state']}->{now['state']}, samplerate {before['samplerate']}->{sample['samplerate']}"
     )
     print_gaps(cap, t0)
-    near_resumes = [i for i in resumes(cap) if abs(cap.t[i] - t0) < NEAR_MS]
+    near_resumes = [i for i in [0, *resumes(cap)] if abs(cap.t[i] - t0) < NEAR_MS]
     for i in near_resumes:
         print_rush(cap, i)
     if not near_resumes:
