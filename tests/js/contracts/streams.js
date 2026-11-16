@@ -74,13 +74,13 @@
 // THE PAINTS. Every replay paints at 60 Hz, 1000 / 60 = 16.667 ms apart, as a browser does, and the paint times are the same
 // in every stream of a pair.
 //
-// THE RESOLUTION (D-12). A page reads the lead of a start off the arrivals at its paints, so two starts of one stream can
-// be matched no finer than the stream lets the page read them. A paint first sees an arrival up to one paint (16.667 ms)
-// after it lands and the lead it sees is that much below the line's; arrivals land at whole wall ms (GRAIN_MS, 1 ms); a
-// made-up burst lands up to its jitter (40 ms) early or late. A seen lead is in [-(paint + grain + jitter), +jitter] of
-// the line's, and two starts of one stream differ by at most the width of that interval, paint + grain + 2 jitter:
-// 16.667 + 1 + 2 * 0 = 17.667 ms for the three captured streams (no jitter), 16.667 + 1 + 2 * 40 = 97.667 ms for the
-// made-up ones. `Stream.resolution` carries it, from `resolutionOf`.
+// THE RESOLUTION (D-12, D-13). The page stamps each event the moment it arrives and the replay hands each event over at
+// its own wall time, so a start's lead is read off arrivals at the times they landed, not at the paint that first sees
+// them. Arrivals land at whole wall ms (GRAIN_MS, 1 ms); a made-up burst lands up to its jitter (40 ms) early or late. A
+// seen lead is in [-(grain + jitter), +jitter] of the line's, and two starts of one stream differ by at most the width
+// of that interval, grain + 2 jitter: 1 + 2 * 0 = 1 ms for the three captured streams (no jitter), 1 + 2 * 40 = 81 ms
+// for the made-up ones. One tolerance governs every comparison between two starts, at one rate or at two. `Stream.resolution`
+// carries it, from `resolutionOf`.
 //
 // THE PAIRS (D-12). PAIRS holds streams identical in everything but the source rate, so the page holds the same information
 // at both rates: the stretches, rush, seeds, bursts, jitter, drift, Status and `output_delay` are the same, so are the
@@ -440,9 +440,8 @@ function reads({ spec, parts }, { rebase = 0, after = 0, only = -1 } = {}) {
     });
 }
 
-/** The resolution of `spec`'s streams, playback ms (THE RESOLUTION): paint + grain + 2 jitter. @param {Spec} spec */
-const resolutionOf = ({ stretches }) =>
-  PAINT_MS + GRAIN_MS + 2 * Math.max(0, ...stretches.map((s) => s.made?.jitter ?? 0));
+/** The resolution of `spec`'s streams, playback ms (THE RESOLUTION): grain + 2 jitter. @param {Spec} spec */
+const resolutionOf = ({ stretches }) => GRAIN_MS + 2 * Math.max(0, ...stretches.map((s) => s.made?.jitter ?? 0));
 
 /**
  * The schedule of the stream between wall times `a` and `b`: the frames, geometry and Status that reach the page then.

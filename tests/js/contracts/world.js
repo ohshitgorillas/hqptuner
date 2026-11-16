@@ -2,10 +2,11 @@
 //
 // `replay` runs one schedule (tests/js/contracts/schedules.js) through the real thing: the feed store fed `frame` events
 // through the EventSource fake, the meter loop on a clock whose animation frames run only when the replay hands them out,
-// at the schedule's paint times, the spectrogram's history, and the Source drawer's real painter on a pixel canvas. Frames
-// that reached the page by a paint's time are delivered before that paint. After each paint the replay hands the caller
-// what the paint left: the wall time and `dt`, the playhead, the scene the meters and the spectrum were handed, and the
-// frames delivered so far. The caller reads the picture and the history through the world it is handed.
+// at the schedule's paint times, the spectrogram's history, and the Source drawer's real painter on a pixel canvas. Each
+// event is handed to the page at its own wall time, the clock reading that time while the page's handler runs (D-13),
+// and the events due by a paint's time are delivered, each at its own, before that paint. After each paint the replay
+// hands the caller what the paint left: the wall time and `dt`, the playhead, the scene the meters and the spectrum were
+// handed, and the frames delivered so far. The caller reads the picture and the history through the world it is handed.
 //
 // Every frame carries an identity the scene shows back: the spectrum bins of frame `id` hold its id in the first two bins
 // and a level pattern of its own in the rest, and its peak and RMS are its own, so a test says which frame a paint showed
@@ -179,6 +180,36 @@ function arrivals({ feed, geometry = [], status = [] }) {
 }
 
 /**
+ * What hands the page one arrival at its own wall time (D-13): the clock reads that time while the page's handler runs.
+ * A frame the schedule gives no `at` follows the one before it.
+ *
+ * @param {number} first  Hz, the rate before any geometry event
+ * @param {Frame[]} delivered  gets each frame as it is handed over
+ * @returns {(event: Arrival) => void}
+ */
+function handler(first, delivered) {
+  let rate = first;
+  let samples = 0;
+  return (event) => {
+    frames.now = event.t;
+    if (event.kind === "geometry") {
+      rate = event.rate;
+      sendGeometry(rate);
+    } else if (event.kind === "status") {
+      poll(event.fields);
+    } else {
+      const id = delivered.length;
+      const { n } = event;
+      const at = event.at ?? samples;
+      const levels = levelsOf(id);
+      lastStream()?.emit("frame", { channels: [{ ...levels, bins: wireBins(id) }], at, n });
+      delivered.push({ id, at: (at * MS_PER_S) / rate, ms: (n * MS_PER_S) / rate, ...levels });
+      samples = at + n;
+    }
+  };
+}
+
+/**
  * Replay `schedule`, calling `observe` after each paint.
  *
  * @param {Schedule} schedule
@@ -189,9 +220,9 @@ export function replay(schedule, observe, span = "full") {
   open(schedule, span);
   const { paints } = schedule;
   const events = arrivals(schedule);
-  let rate = schedule.rate;
   /** @type {Frame[]} */
   const delivered = [];
+  const hand = handler(schedule.rate, delivered);
   const canvas = pixelCanvas(SPEC_SIZE.width, SPEC_SIZE.height);
   const tokens = /** @type {CSSStyleDeclaration} */ (/** @type {unknown} */ (TOKENS));
   const asElement = (/** @type {import("./picture.js").PixelCanvas} */ c) =>
@@ -215,25 +246,10 @@ export function replay(schedule, observe, span = "full") {
     },
   };
   let next = 0;
-  let samples = 0;
   let before = 0;
   paints.forEach((t, i) => {
     for (; next < events.length && events[next].t <= t; next++) {
-      const event = events[next];
-      if (event.kind === "geometry") {
-        rate = event.rate;
-        sendGeometry(rate);
-      } else if (event.kind === "status") {
-        poll(event.fields);
-      } else {
-        const id = delivered.length;
-        const { n } = event;
-        const at = event.at ?? samples;
-        const levels = levelsOf(id);
-        lastStream()?.emit("frame", { channels: [{ ...levels, bins: wireBins(id) }], at, n });
-        delivered.push({ id, at: (at * MS_PER_S) / rate, ms: (n * MS_PER_S) / rate, ...levels });
-        samples = at + n;
-      }
+      hand(events[next]);
     }
     heard = null;
     frames.now = t;

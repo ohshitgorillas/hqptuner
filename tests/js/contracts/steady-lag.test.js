@@ -12,14 +12,14 @@
 //
 // The lag is also the same everywhere, in two contracts (D-12).
 //
-// Each start's true lag. Each track's lag is its median over the same window. Two starts at one rate are the same when
-// they are within one metering frame of it. Two starts at different rates are the same when they are within the
-// resolution of their stream (`resolution` in streams.js, its paint interval, arrival grain and jitter, arithmetic in
-// the header there): a page reads the lead of a start off the arrivals at its paints, so no playhead can match two starts
-// finer than the stream lets it read them, and a rate that leaks into the playhead shows as more than that. The set
-// compared: every pair of starts of one stream; each start against the one before it where the rate changed, named for
-// the direction (44100 to 192000, 192000 to 44100 and the rest); and for each start, every pair of the points the page
-// joined at, the reader that holds counting as one. None is dropped.
+// Each start's true lag. Each track's lag is its median over the same window. Two starts are the same when they are
+// within the resolution of their stream (`resolution` in streams.js, its arrival grain and jitter, arithmetic in the
+// header there), whether they are at one rate or at two: the page stamps each event the moment it arrives (D-13), so
+// it reads the lead of a start off the arrivals at the times they landed, and no playhead can match two starts finer than
+// the arrivals let it read them. That one tolerance holds for every comparison between two starts, and a rate that leaks
+// into the playhead shows as more than it. The set compared: every pair of starts of one stream; each start against the one before it where
+// the rate changed, named for the direction (44100 to 192000, 192000 to 44100 and the rest); and for each start, every
+// pair of the points the page joined at, the reader that holds counting as one. None is dropped.
 //
 // The lag does not depend on the source rate. Each pair of streams (PAIRS in streams.js) holds the same information at two
 // rates: the same arrival wall times, the same playback ms in each burst, the same lead, delay and Status but for the
@@ -81,18 +81,15 @@ for (const stream of STREAMS) {
   });
 }
 
-/** @param {import("./streams.js").Read} a @param {import("./streams.js").Read} b */
-const finer = (a, b) => Math.min(frameMs(a.rate), frameMs(b.rate));
-
 /**
- * The lags `a` and `b` stand at, as the most they differ by past what they may: one frame of their rate to a tenth of a ms
- * when it is the same, the resolution of their stream when the rates differ, ms.
+ * The lags `a` and `b` stand at, as the most they differ by past what they may: the resolution of their stream, to a tenth
+ * of a ms, ms.
  *
  * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number], resolution: number }} a
  * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number], resolution: number }} b
  */
 function apart(a, b) {
-  const room = a.read.rate === b.read.rate ? finer(a.read, b.read) : Math.max(a.resolution, b.resolution);
+  const room = Math.max(a.resolution, b.resolution);
   return {
     read: Math.min(a.lag.n, b.lag.n) >= MIN_PAINTS,
     apart: Math.round(Math.max(0, Math.abs(a.lag.level - b.lag.level) - room) * TENTH) / TENTH,
