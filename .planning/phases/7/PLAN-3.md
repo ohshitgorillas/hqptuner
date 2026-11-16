@@ -4,61 +4,95 @@ plan: 3
 depends_on: [2]
 requirements: []
 files:
-  - .planning/phases/7/DESIGN.md
-  - docs/spec/timing.md
+  - tests/js/contracts/schedules.js
+  - tests/js/contracts/streams.js
+  - tests/js/contracts/smooth-probes.js
+  - tests/js/contracts/steady-lag.test.js
+  - tests/js/contracts/steady-motion.test.js
+  - tests/js/contracts/steady-spectrogram.test.js
 ---
 
-# Phase 7: Visuals stay in sync after a track starts - Plan 3: The playhead's design, approved by the owner
+# Phase 7: Visuals stay in sync after a track starts - Plan 3: Made-up streams, steady motion and steady spectrogram, red against today's code
 
 ## Goal
 
-After a track starts, the visuals keep the same lag behind the sound that they hold for the rest of the track, whatever the track's sample rate. This plan turns Plan 2's red tests into a diagnosis and a proposed playhead rule. The owner approves its spec text verbatim, and the text lands in `docs/spec/timing.md` before any code changes.
+After a track starts, the visuals keep the same lag behind the sound that they hold for the rest of the track, whatever the track's sample rate. Plan 2 committed the second capture, measured how the data arrives in both captures, and wrote the steady-lag suite on streams that reproduce those patterns. This plan adds the made-up bursty and drifting streams, writes the steady-motion and steady-spectrogram suites, and shows D-08's three smoothness behaviors red against the code as it stands (AC8); Plan 5's fix makes them pass unedited (AC9).
 
 ## Must be true when done
 
-- A design record names, for each smoothness test that is red, the property of today's playhead rule the failure shows. It is read from the red run, not guessed.
-- The record proposes one playhead rule that holds steady lag, steady motion and steady spectrogram on every Plan 2 replay. If no single rule can, it says so and puts the choices to the owner.
-- The owner approved the spec text character for character, and `docs/spec/timing.md` holds exactly that text.
-- No code under `hqptuner/` and no test changed.
+- Three test suites state, in the owner's terms, steady lag, steady motion and steady spectrogram, and each replays Plan 2's streams measured from both live captures and made-up bursty and drifting streams, each with a heard clock known to the sample, through the app's own feed store, meter loop, spectrogram history and Source drawer painter.
+- Run against today's code, each of the three suites fails on an assertion, never on an import or a collection error, on at least one replay, and each failing case names the replay and the paint where the behavior broke.
+- Nothing under `hqptuner/` changed, and the existing contract suites under `tests/js/contracts/` pass unedited.
+- `scripts/gate.sh make check` fails only on the new smoothness tests; every lint gate, and every other test, is green.
+- The three suites and their support files are committed while red, as D-09 (b) decided, each task in its own commit.
 
 ## Context
 
-- D-08: the fix is general, never aimed at the start rush alone, and any spec change it needs goes to the owner verbatim. D-01: a correction after the anchor changes the owner's v2.0.0 rule ("wall speed, arrivals do not steer it; drift and stall handling only if a measurement shows them needed"). The Plan 1 capture is that measurement. The rule lives in `docs/spec/timing.md` "The two clocks" and Rule 1, with the decision in the commit.
-- D-02: one shared playhead, the same lag at every rate and wherever the reader or loop connected. No per-rate offsets and no per-view correction. D-07: nothing closes lag today, and the PROJECT.md key decision row is stale.
-- Binding spec: `docs/spec/timing.md` Rules 1 (positions from stamps), 3 (a break restarts and nothing smooths across one), 4 (one playhead), 5 (one pacing decision a paint; skip and catch-up live there), 6 and 10 (decisions pure, no clock in model code), and 9 (a late paint costs no more than an on-time one). Also `docs/spec/testing.md` rule 17.
-- The probing rule: frame timing, stamps and Status fields are wire behavior and fair to read; nothing about HQPlayer's filter design is measured or inferred.
+- D-08 binds every task: general tests, no assumption about the cause, red against today's code by `docs/spec/testing.md` rule 8, then the fix. The plan names the behaviors; the unit, the lane, the assertions and every value are the test writer's (repo `CLAUDE.md`). The three behaviors are three results (rule 17): the lag is a level read at each paint, the motion is the move each paint makes against the music's progress over its own wall time, and the spectrogram's scroll is read off its picture. Each gets its own suite.
+- D-10 binds every task and amends D-08 and D-09 (a): what is heard is each stream's own heard clock, known to the sample from how the stream is generated, never a Status `position` fit and never the stream's own `at`/`n` count.
+- D-09 (b) binds every task: the suites are committed while red, before the fix lands. The authorization covers the test files of Plans 2 and 3 only (`streams.js`, `smooth-probes.js` and the three `steady-*.test.js` suites), and only their failing tests; every lint gate and every other test stays green in each commit. It ends when Plan 5's fix makes them pass.
+- Plan 2 built what this plan extends: the replay world (its Task 1), the second capture (its Task 2), the arrival measurement `scripts/probes/meter/arrival_patterns.py` (its Task 3, whose output this plan's Task 1 draws its sizes from), and `streams.js`, `smooth-probes.js` and `steady-lag.test.js` with the measured-pattern streams and their heard clock (its Task 4) and the lag compared across starts, rates and join points (its Task 5). The new suites follow `trace-and-meters.test.js` and `spectrogram-picture.test.js`: replay each stream once, then every test reads one finding of it.
+- Already covered, so not restated (rule 12): contract 1 (each paint moves the playhead its wall time unless it stands at the newest end, never past it, never backward), contract 2 (over a run the picture moves left as far as the playhead's advance, within one column), contracts 3, 4, 6 and 7. Contract 1 allows the playhead to stand at the newest end, which D-08's steady motion forbids outside a real break; that difference is where steady motion bites.
+- Out of scope: any change under `hqptuner/`, any edit to either capture fixture, the repo-root `spectstutter.json` and `fuckedspecrogram.jpg`, any filter measurement.
+- `tests/js/contracts/` holds 9 files and the directory cap is 15; Plan 2 adds 3 and this plan adds 2, leaving 1.
 
 ## Tasks
 
-### Task 1: Propose the playhead rule from the red tests
+### Task 1: Steady lag on made-up bursty and drifting streams
 
-- **Files:** .planning/phases/7/DESIGN.md
-- **Reads:** hqptuner/static/model/gauges/playhead.js#pacePaint, hqptuner/static/store/meter/loop.js#paint, hqptuner/static/store/meter/feed.js#decode, hqptuner/static/store/meter/delay.js#effectiveDelay, hqptuner/static/store/meter/spectrogram.js#drawnRange, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules, .planning/phases/7/CAPTURE.md, .planning/_archive-v2.0.0/5/CONTEXT.md, tests/js/contracts/steady-lag.test.js, tests/js/contracts/steady-motion.test.js, tests/js/contracts/steady-spectrogram.test.js
-- **Decisions:** D-01, D-02, D-07, D-08, D-09
-- **Action:** Write the design record with `Write`, soft-wrapped, with no em dashes. It holds:
-  - **Diagnosis.** Re-run the Plan 2 suites at HEAD. For each failing case, cited by its exact test name, state the property of today's rule the failure shows, quoting the shortest decisive line of its output. The lag is read against Status `position`, as D-09 (a) decided. Today's rule has four parts: the anchor set once at the first paint after a restart, at the newest frame end less the delay; a move on wall `dt` only; standing at the newest end; and no correction after the anchor. A cause the readings do not show is marked as unconfirmed, never stated as found.
-  - **The proposed rule.** One playhead rule that holds all three behaviors on every Plan 2 replay. The record shows how it treats an opening stretch, a gap between arrivals, stamps that drift against wall time, and a break. It stays inside the binding rules in Context. It uses only inputs that reach the page: stamps, the wall time a paint takes arrivals at, the effective delay, and Status fields the page already reads.
-    - The capture's Status also holds `output_fill`, `display_position` and `process_speed`. Before the design relies on any of them, look them up in HQPlayer's docs through the hqpdoc tools (`hqp_find` first). A field the docs leave undocumented is relied on only as measured wire behavior, never with a meaning given to it.
-    - The rule is not fitted to the tests' tolerances or streams. For that reason the record is not checked by running a prototype of the rule against the Plan 2 suites: that check is deliberately left to Plan 4, whose fix runs them unedited and takes the plan back to the owner if one stays red.
-  - **If no single rule holds all three behaviors,** for example through an opening stretch, the record says where they conflict, with the readings, and lays the choices out for the owner. It picks none.
-  - **The split (rule 17).** Each decision the rule makes, the one pure function under `hqptuner/static/model/` that returns it, the one value its test asserts, and, for a decision that does not exist today, the null stub its tests are red against (the export named, returning the zero value of its result type; `docs/spec/testing.md` rule 8), with that zero value differing from every value its tests expect. If the rule extracts or splits a decision out of `pacePaint`, state the caller-side delta: how many call sites change, in which files.
-  - **What changes where.** The modules whose code and header comments change. The existing tests that pin today's rule and are rewritten under it: the D-06 list (`tests/js/model/gauges/playhead.test.js`, `tests/js/store/meter/loop.test.js`), contract 1 in `tests/js/contracts/trace-and-meters.test.js` with `wallProbe` in `trace-probes.js`, and the wall-time scroll cap in `tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py`, plus any other pin the rule breaks. Also the PROJECT.md key decision row the rule replaces (D-07), named for the orchestrator to update, not edited here.
-  - **The spec text.** The exact replacement for each passage of `docs/spec/timing.md` the rule changes: at least "The two clocks" playhead sentences and Rule 1, and Rule 5 if skip or catch-up changes. Give each as before-and-after text, soft-wrapped.
-  - Hand the record to the owner. Record the owner's approval, or the owner's changes and the re-approved text, in it character for character.
-- **Verify:**
-  - **Every failure cited.** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test --test-reporter=tap tests/js/contracts/steady-lag.test.js tests/js/contracts/steady-motion.test.js tests/js/contracts/steady-spectrogram.test.js` at HEAD; it prints a non-zero exit and a log path. Then, reading that log, `perl -ne 'print "$1\n" if /^\s*not ok \d+ - (.+?)\s*$/' <log> | sort -u | while IFS= read -r n; do grep -qF -- "$n" .planning/phases/7/DESIGN.md || echo "uncited: $n"; done` prints nothing: every failing test name in the run appears in the record.
-  - **Format.** `.venv/bin/python .claude/hooks/md-softwrap.py --check .planning/phases/7/DESIGN.md` exits 0, and `grep -cP '\x{2014}' .planning/phases/7/DESIGN.md` prints 0 (no em dash).
-  - **human-verify.** The owner reads `.planning/phases/7/DESIGN.md` and approves its spec text verbatim. The record shows the approval and the approved text.
-  - Testing scope: none; this is a design record, and Plan 2's suites already state the behavior it must deliver. Whether the proposed rule passes them is Plan 4's check, by the choice stated in Action.
+- **Files:** tests/js/contracts/streams.js, tests/js/contracts/smooth-probes.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/schedules.js
+- **Reads:** tests/js/contracts/streams.js, tests/js/contracts/schedules.js#bursts, tests/js/contracts/schedules.js#SCHEDULES, scripts/probes/meter/arrival_patterns.py, .planning/phases/7/CAPTURE.md, docs/spec/timing.md#Measured facts
+- **Decisions:** D-08, D-10
+- **Action:** Add the made-up streams to `streams.js`, so the steady-lag suite replays them beside Plan 2's measured-pattern streams.
+  - **What is heard.** In a made-up stream, what is heard is the playback clock the stream itself is generated from; the header says so for each stream. The stream rules of Plan 2's Task 4 hold: one rule places the heard clock against the stamps for every start, and Status goes out at the app's read cadence and the engine's measured grain.
+  - **Made-up bursty streams.** Bursts land early and late against the music. A backlog lands ahead of wall time over an opening stretch after a start and then holds its lead, the shape the captures show after each rate change. The streams run at more than one metering rate, with a rate change, a start from stopped and a gapless same-rate track change. Frame lengths are inside the measured range and change mid-feed (`docs/spec/timing.md` Rule 11).
+  - **Made-up drifting streams.** Over a whole track, the stamps run faster than the music heard in one stream and slower in another. The drift each capture shows at 44100 as Plan 2's Task 3 prints it (446 ms over 170 s on the first) gives the measured sizes to draw from, cited in the header with the command line, as Plan 2's Task 4 cites its values.
+  - Touch `steady-lag.test.js` or `smooth-probes.js` only if a made-up stream needs a reading Plan 2's Tasks 4 and 5 did not add, and say which in the commit message. Touch `schedules.js` only to export a generator instead of copying it. The constraints of Plan 2's Task 4 hold.
+  - **If the suite is green on every replay against today's code,** stop and report the readings to the owner. Never reshape a stream, a tolerance or the opening stretch to turn it red.
+  - **Commit** while the suite is red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js` against today's code. It prints a non-zero exit. Every failure in its log is an `AssertionError` naming a replay; none is an import, a collection or a type error. The log's test names include each bursty and each drifting stream. `git diff --quiet <pre-plan HEAD> HEAD -- hqptuner/ tests/support/fixtures/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
+  - Testing scope. Outcomes: the lag holds through bursty and drifting arrivals.
+  - Already covered: the measured-pattern streams (Plan 2's Tasks 4 and 5).
+  - Smallest checks: the same lag reading per added stream, no new reading unless a stream needs one.
+  - Sufficient evidence: the red run with assertion failures only. Testing stops there.
 
-### Task 2: The approved rule lands in the timing spec
+### Task 2: Steady motion
 
-- **Files:** docs/spec/timing.md
-- **Reads:** .planning/phases/7/DESIGN.md, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules
-- **Decisions:** D-01, D-08
-- **Action:** Replace each passage the design record names with its approved text, character for character, using `Edit`. Change no other passage. The commit message records the owner's decision, cites `.planning/phases/7/CAPTURE.md` and the Plan 2 red run, and names the v2.0.0 rule it replaces. This is a `docs/` edit, so it runs its own gate only: no rebuild and no hand-back URL.
-- **Verify:** `git diff -- docs/spec/timing.md` changes only the passages the design record names, and each new passage equals its approved text. `.venv/bin/pre-commit run --files docs/spec/timing.md` exits 0. `.venv/bin/python .claude/hooks/md-softwrap.py --check docs/spec/timing.md` exits 0. Testing scope: none; a spec edit.
+- **Files:** tests/js/contracts/steady-motion.test.js, tests/js/contracts/smooth-probes.js, tests/js/contracts/streams.js
+- **Reads:** tests/js/contracts/streams.js, tests/js/contracts/trace-probes.js#wallProbe, tests/js/contracts/trace-and-meters.test.js, hqptuner/static/model/gauges/playhead.js#pacePaint
+- **Decisions:** D-08, D-09
+- **Action:** Write the suite for D-08 (2), on the streams of Plan 2's Task 4 and this plan's Task 1, with the music heard as each stream's own heard clock gives it:
+  - **The behavior.** Each paint shows the moment of playback its own wall time calls for. Over a paint, the playhead moves as far as the music heard moves over that paint's wall time. The music heard over a paint is read off the stream's heard clock, never off the stream's Status `position`, whose 107 to 320 ms steps would fail a playhead that moves smoothly. It never freezes while the music moves, never jumps ahead and never steps back. The one exception is a real break such as a stop or a seek: in these replays, the stops the Status samples show, and the breaks the feed store marks after them. This is a different result from steady lag: lag is a level, and motion is each paint's move, so a playhead can hold its lag within a frame and still freeze, or stutter.
+  - **Already covered.** Contract 1 (`wallProbe`) checks each move against wall `dt` and lets the playhead stand at the newest end. This suite reads the move against the music heard, and allows no standing outside a real break. Do not restate `wallProbe`. Add a stream to `streams.js` only if steady motion needs a shape the streams of Plan 2's Task 4 and this plan's Task 1 lack, and say which in the commit message.
+  - **Constraints.** As in Plan 2's Task 4: one assertion per test, each stream replayed once, this suite's own readings added to `smooth-probes.js` and no unused one, no copied blocks, the suite's time reported.
+  - **If the suite is green on every replay against today's code,** stop and report the readings to the owner; do not reshape anything to turn it red.
+  - **Commit** while the suite is red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-motion.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint. `git diff --quiet <pre-plan HEAD> HEAD -- hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
+  - Testing scope. Outcomes: no freeze, no jump ahead and no step back outside a real break, on every stream.
+  - Already covered: the wall-speed move and never-backward (contract 1).
+  - Smallest checks: one motion reading per stream, the real breaks taken from the stream's own Status and feed marks.
+  - Testing stops at the red run.
+
+### Task 3: Steady spectrogram
+
+- **Files:** tests/js/contracts/steady-spectrogram.test.js, tests/js/contracts/smooth-probes.js
+- **Reads:** tests/js/contracts/picture-probes.js#scrollProbe, tests/js/contracts/spectrogram-picture.test.js, tests/js/contracts/picture.js, tests/js/contracts/streams.js, hqptuner/static/store/meter/spectrogram.js#spectrogramRange
+- **Decisions:** D-08, D-09
+- **Action:** Write the suite for D-08 (3), on the streams of Plan 2's Task 4 and this plan's Task 1, with the music heard as each stream's heard clock gives it:
+  - **The behavior.** The spectrogram scrolls at a constant rate in playback time, with no stalls and no catch-up bursts. Read it off the picture the Source drawer's real painter draws, never off the playhead signal, so this suite can fail where steady motion passes: a history that falls behind or clears while the playhead moves, or a picture that holds and then jumps.
+  - **Already covered.** Contract 2 (`scrollProbe`) sums the scroll over a whole run against the playhead's advance. This suite reads it paint by paint, against the playback time each paint covers.
+  - **If no plausible wrong implementation** fails this suite and passes Task 2's, the two are one test (rule 12). Then write no duplicate: stop and report that to the owner.
+  - **Constraints.** As in Plan 2's Task 4, this suite's own readings added to `smooth-probes.js` and no unused one. The picture replay costs the most, so report the suite's time.
+  - **If the suite is green on every replay against today's code,** stop and report the readings to the owner.
+  - **Commit** while the suite is red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-spectrogram.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint. Then `scripts/gate.sh make check` fails, and the failures its log lists are all in `steady-lag.test.js`, `steady-motion.test.js` and `steady-spectrogram.test.js`; every lint gate and every other test passes. `git diff --name-only --diff-filter=M <pre-plan HEAD> HEAD -- hqptuner/ 'tests/js/contracts/*.test.js' ':!tests/js/contracts/steady-lag.test.js'` prints nothing; the two new suites are added files, and `steady-lag.test.js` is Plan 2's, which Task 1 may extend.
+  - Testing scope. Outcomes: no stall and no catch-up burst in the picture, on every stream.
+  - Already covered: scroll over a run (contract 2), and the picture's consistency (contracts 3 and 7).
+  - Smallest checks: one per-paint scroll reading per stream.
+  - Testing stops at the red run and the `make check` readout.
 
 ## Notes
 
-- Plan 4 is revised against `.planning/phases/7/DESIGN.md` once the owner approves this plan's spec text, before Plan 4 is dispatched. Its leases and task boundaries then follow the design's split and its list of pins. Plan 4's current file list assumes the decision stays in `hqptuner/static/model/gauges/playhead.js` and is applied in `hqptuner/static/store/meter/loop.js`; a decision or an input anywhere else (a new model module, or arrival times stamped in `hqptuner/static/store/meter/feed.js`) is added to its leases in that revision.
+- **Split, 2026-11-16.** This plan's three tasks were Tasks 4 to 6 of Plan 2, moved here unchanged except for their numbers and cross-references, because Plan 2's brief was 41921 bytes against the 32768-byte ceiling. Plan 2 keeps the capture-backed work (the replay world, the second capture, the arrival measurement and steady lag on the measured-pattern streams). This plan holds the work that rests on what Plan 2 built: made-up streams whose heard clock is generated, and the motion and spectrogram suites that read every stream. Plan 2's Tasks 4 and 5 hold no stop rule for a green suite; this plan's Task 1 holds the stop rule for the whole steady-lag suite.
+- **Revision, 2026-11-16, on D-10.** The plan review's two HIGH findings were on Plan 2's old Task 3: its `position` fit's intercept error assumed independent Status residuals, which are autocorrelated (lag-1 0.57 to 0.61), so the fit cannot carry one-frame comparisons; and no task compared lag across join points (AC5). The owner ruled (D-10) that the fit is dropped as the tests' clock. This plan's changes follow from that: the D-09 (a) context and the fitted-line note are removed, steady motion reads the music heard off each stream's heard clock instead of the fitted line, Task 1 draws its drift sizes from Plan 2's Task 3 measurement and keeps Plan 2's stream rules, every reference to Plan 2's old Task 3 now names its Task 4 or 5, and Task 1's lease adds `schedules.js` for a shared generator. The stop rule for a green suite and the never-reshape rule are unchanged. Task 3's final diff check now leaves out `steady-lag.test.js`, which Task 1 may extend.
+- **Red commits (D-09 (b)).** Tasks 1 to 3 commit their suites red, as Plan 2's Task 3 does; the owner decided this, as an exception to `~/dev/CLAUDE.md` 11.4 and the repo's "`make check` green before every commit" for these test files only. Plan 5's AC9 check is a diff against these commits.

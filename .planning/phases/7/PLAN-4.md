@@ -1,80 +1,65 @@
 ---
 phase: 7
 plan: 4
-depends_on: [1, 2, 3]
+depends_on: [2, 3]
 requirements: []
 files:
-  - hqptuner/static/model/gauges/playhead.js
-  - hqptuner/static/store/meter/loop.js
-  - tests/js/model/gauges/playhead.test.js
-  - tests/js/store/meter/loop.test.js
-  - tests/js/contracts/trace-and-meters.test.js
-  - tests/js/contracts/trace-probes.js
-  - tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py
+  - .planning/phases/7/DESIGN.md
+  - docs/spec/timing.md
 ---
 
-# Phase 7: Visuals stay in sync after a track starts - Plan 4: The one playhead follows the approved rule
+# Phase 7: Visuals stay in sync after a track starts - Plan 4: The playhead's design, approved by the owner
 
 ## Goal
 
-After a track starts, the visuals keep the same lag behind the sound that they hold for the rest of the track, whatever the track's sample rate. This plan is the fix: the one playhead follows the rule the owner approved in Plan 3. Plan 2's smoothness tests pass with no edit (AC9), and the gate is green (AC7).
+After a track starts, the visuals keep the same lag behind the sound that they hold for the rest of the track, whatever the track's sample rate. This plan turns the red tests of Plans 2 and 3 into a diagnosis and a proposed playhead rule. The owner approves its spec text verbatim, and the text lands in `docs/spec/timing.md` before any code changes.
 
 ## Must be true when done
 
-- With music playing at the hand-back URL, after a start from stopped, a same-rate track change and a rate change, at two sample rates, the owner sees the meters, the spectrum and the spectrogram hold the same lag behind the sound right after the start as later in the track (AC6).
-- Plan 2's three smoothness suites pass, and none of their files, nor `streams.js` or `smooth-probes.js`, changed since Plan 2's commits.
-- Every rewritten test that pins the old rule was red against the pre-change code by assertion, and states the approved rule.
-- `scripts/gate.sh make check` prints `exit=0`.
+- A design record names, for each smoothness test that is red, the property of today's playhead rule the failure shows. It is read from the red run, not guessed.
+- The record proposes one playhead rule that holds steady lag, steady motion and steady spectrogram on every replay of Plans 2 and 3. If no single rule can, it says so and puts the choices to the owner.
+- The owner approved the spec text character for character, and `docs/spec/timing.md` holds exactly that text.
+- No code under `hqptuner/` and no test changed.
 
 ## Context
 
-- **This plan is revised against `.planning/phases/7/DESIGN.md` before it is dispatched,** once the owner has approved Plan 3's spec text. The revision sets each task's lease and boundary from the design's split and its list of pins. The leases below are what the design is expected to name; no task widens its lease mid-run.
-- The rule is `docs/spec/timing.md` as Plan 3 left it, and the split and the list of pins are in `.planning/phases/7/DESIGN.md`. Nothing beyond the design is built: no per-rate offset, no per-view correction, one playhead (D-02).
-- D-06: a fix that moves the anchor or adds a correction rewrites the pins that hold today's rule, each rewrite red against the old code. The design record names the full list.
-- D-09 (b): Plan 2's suites were committed red, and that authorization ends when this plan's fix makes them pass. It covers no other test: every commit here is green on every other test and gate, `make test-e2e` included.
-- The pin rewrites land in the same commit as the loop change that breaks them. The old pins fail the moment the loop applies the new rule, so splitting them from it would commit a red gate. That is why this plan holds both, against the usual split of putting pins in a plan of their own.
-- No `CHANGELOG.md` entry: the v2 changelog is the owner's alone. Any user-facing text the change touches needs the owner's approval first (copy rules); the design record names none.
+- D-08: the fix is general, never aimed at the start rush alone, and any spec change it needs goes to the owner verbatim. D-01: a correction after the anchor changes the owner's v2.0.0 rule ("wall speed, arrivals do not steer it; drift and stall handling only if a measurement shows them needed"). The Plan 1 capture and the second capture Plan 2 commits (`tests/support/fixtures/meter_start_capture_2.json`), as Plan 2's Task 3 measures them (`scripts/probes/meter/arrival_patterns.py`, its output in that commit's message and cited in `tests/js/contracts/streams.js`), are that measurement. The rule lives in `docs/spec/timing.md` "The two clocks" and Rule 1, with the decision in the commit.
+- D-02: one shared playhead, the same lag at every rate and wherever the reader or loop connected. No per-rate offsets and no per-view correction. D-07: nothing closes lag today, and the PROJECT.md key decision row is stale.
+- Binding spec: `docs/spec/timing.md` Rules 1 (positions from stamps), 3 (a break restarts and nothing smooths across one), 4 (one playhead), 5 (one pacing decision a paint; skip and catch-up live there), 6 and 10 (decisions pure, no clock in model code), and 9 (a late paint costs no more than an on-time one). Also `docs/spec/testing.md` rule 17.
+- The probing rule: frame timing, stamps and Status fields are wire behavior and fair to read; nothing about HQPlayer's filter design is measured or inferred.
 
 ## Tasks
 
-### Task 1: The approved rule's pure decisions, pinned at the model lane
+### Task 1: Propose the playhead rule from the red tests
 
-- **Files:** hqptuner/static/model/gauges/playhead.js, tests/js/model/gauges/playhead.test.js
-- **Reads:** .planning/phases/7/DESIGN.md, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules, hqptuner/static/model/gauges/playhead.js#pacePaint, hqptuner/static/model/gauges/playhead.js#restartAt
-- **Decisions:** D-01, D-02, D-08
-- **Pins:** tests/js/model/gauges/playhead.test.js
-- **Action:**
-  - **Tests first.** For each new decision the design's split names, write its cases in `playhead.test.js`, asserting the value the split gives it. The unit, the assertion and the values are the test writer's. Each new decision is a new surface, so the red run is against its null stub (`docs/spec/testing.md` rule 8): the pre-change `playhead.js` with each new decision added as the export the design's split names, its body returning the zero value of the result type the split gives it and nothing more. Each case fails against that stub by `AssertionError`. A case green against the stub asserts what the absent decision also returns (rule 10): report it, and do not reshape it to turn it red. The stub is the red run's only edit to `playhead.js` and is replaced by the real decision in the same task.
-  - **Then the code.** Each new decision becomes a pure function in `playhead.js`, exported beside today's `pacePaint`, which the loop still calls unchanged. The loop runs today's rule after this task, so every store and contract pin stays green. Retiring the parts of `pacePaint` the rule replaces is Task 2's.
-  - **Constraints.** Model code reads no clock (Rules 6 and 10). Each decision allocates nothing per call (Rule 9).
-  - If the design changes `pacePaint` in place and adds no decision beside it, this task has nothing to land, and the revision before dispatch folds it into Task 2.
-  - Run `filepawl accept` whenever filepawl prints it.
-- **Verify:** The executor's record names the null stub of each new decision (export name and the zero value it returns), and shows each new case failing by `AssertionError` against the pre-change `playhead.js` plus those stubs, tests kept. An import, missing-export, collection or type error counts as no red run: the case is run again against its stub, and if it then passes it is reported green, never reshaped. Then `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/model/gauges/playhead.test.js` prints `exit=0`. `git diff --quiet -- hqptuner/static/store/` exits 0. `scripts/gate.sh make check` fails only in Plan 2's three `steady-*.test.js` suites.
-  - Testing scope. Outcomes: each new decision returns the value the design's split gives it. Already covered: today's `pacePaint` cases, untouched here. Smallest check: one case per new decision. Sufficient evidence: the red run and the green run. Testing stops there.
-
-### Task 2: The loop applies the approved rule, with every pin it breaks rewritten
-
-- **Files:** hqptuner/static/model/gauges/playhead.js, hqptuner/static/store/meter/loop.js, tests/js/model/gauges/playhead.test.js, tests/js/store/meter/loop.test.js, tests/js/contracts/trace-and-meters.test.js, tests/js/contracts/trace-probes.js, tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py
-- **Reads:** .planning/phases/7/DESIGN.md, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules, hqptuner/static/model/gauges/playhead.js#pacePaint, hqptuner/static/store/meter/loop.js#paint, hqptuner/static/store/meter/loop.js#apply, hqptuner/static/store/meter/loop.js#reset, tests/js/contracts/trace-probes.js#wallProbe
-- **Decisions:** D-01, D-02, D-06, D-08, D-09
-- **Pins:** tests/js/model/gauges/playhead.test.js, tests/js/store/meter/loop.test.js, tests/js/contracts/trace-and-meters.test.js, tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py, tests/js/contracts/steady-lag.test.js, tests/js/contracts/steady-motion.test.js, tests/js/contracts/steady-spectrogram.test.js
-- **Action:**
-  - **Tests first.** Rewrite each pin the design record lists as holding today's rule, so it states the approved rule in its place: the D-06 cases in `playhead.test.js` and `loop.test.js`, contract 1 with `wallProbe`, and the e2e wall-time scroll cap, as far as the design lists each. Write each new store case the split calls for. Run them against the code as Task 1 left it: each rewritten or new case fails on an assertion. A case green there is no bite: report it, and do not reshape it to turn it red.
-  - **Then the code.** `hqptuner/static/store/meter/loop.js` hands the decisions their inputs and applies what they return. The parts of `pacePaint` the rule replaces are retired, with no forwarder left behind. Both modules' header comments describe the approved rule; they are the design record in the code, so leave no sentence of the old rule standing.
-  - **One commit.** The code change and every pin rewrite land in one commit, because the old pins fail the moment the loop applies the new rule.
-  - **Constraints.** Model code reads no clock, and the loop stays the one `requestAnimationFrame`. Work per paint stays bounded and allocates nothing per paint (Rule 9). A break still restarts every view of playback, and nothing smooths across one (Rule 3).
-  - **What stays unedited.** Plan 2's suites, `tests/js/contracts/streams.js` and `tests/js/contracts/smooth-probes.js` are not touched. A Plan 2 test still red after the code has two outcomes: fix the code, or take the plan back to the owner with the failing line.
-  - **What stops the task.** A test outside this lease that turns red under the change is not edited. Stop and report it, since the lease came from the design record and a pin it missed is a planning gap. If the design needs a file outside this lease, stop for a plan revision; do not widen the lease mid-task. Run `filepawl accept` whenever filepawl prints it.
+- **Files:** .planning/phases/7/DESIGN.md
+- **Reads:** hqptuner/static/model/gauges/playhead.js#pacePaint, hqptuner/static/store/meter/loop.js#paint, hqptuner/static/store/meter/feed.js#decode, hqptuner/static/store/meter/delay.js#effectiveDelay, hqptuner/static/store/meter/spectrogram.js#drawnRange, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules, .planning/phases/7/CAPTURE.md, tests/support/fixtures/meter_start_capture_2.json, scripts/probes/meter/arrival_patterns.py, tests/js/contracts/streams.js, .planning/_archive-v2.0.0/5/CONTEXT.md, tests/js/contracts/steady-lag.test.js, tests/js/contracts/steady-motion.test.js, tests/js/contracts/steady-spectrogram.test.js
+- **Decisions:** D-01, D-02, D-07, D-08, D-09, D-10
+- **Action:** Write the design record with `Write`, soft-wrapped, with no em dashes. It holds:
+  - **Diagnosis.** Re-run the suites of Plans 2 and 3 at HEAD. For each failing case, cited by its exact test name, state the property of today's rule the failure shows, quoting the shortest decisive line of its output. The lag is read against each stream's own heard clock, as D-10 decided, not against Status `position`. Today's rule has four parts: the anchor set once at the first paint after a restart, at the newest frame end less the delay; a move on wall `dt` only; standing at the newest end; and no correction after the anchor. A cause the readings do not show is marked as unconfirmed, never stated as found.
+  - **The proposed rule.** One playhead rule that holds all three behaviors on every replay of Plans 2 and 3. The record shows how it treats an opening stretch, a gap between arrivals, stamps that drift against wall time, and a break. It stays inside the binding rules in Context. It uses only inputs that reach the page: stamps, the wall time a paint takes arrivals at, the effective delay, and Status fields the page already reads.
+    - The capture's Status also holds `output_fill`, `display_position` and `process_speed`. Before the design relies on any of them, look them up in HQPlayer's docs through the hqpdoc tools (`hqp_find` first). A field the docs leave undocumented is relied on only as measured wire behavior, never with a meaning given to it.
+    - The rule is not fitted to the tests' tolerances or streams. For that reason the record is not checked by running a prototype of the rule against the suites of Plans 2 and 3: that check is deliberately left to Plan 5, whose fix runs them unedited and takes the plan back to the owner if one stays red.
+  - **If no single rule holds all three behaviors,** for example through an opening stretch, the record says where they conflict, with the readings, and lays the choices out for the owner. It picks none.
+  - **The split (rule 17).** Each decision the rule makes, the one pure function under `hqptuner/static/model/` that returns it, the one value its test asserts, and, for a decision that does not exist today, the null stub its tests are red against (the export named, returning the zero value of its result type; `docs/spec/testing.md` rule 8), with that zero value differing from every value its tests expect. If the rule extracts or splits a decision out of `pacePaint`, state the caller-side delta: how many call sites change, in which files.
+  - **What changes where.** The modules whose code and header comments change. The existing tests that pin today's rule and are rewritten under it: the D-06 list (`tests/js/model/gauges/playhead.test.js`, `tests/js/store/meter/loop.test.js`), contract 1 in `tests/js/contracts/trace-and-meters.test.js` with `wallProbe` in `trace-probes.js`, and the wall-time scroll cap in `tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py`, plus any other pin the rule breaks. Also the PROJECT.md key decision row the rule replaces (D-07), named for the orchestrator to update, not edited here.
+  - **The spec text.** The exact replacement for each passage of `docs/spec/timing.md` the rule changes: at least "The two clocks" playhead sentences and Rule 1, and Rule 5 if skip or catch-up changes. Give each as before-and-after text, soft-wrapped.
+  - Hand the record to the owner. Record the owner's approval, or the owner's changes and the re-approved text, in it character for character.
 - **Verify:**
-  - **Red run.** The executor's record shows each rewritten and new case failing by `AssertionError` against `playhead.js` and `loop.js` as Task 1 left them, with the implementation reverted to that commit and the tests kept. A case that reaches a store surface not present at that commit fails against the null stub of it the design's split names (the export present, returning its zero value), never at a missing export, which is no evidence of bite (`docs/spec/testing.md` rule 8).
-  - **Plan 2 files unedited.** `git diff --quiet <Plan 2's last commit> -- tests/js/contracts/streams.js tests/js/contracts/smooth-probes.js tests/js/contracts/steady-lag.test.js tests/js/contracts/steady-motion.test.js tests/js/contracts/steady-spectrogram.test.js` exits 0 (AC9).
-  - **Gates.** `scripts/gate.sh make check` prints `exit=0` (AC7). `scripts/gate.sh .venv/bin/pytest tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py -q` prints `exit=0`; it needs headless chromium, so probe for it first, and if it is missing, this check becomes a human-verify run of `make test-e2e` by the owner, before the commit.
-  - **Rebuild.** `bash .claude/task-check.sh` passes: make check, a rebuilt `hqptuner:dev` and a healthy `:8090`. The container rebuild can hold a full core for more than 10 s, so name it before it runs (`~/dev/CLAUDE.md` 3.1).
-  - **Testing scope.** Outcomes: the three smoothness behaviors on every Plan 2 replay, already written. Already covered: the new decisions, pinned in Task 1. Smallest addition: the rewritten pins and one case per new store decision the design names. Sufficient evidence: the red run, the unedited Plan 2 suites passing, and `make check` green. Testing stops there.
-  - **human-verify (AC6).** At the hand-back URL from the host skill, the owner plays tracks at two sample rates, with a start from stopped, a same-rate track change and a rate change. The owner sees the meters, the spectrum and the spectrogram hold the same lag behind the sound right after each start as later in the track, and move smoothly throughout.
+  - **Every failure cited.** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test --test-reporter=tap tests/js/contracts/steady-lag.test.js tests/js/contracts/steady-motion.test.js tests/js/contracts/steady-spectrogram.test.js` at HEAD; it prints a non-zero exit and a log path. Then, reading that log, `perl -ne 'print "$1\n" if /^\s*not ok \d+ - (.+?)\s*$/' <log> | sort -u | while IFS= read -r n; do grep -qF -- "$n" .planning/phases/7/DESIGN.md || echo "uncited: $n"; done` prints nothing: every failing test name in the run appears in the record.
+  - **Format.** `.venv/bin/python .claude/hooks/md-softwrap.py --check .planning/phases/7/DESIGN.md` exits 0, and `grep -cP '\x{2014}' .planning/phases/7/DESIGN.md` prints 0 (no em dash).
+  - **human-verify.** The owner reads `.planning/phases/7/DESIGN.md` and approves its spec text verbatim. The record shows the approval and the approved text.
+  - Testing scope: none; this is a design record, and the suites of Plans 2 and 3 already state the behavior it must deliver. Whether the proposed rule passes them is Plan 5's check, by the choice stated in Action.
+
+### Task 2: The approved rule lands in the timing spec
+
+- **Files:** docs/spec/timing.md
+- **Reads:** .planning/phases/7/DESIGN.md, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules
+- **Decisions:** D-01, D-08
+- **Action:** Replace each passage the design record names with its approved text, character for character, using `Edit`. Change no other passage. The commit message records the owner's decision, cites `.planning/phases/7/CAPTURE.md` and the red run of Plans 2 and 3, and names the v2.0.0 rule it replaces. This is a `docs/` edit, so it runs its own gate only: no rebuild and no hand-back URL.
+- **Verify:** `git diff -- docs/spec/timing.md` changes only the passages the design record names, and each new passage equals its approved text. `.venv/bin/pre-commit run --files docs/spec/timing.md` exits 0. `.venv/bin/python .claude/hooks/md-softwrap.py --check docs/spec/timing.md` exits 0. Testing scope: none; a spec edit.
 
 ## Notes
 
-- The leases here are the files the design record is expected to name. Plan 3's Notes and this plan's Context say when they are revised: once DESIGN.md is approved, before dispatch.
-- The e2e pin stays in Task 2, not a task of its own. Its rewrite fails against today's rule and the old version fails against the new one, so either commit order leaves `make test-e2e` red at one commit, and D-09 (b) authorizes no red test outside Plan 2's suites.
-- Late-connect timing (D-02) is covered by Plan 2's late-join replay, on its stated assumption, and by AC6 at the hand-back; no live late-connect run exists.
+- **Revision, 2026-11-16, on D-10.** The plan review's two HIGH findings were on Plan 2's old Task 3: its `position` fit assumed independent Status residuals, which are autocorrelated (lag-1 0.57 to 0.61), so it cannot carry one-frame comparisons; and no task compared lag across join points (AC5). The owner ruled (D-10) that the fit is dropped as the tests' clock. This plan changes only where it cited that: the diagnosis reads lag against each stream's heard clock, not Status `position`; the measurement it rests on is Plan 2's Task 3; Task 1 reads `streams.js` and the measurement script and lists D-10.
+- Plan 5 is revised against `.planning/phases/7/DESIGN.md` once the owner approves this plan's spec text, before Plan 5 is dispatched. Its leases and task boundaries then follow the design's split and its list of pins. Plan 5's current file list assumes the decision stays in `hqptuner/static/model/gauges/playhead.js` and is applied in `hqptuner/static/store/meter/loop.js`; a decision or an input anywhere else (a new model module, or arrival times stamped in `hqptuner/static/store/meter/feed.js`) is added to its leases in that revision.
