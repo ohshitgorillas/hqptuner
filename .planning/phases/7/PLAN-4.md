@@ -10,6 +10,7 @@ files:
   - tests/js/contracts/steady-lag.test.js
   - tests/js/contracts/smooth-probes.js
   - tests/js/contracts/schedules.js
+  - tests/js/contracts/world.js
 ---
 
 # Phase 7: Visuals stay in sync after a track starts - Plan 4: The playhead's design, approved by the owner
@@ -23,7 +24,7 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 - A design record names, for each smoothness test that is red, the property of today's playhead rule the failure shows. It is read from the red run, not guessed.
 - The record proposes one playhead rule that holds steady lag, steady motion and steady spectrogram on every replay of Plans 2 and 3. If no single rule can, it says so and puts the choices to the owner.
 - The owner approved the spec text character for character, and `docs/spec/timing.md` holds exactly that text.
-- No code under `hqptuner/` changed. The only test change is Task 2's, which D-12 ordered, and the design record's section 3 reads its result.
+- No code under `hqptuner/` changed. The only test changes are Tasks 2 and 3, which D-12 and D-13 ordered, and the design record reads their results.
 
 ## Context
 
@@ -71,7 +72,22 @@ After a track starts, the visuals keep the same lag behind the sound that they h
   - Already covered: steadiness within a track, across starts, and across joins (Plans 2 and 3).
   - Testing stops at the run and the record.
 
-### Task 3: The approved rule lands in the timing spec
+### Task 3: Arrivals stamped as they land (D-13)
+
+- **Files:** .planning/phases/7/DESIGN.md, tests/js/contracts/world.js, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/smooth-probes.js
+- **Reads:** .planning/phases/7/CONTEXT.md#D-13, .planning/phases/7/DESIGN.md, hqptuner/static/store/meter/feed.js, hqptuner/static/lib/clock.js, tests/js/contracts/world.js, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js
+- **Decisions:** D-09, D-12, D-13
+- **Action:** D-13 says the page stamps each metering event with its wall time the moment it arrives. The playhead's rule then reads arrivals at their own times, not at the paint that first sees them.
+  - **The replay delivers at arrival time.** The replay world hands each event to the page at its own wall time, with the clock reading that time when the page's handler runs. Today it hands over everything due at the next paint, with the clock at the paint. Paints stay at 60 Hz.
+  - **The tolerance.** Each stream's resolution drops the paint term. It is the arrival grain plus twice the stream's jitter, with the arithmetic restated in the `streams.js` header. That one computed tolerance governs every comparison between two starts, at the same rate or at different rates; the one-metering-frame same-rate tolerance is retired. The paired check stays at floating-point error.
+  - **The design record.** Revise sections 2 to 6 of `.planning/phases/7/DESIGN.md` so the rule reads the lead off each arrival's own stamp, and so the split, the changed modules (`hqptuner/static/store/meter/feed.js` now stamps arrivals) and the section 6 spec text say so. Section 6 stays a proposal for the owner. Record D-13 in section 7.
+  - **Constraints.** Never reshape a stream or a tolerance to turn a case red or green. `streams.js` is at 799 of its 800-line cap: a split into one new file under `tests/js/contracts/` is allowed and is named in the commit message with its caller-side delta. Commit while red (D-09 (b)).
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js tests/js/contracts/steady-motion.test.js tests/js/contracts/steady-spectrogram.test.js` against today's code. Every failure is an `AssertionError` naming a replay. Every other existing suite under `tests/js/contracts/` still passes. `git diff --quiet <pre-plan HEAD> HEAD -- hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`. `.venv/bin/python .claude/hooks/md-softwrap.py --check .planning/phases/7/DESIGN.md` exits 0, and `grep -cP '\x{2014}' .planning/phases/7/DESIGN.md` prints 0.
+  - Testing scope. Outcomes: every comparison between starts holds within the resolution the stream's arrivals allow.
+  - Already covered: the paired rate check (Task 2), steadiness within a track (Plans 2 and 3).
+  - Testing stops at the run and the record.
+
+### Task 4: The approved rule lands in the timing spec
 
 - **Files:** docs/spec/timing.md
 - **Reads:** .planning/phases/7/DESIGN.md, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules
@@ -81,7 +97,8 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 
 ## Notes
 
-- **Revision, 2026-11-16, on D-12.** Task 1's record found that no rule can meet D-11's float-error clause on the captured starts. The owner split the check in two (D-12). Task 2 is new and changes Plan 3's committed tests by that decision. It runs before the spec text is approved, because its result is part of the diagnosis. The old Task 2 is now Task 3, unchanged.
+- **Revision, 2026-11-16, on D-12.** Task 1's record found that no rule can meet D-11's float-error clause on the captured starts. The owner split the check in two (D-12). Task 2 is new and changes Plan 3's committed tests by that decision. It runs before the spec text is approved, because its result is part of the diagnosis. The old Task 2 is now Task 4, unchanged.
+- **Revision, 2026-11-16, on D-13.** Task 2's resolution carried a paint term because the proposed rule read arrivals at paints. The owner ruled that the page stamps arrivals as they land (D-13), so the term goes, and the same tolerance holds for same-rate comparisons. Task 3 is new.
 
 - **Revision, 2026-11-16, on D-10.** The plan review's two HIGH findings were on Plan 2's old Task 3: its `position` fit assumed independent Status residuals, which are autocorrelated (lag-1 0.57 to 0.61), so it cannot carry one-frame comparisons; and no task compared lag across join points (AC5). The owner ruled (D-10) that the fit is dropped as the tests' clock. This plan changes only where it cited that: the diagnosis reads lag against each stream's heard clock, not Status `position`; the measurement it rests on is Plan 2's Task 3; Task 1 reads `streams.js` and the measurement script and lists D-10.
 - Plan 5 is revised against `.planning/phases/7/DESIGN.md` once the owner approves this plan's spec text, before Plan 5 is dispatched. Its leases and task boundaries then follow the design's split and its list of pins. Plan 5's current file list assumes the decision stays in `hqptuner/static/model/gauges/playhead.js` and is applied in `hqptuner/static/store/meter/loop.js`; a decision or an input anywhere else (a new model module, or arrival times stamped in `hqptuner/static/store/meter/feed.js`) is added to its leases in that revision.
