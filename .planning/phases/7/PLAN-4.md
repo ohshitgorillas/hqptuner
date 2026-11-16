@@ -6,6 +6,10 @@ requirements: []
 files:
   - .planning/phases/7/DESIGN.md
   - docs/spec/timing.md
+  - tests/js/contracts/streams.js
+  - tests/js/contracts/steady-lag.test.js
+  - tests/js/contracts/smooth-probes.js
+  - tests/js/contracts/schedules.js
 ---
 
 # Phase 7: Visuals stay in sync after a track starts - Plan 4: The playhead's design, approved by the owner
@@ -19,7 +23,7 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 - A design record names, for each smoothness test that is red, the property of today's playhead rule the failure shows. It is read from the red run, not guessed.
 - The record proposes one playhead rule that holds steady lag, steady motion and steady spectrogram on every replay of Plans 2 and 3. If no single rule can, it says so and puts the choices to the owner.
 - The owner approved the spec text character for character, and `docs/spec/timing.md` holds exactly that text.
-- No code under `hqptuner/` and no test changed.
+- No code under `hqptuner/` changed. The only test change is Task 2's, which D-12 ordered, and the design record's section 3 reads its result.
 
 ## Context
 
@@ -51,7 +55,23 @@ After a track starts, the visuals keep the same lag behind the sound that they h
   - **human-verify.** The owner reads `.planning/phases/7/DESIGN.md` and approves its spec text verbatim. The record shows the approval and the approved text.
   - Testing scope: none; this is a design record, and the suites of Plans 2 and 3 already state the behavior it must deliver. Whether the proposed rule passes them is Plan 5's check, by the choice stated in Action.
 
-### Task 2: The approved rule lands in the timing spec
+### Task 2: The cross-rate check split in two (D-12)
+
+- **Files:** tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/smooth-probes.js, tests/js/contracts/schedules.js, .planning/phases/7/DESIGN.md
+- **Reads:** .planning/phases/7/CONTEXT.md#D-12, .planning/phases/7/DESIGN.md, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/world.js, docs/spec/testing.md
+- **Decisions:** D-09, D-10, D-11, D-12
+- **Action:** D-12 splits the one exact cross-rate check of Plan 3's Task 4 into two contracts. Write the first tests-first, change the second's tolerance, then read the result into the design record.
+  - **Rate-agnostic, exact.** Paired streams that are identical in everything but the source rate. Within a pair, the arrival wall times, the playback ms each burst carries, the lead and the delay are the same, and so is Status apart from its rate. The page then holds the same information at both rates. The behavior: the lag is the same at both rates, within floating-point error, at every paint the suite reads. Any difference is the rate's alone. Cover 44100 against 192000, as the owner asked, plus a start from stopped, a rate change both ways, a rush and a drift. Bursts must end on playback boundaries that both rates' frames share. A 44100 frame is 23.22 ms and a 192000 frame is 5.33 ms, so frame ends coincide only every 147 frames at 44100 (3.41 s); integer-ratio pairs (48000 against 192000, 44100 against 176400) share every frame end of the lower rate. The test writer chooses the pairs and states, in the `streams.js` header, how each one holds the same information at both rates.
+  - **Each start's true lag.** The comparisons across the captured starts, including Plan 3's 192000 capture streams, hold within the resolution the stream's own paints and arrivals allow. The tolerance is computed from that stream's known timing (paint interval, arrival grain, jitter) and stated with its arithmetic in the header. It is never a round figure, and it replaces `FLOAT_MS` for these comparisons.
+  - **Paints at 60 Hz.** The replay streams paint at 60 Hz, as a browser does, not every 50 ms.
+  - **A green result is a finding.** If the paired check is green against today's code, the rate is not the cause, and that is reported, not reshaped. Commit it green; D-09 (b) still covers what stays red. Never reshape a stream or a tolerance to turn a case red or green.
+  - **Read the result into the record.** Rewrite section 3 of `.planning/phases/7/DESIGN.md` with the paired check's result and what it says about the cause. Record D-12 in section 7 as the D-11 choice, replacing options (a) to (d). Change no spec text in section 6, except where the result proves a sentence of it wrong; then mark that sentence for the owner.
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js tests/js/contracts/steady-motion.test.js tests/js/contracts/steady-spectrogram.test.js` against today's code. Every failure is an `AssertionError` naming a replay. The log's test names include a paired 44100 against 192000 case. `git diff --quiet <pre-plan HEAD> HEAD -- hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`. `.venv/bin/python .claude/hooks/md-softwrap.py --check .planning/phases/7/DESIGN.md` exits 0.
+  - Testing scope. Outcomes: the lag does not depend on the source rate, exactly, when the information is the same; each captured start's lag holds within its stream's resolution.
+  - Already covered: steadiness within a track, across starts, and across joins (Plans 2 and 3).
+  - Testing stops at the run and the record.
+
+### Task 3: The approved rule lands in the timing spec
 
 - **Files:** docs/spec/timing.md
 - **Reads:** .planning/phases/7/DESIGN.md, docs/spec/timing.md#The two clocks, docs/spec/timing.md#Rules
@@ -60,6 +80,8 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 - **Verify:** `git diff -- docs/spec/timing.md` changes only the passages the design record names, and each new passage equals its approved text. `.venv/bin/pre-commit run --files docs/spec/timing.md` exits 0. `.venv/bin/python .claude/hooks/md-softwrap.py --check docs/spec/timing.md` exits 0. Testing scope: none; a spec edit.
 
 ## Notes
+
+- **Revision, 2026-11-16, on D-12.** Task 1's record found that no rule can meet D-11's float-error clause on the captured starts. The owner split the check in two (D-12). Task 2 is new and changes Plan 3's committed tests by that decision. It runs before the spec text is approved, because its result is part of the diagnosis. The old Task 2 is now Task 3, unchanged.
 
 - **Revision, 2026-11-16, on D-10.** The plan review's two HIGH findings were on Plan 2's old Task 3: its `position` fit assumed independent Status residuals, which are autocorrelated (lag-1 0.57 to 0.61), so it cannot carry one-frame comparisons; and no task compared lag across join points (AC5). The owner ruled (D-10) that the fit is dropped as the tests' clock. This plan changes only where it cited that: the diagnosis reads lag against each stream's heard clock, not Status `position`; the measurement it rests on is Plan 2's Task 3; Task 1 reads `streams.js` and the measurement script and lists D-10.
 - Plan 5 is revised against `.planning/phases/7/DESIGN.md` once the owner approves this plan's spec text, before Plan 5 is dispatched. Its leases and task boundaries then follow the design's split and its list of pins. Plan 5's current file list assumes the decision stays in `hqptuner/static/model/gauges/playhead.js` and is applied in `hqptuner/static/store/meter/loop.js`; a decision or an input anywhere else (a new model module, or arrival times stamped in `hqptuner/static/store/meter/feed.js`) is added to its leases in that revision.
