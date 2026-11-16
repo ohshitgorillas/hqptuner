@@ -10,6 +10,7 @@ files:
   - tests/js/contracts/steady-lag.test.js
   - tests/js/contracts/steady-motion.test.js
   - tests/js/contracts/steady-spectrogram.test.js
+  - tests/support/fixtures/meter_start_capture_3.json
 ---
 
 # Phase 7: Visuals stay in sync after a track starts - Plan 3: Made-up streams, steady motion and steady spectrogram, red against today's code
@@ -33,7 +34,7 @@ After a track starts, the visuals keep the same lag behind the sound that they h
 - D-09 (b) binds every task: the suites are committed while red, before the fix lands. The authorization covers the test files of Plans 2 and 3 only (`streams.js`, `smooth-probes.js` and the three `steady-*.test.js` suites), and only their failing tests; every lint gate and every other test stays green in each commit. It ends when Plan 5's fix makes them pass.
 - Plan 2 built what this plan extends: the replay world (its Task 1), the second capture (its Task 2), the arrival measurement `scripts/probes/meter/arrival_patterns.py` (its Task 3, whose output this plan's Task 1 draws its sizes from), and `streams.js`, `smooth-probes.js` and `steady-lag.test.js` with the measured-pattern streams and their heard clock (its Task 4) and the lag compared across starts, rates and join points (its Task 5). The new suites follow `trace-and-meters.test.js` and `spectrogram-picture.test.js`: replay each stream once, then every test reads one finding of it.
 - Already covered, so not restated (rule 12): contract 1 (each paint moves the playhead its wall time unless it stands at the newest end, never past it, never backward), contract 2 (over a run the picture moves left as far as the playhead's advance, within one column), contracts 3, 4, 6 and 7. Contract 1 allows the playhead to stand at the newest end, which D-08's steady motion forbids outside a real break; that difference is where steady motion bites.
-- Out of scope: any change under `hqptuner/`, any edit to either capture fixture, the repo-root `spectstutter.json` and `fuckedspecrogram.jpg`, any filter measurement.
+- Out of scope: any change under `hqptuner/`, any edit to a capture fixture once committed, any filter measurement.
 - `tests/js/contracts/` holds 9 files and the directory cap is 15; Plan 2 adds 3 and this plan adds 2, leaving 1.
 
 ## Tasks
@@ -67,7 +68,8 @@ After a track starts, the visuals keep the same lag behind the sound that they h
   - **Constraints.** As in Plan 2's Task 4: one assertion per test, each stream replayed once, this suite's own readings added to `smooth-probes.js` and no unused one, no copied blocks, the suite's time reported.
   - **If the suite is green on every replay against today's code,** stop and report the readings to the owner; do not reshape anything to turn it red.
   - **Commit** while the suite is red (D-09 (b)).
-- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-motion.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint. `git diff --quiet <pre-plan HEAD> HEAD -- hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
+  - **Owner ruling, 2026-11-16 (D-11).** The suite came back green on all 189 tests against today's code. The owner keeps it as written and it commits green: it pins a real contract, and the defect is lag, not motion. The red-run verify below is waived for this task only.
+- **Verify:** Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-motion.test.js` against today's code. It prints a non-zero exit, and every failure is an `AssertionError` naming a replay and a paint (waived by the owner ruling above: it exits 0). `git diff --quiet <pre-plan HEAD> HEAD -- hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
   - Testing scope. Outcomes: no freeze, no jump ahead and no step back outside a real break, on every stream.
   - Already covered: the wall-speed move and never-backward (contract 1).
   - Smallest checks: one motion reading per stream, the real breaks taken from the stream's own Status and feed marks.
@@ -90,6 +92,23 @@ After a track starts, the visuals keep the same lag behind the sound that they h
   - Already covered: scroll over a run (contract 2), and the picture's consistency (contracts 3 and 7).
   - Smallest checks: one per-paint scroll reading per stream.
   - Testing stops at the red run and the `make check` readout.
+
+### Task 4: A frame lands at the same moment whatever the source rate
+
+- **Waits on the owner:** the third capture, `tests/support/fixtures/meter_start_capture_3.json`, a 192000 track started from stopped and rate changes into and out of 192000 from 44100. Do not start this task until that file is on disk.
+- **Files:** tests/support/fixtures/meter_start_capture_3.json, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js, tests/js/contracts/smooth-probes.js
+- **Reads:** tests/support/fixtures/meter_start_capture_3.json, scripts/probes/meter/arrival_patterns.py, tests/js/contracts/streams.js, tests/js/contracts/steady-lag.test.js
+- **Decisions:** D-08, D-09, D-10, D-11
+- **Action:** Commit the third capture as the owner captured it, in its own commit. Then measure it with `scripts/probes/meter/arrival_patterns.py` and add streams reproducing its 192000 arrival patterns, as Plan 2's Task 4 did for the first two captures, with the measured values and the command line cited in the `streams.js` header.
+  - **The behavior (D-11).** When a frame lands on screen does not depend on the source rate. A frame of a 44100 track and a frame of a 192000 track land at exactly the same moment relative to when they are heard: the lag after a start at one rate equals the lag at every other rate, within floating-point error, on every stream, both directions of every rate change.
+  - **Already covered.** Plan 2's Task 5 compares lag across a rate change within one metering frame of the finer rate. D-11 replaces that tolerance for the comparison across rates; the comparisons across starts at one rate and across join points are not changed by this task.
+  - `tests/js/contracts/` has one slot left under its cap, so extend the existing files rather than adding one.
+  - **If the comparison is green on every replay against today's code,** stop and report the readings to the owner. Never reshape a stream or a tolerance to turn it red.
+  - **Commit** while red (D-09 (b)).
+- **Verify:** `git show --stat --format=` on the capture commit lists the fixture alone. Run `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js` against today's code: it prints a non-zero exit, every failure is an `AssertionError` naming a replay and the rates compared, and the log's test names include a 192000 stream. `git diff --quiet <pre-plan HEAD> HEAD -- hqptuner/` exits 0. `scripts/gate.sh make lint-js` prints `exit=0`.
+  - Testing scope. Outcomes: the lag is the same at every source rate, exactly.
+  - Already covered: lag steady within a track, across starts and joins (Plan 2's Tasks 4 and 5).
+  - Testing stops at the red run.
 
 ## Notes
 
