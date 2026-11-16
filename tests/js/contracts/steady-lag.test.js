@@ -2,19 +2,21 @@
 // through a whole track, within one metering frame at the track's own rate, after every start and at every sample rate,
 // however the data arrives. It asks the lag and pins no cause.
 //
-// Each stream (tests/js/contracts/streams.js) reproduces how the two captures show data arriving around a track start, with
+// Each stream (tests/js/contracts/streams.js) reproduces how the captures show data arriving around a track start, with
 // a heard clock known to the sample, and is replayed through the real stack (tests/js/contracts/world.js) once; every test
 // reads one finding of that replay. The lag is read after each track's opening stretch: 1500 ms after its serial change (or
-// after a join). That length comes from the rush the measurement script prints for the two captures (a build of at most
+// after a join). That length comes from the rush the measurement script prints for the first two captures (a build of at most
 // 355 ms and frames resuming at most 217 ms after the serial change, 572 ms in all, doubled) and was set before this suite
 // first ran against the code. The stream
 // list is the module's own, so a stream added there joins this suite with no edit here.
 //
-// The lag is also the same everywhere. Each track's lag is its median over the same window, and two are the same when they
-// are within one metering frame, the frame of the finer rate when the rates differ (10.7 ms when a 96000 track is in the
-// pair). The set compared: every pair of starts of one stream; each start against the one before it where the rate changed,
-// named for the direction (44100 to 96000 and 96000 to 44100); and for each start, every pair of the points the page joined
-// at, the reader that holds counting as one. None is dropped.
+// The lag is also the same everywhere. Each track's lag is its median over the same window. Two starts at one rate are the
+// same when they are within one metering frame of it. Two starts at different rates are the same when they differ by no
+// more than floating-point error: when a frame lands on screen does not depend on the source rate, paints fall at the same
+// wall times at every rate, and any difference is a rate leaking into the playhead. The set compared: every pair of starts
+// of one stream; each start against the one before it where the rate changed, named for the direction (44100 to 192000,
+// 192000 to 44100 and the rest); and for each start, every pair of the points the page joined at, the reader that holds
+// counting as one. None is dropped.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js
 
@@ -30,6 +32,9 @@ const MIN_PAINTS = 20;
 const SAMPLES_PER_FRAME = 1024;
 const MS_PER_S = 1000;
 const TENTH = 10;
+//: Two lags at different rates may differ by this much, ms: a nanosecond, above the rounding of sums of a few 10^5 ms
+//: held as doubles (below 10^-10 ms) and far below anything the eye or the ear can place.
+const FLOAT_MS = 1e-6;
 
 /** @type {Map<string, ReturnType<typeof look>>} */
 const looked = new Map();
@@ -72,14 +77,19 @@ for (const stream of STREAMS) {
 const finer = (a, b) => Math.min(frameMs(a.rate), frameMs(b.rate));
 
 /**
- * The lags `a` and `b` stand at, as the most they differ by past one frame of the finer rate, ms to a tenth.
+ * The lags `a` and `b` stand at, as the most they differ by past what they may: one frame of their rate to a tenth of a ms
+ * when it is the same, floating-point error when the rates differ, ms.
  *
  * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number] }} a
  * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number] }} b
  */
 function apart(a, b) {
-  const excess = Math.max(0, Math.abs(a.lag.level - b.lag.level) - finer(a.read, b.read));
-  return { read: Math.min(a.lag.n, b.lag.n) >= MIN_PAINTS, apart: Math.round(excess * TENTH) / TENTH };
+  const sameRate = a.read.rate === b.read.rate;
+  const excess = Math.max(0, Math.abs(a.lag.level - b.lag.level) - (sameRate ? finer(a.read, b.read) : FLOAT_MS));
+  return {
+    read: Math.min(a.lag.n, b.lag.n) >= MIN_PAINTS,
+    apart: sameRate ? Math.round(excess * TENTH) / TENTH : excess,
+  };
 }
 
 /** @param {import("./streams.js").Stream} stream @param {number} k */

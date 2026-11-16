@@ -1,4 +1,4 @@
-// The replay streams of the smoothness suites: how data arrives around a track start, reproduced from what the two
+// The replay streams of the smoothness suites: how data arrives around a track start, reproduced from what the three
 // captures measure, each with a heard clock known to the sample. No test() and no assert lives here, and no clock is read:
 // every number below is written down.
 //
@@ -28,7 +28,8 @@
 //
 // MEASURED VALUES. First capture: `.venv/bin/python -I scripts/probes/meter/arrival_patterns.py
 // tests/support/fixtures/meter_start_capture.json`. Second capture: the same with
-// `tests/support/fixtures/meter_start_capture_2.json`. Every figure below is a line of one of those two outputs; none is
+// `tests/support/fixtures/meter_start_capture_2.json`. Third capture: the same with
+// `tests/support/fixtures/meter_start_capture_3.json`. Every figure below is a line of one of those three outputs; none is
 // a value read off a fit.
 //   Opening rush, "lead at +0,100,200,300,500 ms" and "mean lead +5..+9 s":
 //     first capture 96000, serial 33: 11, 232, 357, 559, 518 ms, mean 514 ms, within 50 ms of it at +256 ms.
@@ -36,6 +37,9 @@
 //     second capture 44100, serial 16: 23, 230, 367, 561, 524 ms, mean 514 ms, at +238 ms.
 //     second capture 96000, serial 17: 11, 106, 137, 265, 455 ms, mean 419 ms, at +355 ms.
 //     second capture 44100, serial 18: 23, 139, 352, 538, 507 ms, mean 514 ms, at +296 ms.
+//     third capture 192000, a start from stopped (serial 20, "resume ... first frame"): 5, 238, 370, 569, 533 ms, mean
+//     526 ms, at +243 ms. Third capture 44100, serial 21: 23, 233, 369, 585, 548 ms, mean 577 ms, at +274 ms. Third
+//     capture 192000, serial 22: 5, 224, 344, 467, 503 ms, mean 498 ms, at +280 ms.
 //   Frames stop and resume at a rate change ("frame gap over 250 ms: start ... ms long", "resume t=", "serial a->b at"):
 //     first capture serial 33: the last frame 952 ms before the serial change, 1168 ms with no frames, resuming 217 ms
 //     after it; State 0 from 1072 ms before it. Serial 35: 970 ms, 1159 ms, 189 ms; State 0 from 1075 ms before it.
@@ -43,25 +47,37 @@
 //     joined here into one) until 189 ms after it; serial 17: 1144 ms before, 1360 ms, resuming 216 ms after;
 //     serial 18: 1147 ms before, 1328 ms, resuming 181 ms after. State stays 2 in the second capture; its Status reads
 //     that straddle each serial change take 935, 999 and 934 ms ("reads over 500 ms").
+//     third capture serial 21: the last frame 961 ms before the serial change, 1145 ms with no frames, resuming 184 ms
+//     after it; State 0 from 1057 ms before it, and the Status read that straddles it takes 856 ms. Serial 22: 1142 ms,
+//     1350 ms, 209 ms; State 0 from 1035 ms before it, the straddling read 835 ms.
 //   Same-rate changes: 44100 and 96000 in the first capture, 96000 in the second show no geometry event and no gap except
 //     the first capture's serial 34: a frame gap of 296 ms starting 264 ms before the serial change, "+1000..+5000 ms:
 //     median lead -107 ms against before". The stream drops 107 ms of music there. Serial 31 and the second capture's
 //     serial 14 start from stopped with frames already arriving.
+//   The third capture's gapless 192000 change (serial 23): no frame gap over 250 ms and no stamp break; "+1000..+5000 ms:
+//     median lead -104 ms against before (spread 191 ms)", about the 106.7 ms of five events at 192000. The stream sends
+//     it as a change that leaves the frames as they were: the stamps show no loss of music.
 //   Steady play at 44100: "mean lead in first bin -1347 ms, in last bin -900 ms, change +446 ms" over bins 130 to 290 s
 //     of the first capture (2.97 ms per second), "-2382 ms, -2042 ms, change +339 ms" over bins 190 to 350 s of the second
 //     (2.12 ms per second). 96000 is flat in both ("change -1 ms"). The drift here starts at the last track and its start
 //     is an assumption: the captures give the gain across a stretch, not where it begins.
 //   `output_delay` per rate ("output_delay by Status samplerate"): first capture 502358 us at 44100, 501364 at 96000;
-//     second capture 505827 at 44100, 500427 at 96000. The one stale sample at each rate change in the first capture is
-//     not sent. "moves of position": 106.7 and 213.3 ms, so `position` moves in 106.67 ms steps.
-//   Event grain (CAPTURE.md block D): 1024 samples per event at 44100, 2048 at 96000, and five events arrive together.
+//     second capture 505827 at 44100, 500427 at 96000; third capture 500166 at 192000, 505827 at 44100. The one stale
+//     sample at each rate change in the first capture is not sent. "moves of position": 106.7 and 213.3 ms, so `position`
+//     moves in 106.67 ms steps.
+//   Event grain (CAPTURE.md block D): 1024 samples per event at 44100, 2048 at 96000, and five events arrive together. The
+//     third capture's `frame` events (read off the fixture's events, not a line of the script) carry n = 4096 at 192000
+//     (21.3 ms, inside the measured 17.3 to 23.2 ms) and 1024 at 44100, and arrive five at a time in 186 of 188 groups at
+//     192000.
 //   Status cadence: the app's own `status_interval` of 1.0 s between reads, the reply time on top.
 //
-// The streams: the first capture's start sequence and the second's, each replayed as the reader that holds the connection
-// receives it, with a page joining late at two points in each start's opening stretch; and the first capture's shape,
+// The streams: the first capture's start sequence, the second's and the third's, each replayed as the reader that holds
+// the connection receives it, with a page joining late at two points in each start's opening stretch; and the first capture's shape,
 // where State is not playing across each rate change, once more as the app's reader receives it (it drops, then rejoins
-// 0 to 2.0 s after Status shows playing) at three points of that window. The second capture's shape has State staying
-// playing, so the app's reader holds there and is the first reader.
+// 0 to 2.0 s after Status shows playing) at three points of that window; the third capture's shape does the same, State
+// being 0 across both of its rate changes. The second capture's shape has State staying playing, so the app's reader holds
+// there and is the first reader. The third capture's shape is the only one at 192000: a start from stopped, a change to
+// 44100, a change back and a gapless change, on the capture's own gaps, rushes and Status reads.
 //
 // THE MADE-UP STREAMS. What is heard in a made-up stream is the playback clock the stream is generated from: the settled
 // line less `output_delay`, by the heard-clock rule above, the same for every start. A stretch with a `made` entry draws
@@ -119,7 +135,7 @@ const STATUS_GAP_MS = 1000;
 const STATUS_PHASE_MS = 500;
 const POSITION_STEP_MS = 320 / 3;
 const OFFSET_S = 0.69;
-const EVENT_SAMPLES = /** @type {Record<number, number>} */ ({ 44100: 1024, 96000: 2048 });
+const EVENT_SAMPLES = /** @type {Record<number, number>} */ ({ 44100: 1024, 96000: 2048, 192000: 4096 });
 const GROUP = 5;
 const LEAD_AT_MS = [0, 100, 200, 300, 500];
 const JOINS_MS = [400, 900];
@@ -574,6 +590,41 @@ const SECOND = {
   ],
 };
 
+/** @type {Spec} */
+const THIRD = {
+  name: "capture_3_shape",
+  outputDelay: { 44100: 505827, 192000: 500166 },
+  end: 64000,
+  appReads: true,
+  stretches: [
+    { rate: 192000, from: 4218, to: 27039, rush: rush([5, 238, 370, 569, 533], 526), drop: null, drift: null },
+    { rate: 44100, from: 28184, to: 38858, rush: rush([23, 233, 369, 585, 548], 577), drop: null, drift: null },
+    { rate: 192000, from: 40209, to: 64000, rush: rush([5, 224, 344, 467, 503], 498), drop: null, drift: null },
+  ],
+  tracks: [
+    { serial: 20, T: 4000, kind: "start_from_stopped_at_192000", rate: 192000, stopped: 0, slow: 0, hear: 4218 + 500 },
+    {
+      serial: 21,
+      T: 28000,
+      kind: "rate_change_192000_to_44100",
+      rate: 44100,
+      stopped: 1057,
+      slow: 856,
+      hear: 28184 + 506,
+    },
+    {
+      serial: 22,
+      T: 40000,
+      kind: "rate_change_44100_to_192000",
+      rate: 192000,
+      stopped: 1035,
+      slow: 835,
+      hear: 40209 + 500,
+    },
+    { serial: 23, T: 52000, kind: "same_rate_change_at_192000", rate: 192000, stopped: 0, slow: 0, hear: 52100 },
+  ],
+};
+
 const BURSTS = [1, 12];
 const JITTER_MS = 40;
 const MADE_RUSH = rush([18, 170, 340, 545, 500], 490);
@@ -649,6 +700,7 @@ const drifting = (name, per, seed) => ({
 export const STREAMS = [
   ...streams(FIRST),
   ...streams(SECOND),
+  ...streams(THIRD),
   ...streams(BURSTY),
   ...streams(drifting("made_up_stamps_faster", DRIFT_PER_MS, 21)),
   ...streams(drifting("made_up_stamps_slower", -DRIFT_PER_MS, 22)),
