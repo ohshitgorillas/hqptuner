@@ -72,7 +72,7 @@ Stamps (through the queued frames), the arrival time of each frame (new, `arrive
 ### The decision, paint by paint
 
 1. If the paint took arrivals, it has seen a lead: the newest frame's end less its own arrival time. No wait between landing and paint enters it, and a burst that landed early or late shows as the lead it had.
-2. The line's lead, the ceiling, is the greatest lead seen over a short fixed span of recent paints. It is held in two half-spans (the greatest of the half being filled and of the one before), so it needs two numbers and an age, allocates nothing and forgets a rush's overshoot one span after it. A late handler stamps its arrival late and so lowers that arrival's lead; the greatest of a span is not moved by one such stamp.
+2. The line's lead, the ceiling, is the greatest lead seen over a short fixed span of recent wall time (owner ruling, section 7). It is held in two half-spans (the greatest of the half being filled and of the one before), so it needs two numbers and an age, allocates nothing and forgets a rush's overshoot one span after it. A late handler stamps its arrival late and so lowers that arrival's lead; the greatest of a span is not moved by one such stamp.
 3. Where no paint in the span took arrivals, the ceiling keeps its last value.
 4. The playhead's aim is `now + ceiling - delay`. The playhead is moved to the aim by `followLine`: it moves at wall speed, plus or minus a bounded share of that speed toward the aim. During the opening span after a restart a rise is taken at once. After it nothing moves the playhead by a step except a break or a changed delay.
 5. A changed delay jumps the playhead by the change first, back for a raised delay and forward for a lowered one, as today, and then it follows the aim.
@@ -183,7 +183,7 @@ The name `lead` is used twice, once for the frame index in `PaintDecision` (toda
 
 ## 6. The spec text
 
-Each passage replaces the one before it in `docs/spec/timing.md`, nothing else changes. Written soft-wrapped, no em dash. Constants are not in the spec text: Rule 2 holds them as display targets defined once in code. This text is a proposal. It is not approved, and it replaces the text of the first draft, which read the lead at each paint.
+Each passage replaces the one before it in `docs/spec/timing.md`, nothing else changes. Written soft-wrapped, no em dash. Constants are not in the spec text: Rule 2 holds them as display targets defined once in code. This text is approved by the owner (section 7). It replaces the text of the first draft, which read the lead at each paint.
 
 ### 6.1 "The two clocks", the playhead sentences
 
@@ -196,7 +196,7 @@ The playhead moves at wall speed, on the loop's `dt`. When the delay changes, it
 After:
 
 ```text
-The playhead stands on the music's line, one delay behind where the stamps stand ahead of wall time. The feed store stamps each event with the wall time it arrives at, and the lead of an arrival is its newest frame's end less that time. The lead of the line is the greatest lead seen over a short fixed span of recent paints, so a burst landing early or late does not move it. The playhead moves at wall speed, on the loop's `dt`, and follows the line by a bounded share of wall speed, up or down, so a stamp that drifts against wall time, or music lost without a break, is followed and a burst is not. When the delay changes, it jumps by the change: back for a raised delay, forward for a lowered one. It never passes the newest queued frame's end, a stamp, and if it reaches it, it stands there until the next arrival. It never moves backward outside a break or a raised delay. At a break it restarts one delay behind the newest frame's end, carried on at wall speed from the time that frame arrived, and through the opening span that follows it takes each rise of the line at once, because a start or a rate change lets the stamps run ahead of wall time before they settle.
+The playhead stands on the music's line, one delay behind where the stamps stand ahead of wall time. The feed store stamps each event with the wall time it arrives at, and the lead of an arrival is its newest frame's end less that time. The lead of the line is the greatest lead seen over a short fixed span of recent wall time, so a burst landing late does not move it, and one landing early moves it by no more than it was early. The playhead moves at wall speed, on the loop's `dt`, and follows the line by a bounded share of wall speed, up or down, so a stamp that drifts against wall time, or music lost without a break, is followed and a burst is not. When the delay changes, it jumps by the change: back for a raised delay, forward for a lowered one. It never passes the newest queued frame's end, a stamp, and if it reaches it, it stands there until the next arrival. It never moves backward outside a break or a raised delay. At a break it restarts one delay behind the newest frame's end, carried on at wall speed from the time that frame arrived, and through the opening span that follows it takes each rise of the line at once, because a start or a rate change lets the stamps run ahead of wall time before they settle.
 ```
 
 ### 6.2 Rule 1, the allowance
@@ -255,7 +255,7 @@ The D-11 choice, decided 2026-11-16 as D-12 (`.planning/phases/7/CONTEXT.md`, co
 
 D-13, decided 2026-11-16 (`.planning/phases/7/CONTEXT.md`, commit `00fb1452`), amending D-12 (2): the page time-stamps each metering event the moment it arrives, so the playhead reads each arrival's own wall time, not the paint that first sees it. The resolution a stream allows carries no paint term: it is the arrival grain plus the stream's jitter, and that one computed tolerance holds for every comparison between two starts, at the same rate or at different rates; the one-metering-frame tolerance for same-rate comparisons is retired. The 17.667 ms figure came from the proposed rule reading arrivals at paints, and a tolerance derived from the design's own limit is a fudge. Built in Task 3: the replay hands each event over at its own wall time, the resolution is 1.0 ms on the captured streams and 81.0 ms on the made-up ones, and sections 2 to 6 of this record read each lead off its arrival's own stamp.
 
-The approval of the spec text in section 6: pending. To be filled with the owner's approval, or the owner's changes and the re-approved text, character for character.
+The approval of the spec text in section 6, given 2026-11-16: approved, with two changes to 6.1 the owner approved. "over a short fixed span of recent paints, so a burst landing early or late does not move it" became "over a short fixed span of recent wall time, so a burst landing late does not move it, and one landing early moves it by no more than it was early": the first draft's claim was false for an early burst, which raises the greatest lead, and "paints" tied the span to redraws, which D-13 removed. The approved text is section 6 as it stands, character for character; 6.2 to 6.5 are unchanged from the proposal.
 
 ## Appendix: every failing case of the run, cited by its exact test name
 
