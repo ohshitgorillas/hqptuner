@@ -10,6 +10,12 @@
 // first ran against the code. The stream
 // list is the module's own, so a stream added there joins this suite with no edit here.
 //
+// The lag is also the same everywhere. Each track's lag is its median over the same window, and two are the same when they
+// are within one metering frame, the frame of the finer rate when the rates differ (10.7 ms when a 96000 track is in the
+// pair). The set compared: every pair of starts of one stream; each start against the one before it where the rate changed,
+// named for the direction (44100 to 96000 and 96000 to 44100); and for each start, every pair of the points the page joined
+// at, the reader that holds counting as one. None is dropped.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/steady-lag.test.js
 
 import test from "node:test";
@@ -60,4 +66,64 @@ for (const stream of STREAMS) {
       assert.deepEqual({ read: n >= MIN_PAINTS, moved }, { read: true, moved: 0 });
     });
   });
+}
+
+/** @param {import("./streams.js").Read} a @param {import("./streams.js").Read} b */
+const finer = (a, b) => Math.min(frameMs(a.rate), frameMs(b.rate));
+
+/**
+ * The lags `a` and `b` stand at, as the most they differ by past one frame of the finer rate, ms to a tenth.
+ *
+ * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number] }} a
+ * @param {{ read: import("./streams.js").Read, lag: ReturnType<typeof look>[number] }} b
+ */
+function apart(a, b) {
+  const excess = Math.max(0, Math.abs(a.lag.level - b.lag.level) - finer(a.read, b.read));
+  return { read: Math.min(a.lag.n, b.lag.n) >= MIN_PAINTS, apart: Math.round(excess * TENTH) / TENTH };
+}
+
+/** @param {import("./streams.js").Stream} stream @param {number} k */
+const reading = (stream, k) => ({ read: stream.reads[k], lag: seen(stream)[k] });
+
+const SAME = { read: true, apart: 0 };
+
+for (const stream of STREAMS) {
+  const { reads } = stream;
+  for (let i = 0; i < reads.length; i++) {
+    for (let j = i + 1; j < reads.length; j++) {
+      const [a, b] = [reads[i], reads[j]];
+      test(`test_the_lag_after_serial_${a.serial}_a_${a.kind}_is_the_lag_after_serial_${b.serial}_a_${b.kind}_in_${stream.name}`, () => {
+        assert.deepEqual(apart(reading(stream, i), reading(stream, j)), SAME);
+      });
+    }
+    if (i > 0 && reads[i].rate !== reads[i - 1].rate) {
+      const [from, to] = [reads[i - 1].rate, reads[i].rate];
+      test(`test_the_lag_is_the_same_across_the_change_${from}_to_${to}_at_serial_${reads[i].serial}_in_${stream.name}`, () => {
+        assert.deepEqual(apart(reading(stream, i - 1), reading(stream, i)), SAME);
+      });
+    }
+  }
+}
+
+/** @type {Map<string, Array<{ point: string, stream: import("./streams.js").Stream, k: number }>>} */
+const joins = new Map();
+for (const stream of STREAMS) {
+  stream.reads.forEach((read, k) => {
+    const key = `${stream.group}_serial_${read.serial}`;
+    joins.set(key, [...(joins.get(key) ?? []), { point: stream.point, stream, k }]);
+  });
+}
+
+for (const [key, points] of joins) {
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      const [a, b] = [points[i], points[j]];
+      test(
+        `test_the_lag_is_the_same_for_${a.point}_and_${b.point}_in_${key}`.replaceAll(" ", "_").replaceAll("'", ""),
+        () => {
+          assert.deepEqual(apart(reading(a.stream, a.k), reading(b.stream, b.k)), SAME);
+        },
+      );
+    }
+  }
 }
