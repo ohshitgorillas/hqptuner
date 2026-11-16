@@ -1,6 +1,6 @@
 # State
 
 Phase: 11 of 11 (Agent tooling and repo guards)
-Status: executed
-Next: /cad-verify 11
-Updated: 2026-11-15
+Status: phase complete
+Next: /cad-milestone (the audit gate precedes any ship)
+Updated: 2026-11-16

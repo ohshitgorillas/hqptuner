@@ -3,7 +3,8 @@ status: testing
 phase: 11
 fields_version: 1
 started: 2026-11-15
-updated: 2026-11-15
+updated: 2026-11-16
+ci: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
 ---
 
 ## Items
@@ -71,65 +72,74 @@ evidence: scripts/gate.sh make check on f14de94b -> exit=0 log=/tmp/gate-make-uL
 ### 8. CI check passes (ci: check)
 expected: required job check concludes success on the phase's last dev commit
 criterion: AC6
-status: pending_ci
+status: pass
 job: check
-commit: 7739ecc7b72dd4783ba3f44093e708214afaa44f
+commit: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
+first_pass: pass
 source: model
-evidence: GitHub Actions required job; runs only in CI, not on this host
+evidence: check concluded success at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
 
 ### 9. CI e2e passes (ci: e2e)
 expected: required job e2e concludes success on the phase's last dev commit
 criterion: AC6
-status: pending_ci
+status: pass
 job: e2e
-commit: 7739ecc7b72dd4783ba3f44093e708214afaa44f
+commit: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
+first_pass: pass
 source: model
-evidence: GitHub Actions required job; runs only in CI, not on this host
+evidence: e2e concluded success at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
 
 ### 10. CI smoke passes (ci: smoke)
 expected: required job smoke concludes success on the phase's last dev commit
 criterion: AC6
-status: pending_ci
+status: pass
 job: smoke
-commit: 7739ecc7b72dd4783ba3f44093e708214afaa44f
+commit: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
+first_pass: pass
 source: model
-evidence: GitHub Actions required job; runs only in CI, not on this host
+evidence: smoke concluded success at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0 (release.yml run 43783918084, every matrix row)
 
 ### 11. CI lifecycle-deb passes (ci: lifecycle-deb)
 expected: required job lifecycle-deb concludes success on the phase's last dev commit
 criterion: AC6
-status: pending_ci
+status: pass
 job: lifecycle-deb
-commit: 7739ecc7b72dd4783ba3f44093e708214afaa44f
+commit: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
+first_pass: pass
 source: model
-evidence: GitHub Actions required job; runs only in CI, not on this host
+evidence: lifecycle-deb concluded success at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0 (release.yml run 43783918084, every matrix row)
 
 ### 12. CI lifecycle-rpm passes (ci: lifecycle-rpm)
 expected: required job lifecycle-rpm concludes success on the phase's last dev commit
 criterion: AC6
-status: pending_ci
+status: pass
 job: lifecycle-rpm
-commit: 7739ecc7b72dd4783ba3f44093e708214afaa44f
+commit: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
+first_pass: pass
 source: model
-evidence: GitHub Actions required job; runs only in CI, not on this host
+evidence: lifecycle-rpm concluded success at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0 (release.yml run 43783918084, every matrix row)
 
 ### 13. CI smoke-macos passes (ci: smoke-macos)
 expected: required job smoke-macos concludes success on the phase's last dev commit
 criterion: AC6
-status: pending_ci
+status: pass
 job: smoke-macos
-commit: 7739ecc7b72dd4783ba3f44093e708214afaa44f
+commit: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
+first_pass: pass
 source: model
-evidence: GitHub Actions required job; runs only in CI, not on this host
+evidence: smoke-macos concluded success at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0 (release.yml run 43783918084, all 5 matrix rows)
 
 ### 14. CI smoke-windows passes (ci: smoke-windows)
 expected: required job smoke-windows concludes success on the phase's last dev commit
 criterion: AC6
-status: pending_ci
+status: pass
 job: smoke-windows
-commit: 7739ecc7b72dd4783ba3f44093e708214afaa44f
+commit: f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0
+first_pass: fail
 source: model
-evidence: GitHub Actions required job; runs only in CI, not on this host
+evidence: smoke-windows concluded success at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0 (release.yml run 43783918084 attempt 2, all 3 rows; attempt 1 skipped after the SimplySign login was refused)
+cause: smoke-windows skipped at f2151bf37ef25fad9ee0ea8b65d2b9b09eea95e0: package-windows step Log in to SimplySign failed, log: FAIL: no certificate, and the login window is still open: SimplySign refused the email or the code. Phase 11 changed nothing under packaging/, .github/ or scripts/package-windows.sh (git diff 215a92b6..f2151bf3 empty), so the cause is the Certum SimplySign login, not phase code.
+fix: re-run of failed jobs (run 43783918084 attempt 2), retest
 
 ### 15. The three write probes still capture the pristine archive after switching to the shared backup directory
 expected: behavior wrong: 04c0211e shadows the module function `backup` with a local BackupDir in probe_absent_plugin.py `_run`, so the probe raises TypeError on every run with a safe directory and never writes the pristine archive that restore_pristine reads back (D-18).
@@ -146,10 +156,9 @@ fix: 7739ecc7, retest
 ## Summary
 
 total: 15
-passed: 7
+passed: 14
 failed: 0
 pending: 0
-pending_ci: 7
 skipped: 1
 blocked: 0
-reworked: 2
+reworked: 3

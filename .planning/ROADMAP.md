@@ -16,7 +16,7 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 - [x] **Phase 8: Config write path and input validation** - client input reaches the daemon and its files only in the shapes the allowlist names
 - [x] **Phase 9: Apply and store integrity** - concurrent applies and interrupted writes leave config and stores whole
 - [x] **Phase 10: Release pipeline supply chain** - what ships is what was tested, and signing secrets meet only pinned code
-- [ ] **Phase 11: Agent tooling and repo guards** - the repo's agent tooling and rules hold against a hostile branch or injected content
+- [x] **Phase 11: Agent tooling and repo guards** - the repo's agent tooling and rules hold against a hostile branch or injected content
 
 ## Phase Details
 
