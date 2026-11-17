@@ -12,7 +12,10 @@
 // Metering and playback reach the store at the wire, through fresh /api/status objects on engineStatus, written by the
 // poll seam (tests/js/support/apodpolls.js); the feed is the EventSource fake (tests/js/support/eventsource.js), and the
 // stamps it carries come from the tables in tests/js/support/meterfeed.js. The feed's clock is the fake one
-// initMeterFeed() is handed, and no case advances it.
+// initMeterFeed() is handed; the case on arrival times is the one that advances it.
+//
+// Arrival time: every queued frame carries `arrivedAt`, the wall time in ms on the feed's clock at which the page
+// received its event, read once per event.
 //
 // The effects initMeterFeed() and initSpectrogram() register outlive each test, so every case first switches metering
 // off, which closes any feed an earlier case left open, then starts a fresh log of opened streams and starts a new
@@ -55,7 +58,7 @@ import {
   play,
 } from "../../support/meterfeed.js";
 
-const { clock } = fakeClock();
+const { clock, advance } = fakeClock();
 
 const GEO = geometry(RATE_44K);
 const GEO_176K = geometry(RATE_176K);
@@ -70,7 +73,7 @@ const SAME_MS = 1e-6;
 const DROPPED_ROW = 3;
 
 /**
- * @typedef {{ at: number, ms: number, break: boolean, geo: unknown,
+ * @typedef {{ at: number, ms: number, arrivedAt: number, break: boolean, geo: unknown,
  *   channels: Array<{ bins: Float32Array }> }} QueuedFrame
  */
 
@@ -270,4 +273,19 @@ test("test_an_event_starting_one_sample_early_begins_a_break", () => {
 
 test("test_a_queue_whose_stamps_span_an_hour_keeps_only_its_newest_frame", () => {
   assert.equal(feed(GEO, AN_HOUR_ON_44K).length, 1);
+});
+
+test("test_a_queued_frame_carries_the_wall_time_at_which_the_page_received_its_event", () => {
+  const FIRST_WAIT_MS = 40;
+  const SECOND_WAIT_MS = 130;
+  lastStream()?.emit("geometry", GEO);
+  advance(FIRST_WAIT_MS);
+  play(CONTIGUOUS_44K.slice(0, 1));
+  const first = clock.now();
+  advance(SECOND_WAIT_MS);
+  play(CONTIGUOUS_44K.slice(1, 2));
+  assert.deepEqual(
+    take().map((f) => f.arrivedAt),
+    [first, first + SECOND_WAIT_MS],
+  );
 });

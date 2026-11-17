@@ -17,7 +17,8 @@
 // its `at` follows on: the sample count runs on across a geometry change, so a
 // count at one rate is not a time at another.
 // It then converts both to ms at the rate, once, so every queued frame carries
-// `at` and `ms` in playback ms. The end of the last frame queued since the feed
+// `at` and `ms` in playback ms, and `arrivedAt`, the wall time in ms on the Clock openMeterFeed() is handed at which
+// the page received its event, read once per event. The end of the last frame queued since the feed
 // opened is the feed's edge (feedEdge), the playback stamp data arriving on
 // another time base takes at the moment it arrives.
 //
@@ -71,6 +72,8 @@ let source = null;
 let unwatch = null;
 /** Whether QUIET_MS has passed on the open feed's clock since it opened, playback started or the last frame came. */
 const quiet = signal(false);
+/** The clock the open feed reads each event's arrival time from. */
+let feedClock = PLATFORM;
 /** The open feed's quiet window, restarted whenever `quiet` is cleared. */
 let quietFor = quietWindow(QUIET_MS, () => (quiet.value = true), PLATFORM);
 
@@ -103,9 +106,10 @@ let edge = null;
  * time at another.
  *
  * @param {WireFrame} wire
+ * @param {number} arrivedAt  wall time, ms on the feed's clock, at which the page received the event
  * @returns {MeterFrame}
  */
-function decode(wire) {
+function decode(wire, arrivedAt) {
   const geo = meterGeometry.peek();
   const brk = regeometried || prev === null || wire.at !== prev.at + prev.n;
   regeometried = false;
@@ -115,6 +119,7 @@ function decode(wire) {
     channels: wire.channels.map((ch) => ({ peak: ch.peak, rms: ch.rms, bins: decodeBins(ch.bins) })),
     at: wire.at * msPerSample,
     ms: wire.n * msPerSample,
+    arrivedAt,
     break: brk,
     geo,
   };
@@ -145,10 +150,11 @@ function trim() {
 /**
  * Open the feed, dropping any feed and frames already held.
  *
- * @param {Clock} [next] the clock the feed's silence is measured on
+ * @param {Clock} [next] the clock the feed's silence and each event's arrival time are measured on
  */
 export function openMeterFeed(next = PLATFORM) {
   closeMeterFeed();
+  feedClock = next;
   quietFor = quietWindow(QUIET_MS, () => (quiet.value = true), next);
   hush();
   meterGeometry.value = null;
@@ -163,7 +169,7 @@ export function openMeterFeed(next = PLATFORM) {
   });
   es.addEventListener("frame", (e) => {
     hush();
-    const frame = decode(JSON.parse(e.data));
+    const frame = decode(JSON.parse(e.data), feedClock.now());
     edge = (frame.at ?? NaN) + frame.ms;
     pending.push(frame);
     trim();

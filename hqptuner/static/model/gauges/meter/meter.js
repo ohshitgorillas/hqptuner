@@ -22,6 +22,8 @@ import { bufferOf } from "./spectrumfx.js";
  * @property {MeterChannel[]} channels
  * @property {number} ms  playback, ms, the frame covers
  * @property {number} [at]  playback, ms, where the frame starts
+ * @property {number} [arrivedAt]  wall time, ms on the feed's Clock (the timeline requestAnimationFrame stamps its frames
+ *   with), at which the page received the frame's event; absent on a frame that is not an arrival
  * @property {boolean} [break]  whether the feed marks a break before the frame
  * @property {FrameGeometry | null} [geo]  the layout the frame is decoded under; null while the feed has sent no geometry event
  */
