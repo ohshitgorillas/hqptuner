@@ -88,6 +88,8 @@ Violations rejected in review even if tests pass.
 
 17. **One unit, one result.** A decision lives in a function whose return value is the decision; an orchestrator executes decisions and does not make them. A function returns one type on every path: a typed result (dataclass or enum), not a dict whose keys differ by branch, and not a bool carrying two meanings. New behavior that cannot name the one value its test will assert is split before it is written.
 
+18. **A test is binary: no threshold, no window, no tolerance.** Judging anything by a threshold or window someone chose is a sign that the code under test is incoherent and the test is compensating for bad code. A test feeds input whose right answer is known exactly and asserts exact equality: yes, the code returns the correct data, or no, it does not. Floating-point slack is a threshold too; a test keeps its values in whole units so the arithmetic is exact. A test that needs a tolerance to pass is a defect in the code or in the test, never a number to tune.
+
 ## Speed is a correctness property
 
 The offline suite exists to be run on every commit. A test that waits on a wall clock is defective whatever it covers and whatever it passes, and it is struck on sight. Coverage is not a defense. What it pinned is re-pinned fast through the ordinary spec lane, or it stays unpinned. The owner strikes it directly and needs no spec lane to do it.
