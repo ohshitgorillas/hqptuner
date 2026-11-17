@@ -184,3 +184,29 @@ export function settledLead({ line, seen, dt, restart }) {
   const held = Math.max(peak, prior);
   return { peak, prior, age, since: line.since + dt, ceiling: held === NONE ? line.ceiling : held };
 }
+
+//: The wall time after a restart through which a rise of the aim is taken at once, ms: above the 572 ms a rush can last
+//: after a serial change (217 ms until frames resume, 355 ms to settle).
+const OPENING_SPAN_MS = 1000;
+//: The most of its wall speed the playhead gains or gives up following the aim: above the measured drift of 0.3 percent
+//: and below the quarter of wall speed the steady-motion suite lets a move stray by.
+const FOLLOW_SHARE = 0.2;
+
+/**
+ * Where the playhead stands after following its aim: it moves its wall time, `dt`, and from there toward `aim` by no
+ * more than FOLLOW_SHARE of `dt`, up or down, so it never moves backward. Through OPENING_SPAN_MS after a restart a
+ * rise of the aim above where wall speed carries it is taken at once.
+ *
+ * @param {object} input
+ * @param {number} input.head  playback, ms: where the playhead stood after the last paint, or after a changed delay's jump
+ * @param {number} input.aim  playback, ms: where the line stands for this paint
+ * @param {number} input.dt  wall time, ms, since the last paint
+ * @param {number} input.since  wall time, ms, since the last restart
+ * @returns {number}  playback, ms
+ */
+export function followLine({ head, aim, dt, since }) {
+  const carried = head + dt;
+  if (aim > carried && since < OPENING_SPAN_MS) return aim;
+  const share = FOLLOW_SHARE * dt;
+  return carried + Math.max(-share, Math.min(share, aim - carried));
+}
