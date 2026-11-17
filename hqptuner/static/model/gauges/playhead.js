@@ -143,3 +143,44 @@ function walk(frames, start, { from, to }) {
   while (consumed < frames.length && endOf(frames[consumed]) <= to) consumed++;
   return { first, last, lead, consumed };
 }
+
+//: The span of recent wall time the line's lead is the greatest lead over, ms: above the 262 ms longest wait between
+//: bursts of the steady feed, so a span holds an arrival. Held as two half-spans.
+const LINE_SPAN_MS = 500;
+const HALF_SPAN_MS = LINE_SPAN_MS / 2;
+//: What a half-span that saw no lead holds, so any lead seen raises it.
+const NONE = -Infinity;
+
+/**
+ * What the paints have seen of the line's lead, playback ms less wall ms.
+ *
+ * @typedef {object} LeadState
+ * @property {number} peak  the greatest lead seen in the half-span being filled; -Infinity when it has seen none
+ * @property {number} prior  the greatest lead seen in the half-span before it; -Infinity when it saw none
+ * @property {number} age  wall ms, how much of the half-span being filled has run
+ * @property {number} since  wall ms, since the last restart
+ * @property {number} ceiling  the line's lead: the greatest of `peak` and `prior`, or what it was when neither holds one
+ */
+
+/**
+ * The line's lead after one paint: the greatest lead seen over the last span of wall time, a paint that saw none
+ * leaving it where it was, and a paint that restarts starting it again from the lead it saw.
+ *
+ * @param {object} input
+ * @param {LeadState | null} input.line  where the last paint left it; null when no paint has run, then `restart` holds
+ * @param {number | null} input.seen  the lead this paint saw, playback ms less wall ms; null when it took no arrival
+ * @param {number} input.dt  wall time, ms, since the last paint
+ * @param {boolean} input.restart  whether the paint restarts, so what came before is discarded
+ * @returns {LeadState}
+ */
+export function settledLead({ line, seen, dt, restart }) {
+  const got = seen ?? NONE;
+  if (restart || line === null) return { peak: got, prior: NONE, age: 0, since: 0, ceiling: got };
+  let { peak, prior, age } = line;
+  age += dt;
+  if (age >= LINE_SPAN_MS) [peak, prior, age] = [NONE, NONE, 0];
+  else if (age >= HALF_SPAN_MS) [peak, prior, age] = [NONE, peak, age - HALF_SPAN_MS];
+  peak = Math.max(peak, got);
+  const held = Math.max(peak, prior);
+  return { peak, prior, age, since: line.since + dt, ceiling: held === NONE ? line.ceiling : held };
+}
