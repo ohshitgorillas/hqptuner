@@ -3,9 +3,14 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 7,
-    "status": "context gathered",
-    "next": "/cad-plan 7",
-    "updated": "2026-11-18"
+    "status": "planned",
+    "next": "/cad-execute 7",
+    "updated": "2026-11-18",
+    "plan": {
+      "k": 1,
+      "j": 16,
+      "name": "The time base and the feed's stamps"
+    }
   },
   "phases": [
     {
@@ -155,8 +160,73 @@
       "n": 7,
       "name": "One time base",
       "description": "a single time base, shared core structures everywhere, no duplicated code",
-      "status": "unplanned",
-      "plans": []
+      "status": "planned",
+      "plans": [
+        {
+          "file": "PLAN-1.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-2.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-3.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-4.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-5.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-6.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-7.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-8.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-9.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-10.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-11.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-12.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-13.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-14.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-15.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-16.md",
+          "finished": false
+        }
+      ]
     },
     {
       "n": 8,
