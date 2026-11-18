@@ -9,14 +9,12 @@ What is asserted is the refusal text the test put on the wire: that the volume r
 which a row reporting a readback mismatch has no way to carry.
 """
 
+from collections.abc import Awaitable, Callable
+
 import pytest
-from conftest import DaemonFactory
+from fixtures_daemons import Applied
 
-from hqptuner.engine.control import ControlClient
-from hqptuner.lanes.writer import LiveWriteFailed, apply_live
-
-#: The client's per-command deadline, in real seconds. Every command is answered at once, so it never runs out.
-REPLY_TIMEOUT = 2.0
+from hqptuner.lanes.writer import LiveWriteFailed
 
 #: The edit's setting name, the command it goes out as, and the command that reads it back.
 SETTING, SETTER, READBACK = "volume", "Volume", "State"
@@ -31,17 +29,13 @@ REFUSALS = [
 ]
 
 
-async def _refused_volume_readback_error(daemon: DaemonFactory, refusal: str) -> str | None:
+async def _refused_volume_readback_error(
+    apply_on_daemon: Callable[..., Awaitable[Applied]], refusal: str
+) -> str | None:
     """The `error` of the row `apply_live` reports for volume when HQPlayer answers the `State` read after the
     `Volume` write `result="Error"` with ``refusal`` as its text; None when the row is not a failure, or when no
     `State` was read after `Volume` went out."""
-    port, log, _state = await daemon(_error=READBACK, _error_text=refusal)
-    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT)
-    await client.connect()
-    try:
-        report = await apply_live(client, {SETTING: {"value": SENT}})
-    finally:
-        await client.close()
+    report, log = await apply_on_daemon({SETTING: {"value": SENT}}, _error=READBACK, _error_text=refusal)
     names = [name for name, _attrs in log]
     if SETTER not in names or READBACK not in names[names.index(SETTER) :]:
         return None
@@ -51,8 +45,8 @@ async def _refused_volume_readback_error(daemon: DaemonFactory, refusal: str) ->
 
 @pytest.mark.parametrize("refusal", REFUSALS)
 async def test_a_refused_volume_readback_reports_hqplayers_refusal_text_unchanged(
-    daemon: DaemonFactory, refusal: str
+    apply_on_daemon: Callable[..., Awaitable[Applied]], refusal: str
 ) -> None:
-    error = await _refused_volume_readback_error(daemon, refusal)
+    error = await _refused_volume_readback_error(apply_on_daemon, refusal)
     assert error is not None
     assert refusal in error

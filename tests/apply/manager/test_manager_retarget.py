@@ -43,20 +43,34 @@ async def _running(clock: VirtualClock, daemon: CountedDaemon) -> AsyncIterator[
         await manager.aclose()
 
 
+@asynccontextmanager
+async def _standing_on_the_first_of_two(
+    clock: VirtualClock,
+) -> AsyncIterator[tuple[CountedDaemon, CountedDaemon, ConnectionManager]]:
+    """Two fake daemons and a manager standing on the first, idle on ``clock``."""
+    async with counted_daemon(clock) as old, counted_daemon(clock) as new, _running(clock, old) as manager:
+        yield old, new, manager
+
+
+async def _retargeted_to(manager: ConnectionManager, new: CountedDaemon, clock: VirtualClock) -> None:
+    """Move the configured control port to ``new``'s, retarget, and let everything that released settle."""
+    manager.cfg.hqp_control_port = new.port
+    await manager.retarget()
+    await settled(clock)
+
+
 async def test_retarget_closes_the_control_connection_to_the_address_the_config_no_longer_names(
     clock: VirtualClock,
 ) -> None:
-    async with counted_daemon(clock) as old, counted_daemon(clock) as new, _running(clock, old) as manager:
-        manager.cfg.hqp_control_port = new.port
-        await manager.retarget()
-        await settled(clock)
+    async with _standing_on_the_first_of_two(clock) as (old, new, manager):
+        await _retargeted_to(manager, new, clock)
         assert (await still_open(old.connections), new.connections.open) == (0, 1)
 
 
 async def test_the_first_dial_after_retarget_reaches_the_new_address_without_waiting_a_poll_interval(
     clock: VirtualClock,
 ) -> None:
-    async with counted_daemon(clock) as old, counted_daemon(clock) as new, _running(clock, old) as manager:
+    async with _standing_on_the_first_of_two(clock) as (_old, new, manager):
         manager.cfg.hqp_control_port = new.port
         retargeted_at = clock.monotonic()
         await manager.retarget()
@@ -71,10 +85,8 @@ RECOVERY_POLLS = 3
 async def test_retarget_closing_the_connection_is_no_departure_where_the_new_daemons_drop_is_one(
     clock: VirtualClock,
 ) -> None:
-    async with counted_daemon(clock) as old, counted_daemon(clock) as new, _running(clock, old) as manager:
-        manager.cfg.hqp_control_port = new.port
-        await manager.retarget()
-        await settled(clock)
+    async with _standing_on_the_first_of_two(clock) as (_old, new, manager):
+        await _retargeted_to(manager, new, clock)
         new.state["_generation"] = "1"
         await advanced(clock, RECOVERY_POLLS * manager.cfg.poll_interval)
         assert manager.phase.standing.generation == 1

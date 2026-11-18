@@ -14,22 +14,19 @@ connection reads anything.
 import asyncio
 import threading
 from asyncio import FIRST_COMPLETED
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler
-from pathlib import Path
-from typing import Any
 
 import fake_http
 import pytest
 from apps import READY_CEILING, advanced, settled
 from conftest import DaemonFactory
 from fake_control import take_lane_down
+from fixtures_daemons import ManagerRig
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
-from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.core.readings import Source, Stamp
 
@@ -102,48 +99,25 @@ Begin = Callable[[], Awaitable[Held]]
 
 
 @pytest.fixture
-async def begin(daemon: DaemonFactory, clock: VirtualClock, tmp_path: Path) -> AsyncIterator[Begin]:
+def begin(daemon: DaemonFactory, clock: VirtualClock, manager_rig: ManagerRig) -> Iterator[Begin]:
     """Spawn ``run`` on a manager over the fakes, handed over once the held lookup has reached the 8088 wire."""
-    running: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
-    served: list[Iterator[dict[str, Any]]] = []
     lookups: list[Lookup] = []
 
     async def start() -> Held:
         port, _commands, engine = await daemon()
-        stock = fake_http.spawn(fake_http.state())
-        served.append(stock)
-        lane = next(stock)
+        lane = manager_rig.serve(fake_http.state())
         lookup = Lookup(threading.Event(), threading.Event())
         lookups.append(lookup)
-        holding = fake_http.spawn({}, handler=_holding_about(lookup))
-        served.append(holding)
-        about = next(holding)
-        http = HttpConfigClient("127.0.0.1", int(lane["_port"]), "u", "p")
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=port,
-            hqp_http_port=int(about["_port"]),
-            poll_interval=POLL,
-            alarm_threshold=WINDOW,
-            backup_dir=tmp_path / "backups",
-            preset_dir=tmp_path / "presets",
+        about = manager_rig.serve({}, handler=_holding_about(lookup))
+        manager = manager_rig.start(
+            port, lane, hqp_http_port=int(about["_port"]), poll_interval=POLL, alarm_threshold=WINDOW
         )
-        manager = ConnectionManager(cfg, http, clock=clock)
-        task = clock.spawn(manager.run())
-        running.append((manager, task, http))
         await _until_held(clock, lookup)
         return Held(manager, lookup, engine)
 
     yield start
     for lookup in lookups:
         lookup.released.set()
-    for manager, task, http in running:
-        manager.stop()
-        await asyncio.wait_for(task, READY_CEILING)
-        await manager.aclose()
-        await http.aclose()
-    for spawned in served:
-        next(spawned, None)
 
 
 async def _until_held(clock: VirtualClock, lookup: Lookup) -> None:

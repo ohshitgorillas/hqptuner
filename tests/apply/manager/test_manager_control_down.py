@@ -11,22 +11,18 @@ reads the phase, the generation or the readings. A reading lost to the fault is 
 clock whose poll met none.
 """
 
-import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
 
 import fake_http
 import httpx
 import pytest
-from apps import READY_CEILING, advanced, settled
+from apps import advanced, settled
 from conftest import DaemonFactory
+from fixtures_daemons import FaultingTransport, ManagerRig
 from narrow import FixtureError, present
 from virtual_clock import VirtualClock
 
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
-from hqptuner.config import Config
 from hqptuner.core.lifecycle import Phase
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.core.readings import Source, Stamp
@@ -54,21 +50,8 @@ class _UnhandledFaultError(Exception):
     """A fault no handler inside the connect loop names, so it ends the loop and reaches ``run``."""
 
 
-class _FaultOnceTransport(httpx.AsyncBaseTransport):
-    """The 8088 wire: the fake's own answers, except the first request after ``armed`` is set, which raises."""
-
-    def __init__(self) -> None:
-        self.inner = httpx.AsyncHTTPTransport()
-        self.armed = False
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        if self.armed:
-            self.armed = False
-            raise _UnhandledFaultError(request.url.path)
-        return await self.inner.handle_async_request(request)
-
-    async def aclose(self) -> None:
-        await self.inner.aclose()
+def _unhandled_fault(request: httpx.Request) -> Exception:
+    return _UnhandledFaultError(request.url.path)
 
 
 @dataclass
@@ -76,37 +59,22 @@ class Standing:
     """A running manager standing on one control connection, and the 8088 wire that can hand it the fault."""
 
     manager: ConnectionManager
-    wire: _FaultOnceTransport
+    wire: FaultingTransport
 
 
 Stand = Callable[[Phase], Awaitable[Standing]]
 
 
 @pytest.fixture
-async def stand(daemon: DaemonFactory, clock: VirtualClock, tmp_path: Path) -> AsyncIterator[Stand]:
+def stand(daemon: DaemonFactory, clock: VirtualClock, manager_rig: ManagerRig) -> Stand:
     """Spawn ``run`` on a manager over both fakes, handed over once it stands in the given phase with a control client
     and an Engine reading; a manager that does not is a broken fixture and raises."""
-    running: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
-    served: list[Iterator[dict[str, Any]]] = []
 
     async def begin(phase: Phase) -> Standing:
         port, _commands, _engine = await daemon()
-        spawned = fake_http.spawn(fake_http.state(**LANE_KNOBS[phase]))
-        served.append(spawned)
-        lane = next(spawned)
-        wire = _FaultOnceTransport()
-        http = HttpConfigClient("127.0.0.1", int(lane["_port"]), "u", "p", HttpOptions(transport=wire))
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=port,
-            poll_interval=POLL,
-            alarm_threshold=WINDOW,
-            backup_dir=tmp_path / "backups",
-            preset_dir=tmp_path / "presets",
-        )
-        manager = ConnectionManager(cfg, http, clock=clock)
-        task = clock.spawn(manager.run())
-        running.append((manager, task, http))
+        wire = FaultingTransport(once=True)
+        lane = manager_rig.serve(fake_http.state(**LANE_KNOBS[phase]))
+        manager = manager_rig.start(port, lane, wire=wire, poll_interval=POLL, alarm_threshold=WINDOW)
         await settled(clock)
         if manager.phase.standing.phase is not phase:
             raise FixtureError(reason=f"the manager stands {manager.phase.standing.phase}, not {phase}")
@@ -114,20 +82,13 @@ async def stand(daemon: DaemonFactory, clock: VirtualClock, tmp_path: Path) -> A
         present(manager.readings.engine_snapshot())
         return Standing(manager, wire)
 
-    yield begin
-    for manager, task, http in running:
-        manager.stop()
-        await asyncio.wait_for(task, READY_CEILING)
-        await manager.aclose()
-        await http.aclose()
-    for spawned in served:
-        next(spawned, None)
+    return begin
 
 
 async def _faulted(stand: Stand, clock: VirtualClock, phase: Phase) -> Standing:
     """A manager standing in ``phase`` whose next poll met a fault the connect loop does not handle."""
     standing = await stand(phase)
-    standing.wire.armed = True
+    standing.wire.fault = _unhandled_fault
     await advanced(clock, POLL)
     return standing
 
