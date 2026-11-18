@@ -9,6 +9,7 @@ import { ACCENTS } from "../../../store/faceplate/settings/visual.js";
 import { hiddenStages, setStageHidden } from "../../../store/ui/prefs.js";
 import { openStage } from "../../../store/faceplate/view.js";
 import { labelHead } from "../drawer/controls.js";
+import { HIDEABLE } from "./visual.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
@@ -19,14 +20,6 @@ const MAN = {
   accent: "Set the accent color of HQPTuner.",
   hideSpk: "Hide the stages you don't use from the signal chain. Speakers is primarily for surround sound setups.",
 };
-
-const HIDEABLE = [
-  { v: "dsd", label: "DSD Processing" },
-  { v: "speakers", label: "Speakers" },
-  { v: "crossfeed", label: "Crossfeed" },
-  { v: "loudness", label: "Loudness" },
-  { v: "correction", label: "DAC correction" },
-];
 
 /**
  * The accent row: a swatch per preset, the picked one pressed while no custom hex is set, and the custom hex box.
