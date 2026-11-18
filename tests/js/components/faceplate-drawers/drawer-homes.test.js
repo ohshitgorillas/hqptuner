@@ -19,7 +19,7 @@ import { HF_DRAWER } from "../../../../hqptuner/static/components/faceplate/draw
 import { SHAPING_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/modes.js";
 import { SPEAKERS_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
 import { VOLUME_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/volume.js";
-import { homeCount, ownDerivations } from "../../support/drawer-homes.js";
+import { homeCases } from "../../support/drawer-homes.js";
 
 /** Each control id with the drawer that draws it. */
 const CONTROLS = [
@@ -30,14 +30,8 @@ const CONTROLS = [
   { id: "spken", drawer: SPEAKERS_DRAWER },
 ];
 
-for (const { id } of CONTROLS) {
-  test(`test_the_${id}_control_is_declared_in_exactly_one_home`, async () => {
-    assert.equal(await homeCount(id), 1);
-  });
-}
-
-for (const { id, drawer } of CONTROLS) {
-  test(`test_the_${id}_drawer_item_derives_nothing_of_its_own`, async () => {
-    assert.deepEqual(await ownDerivations(drawer, id), []);
+for (const { name, evidence, expected } of homeCases(CONTROLS)) {
+  test(name, async () => {
+    assert.deepEqual(await evidence(), expected);
   });
 }

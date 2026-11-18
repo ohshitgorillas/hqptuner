@@ -16,19 +16,11 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
-import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
-import { stagingWire } from "../../support/wire/wire.js";
+import { BOTH_FILE, loadOutput, outputMarkup } from "../../support/rendered/outputdrawer.js";
 import { attr, classes, elements, text } from "../../support/markup.js";
-import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -96,67 +88,13 @@ const MIDDLE = { w: 1180, h: 820 };
 const LARGE = { w: 1366, h: 1024 };
 const SIZES = [SMALL, MIDDLE, LARGE];
 
-const NET = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
-const ALSA = "hw:CARD=NVidia,DEV=3";
-
 beforeEach(async () => {
-  stagingWire();
-  config.value = {
-    fields: [
-      { name: "mode", type: "select" },
-      { name: "backend", type: "select" },
-      { name: "defaults_samplerate", type: "select" },
-      { name: "defaults_bitrate", type: "select" },
-      { name: "channels", type: "number" },
-      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: "alsa_device", type: "select", options: [{ value: ALSA, label: "HDA NVidia: HDMI 0" }] },
-      { name: "net_dop", type: "checkbox" },
-      { name: "alsa_dop", type: "checkbox" },
-      { name: "net_anydsd", type: "checkbox" },
-      { name: "alsa_anydsd", type: "checkbox" },
-      { name: "net_bits", type: "number" },
-      { name: "alsa_bits", type: "number" },
-      { name: "net_ipv6", type: "checkbox" },
-      { name: "alsa_offset", type: "number" },
-      { name: "net_period", type: "number" },
-      { name: "alsa_period", type: "number" },
-    ],
-  };
-  await seedReadings({
-    mode: "pcm",
-    backend: "combo",
-    defaults_samplerate: "192000",
-    defaults_bitrate: "12288000",
-    channels: 2,
-    net_device: NET,
-    alsa_device: ALSA,
-    net_dop: false,
-    alsa_dop: false,
-    net_anydsd: true,
-    alsa_anydsd: false,
-    net_bits: 20,
-    alsa_bits: 24,
-    net_ipv6: true,
-    alsa_offset: 0,
-    net_period: 0,
-    alsa_period: 100,
-  });
-  engineState.value = { state: "0" };
-  engineStatus.value = { status: {}, metadata: {} };
-  enums.value = null;
-  metadata.value = META;
-  openStage.value = null;
-  openPopover.value = null;
+  await loadOutput({ ...BOTH_FILE, backend: "combo" }, { meta: META });
   viewport.value = SMALL;
-  await pickChannelLayout("2");
-  await discardAll();
 });
 
 /** Every row the drawer draws, each with its own markup. */
-const rows = () =>
-  elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`)).filter(
-    (e) => classes(e).includes("drow") && attr(e, "data-k") !== undefined,
-  );
+const rows = () => outputMarkup().filter((e) => classes(e).includes("drow") && attr(e, "data-k") !== undefined);
 
 /**
  * The elements inside the row drawn for `key`.

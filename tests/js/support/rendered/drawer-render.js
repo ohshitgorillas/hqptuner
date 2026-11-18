@@ -6,12 +6,22 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
+import { generation } from "../../../../hqptuner/static/store/signals.js";
 import { attr, classes, elements } from "../markup.js";
 import { renderTree } from "../vnodeseam.js";
+import { ok } from "../wire/wire.js";
 
 /** @typedef {import("../markup.js").MarkupElement} MarkupElement */
+/** @typedef {import("../wire/wire.js").StagingWire} StagingWire */
 /** @typedef {import("../vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
+
+/**
+ * The drawer drawn from `schema`.
+ *
+ * @param {DrawerSchema} schema
+ */
+export const drawerTree = (schema) => html`<${Drawer} schema=${schema} />`;
 
 /**
  * Every element of a drawer's markup, in document order.
@@ -19,8 +29,7 @@ import { renderTree } from "../vnodeseam.js";
  * @param {DrawerSchema} schema
  * @returns {MarkupElement[]}
  */
-export const drawerMarkup = (schema) =>
-  elements(render(html`<${Drawer} schema=${schema} />`)).sort((a, b) => a.start - b.start);
+export const drawerMarkup = (schema) => elements(render(drawerTree(schema))).sort((a, b) => a.start - b.start);
 
 /**
  * The ids of the tabs carrying a dirty dot.
@@ -49,6 +58,59 @@ function findIn(node, pred) {
 }
 
 /**
+ * The route of a staging wire that answers GET /api/config with the field readings `served` gives for the wire, and
+ * nothing else.
+ *
+ * @param {(w: StagingWire) => Record<string, unknown>} served
+ * @returns {(path: string, opts: { method?: string }, w: StagingWire) => ReturnType<typeof ok> | undefined}
+ */
+export const configRoute = (served) => (path, opts, w) =>
+  path === "/api/config" && (opts.method ?? "GET") === "GET"
+    ? ok({ generation: generation.value, fields: served(w) })
+    : undefined;
+
+/**
+ * Fire the handler `handler` of the first element vnode in one render of `tree` whose props match `pred`, or nothing
+ * when none matches.
+ *
+ * @param {unknown} tree
+ * @param {(props: Record<string, unknown>, type: unknown) => boolean} pred
+ * @param {string} handler
+ * @param {unknown} [event]
+ * @returns {Promise<void>}
+ */
+export async function fire(tree, pred, handler, event = undefined) {
+  const { seen } = renderTree(/** @type {Parameters<typeof renderTree>[0]} */ (tree));
+  const hit = seen.find((v) => typeof v.type === "string" && pred(v.props ?? {}, v.type));
+  const fn = /** @type {((e: unknown) => unknown) | undefined} */ (hit?.props[handler]);
+  if (fn) await fn(event);
+}
+
+/**
+ * Whether `inner` lies inside `outer`.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+export const within = (inner, outer) =>
+  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
+
+/**
+ * The smallest drawer row enclosing every one of `inner`, or undefined when one of them is missing or no row holds
+ * them all.
+ *
+ * @param {MarkupElement[]} all
+ * @param {(MarkupElement | undefined)[]} inner
+ */
+export function rowHolding(all, inner) {
+  if (inner.some((e) => e === undefined)) return undefined;
+  const held = /** @type {MarkupElement[]} */ (inner);
+  return all
+    .filter((e) => classes(e).includes("drow") && held.every((i) => within(i, e)))
+    .sort((a, b) => a.html.length - b.html.length)[0];
+}
+
+/**
  * Tap option `value` of the field `id` in the drawer drawn from `schema`, or nothing when no such option is drawn.
  *
  * @param {DrawerSchema} schema
@@ -57,9 +119,45 @@ function findIn(node, pred) {
  * @returns {Promise<void>}
  */
 export async function tapFieldOption(schema, id, value) {
-  const { seen } = renderTree(html`<${Drawer} schema=${schema} />`);
+  const { seen } = renderTree(drawerTree(schema));
   const field = seen.find((v) => v.props?.["data-field"] === id);
   const hit = findIn(field?.props.children, (p) => p["data-v"] === value);
   const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
   if (fn) await fn();
+}
+
+/**
+ * A drawer of one tab holding the catalog's row for `id` and nothing else.
+ *
+ * @param {string} id
+ * @returns {DrawerSchema}
+ */
+const rowDrawer = (id) => ({
+  id: `${id}row`,
+  title: `${id}row`,
+  aria: `${id}row`,
+  tabs: [{ id: "only", label: "only", body: [{ row: { key: id } }] }],
+});
+
+//: What a tap reports when the row draws no unlit option to tap.
+const NOTHING_TAPPED = "nothing tapped";
+
+/**
+ * Tap the option of the catalog row for `id` that the row does not light, in a drawer of that row alone; returns the
+ * value the tapped option carries.
+ *
+ * @param {string} id
+ * @returns {Promise<string>}
+ */
+export async function tapUnlitOption(id) {
+  const { out, seen } = renderTree(drawerTree(rowDrawer(id)));
+  const row = elements(out).find((e) => attr(e, "data-k") === id);
+  const unlit = (row ? elements(row.html) : []).find(
+    (e) => e.name === "button" && attr(e, "data-v") !== undefined && !classes(e).includes("on"),
+  );
+  const value = unlit ? attr(unlit, "data-v") : undefined;
+  const hit = seen.find((v) => v.type === "button" && value !== undefined && v.props["data-v"] === value);
+  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
+  if (fn) await fn();
+  return value ?? NOTHING_TAPPED;
 }

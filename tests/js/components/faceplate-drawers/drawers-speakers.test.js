@@ -41,7 +41,12 @@ import {
 import { seedReadings } from "../../support/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
-import { SPEAKER_DISTANCES, SPEAKER_LABELS, speakersFormAt } from "../../support/rendered/speakersform.js";
+import {
+  SPEAKER_DISTANCES,
+  SPEAKER_LABELS,
+  holdSpeakersWrite,
+  speakersFormAt,
+} from "../../support/rendered/speakersform.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -173,19 +178,7 @@ test("test_the_rows_column_carries_sdm_while_the_levels_are_dead", async () => {
 
 test("test_an_apply_in_flight_disables_every_control", async () => {
   await reset();
-  /** @type {(response: ReturnType<typeof ok>) => void} */
-  let finish = () => {};
-  const response = new Promise(
-    /** @param {(response: ReturnType<typeof ok>) => void} resolve */ (resolve) => {
-      finish = resolve;
-    },
-  );
-  stagingWire({
-    routes: (path, opts) => {
-      if (path !== "/api/speakers") return undefined;
-      return opts.method === "POST" ? response : ok({ data: FORM });
-    },
-  });
+  const finish = holdSpeakersWrite(FORM);
   setChannelDistance(1, "333");
   const applying = applyDraft();
   const busy = all().filter((e) => ["input", "select"].includes(e.name) && hasAttr(e, "disabled")).length;

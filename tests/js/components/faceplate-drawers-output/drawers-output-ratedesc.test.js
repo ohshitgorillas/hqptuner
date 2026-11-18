@@ -16,22 +16,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
-import { stagingWire } from "../../support/wire/wire.js";
-import { attr, classes, elements } from "../../support/markup.js";
-import { seedReadings } from "../../support/readings.js";
-
-/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-
-const NET = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
+import { within } from "../../support/rendered/drawer-render.js";
+import { NETWORK_FILE, loadOutput, outputMarkup, rateDial, rateRow } from "../../support/rendered/outputdrawer.js";
+import { attr, classes } from "../../support/markup.js";
 
 /** The output modes, as the `mode` field carries them on the wire. */
 const MODES = ["pcm", "sdm"];
@@ -62,57 +50,10 @@ const META = {
 };
 
 /** @param {string} mode */
-async function load(mode) {
-  stagingWire();
-  config.value = {
-    fields: [
-      { name: "mode", type: "select" },
-      { name: "backend", type: "select" },
-      { name: "defaults_samplerate", type: "select" },
-      { name: "defaults_bitrate", type: "select" },
-      { name: "channels", type: "number" },
-      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: "net_dop", type: "checkbox" },
-      { name: "net_anydsd", type: "checkbox" },
-      { name: "net_bits", type: "number" },
-      { name: "net_ipv6", type: "checkbox" },
-      { name: "net_period", type: "number" },
-    ],
-  };
-  await seedReadings({
-    mode: mode,
-    backend: "network",
-    defaults_samplerate: "192000",
-    defaults_bitrate: "12288000",
-    channels: 2,
-    net_device: NET,
-    net_dop: false,
-    net_anydsd: true,
-    net_bits: 20,
-    net_ipv6: true,
-    net_period: 0,
-  });
-  engineState.value = { state: "0" };
-  engineStatus.value = { status: {}, metadata: {} };
-  enums.value = null;
-  metadata.value = META;
-  openStage.value = null;
-  openPopover.value = null;
-  await pickChannelLayout("2");
-  await discardAll();
-}
+const load = (mode) => loadOutput({ ...NETWORK_FILE, mode }, { meta: META });
 
 /** The restart mark's test id. */
 const MARK = "restart-mark";
-
-/**
- * Whether `inner` lies inside `outer`.
- *
- * @param {MarkupElement} inner
- * @param {MarkupElement} outer
- */
-const within = (inner, outer) =>
-  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
 
 /** @param {string} h */
 const stripped = (h) =>
@@ -128,13 +69,10 @@ const stripped = (h) =>
  * @returns {string | null}
  */
 function textBesidesHeadAndGlass() {
-  const all = elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`));
-  const dial = all.find((e) => classes(e).includes("dial") && attr(e, "role") === "group");
-  if (!dial) return null;
-  const row = all
-    .filter((e) => classes(e).includes("drow") && within(dial, e))
-    .sort((a, b) => a.html.length - b.html.length)[0];
-  if (!row) return null;
+  const all = outputMarkup();
+  const dial = rateDial(all);
+  const row = rateRow(all);
+  if (!dial || !row) return null;
   const head = all.filter(
     (e) =>
       within(e, row) &&

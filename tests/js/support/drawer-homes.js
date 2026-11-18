@@ -1,5 +1,5 @@
 // Shared helpers of the one-home suites over the stage drawers (drawer-homes*.test.js): where a control id is
-// declared, and what the drawer item naming it carries of its own.
+// declared, what the drawer item naming it carries of its own, and the cases the rule is checked by.
 
 import { schema } from "../../../hqptuner/static/store/schema.js";
 
@@ -117,4 +117,27 @@ export async function ownDerivations(drawer, id) {
     Object.keys(item).filter((p) => !NAMING.has(p) && (home === undefined || item[p] !== home[p])),
   );
   return [...new Set(own)].sort();
+}
+
+/**
+ * The one-home rule's cases over `controls`, each a control id with the drawer that draws it: first that exactly one
+ * home declares every id, then that the drawer item naming each derives nothing of its own. A case is the name of its
+ * test, the evidence the test asks for and the evidence it expects.
+ *
+ * @param {{ id: string, drawer: unknown }[]} controls
+ * @returns {{ name: string, evidence: () => Promise<unknown>, expected: unknown }[]}
+ */
+export function homeCases(controls) {
+  return [
+    ...controls.map(({ id }) => ({
+      name: `test_the_${id}_control_is_declared_in_exactly_one_home`,
+      evidence: () => homeCount(id),
+      expected: 1,
+    })),
+    ...controls.map(({ id, drawer }) => ({
+      name: `test_the_${id}_drawer_item_derives_nothing_of_its_own`,
+      evidence: () => ownDerivations(drawer, id),
+      expected: [],
+    })),
+  ];
 }

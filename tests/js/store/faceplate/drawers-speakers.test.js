@@ -29,9 +29,8 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { seedReadings } from "../../support/readings.js";
+import { SPEAKER_DISTANCES, SPEAKER_LABELS, holdSpeakersWrite } from "../../support/rendered/speakersform.js";
 
-const LABELS = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Left side", "Right side"];
-const DISTANCES = [287, 301, 280, 330, 240, 241, 210, 211];
 const LEVELS = [0, -0.5, 0, -2, 0, 0, -1, 0];
 
 /**
@@ -40,9 +39,9 @@ const LEVELS = [0, -0.5, 0, -2, 0, 0, -1, 0];
  * @param {boolean} enabled
  * @param {number[]} [distances]
  */
-const form = (enabled, distances = DISTANCES) => ({
+const form = (enabled, distances = SPEAKER_DISTANCES) => ({
   enabled,
-  channels: LABELS.map((label, index) => ({
+  channels: SPEAKER_LABELS.map((label, index) => ({
     index,
     label,
     level: LEVELS[index],
@@ -224,7 +223,7 @@ test("test_a_discard_puts_back_every_edited_distance", async () => {
   setChannelDistance(1, "350");
   setChannelDistance(6, "400");
   discardDraft();
-  assert.deepEqual(distances(), DISTANCES);
+  assert.deepEqual(distances(), SPEAKER_DISTANCES);
 });
 
 test("test_a_discard_puts_back_the_switch", async () => {
@@ -293,19 +292,7 @@ for (const newerDistance of [375, 425]) {
     await reset();
     const submittedDistance = 350;
     const after = form(false, [287, submittedDistance, 280, 330, 240, 241, 210, 211]);
-    /** @type {(response: ReturnType<typeof ok>) => void} */
-    let finish = () => {};
-    const response = new Promise(
-      /** @param {(response: ReturnType<typeof ok>) => void} resolve */ (resolve) => {
-        finish = resolve;
-      },
-    );
-    stagingWire({
-      routes: (path, opts) => {
-        if (path !== "/api/speakers") return undefined;
-        return opts.method === "POST" ? response : ok({ data: after });
-      },
-    });
+    const finish = holdSpeakersWrite(after);
     setChannelDistance(1, submittedDistance);
     const applying = applyDraft();
     setChannelDistance(1, newerDistance);

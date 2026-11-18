@@ -13,15 +13,13 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { drawerTree, fire } from "../../support/rendered/drawer-render.js";
 import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { seedReadings } from "../../support/readings.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
-import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -68,7 +66,7 @@ const drawerOf = (body, extra = {}) => ({
  * @param {DrawerSchema} schema
  * @returns {MarkupElement[]}
  */
-const markup = (schema) => elements(render(html`<${Drawer} schema=${schema} />`));
+const markup = (schema) => elements(render(drawerTree(schema)));
 
 /**
  * Fire the click handler of the first vnode matching `pred`.
@@ -76,12 +74,7 @@ const markup = (schema) => elements(render(html`<${Drawer} schema=${schema} />`)
  * @param {DrawerSchema} schema
  * @param {(props: Record<string, unknown>) => boolean} pred
  */
-async function tap(schema, pred) {
-  const { seen } = renderTree(html`<${Drawer} schema=${schema} />`);
-  const hit = seen.find((v) => typeof v.type === "string" && pred(v.props ?? {}));
-  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (fn) await fn();
-}
+const tap = (schema, pred) => fire(drawerTree(schema), pred, "onClick");
 
 /** The two options the fields below list. */
 const AB = [

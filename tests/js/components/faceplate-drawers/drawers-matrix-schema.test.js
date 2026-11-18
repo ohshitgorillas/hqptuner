@@ -13,19 +13,11 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { CORRECTION_DRAWER, MATRIX_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/matrix.js";
-import {
-  config,
-  engineState,
-  enums,
-  matrixConfig,
-  metadata,
-  pendingPreset,
-} from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { dottedTabs, drawerMarkup } from "../../support/rendered/drawer-render.js";
+import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr } from "../../support/markup.js";
@@ -65,14 +57,7 @@ beforeEach(async () => {
       }).map(([name, value]) => [name, fieldReading(value, { show: "file", restarts: true })]),
     ),
   );
-  engineState.value = {};
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openStage.value = null;
-  openPopover.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore({});
   pickApplyMode("apply");
   showTab(MATRIX_DRAWER.id, "basic");
 });

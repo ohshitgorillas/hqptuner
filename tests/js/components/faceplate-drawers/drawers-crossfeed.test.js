@@ -23,21 +23,19 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { CrossfeedBody } from "../../../../hqptuner/static/components/faceplate/drawers/Crossfeed.js";
-import { config, matrixConfig, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
-import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveParams, xfMode } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { xfRefusal } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, text } from "../../support/markup.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
+import { FC, loadCrossfeed } from "../../support/rendered/crossfeedload.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
 
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
-const FC = 900;
 const SCHEMA = { id: "crossfeed", title: "crossfeed", aria: "crossfeed", tabs: [] };
 
 /** The restart mark's test handle, shared by every surface that carries it. */
@@ -53,49 +51,20 @@ const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process
 let wire;
 
 /**
- * A served reading showing `value` from the file tree, where the form and the pipeline rows are read; `restarts` is the
- * server's word that the engine restarts for the field.
- *
- * @param {unknown} value
- * @param {boolean} [restarts]
- */
-const fromFile = (value, restarts = false) => fieldReading(value, { show: "file", restarts });
-
-/**
  * Load one state of the trees.
  *
  * @param {{ matrix?: boolean, enabled?: string, preset?: string, picked?: "bauer" | "structural" }} [s]
  */
-async function load({ matrix = true, enabled = "1", preset = "default", picked = "bauer" } = {}) {
-  matrixConfig.value = {
-    fields: [
-      { name: "enabled" },
-      { name: "iir2fir" },
-      { name: "post_bauer_enabled" },
-      {
-        name: "post_bauer_preset",
-        options: [
-          { value: "default", label: "default" },
-          { value: "custom", label: "custom" },
-        ],
-      },
-      { name: "post_bauer_frequency" },
-      { name: "post_bauer_level" },
-    ],
-  };
-  config.value = { fields: [] };
-  await discardAll();
-  await seedReadings({
-    matrix_enabled: fromFile(matrix ? "1" : "0"),
-    matrix_iir2fir: fromFile("0"),
-    post_bauer_enabled: fromFile(enabled, true),
-    post_bauer_preset: fromFile(preset, true),
-    post_bauer_frequency: fromFile(String(FC), true),
-    post_bauer_level: fromFile("7", true),
-    matrix_pipelines: fromFile(JSON.stringify([row("0", "0"), row("1", "1")]), true),
+const load = ({ matrix = true, enabled = "1", preset = "default", picked = "bauer" } = {}) =>
+  loadCrossfeed({
+    rows: [row("0", "0"), row("1", "1")],
+    matrix,
+    enabled,
+    iir2fir: "0",
+    preset,
+    restarts: true,
+    picked,
   });
-  xfMode.value = picked;
-}
 
 beforeEach(async () => {
   wire = stagingWire({ fallback: (w) => ok(w.staged) });

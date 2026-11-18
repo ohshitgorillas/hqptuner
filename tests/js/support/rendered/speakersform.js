@@ -1,7 +1,9 @@
-// The daemon's /speakers form as the server parses it, shared by the rendered Speakers suites: eight channels, each
-// with HQPlayer's stock level of 0 and the distance a case hands in, the switch on.
+// The daemon's /speakers form as the server parses it, shared by the Speakers suites: eight channels, each with
+// HQPlayer's stock level of 0 and the distance a case hands in, the switch on; and the wire that holds a write of it.
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
+
+import { ok, stagingWire } from "../wire/wire.js";
 
 //: The channel labels the daemon's form carries, in its channel order.
 export const SPEAKER_LABELS = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Left side", "Right side"];
@@ -28,3 +30,27 @@ export const speakersFormAt = (distances) => ({
     distance_max: 5000,
   })),
 });
+
+/**
+ * A staging wire that answers a read of the speakers form with `form` and holds a write of it until the returned
+ * function is handed the response.
+ *
+ * @param {unknown} form
+ * @returns {(response: ReturnType<typeof ok>) => void}
+ */
+export function holdSpeakersWrite(form) {
+  /** @type {(response: ReturnType<typeof ok>) => void} */
+  let finish = () => {};
+  const response = new Promise(
+    /** @param {(response: ReturnType<typeof ok>) => void} resolve */ (resolve) => {
+      finish = resolve;
+    },
+  );
+  stagingWire({
+    routes: (path, opts) => {
+      if (path !== "/api/speakers") return undefined;
+      return opts.method === "POST" ? response : ok({ data: form });
+    },
+  });
+  return finish;
+}

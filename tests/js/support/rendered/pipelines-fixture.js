@@ -15,6 +15,17 @@ export const plain = (src, mix) => ({
   source: String(src),
 });
 
+/**
+ * The pipeline set the server's buffer holds, or null when none is staged.
+ *
+ * @param {import("../wire/wire.js").StagingWire} wire
+ * @returns {Row[] | null}
+ */
+export function stagedRows(wire) {
+  const json = wire.staged.http.matrix_pipelines;
+  return typeof json === "string" ? JSON.parse(json) : null;
+}
+
 /** A served reading showing `value` from the config file. @param {unknown} value */
 const fromFile = (value) => fieldReading(value, { show: "file" });
 

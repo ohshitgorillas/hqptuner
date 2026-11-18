@@ -34,24 +34,18 @@ import assert from "node:assert/strict";
 
 import { SPEC_SIZE, meterPainter } from "../../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import {
-  closeMeterFeed,
-  openMeterFeed,
-  takeMeterFrames,
-  toSpectrogram,
-} from "../../../../hqptuner/static/store/meter/feed.js";
+import { closeMeterFeed, takeMeterFrames, toSpectrogram } from "../../../../hqptuner/static/store/meter/feed.js";
 import {
   METER_RANGES,
   setApodWindow,
   setMeterChannel,
   setMeterRange,
 } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { lastStream } from "../../support/eventsource.js";
 import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.js";
 import { dropStorage, useStorage } from "../../support/storage.js";
-import { fakeClock } from "../../support/clock.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
+import { openSourceMeter } from "../../contracts/picture.js";
 import { setSpectrogramSpan } from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
@@ -73,7 +67,6 @@ const STRIP_WIDTH = 600;
 const FEED_N = [768, 768, 768, 768, 768, 768, 1020, 1020, 1020, 1020, 1020, 1020];
 
 // The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
-const [FIRST_RANGE = ""] = METER_RANGES;
 const LAST_RANGE = METER_RANGES.at(-1) ?? "";
 
 /** The token reader the painter is handed: it answers no token. @type {Tokens} */
@@ -180,12 +173,7 @@ beforeEach(() => {
   useStorage();
   setApodWindow("60");
   setMeterChannel("sum");
-  setMeterRange(FIRST_RANGE);
-  closeMeterFeed();
-  useEventSource();
-  engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
-  openMeterFeed(fakeClock().clock);
-  lastStream()?.emit("geometry", geometry(RATE_44K));
+  openSourceMeter();
 });
 
 afterEach(() => {

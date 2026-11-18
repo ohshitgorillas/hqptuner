@@ -38,12 +38,11 @@ import { allowPinnedRates, setAllowPinnedRates } from "../../../../hqptuner/stat
 import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { stagingWire } from "../../support/wire/wire.js";
-import { renderTree } from "../../support/vnodeseam.js";
+import { tapFieldOption } from "../../support/rendered/drawer-render.js";
 import { elements, attr, classes } from "../../support/markup.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 
 //: The daemon form's options for the two config-sourced keys, labels as the wire carries them.
 const IDLE_OPTIONS = [
@@ -93,32 +92,11 @@ beforeEach(async () => {
 });
 
 /**
- * The first vnode in a subtree whose props match `pred`.
- *
- * @param {unknown} node
- * @param {(props: Record<string, unknown>) => boolean} pred
- * @returns {VNode | undefined}
- */
-function findIn(node, pred) {
-  if (Array.isArray(node)) return node.map((n) => findIn(n, pred)).find(Boolean);
-  if (!node || typeof node !== "object") return undefined;
-  const v = /** @type {VNode} */ (node);
-  if (v.props && pred(v.props)) return v;
-  return findIn(v.props?.children, pred);
-}
-
-/**
  * Tap the pinned-rates field's option `value`.
  *
  * @param {string} value
  */
-async function tapPinned(value) {
-  const { seen } = renderTree(html`<${Drawer} schema=${BEHAVIOR_DRAWER} />`);
-  const field = seen.find((v) => v.props?.["data-field"] === "pinallow");
-  const hit = findIn(field?.props.children, (p) => p["data-v"] === value);
-  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (fn) await fn();
-}
+const tapPinned = (value) => tapFieldOption(BEHAVIOR_DRAWER, "pinallow", value);
 
 /** Serve the idle time as a reading that restarts the engine, the lane that dots a title. */
 const loadRestartingIdle = () =>

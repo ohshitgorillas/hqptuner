@@ -14,24 +14,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { HARDWARE_READOUTS } from "../../../../hqptuner/static/components/faceplate/settings/hardware.js";
-import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
+import { config } from "../../../../hqptuner/static/store/signals.js";
 import { schema } from "../../../../hqptuner/static/store/schema.js";
-import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import {
   applyHardware,
   discardHardware,
   loadHardware,
   setAllStations,
 } from "../../../../hqptuner/static/store/faceplate/settings/hardware.js";
-import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements } from "../../support/markup.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { seedReadings } from "../../support/readings.js";
+import { tapUnlitOption } from "../../support/rendered/drawer-render.js";
+import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {{ overrides: Record<string, unknown> }} ApplyBody  a `POST /api/engine` body, the member read here */
@@ -41,27 +36,6 @@ const ENGINE = { cuda: "convolution", multicore: "0", ecores: "pool", nblocks: "
 
 //: The catalog ids of the Hardware drawer's engine settings.
 const IDS = ["multicore", "ecores", "cuda"];
-
-/**
- * A drawer of one tab holding the catalog's row for `id` and nothing else.
- *
- * @param {string} id
- * @returns {DrawerSchema}
- */
-const rowDrawer = (id) => ({
-  id: `${id}row`,
-  title: `${id}row`,
-  aria: `${id}row`,
-  tabs: [{ id: "only", label: "only", body: [{ row: { key: id } }] }],
-});
-
-/**
- * Call a vnode prop when it is a handler.
- *
- * @param {unknown} fn
- * @param {...unknown} args
- */
-const call = (fn, ...args) => (typeof fn === "function" ? fn(...args) : undefined);
 
 /**
  * Reset every source signal the drawer reads and load the engine a fake daemon reports; returns the wire and the
@@ -80,40 +54,12 @@ async function reset() {
   });
   config.value = { fields: [{ name: "direct_sdm" }] };
   await seedReadings({ direct_sdm: false });
-  engineState.value = {};
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openStage.value = null;
-  openPopover.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore({});
   discardHardware();
   setAllStations(false);
   await loadHardware();
   await quiesce(w);
   return { w, bodies };
-}
-
-//: What a tap reports when the row draws no unlit option to tap; no engine attribute carries it.
-const NOTHING_TAPPED = "nothing tapped";
-
-/**
- * Tap the option of the row for `id` that the row does not light; returns the value the tapped option carries.
- *
- * @param {string} id
- * @returns {Promise<string>}
- */
-async function tapUnlitOption(id) {
-  const { out, seen } = renderTree(html`<${Drawer} schema=${rowDrawer(id)} />`);
-  const row = elements(out).find((e) => attr(e, "data-k") === id);
-  const unlit = (row ? elements(row.html) : []).find(
-    (e) => e.name === "button" && attr(e, "data-v") !== undefined && !classes(e).includes("on"),
-  );
-  const value = unlit ? attr(unlit, "data-v") : undefined;
-  const hit = seen.find((v) => v.type === "button" && value !== undefined && v.props["data-v"] === value);
-  await call(hit?.props.onClick);
-  return value ?? NOTHING_TAPPED;
 }
 
 for (const id of IDS) {
