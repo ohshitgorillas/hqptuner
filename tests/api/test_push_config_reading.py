@@ -28,7 +28,7 @@ from apps import advance_app, app_manager, phase_is_ready, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from narrow import FixtureError
-from sse import events, open_stream
+from sse import events, open_stream, read_closed_by
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -36,7 +36,7 @@ from hqptuner.api.push import KEEPALIVE
 from hqptuner.config import Config
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Iterator, Sequence
     from pathlib import Path
 
     from sse import SseBlock
@@ -60,17 +60,6 @@ PASSES_PER_MOVE = 12
 #: The restore-lane field and value whose `pending` event ends the read.
 END_FIELD = "marker"
 END_VALUE = "read-end"
-
-
-def _read_closed_by(field: str) -> Callable[[Sequence[SseBlock]], bool]:
-    """A read's condition: the latest ``pending`` event stages ``field``."""
-
-    def closed(blocks: Sequence[SseBlock]) -> bool:
-        pending = events(blocks, "pending")
-        http = json.loads(pending[-1].data).get("http") if pending else None
-        return isinstance(http, dict) and field in http
-
-    return closed
 
 
 def _verdicts_pushed(blocks: Sequence[SseBlock]) -> list[object]:
@@ -114,7 +103,7 @@ def _pushed_across_two_moves(
             _lane_refreshed(app, http)
         _before_any_keepalive(app)
         app.post("/api/config/stage", json={"http": {END_FIELD: END_VALUE}})
-        return stream.until(_read_closed_by(END_FIELD))
+        return stream.until(read_closed_by(END_FIELD))
 
 
 @pytest.fixture

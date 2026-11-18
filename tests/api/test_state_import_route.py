@@ -48,7 +48,6 @@ from state_import import (
     favorites,
     install_app_config,
     installed_favorites,
-    seed_install,
     source,
     source_debug_log,
     store_fingerprints,
@@ -155,24 +154,20 @@ REFUSED_WITH_A_VALID_STORE = [
 ]
 
 
+def pre_import_favorites(install: Path) -> object:
+    """The favorites store the pre-import backup holds; None when the backup or the member is absent."""
+    return zip_json_member(install / "backups" / PRE_IMPORT_BACKUP, "favorites.json")
+
+
+#: What a refused import must leave as the last import left it, each as its read off the install and the
+#: favorites it then reads: the install's favorites store, and the one the pre-import backup holds.
+LEFT_BY_THE_LAST_IMPORT = [
+    pytest.param(installed_favorites, [ARCHIVE_FAVORITE], id="stores"),
+    pytest.param(pre_import_favorites, json.loads(favorites(INSTALL_FAVORITE)), id="pre-import-backup"),
+]
+
+
 # --- the install, the source of an archive, and the app over the install ------
-
-
-@pytest.fixture
-def install(tmp_path: Path) -> Path:
-    return seed_install(tmp_path / "install")
-
-
-@pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
-@pytest.fixture
-def client(http_daemon: dict[str, Any], install: Path, closed_port: int, audit_log: Path) -> Iterator[TestClient]:
-    cfg = install_app_config(http_daemon, install, closed_port, audit_log)
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
-        yield test_client
 
 
 @pytest.fixture
@@ -511,22 +506,19 @@ def test_an_archive_that_cannot_be_imported_is_refused_as_unreadable(client: Tes
 
 
 @pytest.mark.parametrize("defect", REFUSED_WITH_A_VALID_STORE)
-def test_a_refused_import_leaves_every_store_as_the_last_import_left_it(
-    client: TestClient, install: Path, tmp_path: Path, defect: dict[str, bytes]
+@pytest.mark.parametrize(("left", "as_the_last_import_left_it"), LEFT_BY_THE_LAST_IMPORT)
+def test_a_refused_import_leaves_every_store_and_the_pre_import_backup_as_the_last_import_left_them(
+    client: TestClient,
+    *,
+    install: Path,
+    tmp_path: Path,
+    defect: dict[str, bytes],
+    left: Callable[[Path], object],
+    as_the_last_import_left_it: object,
 ) -> None:
     upload(client, archive_with_favorites(tmp_path, ARCHIVE_FAVORITE))
     upload(client, zip_of({"favorites.json": favorites(SECOND_FAVORITE), **defect}))
-    assert installed_favorites(install) == [ARCHIVE_FAVORITE]
-
-
-@pytest.mark.parametrize("defect", REFUSED_WITH_A_VALID_STORE)
-def test_a_refused_import_leaves_the_pre_import_backup_as_the_last_import_left_it(
-    client: TestClient, install: Path, tmp_path: Path, defect: dict[str, bytes]
-) -> None:
-    upload(client, archive_with_favorites(tmp_path, ARCHIVE_FAVORITE))
-    upload(client, zip_of({"favorites.json": favorites(SECOND_FAVORITE), **defect}))
-    saved = zip_json_member(install / "backups" / PRE_IMPORT_BACKUP, "favorites.json")
-    assert saved == json.loads(favorites(INSTALL_FAVORITE))
+    assert left(install) == as_the_last_import_left_it
 
 
 # --- the state limit ----------------------------------------------------------
@@ -548,22 +540,17 @@ def test_an_archive_exactly_at_the_state_limit_is_imported(
 
 
 @pytest.mark.parametrize("sized", STATE_SIZES)
-def test_an_archive_past_the_state_limit_leaves_every_store_as_the_last_import_left_it(
-    capped_client: TestClient, install: Path, sized: Callable[[int], bytes]
+@pytest.mark.parametrize(("left", "as_the_last_import_left_it"), LEFT_BY_THE_LAST_IMPORT)
+def test_an_archive_past_the_state_limit_leaves_every_store_and_the_pre_import_backup_as_the_last_import_left_them(
+    capped_client: TestClient,
+    install: Path,
+    sized: Callable[[int], bytes],
+    left: Callable[[Path], object],
+    as_the_last_import_left_it: object,
 ) -> None:
     upload(capped_client, zip_of({"favorites.json": favorites(ARCHIVE_FAVORITE)}))
     upload(capped_client, sized(STATE_LIMIT + 1))
-    assert installed_favorites(install) == [ARCHIVE_FAVORITE]
-
-
-@pytest.mark.parametrize("sized", STATE_SIZES)
-def test_an_archive_past_the_state_limit_leaves_the_pre_import_backup_as_the_last_import_left_it(
-    capped_client: TestClient, install: Path, sized: Callable[[int], bytes]
-) -> None:
-    upload(capped_client, zip_of({"favorites.json": favorites(ARCHIVE_FAVORITE)}))
-    upload(capped_client, sized(STATE_LIMIT + 1))
-    saved = zip_json_member(install / "backups" / PRE_IMPORT_BACKUP, "favorites.json")
-    assert saved == json.loads(favorites(INSTALL_FAVORITE))
+    assert left(install) == as_the_last_import_left_it
 
 
 # --- valid archives in the shapes a user's tools give them ----------------------

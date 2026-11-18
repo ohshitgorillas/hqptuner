@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from fastapi import FastAPI
@@ -85,6 +86,17 @@ def events(blocks: Sequence[SseBlock], name: str | None = None) -> list[SseEvent
 def any_event(blocks: Sequence[SseBlock]) -> bool:
     """A read's condition: at least one event has been dispatched."""
     return bool(events(blocks))
+
+
+def read_closed_by(field: str) -> Until:
+    """A read's condition: the latest ``pending`` event stages ``field`` in its ``http`` bucket."""
+
+    def closed(blocks: Sequence[SseBlock]) -> bool:
+        pending = events(blocks, "pending")
+        http = json.loads(pending[-1].data).get("http") if pending else None
+        return isinstance(http, dict) and field in http
+
+    return closed
 
 
 class _Reader:

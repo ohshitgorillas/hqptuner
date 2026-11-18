@@ -8,18 +8,10 @@ them with no daemon behind it.
 
 from __future__ import annotations
 
-import json
-import shutil
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from apps import closed_port
-from conftest import METADATA_MIN
-from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
-
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
+from apps import served_settings
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -46,13 +38,7 @@ SETTINGS = {
 @pytest.fixture
 def served_dsp(tmp_path: Path) -> dict[str, Any]:
     """The ``settings.dsp`` table ``/api/metadata`` serves off ``SETTINGS``."""
-    data_dir = tmp_path / "metadata"
-    shutil.copytree(METADATA_MIN, data_dir)
-    (data_dir / "settings.json").write_text(json.dumps(SETTINGS), encoding="utf-8")
-    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=closed_port(), data_dir=data_dir)
-    with TestClient(create_app(cfg, VirtualClock())) as client:
-        table: dict[str, Any] = client.get("/api/metadata").json()["settings"]["dsp"]
-    return table
+    return served_settings(tmp_path, SETTINGS, "dsp")
 
 
 @pytest.mark.parametrize("key", sorted(DEFAULTS))

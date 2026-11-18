@@ -24,7 +24,6 @@ from state_import import (
     install_app_config,
     installed_favorites,
     loaded_station,
-    seed_install,
     upload,
     write,
     zip_of,
@@ -44,23 +43,6 @@ STRAY_PRESET_MEMBERS = [
     pytest.param({"presets/Office.txt": PRESET_XML}, id="not-xml"),
     pytest.param({"presets/nested/Office.xml": PRESET_XML}, id="in-a-subdirectory"),
 ]
-
-
-@pytest.fixture
-def install(tmp_path: Path) -> Path:
-    return seed_install(tmp_path / "install")
-
-
-@pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
-@pytest.fixture
-def client(http_daemon: dict[str, Any], install: Path, closed_port: int, audit_log: Path) -> Iterator[TestClient]:
-    cfg = install_app_config(http_daemon, install, closed_port, audit_log)
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
-        yield test_client
 
 
 @pytest.fixture

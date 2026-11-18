@@ -3,6 +3,8 @@ on a live daemon, and a port nothing listens on. `live_app` is a plain generator
 `yield from live_app(...)` inside a fixture and `next(app)`/`next(app, None)` by hand around a manually built daemon."""
 
 import asyncio
+import json
+import shutil
 import socket
 from collections.abc import Callable, Iterator
 from dataclasses import replace
@@ -147,6 +149,18 @@ def two_lane_config(http_daemon: dict[str, Any], control_port: int, tmp_path: Pa
         advisor_enabled=True,
         hqp_home="/x/home",
     )
+
+
+def served_settings(tmp_path: Path, settings: dict[str, Any], group: str) -> dict[str, Any]:
+    """The ``group`` table of ``settings`` that ``/api/metadata`` serves from a copy of the shared minimal metadata
+    fixture whose ``settings.json`` is replaced with ``settings``, with no daemon behind the app."""
+    data_dir = tmp_path / "metadata"
+    shutil.copytree(METADATA_MIN, data_dir)
+    (data_dir / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
+    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=closed_port(), data_dir=data_dir)
+    with TestClient(create_app(cfg, VirtualClock())) as client:
+        table: dict[str, Any] = client.get("/api/metadata").json()["settings"][group]
+    return table
 
 
 def served_ceiling(client: TestClient, polls: int) -> float | None:

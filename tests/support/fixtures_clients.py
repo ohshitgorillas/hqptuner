@@ -53,6 +53,12 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
 
 
 @pytest.fixture
+def audit_log(tmp_path: Path) -> Path:
+    """Where the app under test writes its audit log."""
+    return tmp_path / "audit.jsonl"
+
+
+@pytest.fixture
 def live_api(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestClient]:
     yield from live_app(threaded_daemon_port, tmp_path)
 

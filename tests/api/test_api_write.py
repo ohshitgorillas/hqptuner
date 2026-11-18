@@ -91,16 +91,26 @@ def test_dropping_a_never_staged_http_field_leaves_the_buffer_alone(http_client:
     assert http_client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
 
 
+def _live_pending_after_drop(
+    client: TestClient, staged: dict[str, Any], dropped: dict[str, list[str]]
+) -> dict[str, dict[str, str]]:
+    """The live buffer after ``staged`` is staged and ``dropped`` is dropped from it in a later call."""
+    client.post("/api/config/stage", json={"live": staged})
+    client.post("/api/config/stage", json={"drop": {"live": dropped}})
+    live: dict[str, dict[str, str]] = client.get("/api/config/pending").json()["live"]
+    return live
+
+
 def test_dropping_one_live_argument_keeps_the_other(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1", "value1x": "2"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value1x"]}}})
-    assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value": "1"}
+    live = _live_pending_after_drop(api_client, {"filter": {"value": "1", "value1x": "2"}}, {"filter": ["value1x"]})
+    assert live["filter"] == {"value": "1"}
 
 
 def test_dropping_every_live_argument_removes_the_bucket(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1", "value1x": "2"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value", "value1x"]}}})
-    assert "filter" not in api_client.get("/api/config/pending").json()["live"]
+    live = _live_pending_after_drop(
+        api_client, {"filter": {"value": "1", "value1x": "2"}}, {"filter": ["value", "value1x"]}
+    )
+    assert "filter" not in live
 
 
 def test_a_drop_of_a_never_staged_live_key_does_not_reject_the_call(api_client: TestClient) -> None:
@@ -112,15 +122,13 @@ def test_a_drop_of_a_never_staged_live_key_does_not_reject_the_call(api_client: 
 
 
 def test_dropping_a_never_staged_live_key_leaves_the_buffer_alone(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value"]}}})
-    assert api_client.get("/api/config/pending").json()["live"] == {"shaper": {"value": "5"}}
+    live = _live_pending_after_drop(api_client, {"shaper": {"value": "5"}}, {"filter": ["value"]})
+    assert live == {"shaper": {"value": "5"}}
 
 
 def test_dropping_an_absent_argument_keeps_the_staged_live_key(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value1x"]}}})
-    assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value": "1"}
+    live = _live_pending_after_drop(api_client, {"filter": {"value": "1"}}, {"filter": ["value1x"]})
+    assert live["filter"] == {"value": "1"}
 
 
 def test_restaging_a_live_key_replaces_its_whole_bucket(api_client: TestClient) -> None:

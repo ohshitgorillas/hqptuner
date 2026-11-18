@@ -21,12 +21,12 @@ import fake_control
 import pytest
 from apps import advance_app, live_app
 from conftest import spawn_threaded_daemon
-from sse import events, open_stream
+from sse import events, open_stream, read_closed_by
 
 from hqptuner.api.push import KEEPALIVE
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Iterator, Sequence
     from pathlib import Path
 
     from fastapi.testclient import TestClient
@@ -46,17 +46,6 @@ SECOND_READING = "-42.0"
 #: The restore-lane field and value whose `pending` event ends the read.
 END_FIELD = "title"
 END_VALUE = "read-end"
-
-
-def _read_closed_by(field: str) -> Callable[[Sequence[SseBlock]], bool]:
-    """A read's condition: the latest ``pending`` event stages ``field``."""
-
-    def closed(blocks: Sequence[SseBlock]) -> bool:
-        pending = events(blocks, "pending")
-        http = json.loads(pending[-1].data).get("http") if pending else None
-        return isinstance(http, dict) and field in http
-
-    return closed
 
 
 def _volumes_pushed(blocks: Sequence[SseBlock]) -> list[object]:
@@ -94,5 +83,5 @@ def test_a_state_reading_reaches_the_subscriber_on_the_pass_that_took_it(
             daemon_state["volume"] = reading
             advance_app(app, HEARTBEAT)
         app.post("/api/config/stage", json={"http": {END_FIELD: END_VALUE}})
-        blocks = stream.until(_read_closed_by(END_FIELD))
+        blocks = stream.until(read_closed_by(END_FIELD))
     assert FIRST_READING in _volumes_pushed(blocks)

@@ -3,17 +3,24 @@
 An install is a store tree under one root: every JSON store and the preset
 store under ``root/state``, backups under ``root/backups``. A source is a second
 such tree an archive is exported from with this build's own `state_archive`.
+
+Also a fixture plugin (registered from conftest.py): ``install`` seeds an install under ``tmp_path``, and ``client``
+is the REST app over it, on the fake 8088 daemon with a closed control port.
 """
 
 import io
 import json
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
+from virtual_clock import VirtualClock
 
+from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.export import state_archive
 from hqptuner.presets.store.live import LivePresetStore, LiveRecord
@@ -115,6 +122,20 @@ def install_app_config(http_daemon: dict[str, Any], install: Path, control_port:
         hqp_home="/x/home",
         debug_log=audit_log,
     )
+
+
+@pytest.fixture
+def install(tmp_path: Path) -> Path:
+    """The seeded install the app under ``client`` runs over."""
+    return seed_install(tmp_path / "install")
+
+
+@pytest.fixture
+def client(http_daemon: dict[str, Any], install: Path, closed_port: int, audit_log: Path) -> Iterator[TestClient]:
+    """The REST app over ``install``."""
+    cfg = install_app_config(http_daemon, install, closed_port, audit_log)
+    with TestClient(create_app(cfg, VirtualClock())) as test_client:
+        yield test_client
 
 
 def source_debug_log(tmp_path: Path) -> Path:
