@@ -7,7 +7,7 @@
 import { html } from "../../lib/dom.js";
 import { openPopover } from "../../store/faceplate/view.js";
 import { hfNow, pickHf } from "../../store/faceplate/hf.js";
-import { Popover, UNDER_ENGINE_READOUT, parkAt, triggerProps } from "./Popover.js";
+import { Popover, UNDER_ENGINE_READOUT, parkPanel, triggerProps } from "./Popover.js";
 
 /** @typedef {import("../../store/faceplate/hf.js").HfOption} HfOption */
 
@@ -20,11 +20,7 @@ const LABEL = "HF filter";
  * @param {HTMLElement} panel
  */
 function park(panel) {
-  const at = parkAt(panel, UNDER_ENGINE_READOUT);
-  if (at) {
-    panel.style.left = `${Math.round(at.left)}px`;
-    panel.style.top = `${Math.round(at.top)}px`;
-  }
+  parkPanel(panel, UNDER_ENGINE_READOUT);
   /** @type {HTMLElement | null} */ (panel.querySelector('[aria-checked="true"]'))?.focus();
 }
 

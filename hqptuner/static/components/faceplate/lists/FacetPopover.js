@@ -8,7 +8,7 @@ import { deadChip } from "../../../model/shell/narrow-view.js";
 import { FOCUS_MODE_DEFAULT, GENRE_MODE_DEFAULT } from "../../../store/narrow/state.js";
 import { narrowState, previewCounts, setFacet, shaperCount } from "../../../store/faceplate/lists/facets.js";
 import { AMark } from "../NameFace.js";
-import { Popover, parkAt } from "../Popover.js";
+import { Popover, parkPanel } from "../Popover.js";
 import { CONSOLES, popId } from "./facets.js";
 
 /** @typedef {import("./facets.js").BarFacet} BarFacet */
@@ -32,11 +32,7 @@ const DEAD_TITLE = "No filters with this property match the current selections."
  * @param {HTMLElement} panel
  */
 function park(panel) {
-  const at = parkAt(panel, HOW);
-  if (at) {
-    panel.style.left = `${Math.round(at.left)}px`;
-    panel.style.top = `${Math.round(at.top)}px`;
-  }
+  parkPanel(panel, HOW);
 }
 
 /**

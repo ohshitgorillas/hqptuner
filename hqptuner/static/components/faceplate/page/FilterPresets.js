@@ -9,7 +9,7 @@ import { useCallback } from "preact/hooks";
 import { classNames, html } from "../../../lib/dom.js";
 import { foldSubsets, pickPreset, presetRows, showSubsets } from "../../../store/faceplate/page/presets.js";
 import { AMark } from "../NameFace.js";
-import { Popover, parkAt, triggerProps } from "../Popover.js";
+import { Popover, parkPanel, triggerProps } from "../Popover.js";
 
 /** @typedef {import("../../../store/faceplate/page/presets.js").PresetRow} PresetRow */
 /** @typedef {import("../../../store/faceplate/page/presets.js").KnobView} KnobView */
@@ -63,10 +63,7 @@ const HOW = { side: [22, null], foot: 14, at: { x: "before", y: "top", gap: 12 }
 
 /** @param {HTMLElement} panel */
 function parkLeft(panel) {
-  const at = parkAt(panel, HOW);
-  if (!at) return;
-  panel.style.left = `${Math.round(at.left)}px`;
-  panel.style.top = `${Math.round(at.top)}px`;
+  parkPanel(panel, HOW);
 }
 
 /** @param {PresetRow} row */

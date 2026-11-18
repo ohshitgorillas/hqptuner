@@ -12,7 +12,7 @@ import { fieldReadout } from "./readouts.js";
 /** @typedef {{ v: string, label: string }} Opt */
 
 /** @type {Opt[]} */
-const HIDEABLE = [
+export const HIDEABLE = [
   { v: "dsd", label: "DSD Processing" },
   { v: "speakers", label: "Speakers" },
   { v: "crossfeed", label: "Crossfeed" },

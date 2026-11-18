@@ -13,7 +13,7 @@ import { dbText } from "../../model/gauges/volume.js";
 import { minus } from "../../model/shell/format.js";
 import { openPopover, togglePopover } from "../../store/faceplate/view.js";
 import { loudnessMarks, volumeGrid, volumeNow, writeVolume } from "../../store/faceplate/volume.js";
-import { Popover, UNDER_ENGINE_READOUT, parkAt, triggerProps } from "./Popover.js";
+import { Popover, UNDER_ENGINE_READOUT, parkPanel, triggerProps } from "./Popover.js";
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 
@@ -28,11 +28,7 @@ const SCALE = [-60, -40, -20, -10, 0]; // the slider's scale marks, dB
  * @param {HTMLElement} panel
  */
 function park(panel) {
-  const at = parkAt(panel, UNDER_ENGINE_READOUT);
-  if (at) {
-    panel.style.left = `${Math.round(at.left)}px`;
-    panel.style.top = `${Math.round(at.top)}px`;
-  }
+  parkPanel(panel, UNDER_ENGINE_READOUT);
   panel.querySelector("input")?.focus();
 }
 

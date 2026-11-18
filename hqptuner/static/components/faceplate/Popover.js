@@ -118,9 +118,31 @@ export function parkAgainst(panel, home, how) {
  * @param {{ side: Side, foot: Margin, at: Place }} how
  * @returns {{ left: number, top: number } | null}  null when the panel has no trigger or plate to measure against
  */
-export function parkAt(panel, how) {
+function parkAt(panel, how) {
   const trigger = panel.closest(".plate")?.querySelector(`button[data-pop="${panel.dataset.pop}"]`);
   return trigger ? parkAgainst(panel, trigger, how) : null;
+}
+
+/**
+ * Write a placement onto its panel as rounded layout px. A null placement leaves the panel where it is.
+ *
+ * @param {HTMLElement} panel
+ * @param {{ left: number, top: number } | null} at
+ */
+export function place(panel, at) {
+  if (!at) return;
+  panel.style.left = `${Math.round(at.left)}px`;
+  panel.style.top = `${Math.round(at.top)}px`;
+}
+
+/**
+ * Park a panel against its trigger and write where it lands onto it.
+ *
+ * @param {HTMLElement} panel
+ * @param {{ side: Side, foot: Margin, at: Place }} how
+ */
+export function parkPanel(panel, how) {
+  place(panel, parkAt(panel, how));
 }
 
 /**

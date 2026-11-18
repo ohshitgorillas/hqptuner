@@ -30,6 +30,31 @@ import { structuralBlock } from "../../store/xfeed/mode.js";
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
 const FS = 48000;
 const HUES = ["r0", "r1", "r2", "r3"];
+const FREQS = bandFreqs(160);
+
+/**
+ * A chain's magnitude (dB) and phase (degrees) points across the audio band, widening `bounds` to the magnitudes.
+ *
+ * @param {Stage[]} stages
+ * @param {Bounds} bounds
+ * @returns {{ mag: [number, number][], ph: [number, number][], partial: boolean }}
+ */
+function chainCurves(stages, bounds) {
+  /** @type {[number, number][]} */
+  const mag = [];
+  /** @type {[number, number][]} */
+  const ph = [];
+  let partial = false;
+  for (const f of FREQS) {
+    const r = chainResponse(stages, f, FS);
+    mag.push([f, r.db]);
+    ph.push([f, r.deg]);
+    partial ||= r.partial;
+    bounds.min = Math.min(bounds.min, r.db);
+    bounds.max = Math.max(bounds.max, r.db);
+  }
+  return { mag, ph, partial };
+}
 
 /**
  * Magnitude and phase curves for the plotted pipeline rows, one pair per distinct
@@ -41,7 +66,6 @@ const HUES = ["r0", "r1", "r2", "r3"];
  * @returns {{ traces: PlotTrace[], anyPartial: boolean }}
  */
 export function rowTraces(rows, plotted, bounds) {
-  const freqs = bandFreqs(160);
   // Collapse rows with an identical processing chain (stereo pairs land byte-
   // identical) into one curve, labeled with every pipeline number it covers —
   // so a stereo EQ is a single "1+2" trace, not two overlapping ones with
@@ -65,19 +89,7 @@ export function rowTraces(rows, plotted, bounds) {
   const traces = [];
   let anyPartial = false;
   groups.forEach((g, k) => {
-    /** @type {[number, number][]} */
-    const mag = [];
-    /** @type {[number, number][]} */
-    const ph = [];
-    let partial = false;
-    for (const f of freqs) {
-      const r = chainResponse(g.stages, f, FS);
-      mag.push([f, r.db]);
-      ph.push([f, r.deg]);
-      partial ||= r.partial;
-      bounds.min = Math.min(bounds.min, r.db);
-      bounds.max = Math.max(bounds.max, r.db);
-    }
+    const { mag, ph, partial } = chainCurves(g.stages, bounds);
     anyPartial ||= partial;
     const hue = HUES[k % HUES.length];
     const name = g.idxs.map((i) => i + 1).join("+");
@@ -108,18 +120,7 @@ export function eqOverviewTrace(rows, bounds) {
   if (!rec) return null;
   const stages = parseProcess(rec.eqProcess);
   if (!stages.length) return null;
-  const freqs = bandFreqs(160);
-  /** @type {[number, number][]} */
-  const mag = [];
-  /** @type {[number, number][]} */
-  const ph = [];
-  for (const f of freqs) {
-    const r = chainResponse(stages, f, FS);
-    mag.push([f, r.db]);
-    ph.push([f, r.deg]);
-    bounds.min = Math.min(bounds.min, r.db);
-    bounds.max = Math.max(bounds.max, r.db);
-  }
+  const { mag, ph } = chainCurves(stages, bounds);
   return [
     { points: mag, kind: "mag", label: "EQ" },
     { points: ph, kind: "ph", label: "EQ φ", y2: true },
@@ -141,23 +142,12 @@ function structuralEqTraces(rec, bounds) {
           ["EQ left", rec.eqProcess.left],
           ["EQ right", rec.eqProcess.right],
         ];
-  const freqs = bandFreqs(160);
   /** @type {PlotTrace[]} */
   const out = [];
   for (const [label, chain] of sides) {
     const stages = parseProcess(chain);
     if (!stages.length) continue;
-    /** @type {[number, number][]} */
-    const mag = [];
-    /** @type {[number, number][]} */
-    const ph = [];
-    for (const f of freqs) {
-      const r = chainResponse(stages, f, FS);
-      mag.push([f, r.db]);
-      ph.push([f, r.deg]);
-      bounds.min = Math.min(bounds.min, r.db);
-      bounds.max = Math.max(bounds.max, r.db);
-    }
+    const { mag, ph } = chainCurves(stages, bounds);
     out.push({ points: mag, kind: "mag", label });
     out.push({ points: ph, kind: "ph", label: `${label} φ`, y2: true });
   }
