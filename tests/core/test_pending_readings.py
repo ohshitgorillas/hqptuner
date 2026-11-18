@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
+from answered_reading import ENUMERATIONS, FIRST_ID, FIRST_INDEX, PCM_MODE, SECOND_ID, SECOND_INDEX
 from apps import app_manager
 from fake_config_xml import elem_attr
 from fastapi.testclient import TestClient
@@ -15,22 +16,6 @@ from hqptuner.core.readings import Readings
 from hqptuner.engine.view import EngineView
 
 GENERATION = 4
-FIRST_INDEX = "0"
-SECOND_INDEX = "1"
-FIRST_ID = "31"
-SECOND_ID = "47"
-PCM_MODE = "2"
-ENUMERATIONS = {
-    "modes": [
-        {"index": "0", "name": "SDM (DSD)", "value": "1"},
-        {"index": "1", "name": "[source]", "value": "-1"},
-        {"index": PCM_MODE, "name": "PCM", "value": "0"},
-    ],
-    "filters": [
-        {"index": FIRST_INDEX, "name": "fixture-first", "value": FIRST_ID},
-        {"index": SECOND_INDEX, "name": "fixture-second", "value": SECOND_ID},
-    ],
-}
 STATE = {"mode": PCM_MODE, "filter1x": FIRST_INDEX, "filterNx": SECOND_INDEX}
 FILE_TITLE = "fixture-title"
 NEW_TITLE = "fixture-renamed"

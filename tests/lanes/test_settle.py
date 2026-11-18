@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 import pytest
 from conftest import ManagerFactory
+from lifecycle_rows import NEW, OLD, OLD_INSTANCE_ANSWERS_FOR_A_MOMENT, Row
 from virtual_clock import VirtualClock
 
 from hqptuner.core.lifecycle import Fact, Outcome
@@ -27,18 +28,13 @@ from hqptuner.lanes import settle
 #: The window every case runs under: the production default.
 WINDOW = 15.0
 
-#: The instance standing when the request goes out, one a foreign restart brings
-#: up while the request is in flight, and the one the own restart brings up.
-OLD = "old"
+#: One instance a foreign restart brings up while the request is in flight, between the one standing when the
+#: request goes out and the one the own restart brings up.
 MID = "mid"
-NEW = "new"
 
 #: What a wait concluded on when it did not land, and who answers while nothing does.
 GAVE_UP = "gave up"
 NOBODY = "nobody"
-
-#: A wire fact at a clock reading, beside the instance that put it on the wire.
-Row = tuple[float, Fact, str | None]
 
 _ANSWERS = frozenset({Fact.GETINFO_ANSWERED, Fact.FORM_ANSWERED})
 
@@ -152,16 +148,7 @@ DEPARTS_AND_RETURNS: list[Row] = [
 
 LANDINGS = [
     pytest.param(
-        Case(
-            after=[
-                (0.1, Fact.GETINFO_ANSWERED, OLD),
-                (0.2, Fact.FORM_ANSWERED, OLD),
-                (0.3, Fact.SOCKET_LOST, OLD),
-                (0.5, Fact.DIAL_REFUSED, None),
-                (3.0, Fact.GETINFO_ANSWERED, NEW),
-                (5.0, Fact.FORM_ANSWERED, NEW),
-            ]
-        ),
+        Case(after=OLD_INSTANCE_ANSWERS_FOR_A_MOMENT),
         id="old-instance-answers-for-a-moment",
     ),
     pytest.param(

@@ -6,10 +6,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-import httpx
 import pytest
 from apps import closed_port as reserved_closed_port
 from conftest import DaemonFactory
+from transports import PausedTransport
 from virtual_clock import VirtualClock
 
 from hqptuner.clock import Clock
@@ -42,6 +42,15 @@ async def manager_at(
         yield manager
     finally:
         await manager.aclose()
+
+
+@asynccontextmanager
+async def connected_manager(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[ConnectionManager]:
+    """A manager that has dialed a fake daemon once."""
+    port, _commands, _state = await daemon()
+    async with manager_at(port, tmp_path) as manager:
+        await loader.connect(manager, loader.Cadence())
+        yield manager
 
 
 # Break: initialize address evidence as found, or wait for GetInfo to record TCP success.
@@ -79,9 +88,7 @@ async def test_readings_subscribers_hear_found_address_before_handshake(daemon: 
 async def test_retarget_discards_address_evidence_until_the_new_target_is_dialed(
     daemon: DaemonFactory, closed_port: int, tmp_path: Path
 ) -> None:
-    port, _commands, _state = await daemon()
-    async with manager_at(port, tmp_path) as manager:
-        await loader.connect(manager, loader.Cadence())
+    async with connected_manager(daemon, tmp_path) as manager:
         old_target = manager.readings.address_found
         manager.cfg.hqp_control_port = closed_port
         await manager.retarget()
@@ -94,9 +101,7 @@ async def test_retarget_discards_address_evidence_until_the_new_target_is_dialed
 async def test_readings_subscribers_hear_address_evidence_reset_on_retarget(
     daemon: DaemonFactory, closed_port: int, tmp_path: Path
 ) -> None:
-    port, _commands, _state = await daemon()
-    async with manager_at(port, tmp_path) as manager:
-        await loader.connect(manager, loader.Cadence())
+    async with connected_manager(daemon, tmp_path) as manager:
         heard = [manager.readings.address_found]
         manager.readings.on_change = lambda: heard.append(manager.readings.address_found)
         manager.cfg.hqp_control_port = closed_port
@@ -185,29 +190,13 @@ async def test_an_old_dial_completion_cannot_supply_the_new_targets_standing_con
             assert (connected.phase.standing.phase, retargeted.phase.standing.phase) == (Phase.REACHABLE, Phase.DOWN)
 
 
-class PausedHttp(httpx.AsyncBaseTransport):
-    def __init__(self) -> None:
-        self.inner = httpx.AsyncHTTPTransport()
-        self.arrived = asyncio.Event()
-        self.release = asyncio.Event()
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        response = await self.inner.handle_async_request(request)
-        self.arrived.set()
-        await self.release.wait()
-        return response
-
-    async def aclose(self) -> None:
-        await self.inner.aclose()
-
-
 # Break: let a refresh publish credentials learned by a client replaced while its responses were in flight.
 @pytest.mark.parametrize("refused", [True, False])
 async def test_a_replaced_http_clients_late_reply_cannot_supply_the_new_credentials_verdict(
     http_daemon: dict[str, Any], closed_port: int, tmp_path: Path, *, refused: bool
 ) -> None:
     http_daemon["_refuse_auth"] = refused
-    paused = PausedHttp()
+    paused = PausedTransport()
     old = HttpConfigClient(HOST, http_daemon["_port"], "u", "p", HttpOptions(transport=paused))
     replacement = HttpConfigClient(HOST, http_daemon["_port"], "u", "replacement")
     try:

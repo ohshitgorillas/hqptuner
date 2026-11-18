@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 import pytest
+from lifecycle_rows import NEW, OLD, OLD_INSTANCE_ANSWERS_FOR_A_MOMENT, Row
 from virtual_clock import VirtualClock
 
 from hqptuner.core.lifecycle import Fact, Lifecycle, Outcome, Phase, Standing, outcome, transition
@@ -20,28 +21,11 @@ from hqptuner.core.lifecycle import Fact, Lifecycle, Outcome, Phase, Standing, o
 #: The window every case runs under unless it is about the window itself.
 WINDOW = 15.0
 
-#: The instance that put a fact on the wire: the one the restart kills, and the
-#: one that replaces it. A fact HQPTuner observes alone, its own close or a
-#: refused dial, comes from neither.
-OLD = "old"
-NEW = "new"
-
-#: A wire fact at a clock reading, beside the instance that answered it.
-Row = tuple[float, Fact, str | None]
-
 #: Own restarts that come back inside the window, as the wire delivers them
 #: after the request was accepted.
 RESTARTS = [
     pytest.param(
-        [
-            (0.0, Fact.SOCKET_TAKEN, None),
-            (0.1, Fact.GETINFO_ANSWERED, OLD),
-            (0.2, Fact.FORM_ANSWERED, OLD),
-            (0.3, Fact.SOCKET_LOST, OLD),
-            (0.5, Fact.DIAL_REFUSED, None),
-            (3.0, Fact.GETINFO_ANSWERED, NEW),
-            (5.0, Fact.FORM_ANSWERED, NEW),
-        ],
+        [(0.0, Fact.SOCKET_TAKEN, None), *OLD_INSTANCE_ANSWERS_FOR_A_MOMENT],
         id="old-instance-answers-for-a-moment",
     ),
     pytest.param(

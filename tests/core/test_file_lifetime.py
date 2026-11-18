@@ -4,10 +4,11 @@ import asyncio
 import contextlib
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx
 import pytest
+from transports import PausedTransport
 
 from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.core.lifecycle import Fact
@@ -18,12 +19,23 @@ from hqptuner.lanes.http import forms, speakerprocessing
 from hqptuner.presets import fileconfig
 
 Reader = Callable[[ConnectionManager], Coroutine[Any, Any, object]]
+
+
+class Reading(NamedTuple):
+    """One File payload: its name in the readings, the 8088 path it is read from, and the read."""
+
+    payload: str
+    path: str
+    read: Reader
+
+
+SPEAKERS = Reading("speakers_form", "/speakers", forms.refresh)
 READERS = [
-    pytest.param("file_config", "/backup/settings.zip", fileconfig.load_file_config, id="archive"),
-    pytest.param("engine", "/backup/settings.zip", fileconfig.read_engine, id="engine"),
-    pytest.param("config_form", "/config", forms.refresh, id="config"),
-    pytest.param("matrix_form", "/matrix", forms.refresh, id="matrix"),
-    pytest.param("speakers_form", "/speakers", forms.refresh, id="speakers"),
+    pytest.param(Reading("file_config", "/backup/settings.zip", fileconfig.load_file_config), id="archive"),
+    pytest.param(Reading("engine", "/backup/settings.zip", fileconfig.read_engine), id="engine"),
+    pytest.param(Reading("config_form", "/config", forms.refresh), id="config"),
+    pytest.param(Reading("matrix_form", "/matrix", forms.refresh), id="matrix"),
+    pytest.param(SPEAKERS, id="speakers"),
 ]
 
 
@@ -36,6 +48,8 @@ FRESH = "Fresh fixture"
 class Lifetime:
     stamps: tuple[Stamp | None, Stamp | None, Stamp | None]
     values: tuple[object, object, object]
+    acquired: Stamp
+    fresh: Stamp
 
 
 def wire_values(daemon: dict[str, Any], title: str, number: int) -> None:
@@ -59,42 +73,11 @@ def source_value(manager: ConnectionManager, payload: str) -> object:
     return None if readings.speakers_form is None else readings.speakers_form["channels"][0]["level"]
 
 
-class PausedRead(httpx.AsyncBaseTransport):
-    def __init__(self, path: str, after_post: str | None = None, response_number: int = 1) -> None:
-        self.path = path
-        self.after_post = after_post
-        self.posted = after_post is None
-        self.response_number = response_number
-        self.responses = 0
-        self.inner = httpx.AsyncHTTPTransport()
-        self.arrived = asyncio.Event()
-        self.release = asyncio.Event()
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        response = await self.inner.handle_async_request(request)
-        if request.method == "POST" and request.url.path == self.after_post:
-            self.posted = True
-        if request.method == "GET" and request.url.path == self.path and self.posted:
-            self.responses += 1
-        if request.method == "GET" and request.url.path == self.path and self.responses == self.response_number:
-            await response.aread()
-            self.arrived.set()
-            await self.release.wait()
-        return response
-
-    async def aclose(self) -> None:
-        await self.inner.aclose()
-
-
 async def lifetime_stamps(
-    manager: ConnectionManager,
-    daemon: dict[str, Any],
-    payload: str,
-    path: str,
-    read: Reader,
-    *,
-    event: str,
+    manager: ConnectionManager, daemon: dict[str, Any], reading: Reading, *, event: str
 ) -> Lifetime:
+    payload, path, read = reading
+    acquired = Stamp(Source.FILE, manager.phase.standing.generation)
     wire_values(daemon, RETAINED, 2)
     await read(manager)
     original = manager.require_http()
@@ -102,7 +85,7 @@ async def lifetime_stamps(
     manager.phase.report(Fact.GETINFO_ANSWERED, manager.clock.monotonic())
     manager.phase.report(Fact.SOCKET_LOST, manager.clock.monotonic())
     manager.phase.report(Fact.GETINFO_ANSWERED, manager.clock.monotonic())
-    paused = PausedRead(path)
+    paused = PausedTransport(path, read_body=True)
     client = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p", HttpOptions(transport=paused))
     manager.http_client = client
     wire_values(daemon, STALE, 3)
@@ -132,7 +115,10 @@ async def lifetime_stamps(
         wire_values(daemon, FRESH, 5)
         await read(manager)
         fresh = manager.readings.source_stamp(Source.FILE, payload)
-        return Lifetime((retained, completed, fresh), (retained_value, completed_value, source_value(manager, payload)))
+        values = (retained_value, completed_value, source_value(manager, payload))
+        return Lifetime(
+            (retained, completed, fresh), values, acquired, Stamp(Source.FILE, manager.phase.standing.generation)
+        )
     finally:
         paused.release.set()
         await pending
@@ -141,48 +127,30 @@ async def lifetime_stamps(
 
 
 # Break: let an acquisition from before an accepted write replace the retained File view.
-@pytest.mark.parametrize(("payload", "path", "read"), READERS)
+@pytest.mark.parametrize("reading", READERS)
 async def test_accepted_write_keeps_last_acquisition_until_a_post_write_read_arrives(
-    http_manager: ConnectionManager,
-    http_daemon: dict[str, Any],
-    payload: str,
-    path: str,
-    read: Reader,
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], reading: Reading
 ) -> None:
-    acquired = http_manager.phase.standing.generation
-    observed = await lifetime_stamps(http_manager, http_daemon, payload, path, read, event="accepted")
-    fresh = http_manager.phase.standing.generation
-    assert observed.stamps == (Stamp(Source.FILE, acquired), Stamp(Source.FILE, acquired), Stamp(Source.FILE, fresh))
+    observed = await lifetime_stamps(http_manager, http_daemon, reading, event="accepted")
+    assert observed.stamps == (observed.acquired, observed.acquired, observed.fresh)
 
 
 # Break: invalidate acquisitions on attempted writes even when the daemon rejects the write.
-@pytest.mark.parametrize(("payload", "path", "read"), READERS)
+@pytest.mark.parametrize("reading", READERS)
 async def test_refused_write_allows_the_in_flight_file_acquisition_to_land(
-    http_manager: ConnectionManager,
-    http_daemon: dict[str, Any],
-    payload: str,
-    path: str,
-    read: Reader,
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], reading: Reading
 ) -> None:
-    acquired = http_manager.phase.standing.generation
-    observed = await lifetime_stamps(http_manager, http_daemon, payload, path, read, event="refused")
-    fresh = http_manager.phase.standing.generation
-    assert observed.stamps == (Stamp(Source.FILE, acquired), Stamp(Source.FILE, fresh), Stamp(Source.FILE, fresh))
+    observed = await lifetime_stamps(http_manager, http_daemon, reading, event="refused")
+    assert observed.stamps == (observed.acquired, observed.fresh, observed.fresh)
 
 
 # Break: allow the old HTTP target's completion to replace a retained File acquisition.
-@pytest.mark.parametrize(("payload", "path", "read"), READERS)
+@pytest.mark.parametrize("reading", READERS)
 async def test_retarget_rejects_the_old_clients_file_completion_until_a_new_read_lands(
-    http_manager: ConnectionManager,
-    http_daemon: dict[str, Any],
-    payload: str,
-    path: str,
-    read: Reader,
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], reading: Reading
 ) -> None:
-    acquired = http_manager.phase.standing.generation
-    observed = await lifetime_stamps(http_manager, http_daemon, payload, path, read, event="retarget")
-    fresh = http_manager.phase.standing.generation
-    assert observed.stamps == (Stamp(Source.FILE, acquired), Stamp(Source.FILE, acquired), Stamp(Source.FILE, fresh))
+    observed = await lifetime_stamps(http_manager, http_daemon, reading, event="retarget")
+    assert observed.stamps == (observed.acquired, observed.acquired, observed.fresh)
 
 
 EXPECTED_VALUES = {
@@ -195,43 +163,29 @@ EXPECTED_VALUES = {
 
 
 # Break: clear retained values or install a stale payload while preserving its old stamp.
-@pytest.mark.parametrize(("payload", "path", "read"), READERS)
+@pytest.mark.parametrize("reading", READERS)
 @pytest.mark.parametrize("event", ["accepted", "retarget"])
 async def test_file_values_survive_invalidation_and_ignore_stale_payloads_until_fresh_read(
-    http_manager: ConnectionManager,
-    http_daemon: dict[str, Any],
-    payload: str,
-    path: str,
-    read: Reader,
-    *,
-    event: str,
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], reading: Reading, *, event: str
 ) -> None:
-    observed = await lifetime_stamps(http_manager, http_daemon, payload, path, read, event=event)
-    assert observed.values == EXPECTED_VALUES[payload]
+    observed = await lifetime_stamps(http_manager, http_daemon, reading, event=event)
+    assert observed.values == EXPECTED_VALUES[reading.payload]
 
 
 # Break: retire unrelated source acquisitions when only speaker processing was written.
-@pytest.mark.parametrize(("payload", "path", "read"), READERS[1:4])
+@pytest.mark.parametrize("reading", READERS[1:4])
 async def test_speaker_write_preserves_unrelated_in_flight_acquisitions(
-    http_manager: ConnectionManager,
-    http_daemon: dict[str, Any],
-    payload: str,
-    path: str,
-    read: Reader,
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], reading: Reading
 ) -> None:
-    acquired = http_manager.phase.standing.generation
-    observed = await lifetime_stamps(http_manager, http_daemon, payload, path, read, event="speaker")
-    fresh = http_manager.phase.standing.generation
-    assert observed.stamps == (Stamp(Source.FILE, acquired), Stamp(Source.FILE, fresh), Stamp(Source.FILE, fresh))
+    observed = await lifetime_stamps(http_manager, http_daemon, reading, event="speaker")
+    assert observed.stamps == (observed.acquired, observed.fresh, observed.fresh)
 
 
 # Break: let an older speakers response overwrite a speaker write's confirmed readback.
 async def test_speaker_write_readback_survives_an_older_speakers_response(
     http_manager: ConnectionManager, http_daemon: dict[str, Any]
 ) -> None:
-    observed = await lifetime_stamps(
-        http_manager, http_daemon, "speakers_form", "/speakers", forms.refresh, event="speaker"
-    )
+    observed = await lifetime_stamps(http_manager, http_daemon, SPEAKERS, event="speaker")
     assert observed.values == (-7.0, -7.0, -5.0)
 
 
@@ -262,7 +216,7 @@ async def verification_race(
         earlier_archive = await original.backup()
         daemon["_restart_state"] = {"_backups": [earlier_archive, earlier_archive]}
     daemon["_adopts"] = {"cuda_dev": ("engine", "cuda_dev")}
-    paused = PausedRead("/backup/settings.zip", "/restore", 2 if event == "later_probe" else 1)
+    paused = PausedTransport("/backup/settings.zip", "/restore", 2 if event == "later_probe" else 1, read_body=True)
     client = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p", HttpOptions(transport=paused))
     manager.http_client = client
     pending = asyncio.create_task(write(manager))

@@ -4,10 +4,10 @@ import asyncio
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-import httpx
 import pytest
 from conftest import DaemonFactory
 from narrow import FixtureError
+from transports import PausedTransport
 
 from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.core import loader
@@ -46,38 +46,12 @@ def next_generation(manager: ConnectionManager) -> int:
     return manager.phase.standing.generation
 
 
-class PausedResponse(httpx.AsyncBaseTransport):
-    def __init__(self, path: str, after_post: str | None = None, response_number: int = 1) -> None:
-        self.path = path
-        self.response_number = response_number
-        self.responses = 0
-        self.after_post = after_post
-        self.posted = after_post is None
-        self.inner = httpx.AsyncHTTPTransport()
-        self.arrived = asyncio.Event()
-        self.release = asyncio.Event()
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        response = await self.inner.handle_async_request(request)
-        if request.method == "POST" and request.url.path == self.after_post:
-            self.posted = True
-        if request.method == "GET" and request.url.path == self.path and self.posted:
-            self.responses += 1
-            if self.responses == self.response_number:
-                self.arrived.set()
-                await self.release.wait()
-        return response
-
-    async def aclose(self) -> None:
-        await self.inner.aclose()
-
-
 # Break: stamp a payload with the lifecycle generation at completion rather than acquisition.
 @pytest.mark.parametrize(("payload", "read"), READERS)
 async def test_file_read_keeps_the_generation_from_before_its_response_arrives(
     http_manager: ConnectionManager, http_daemon: dict[str, Any], payload: str, read: Reader
 ) -> None:
-    paused = PausedResponse(SOURCE_PATHS[payload])
+    paused = PausedTransport(SOURCE_PATHS[payload])
     client = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p", HttpOptions(transport=paused))
     http_manager.http_client = client
     acquired = next_generation(http_manager)
@@ -160,7 +134,7 @@ async def stamp_across_response(
     *,
     response_number: int = 1,
 ) -> tuple[Stamp | None, Stamp]:
-    paused = PausedResponse(SOURCE_PATHS[payload], after_post, response_number)
+    paused = PausedTransport(SOURCE_PATHS[payload], after_post, response_number)
     client = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p", HttpOptions(transport=paused))
     manager.http_client = client
     next_generation(manager)

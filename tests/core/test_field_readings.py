@@ -4,6 +4,7 @@ from dataclasses import replace
 from typing import Literal
 
 import pytest
+from answered_reading import ENUMERATIONS, FIRST_ID, FIRST_INDEX, PCM_MODE, SECOND_ID, SECOND_INDEX
 
 from hqptuner.conf.formparse import parse_config_form, parse_matrix_form
 from hqptuner.core.fieldreadings import config_reading
@@ -16,22 +17,6 @@ from hqptuner.fields.model import FileSelector
 GENERATION = 7
 FILE_GENERATION = 3
 NEXT_GENERATION = 11
-FIRST_ID = "31"
-SECOND_ID = "47"
-FIRST_INDEX = "0"
-SECOND_INDEX = "1"
-PCM_MODE = "2"
-ENUMERATIONS = {
-    "modes": [
-        {"index": "0", "name": "SDM (DSD)", "value": "1"},
-        {"index": "1", "name": "[source]", "value": "-1"},
-        {"index": PCM_MODE, "name": "PCM", "value": "0"},
-    ],
-    "filters": [
-        {"index": FIRST_INDEX, "name": "fixture-first", "value": FIRST_ID},
-        {"index": SECOND_INDEX, "name": "fixture-second", "value": SECOND_ID},
-    ],
-}
 EMPTY_PENDING = PendingSnapshot(live={}, http={})
 FORM_LIMITS = '<input type="number" name="gain_comp" min="-13.5" max="7.25" step="0.125">'
 
