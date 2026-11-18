@@ -3,8 +3,8 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 7,
-    "status": "planned",
-    "next": "/cad-execute 7",
+    "status": "ready to plan",
+    "next": "/cad-plan 7",
     "updated": "2026-11-18"
   },
   "phases": [
@@ -153,6 +153,13 @@
     },
     {
       "n": 7,
+      "name": "One time base",
+      "description": "every time and sample conversion has one home in a shared core structure, used everywhere, with no duplicated code",
+      "status": "unplanned",
+      "plans": []
+    },
+    {
+      "n": 8,
       "name": "Visuals stay in sync after a track starts",
       "description": "the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate",
       "status": "planned",
@@ -168,14 +175,14 @@
       ]
     },
     {
-      "n": 8,
+      "n": 9,
       "name": "No trace on the other visualizer effects",
       "description": "the trace shows on the spectrum only, not on Borealis or any other effect",
       "status": "unplanned",
       "plans": []
     },
     {
-      "n": 9,
+      "n": 10,
       "name": "Packaged builds open in the browser",
       "description": "\"Open HQPTuner\" in a packaged build opens the app in the browser",
       "status": "unplanned",
