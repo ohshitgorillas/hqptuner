@@ -17,6 +17,11 @@
 // Arrival time: every queued frame carries `arrivedAt`, the wall time in ms on the feed's clock at which the page
 // received its event, read once per event.
 //
+// Source rate: two feeds identical but for the rate, the same arrival wall times and the same playback ms in each frame,
+// each frame a whole number of samples at both rates, queue frames identical in every field the playhead reads (`at`,
+// `ms`, `arrivedAt` and `break`). The cases name those fields as one table in ms and hold each rate to it, so a
+// per-rate offset on a stamp, or a rate reaching an arrival time, is red where a difference at one rate is not.
+//
 // The effects initMeterFeed() and initSpectrogram() register outlive each test, so every case first switches metering
 // off, which closes any feed an earlier case left open, then starts a fresh log of opened streams and starts a new
 // playing track, which switches metering on.
@@ -62,12 +67,61 @@ const { clock, advance } = fakeClock();
 
 const GEO = geometry(RATE_44K);
 const GEO_176K = geometry(RATE_176K);
+const RATE_48K = 48000;
 
 /** One second of playback, in ms. */
 const SECOND_MS = 1000;
 
 /** How far two playback times in ms may differ and still be the same time: far under one sample at any rate. */
 const SAME_MS = 1e-6;
+
+/**
+ * One feed's arrivals: the wall ms the clock moves on before the events of `rows` arrive together.
+ *
+ * @typedef {{ wait: number, rows: import("../../support/meterfeed.js").Stamp[] }} Arrival
+ */
+
+/**
+ * The same music, a 20, a 10, a 30 and a 20 ms frame, arriving 40 ms, then 130 ms and then 17 ms after the feed
+ * opened, as samples at 44.1 kHz.
+ *
+ * @type {Arrival[]}
+ */
+const SAME_MUSIC_44K = [
+  { wait: 40, rows: [{ at: 0, n: 882 }] },
+  {
+    wait: 130,
+    rows: [
+      { at: 882, n: 441 },
+      { at: 1323, n: 1323 },
+    ],
+  },
+  { wait: 17, rows: [{ at: 2646, n: 882 }] },
+];
+
+/** The same music and arrivals as SAME_MUSIC_44K, as samples at 48 kHz. @type {Arrival[]} */
+const SAME_MUSIC_48K = [
+  { wait: 40, rows: [{ at: 0, n: 960 }] },
+  {
+    wait: 130,
+    rows: [
+      { at: 960, n: 480 },
+      { at: 1440, n: 1440 },
+    ],
+  },
+  { wait: 17, rows: [{ at: 2880, n: 960 }] },
+];
+
+/**
+ * What the playhead reads of SAME_MUSIC_44K and of SAME_MUSIC_48K alike, in ms: `arrivedAt` counted from the wall time
+ * the feed opened at.
+ */
+const SAME_MUSIC_READ = [
+  { at: 0, ms: 20, arrivedAt: 40, break: true },
+  { at: 20, ms: 10, arrivedAt: 170, break: false },
+  { at: 30, ms: 30, arrivedAt: 170, break: false },
+  { at: 60, ms: 20, arrivedAt: 187, break: false },
+];
 
 /** The index, in CONTIGUOUS_44K, of the row DROPPED_44K leaves out. */
 const DROPPED_ROW = 3;
@@ -96,6 +150,23 @@ function feed(geo, rows) {
   lastStream()?.emit("geometry", geo);
   play(rows);
   return take();
+}
+
+/**
+ * Send `geo` on the stream open now, then each arrival's rows once the clock has moved its wait on, and take what the
+ * store queued, each frame as the playhead reads it: `arrivedAt` counted from the wall time the feed was sent `geo` at.
+ *
+ * @param {ReturnType<typeof geometry>} geo
+ * @param {Arrival[]} arrivals
+ */
+function read(geo, arrivals) {
+  const opened = clock.now();
+  lastStream()?.emit("geometry", geo);
+  for (const { wait, rows } of arrivals) {
+    advance(wait);
+    play(rows);
+  }
+  return take().map((f) => ({ at: f.at, ms: f.ms, arrivedAt: f.arrivedAt - opened, break: f.break }));
 }
 
 beforeEach(() => {
@@ -288,4 +359,18 @@ test("test_a_queued_frame_carries_the_wall_time_at_which_the_page_received_its_e
     take().map((f) => f.arrivedAt),
     [first, first + SECOND_WAIT_MS],
   );
+});
+
+test("test_music_arriving_at_44100_hz_queues_the_stamps_the_playhead_reads", () => {
+  assert.deepEqual(read(GEO, SAME_MUSIC_44K), SAME_MUSIC_READ);
+});
+
+test("test_the_same_music_arriving_at_48000_hz_queues_the_same_stamps_the_playhead_reads", () => {
+  assert.deepEqual(read(geometry(RATE_48K), SAME_MUSIC_48K), SAME_MUSIC_READ);
+});
+
+test("test_the_same_music_after_a_reconnect_at_another_rate_queues_the_same_stamps_the_playhead_reads", () => {
+  read(GEO, SAME_MUSIC_44K);
+  reconnect();
+  assert.deepEqual(read(geometry(RATE_48K), SAME_MUSIC_48K), SAME_MUSIC_READ);
 });
