@@ -125,3 +125,39 @@ export async function tapFieldOption(schema, id, value) {
   const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
   if (fn) await fn();
 }
+
+/**
+ * A drawer of one tab holding the catalog's row for `id` and nothing else.
+ *
+ * @param {string} id
+ * @returns {DrawerSchema}
+ */
+const rowDrawer = (id) => ({
+  id: `${id}row`,
+  title: `${id}row`,
+  aria: `${id}row`,
+  tabs: [{ id: "only", label: "only", body: [{ row: { key: id } }] }],
+});
+
+//: What a tap reports when the row draws no unlit option to tap.
+const NOTHING_TAPPED = "nothing tapped";
+
+/**
+ * Tap the option of the catalog row for `id` that the row does not light, in a drawer of that row alone; returns the
+ * value the tapped option carries.
+ *
+ * @param {string} id
+ * @returns {Promise<string>}
+ */
+export async function tapUnlitOption(id) {
+  const { out, seen } = renderTree(drawerTree(rowDrawer(id)));
+  const row = elements(out).find((e) => attr(e, "data-k") === id);
+  const unlit = (row ? elements(row.html) : []).find(
+    (e) => e.name === "button" && attr(e, "data-v") !== undefined && !classes(e).includes("on"),
+  );
+  const value = unlit ? attr(unlit, "data-v") : undefined;
+  const hit = seen.find((v) => v.type === "button" && value !== undefined && v.props["data-v"] === value);
+  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
+  if (fn) await fn();
+  return value ?? NOTHING_TAPPED;
+}

@@ -23,11 +23,9 @@ import {
   SPEAKERS_BLOCKS,
   SPEAKERS_DRAWER,
 } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
-import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
+import { config } from "../../../../hqptuner/static/store/signals.js";
 import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import {
   applyDraft,
   discardDraft,
@@ -36,6 +34,9 @@ import {
   speakerDraft,
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { seedReadings } from "../../support/readings.js";
+import { tapUnlitOption } from "../../support/rendered/drawer-render.js";
+import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
+import { SPEAKER_LABELS } from "../../support/rendered/speakersform.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
@@ -46,12 +47,10 @@ import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 /** The catalog id of the Speakers drawer's switch. */
 const SPKEN = "spken";
 
-const LABELS = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Left side", "Right side"];
-
 /** @param {boolean} enabled */
 const form = (enabled) => ({
   enabled,
-  channels: LABELS.map((label, index) => ({ index, label, level: 0, distance: 250 + index })),
+  channels: SPEAKER_LABELS.map((label, index) => ({ index, label, level: 0, distance: 250 + index })),
 });
 
 /**
@@ -164,14 +163,6 @@ test("test_the_apply_button_sends_the_drafted_form", async () => {
 
 // --- the catalog row in a drawer of its own ----------------------------------------------------------------------
 
-/** A drawer of one tab holding the catalog's spken row and nothing else. @type {DrawerSchema} */
-const ROW_DRAWER = {
-  id: "spkenrow",
-  title: "spkenrow",
-  aria: "spkenrow",
-  tabs: [{ id: "only", label: "only", body: [{ row: { key: SPKEN } }] }],
-};
-
 /**
  * Reset every source signal the drawer reads, with the daemon's switch off; returns a wire answering the speakers POST
  * as confirmed and recording each body it was handed.
@@ -181,35 +172,16 @@ async function resetForTheRow() {
   await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm" }] };
   await seedReadings({ direct_sdm: false });
-  engineState.value = {};
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openStage.value = null;
-  openPopover.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore({});
   discardDraft();
   await quiesce(w);
   return w;
 }
 
-/** Tap the option of the spken row that the row does not light, flipping the switch from the daemon's. */
-async function tapUnlitOption() {
-  const { out, seen } = renderTree(html`<${Drawer} schema=${ROW_DRAWER} />`);
-  const row = elements(out).find((e) => attr(e, "data-k") === SPKEN);
-  const unlit = (row ? elements(row.html) : []).find(
-    (e) => e.name === "button" && attr(e, "data-v") !== undefined && !classes(e).includes("on"),
-  );
-  const value = unlit ? attr(unlit, "data-v") : undefined;
-  const hit = seen.find((v) => v.type === "button" && value !== undefined && v.props["data-v"] === value);
-  await call(hit?.props.onClick);
-}
-
 test("test_a_change_on_the_spken_row_reaches_the_daemon_by_the_speakers_apply_and_stages_nothing", async () => {
   const w = await resetForTheRow();
   const before = w.stages.length;
-  await tapUnlitOption();
+  await tapUnlitOption(SPKEN);
   await quiesce(w);
   const stagedByTheChange = w.stages.length - before;
   await applyDraft();

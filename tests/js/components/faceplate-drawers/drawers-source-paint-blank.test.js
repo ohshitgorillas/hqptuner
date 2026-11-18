@@ -6,7 +6,7 @@
 //
 // The cases play a feed of 44.1 kHz frames, 17.4 and 23.1 ms long, into the history and move the playhead the way the
 // meter loop does, one paint every 16.7 ms of music, then read the pixels the painter leaves on a canvas that keeps them
-// (pixelCanvas below). Three situations, each its own claim: the playhead stands at the newest end of the
+// (pixelCanvas of tests/js/contracts/picture.js). Three situations, each its own claim: the playhead stands at the newest end of the
 // music between bursts, which is where the loop leaves it whenever the queue runs dry; the playhead trails the newest
 // end by 20 ms, a little under one slice, a frame arriving between paints; and the playhead trails it by 150 ms, well
 // inside the buffer. Each ends with a burst of 15 frames and the playhead moving on to 150 ms behind the newest end,
@@ -26,34 +26,20 @@ import assert from "node:assert/strict";
 import { SPEC_SIZE, meterPainter } from "../../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { setSpectrogramSpan } from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
-import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import {
-  closeMeterFeed,
-  openMeterFeed,
-  takeMeterFrames,
-  toSpectrogram,
-} from "../../../../hqptuner/static/store/meter/feed.js";
-import {
-  METER_RANGES,
-  setApodWindow,
-  setMeterChannel,
-  setMeterRange,
-} from "../../../../hqptuner/static/store/ui/prefs.js";
+import { closeMeterFeed, takeMeterFrames, toSpectrogram } from "../../../../hqptuner/static/store/meter/feed.js";
+import { setApodWindow, setMeterChannel } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.js";
+import { MONO_BINS, RATE_44K, follow } from "../../support/meterfeed.js";
 import { dropStorage, useStorage } from "../../support/storage.js";
-import { fakeClock } from "../../support/clock.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
+import { GLASS, TOKENS, openSourceMeter, pixelCanvas } from "../../contracts/picture.js";
+
+/** @typedef {import("../../contracts/picture.js").PixelCanvas} PixelCanvas */
 
 const SECOND_MS = 1000;
 const STRIP_WIDTH = 600;
-
-/** The glass the painter is handed, red, green, blue; the token reader answers it for `--glass` and nothing else. */
-const GLASS = [10, 11, 12];
-const TOKENS = { getPropertyValue: (/** @type {string} */ name) => (name === "--glass" ? "#0a0b0c" : "") };
 
 /** Event lengths, samples at 44.1 kHz, in turn: 17.4 and 23.1 ms. */
 const LENGTHS = [768, 768, 768, 1020, 1020, 1020, 768, 1020];
@@ -93,12 +79,7 @@ beforeEach(() => {
   setSpectrogramSpan("full");
   useStorage();
   setMeterChannel("sum");
-  setMeterRange(METER_RANGES[0] ?? "");
-  closeMeterFeed();
-  useEventSource();
-  engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
-  openMeterFeed(fakeClock().clock);
-  lastStream()?.emit("geometry", geometry(RATE_44K));
+  openSourceMeter();
   newTrack();
   poll();
 });
@@ -110,65 +91,6 @@ afterEach(() => {
   closeMeterFeed();
   dropStorage();
 });
-
-// A canvas that keeps the pixels a painter puts on it, in color. Its 2D context keeps one RGBA image of the canvas's
-// size; `putImageData` writes the image's dirty rectangle (the whole image when none is given) at the destination the
-// browser puts it, and `drawImage` of the canvas onto itself copies the source rectangle to the destination rectangle,
-// reading the whole source before the copy writes. A call on the context that this canvas does not draw is absent, so a
-// painter using one fails by throwing.
-
-/**
- * @typedef {object} PixelCanvas
- * @property {number} width
- * @property {number} height
- * @property {Uint8ClampedArray} data  RGBA, row by row
- * @property {() => unknown} getContext
- */
-
-/**
- * A canvas of `width` by `height` pixels, every byte 0.
- *
- * @param {number} width
- * @param {number} height
- * @returns {PixelCanvas}
- */
-export function pixelCanvas(width, height) {
-  const data = new Uint8ClampedArray(width * height * 4);
-  /** @type {PixelCanvas} */
-  const canvas = { width, height, data, getContext: () => ctx };
-  const ctx = {
-    /** @param {number} w @param {number} h */
-    createImageData: (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
-    /**
-     * @param {{ width: number, height: number, data: Uint8ClampedArray }} img
-     * @param {number} x
-     * @param {number} y
-     * @param {number[]} dirty  the dirty rectangle's x, y, width and height, each optional
-     */
-    putImageData: (img, x, y, ...dirty) => {
-      const [sx = 0, sy = 0, sw = img.width, sh = img.height] = dirty;
-      for (let r = sy; r < sy + sh; r++) {
-        const from = (r * img.width + sx) * 4;
-        data.set(img.data.subarray(from, from + sw * 4), ((y + r) * width + x + sx) * 4);
-      }
-    },
-    /**
-     * The canvas onto itself: `sw` by `sh` pixels at `sx`, `sy` drawn at `dx`, `dy`, the same size.
-     *
-     * @param {unknown} _src
-     * @param {number[]} rects  the source's x, y, width and height, then the destination's x and y
-     */
-    drawImage: (_src, ...rects) => {
-      const [sx, sy, sw, sh, dx, dy] = rects;
-      const before = data.slice();
-      for (let r = 0; r < sh; r++) {
-        const from = ((sy + r) * width + sx) * 4;
-        data.set(before.subarray(from, from + sw * 4), ((dy + r) * width + dx) * 4);
-      }
-    },
-  };
-  return canvas;
-}
 
 /**
  * The columns of `canvas` in which every pixel is `color`, left to right.

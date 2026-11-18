@@ -10,51 +10,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { railLamp, railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { CONV, running } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").RailStage} RailStage */
-
-const CONV = {
-  filter1x: "poly-sinc-gauss-long",
-  filterNx: "sinc-Mx",
-  shaper: "NS9",
-  noise: "standard-fir",
-  decim: "poly-sinc-short-mp",
-  integ: "IIR2",
-  sdmconv: "XFi",
-};
-
-/**
- * A running picture: a CD source playing to a PCM rate with the matrix engine on and nothing else engaged.
- *
- * @param {Partial<Running>} [over]
- * @returns {Running}
- */
-function running(over = {}) {
-  return {
-    path: "pcm-pcm",
-    chain: "pcm",
-    stage: "1x",
-    direct: false,
-    metadata: { samplerate: "44100", bits: "16" },
-    status: { active_rate: "352800", active_bits: "32" },
-    hf: "none",
-    conv: CONV,
-    matrix: true,
-    profile: "Desk nearfield",
-    pipelines: 2,
-    working: false,
-    crossfeed: null,
-    loudness: false,
-    applied: 0,
-    correction: false,
-    model: "",
-    volume: "-20",
-    speakers: false,
-    hidden: [],
-    ...over,
-  };
-}
 
 const NOTHING = /** @type {RailStage} */ (
   /** @type {unknown} */ ({ id: null, level: null, name: null, value: null, on: null, hidden: null, byp: null })

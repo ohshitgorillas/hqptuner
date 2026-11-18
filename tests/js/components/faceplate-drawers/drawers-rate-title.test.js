@@ -13,50 +13,11 @@ import assert from "node:assert/strict";
 
 import { stageDrawer } from "../../../../hqptuner/static/components/faceplate/drawers/index.js";
 import { railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { running } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
 
 const RATE_STAGE = "resampling";
-
-const CONV = {
-  filter1x: "poly-sinc-gauss-long",
-  filterNx: "sinc-Mx",
-  shaper: "NS9",
-  noise: "standard-fir",
-  decim: "poly-sinc-short-mp",
-  integ: "IIR2",
-  sdmconv: "XFi",
-};
-
-/**
- * A running picture: a CD source with the matrix engine on and nothing else engaged, overridden by `over`.
- *
- * @param {Partial<Running>} over
- * @returns {Running}
- */
-const running = (over) => ({
-  path: "pcm-pcm",
-  chain: "pcm",
-  stage: "1x",
-  direct: false,
-  metadata: { samplerate: "44100", bits: "16" },
-  status: { active_rate: "352800", active_bits: "32" },
-  hf: "none",
-  conv: CONV,
-  matrix: true,
-  profile: "Desk nearfield",
-  pipelines: 2,
-  working: false,
-  crossfeed: null,
-  loudness: false,
-  applied: 0,
-  correction: false,
-  model: "",
-  volume: "-20",
-  speakers: false,
-  hidden: [],
-  ...over,
-});
 
 /** A CD source resampled to 8x by a PCM filter other than `none`. */
 const PCM_RESAMPLED = running({});

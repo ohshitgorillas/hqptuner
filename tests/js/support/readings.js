@@ -4,6 +4,49 @@ import { generation } from "../../../hqptuner/static/store/signals.js";
 import { ok } from "./wire/wire.js";
 
 /** @typedef {import("../../../hqptuner/static/model/store/reading.js").FieldReading} FieldReading */
+/** @typedef {import("../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
+
+/** The engine's name for each conversion the running pictures carry. */
+export const CONV = {
+  filter1x: "poly-sinc-gauss-long",
+  filterNx: "sinc-Mx",
+  shaper: "NS9",
+  noise: "standard-fir",
+  decim: "poly-sinc-short-mp",
+  integ: "IIR2",
+  sdmconv: "XFi",
+};
+
+/**
+ * A running picture: a CD source playing to a PCM rate with the matrix engine on and nothing else engaged, overridden by
+ * `over`.
+ *
+ * @param {Partial<Running>} [over]
+ * @returns {Running}
+ */
+export const running = (over = {}) => ({
+  path: "pcm-pcm",
+  chain: "pcm",
+  stage: "1x",
+  direct: false,
+  metadata: { samplerate: "44100", bits: "16" },
+  status: { active_rate: "352800", active_bits: "32" },
+  hf: "none",
+  conv: CONV,
+  matrix: true,
+  profile: "Desk nearfield",
+  pipelines: 2,
+  working: false,
+  crossfeed: null,
+  loudness: false,
+  applied: 0,
+  correction: false,
+  model: "",
+  volume: "-20",
+  speakers: false,
+  hidden: [],
+  ...over,
+});
 
 /**
  * One served field reading (`model/store/reading.js` FieldReading) showing `value`: `engine` carries it unless `over.show` is "file", then `file` does; `lane` "form", `restarts` and `diverges` false, `staged` null, `bounds` null unless `over` sets them; stamped with `over.generation`, else the current `generation` of `store/signals.js`.

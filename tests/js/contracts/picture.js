@@ -1,6 +1,7 @@
 // What the contract suites read of the spectrogram's picture, from its pixels alone. No test() and no assert lives here.
 //
-// `pixelCanvas` is a canvas that keeps the pixels a painter puts on it; `signatures` reads one number per pixel column
+// `openSourceMeter` opens the meter feed the Source drawer's painter draws from; `pixelCanvas` is a canvas that keeps
+// the pixels a painter puts on it; `signatures` reads one number per pixel column
 // from a spread of rows, so two columns that show the same slice read the same and two that show different slices read
 // differently (the feeds the suites send give every slice its own levels); `scrolledBy` finds how many columns the
 // picture moved left between two paints by matching those numbers, so it reads the movement off the pixels and not off the
@@ -9,9 +10,15 @@
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 import { SPEC_SIZE } from "../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
+import { closeMeterFeed, openMeterFeed } from "../../../hqptuner/static/store/meter/feed.js";
+import { engineStatus } from "../../../hqptuner/static/store/signals.js";
+import { METER_RANGES, setMeterRange } from "../../../hqptuner/static/store/ui/prefs.js";
+import { fakeClock } from "../support/clock.js";
+import { lastStream, useEventSource } from "../support/eventsource.js";
+import { RATE_44K, geometry } from "../support/meterfeed.js";
 
 /** The glass the painter is handed, red, green, blue; the token reader answers it for `--glass` and nothing else. */
-const GLASS = [10, 11, 12];
+export const GLASS = [10, 11, 12];
 export const TOKENS = { getPropertyValue: (/** @type {string} */ name) => (name === "--glass" ? "#0a0b0c" : "") };
 
 export const { width: W, height: H } = SPEC_SIZE;
@@ -29,6 +36,19 @@ const FNV_BASIS = 2166136261;
 const FNV_PRIME = 16777619;
 const BYTES_PER_PIXEL = 4;
 const EPS = 1e-9;
+
+/**
+ * Open the meter feed the Source drawer's painter draws from: the first range the page offers, a fresh event source
+ * and a metering engine playing 44.1 kHz, the feed opened on a fake clock and told its geometry.
+ */
+export function openSourceMeter() {
+  setMeterRange(METER_RANGES[0] ?? "");
+  closeMeterFeed();
+  useEventSource();
+  engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
+  openMeterFeed(fakeClock().clock);
+  lastStream()?.emit("geometry", geometry(RATE_44K));
+}
 
 /**
  * @typedef {object} PixelCanvas

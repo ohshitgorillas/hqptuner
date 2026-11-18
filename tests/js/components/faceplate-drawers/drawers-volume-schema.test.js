@@ -19,35 +19,18 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { VOLUME_BLOCKS, VOLUME_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/volume.js";
-import {
-  config,
-  matrixConfig,
-  metadata,
-  volume,
-  volumeDrag,
-  volumeRange,
-} from "../../../../hqptuner/static/store/signals.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
+import { seedVolume } from "../../support/rendered/volume-range.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-/**
- * A File field's served reading: read from the File on the restore lane, restarting the engine.
- *
- * @param {unknown} value
- */
-const fileReading = (value) => fieldReading(value, { show: "file", lane: "restore", restarts: true });
-
 /** @param {{ fixed?: boolean, iso?: string }} r  running fixed_volume_enabled and volume_fixed (Auto headroom) */
 async function load({ fixed = false, iso = "0" } = {}) {
-  config.value = { fields: [] };
-  matrixConfig.value = { fields: [] };
-  /** @type {Record<string, unknown>} */
-  const running = {
+  await seedVolume({
     fixed_volume_enabled: fixed,
     fixed_volume: "-10",
     optimal_iso: iso,
@@ -57,11 +40,7 @@ async function load({ fixed = false, iso = "0" } = {}) {
     startup_volume: "-20",
     gain_comp: "0",
     playlist_album_gain: false,
-  };
-  await seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
-  volume.value = "-12.5";
-  volumeDrag.value = null;
-  volumeRange.value = { enabled: "1", min: "-60", max: "0" };
+  });
 }
 
 beforeEach(async () => {

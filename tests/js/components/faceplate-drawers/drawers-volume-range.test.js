@@ -152,21 +152,24 @@ test("test_a_staged_handle_marks_its_box_dirty", async () => {
 
 // --- gray --------------------------------------------------------------------------------------------------------
 
-test("test_the_block_grays_whole_while_fixed_volume_is_on", async () => {
-  const grayed = async (/** @type {Running} */ r) => {
-    const root = (await markupWith(r)).find((el) => classes(el).includes("vrange"));
-    return root && classes(root).includes("grayed-range");
-  };
-  assert.equal(await grayed({ fixed: true }), true);
-});
+/**
+ * Whether the block is grayed for one running state.
+ *
+ * @param {Running} r
+ */
+const grayed = async (r) => {
+  const root = (await markupWith(r)).find((el) => classes(el).includes("vrange"));
+  return root && classes(root).includes("grayed-range");
+};
 
-test("test_the_block_is_not_grayed_while_fixed_volume_is_off", async () => {
-  const grayed = async (/** @type {Running} */ r) => {
-    const root = (await markupWith(r)).find((el) => classes(el).includes("vrange"));
-    return root && classes(root).includes("grayed-range");
-  };
-  assert.equal(await grayed({ fixed: false }), false);
-});
+for (const { name, running, expected } of [
+  { name: "the_block_grays_whole_while_fixed_volume_is_on", running: { fixed: true }, expected: true },
+  { name: "the_block_is_not_grayed_while_fixed_volume_is_off", running: { fixed: false }, expected: false },
+]) {
+  test(`test_${name}`, async () => {
+    assert.equal(await grayed(running), expected);
+  });
+}
 
 test("test_the_boxes_are_enabled_while_fixed_volume_is_off", async () => {
   const els = await markupWith({ fixed: false });
@@ -194,13 +197,18 @@ test("test_the_loudness_high_bound_rides_the_bar_while_loudness_runs", async () 
   assert.equal(marksAt(await markupWith({ loudness: true }), ["loudness_range_high"])[0], "-15");
 });
 
+/**
+ * The dB the needle sits at for one running state.
+ *
+ * @param {Running} r
+ */
+const needle = async (r) => marksAt(await markupWith(r), ["needle"])[0];
+
 test("test_the_needle_rides_the_live_level_while_the_engine_reports_the_control", async () => {
-  const needle = async (/** @type {Running} */ r) => marksAt(await markupWith(r), ["needle"])[0];
   assert.equal(await needle({}), "-12.5");
 });
 
 test("test_the_needle_is_absent_while_the_engine_does_not_report_the_control", async () => {
-  const needle = async (/** @type {Running} */ r) => marksAt(await markupWith(r), ["needle"])[0];
   const reported = await needle({});
   const unreported = await needle({ report: { enabled: "0", min: "-60", max: "0" } });
   assert.deepEqual([reported, unreported], ["-12.5", undefined]);
@@ -208,18 +216,21 @@ test("test_the_needle_is_absent_while_the_engine_does_not_report_the_control", a
 
 // --- the loudness readouts and the manual ------------------------------------------------------------------------
 
-test("test_the_loudness_readouts_hide_while_loudness_is_off", async () => {
-  const hidden = async (/** @type {Running} */ r) => {
-    const row = (await markupWith(r)).find((el) => classes(el).includes("inl"));
-    return row && hasAttr(row, "hidden");
-  };
-  assert.equal(await hidden({}), true);
-});
+/**
+ * Whether the loudness readouts are hidden for one running state.
+ *
+ * @param {Running} r
+ */
+const hidden = async (r) => {
+  const row = (await markupWith(r)).find((el) => classes(el).includes("inl"));
+  return row && hasAttr(row, "hidden");
+};
 
-test("test_the_loudness_readouts_show_while_loudness_runs", async () => {
-  const hidden = async (/** @type {Running} */ r) => {
-    const row = (await markupWith(r)).find((el) => classes(el).includes("inl"));
-    return row && hasAttr(row, "hidden");
-  };
-  assert.equal(await hidden({ loudness: true }), false);
-});
+for (const { name, running, expected } of [
+  { name: "the_loudness_readouts_hide_while_loudness_is_off", running: {}, expected: true },
+  { name: "the_loudness_readouts_show_while_loudness_runs", running: { loudness: true }, expected: false },
+]) {
+  test(`test_${name}`, async () => {
+    assert.equal(await hidden(running), expected);
+  });
+}

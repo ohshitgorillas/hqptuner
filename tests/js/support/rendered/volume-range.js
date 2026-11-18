@@ -15,6 +15,26 @@ import { fieldReading, seedReadings } from "../readings.js";
  * @property {Record<string, string>} [report]  VolumeRange as the engine reports it
  */
 
+/** The engine's VolumeRange report of a range enabled from -60 to 0. */
+const enabledRange = () => ({ enabled: "1", min: "-60", max: "0" });
+
+/**
+ * Load the running fields `running`, each as a served File reading, with the volume at -12.5, no drag and the engine's
+ * VolumeRange report `report`, by default the range enabled from -60 to 0. The returned promise resolves once the
+ * readings are seeded.
+ *
+ * @param {Record<string, unknown>} running
+ * @param {Record<string, string>} [report]
+ */
+export async function seedVolume(running, report = enabledRange()) {
+  config.value = { fields: [] };
+  matrixConfig.value = { fields: [] };
+  await seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
+  volume.value = "-12.5";
+  volumeDrag.value = null;
+  volumeRange.value = report;
+}
+
 /**
  * Load the running state `r` describes, each field it leaves out at its default: not fixed, Min -60, Startup -20,
  * Max 0, no loudness, the engine reporting the range enabled from -60 to 0, the volume at -12.5 and no drag. The
@@ -29,28 +49,24 @@ export async function loadVolumeRange(r = {}) {
     startup: "-20",
     max: "0",
     loudness: false,
-    report: { enabled: "1", min: "-60", max: "0" },
+    report: enabledRange(),
     ...r,
   };
-  config.value = { fields: [] };
-  matrixConfig.value = { fields: [] };
-  /** @type {Record<string, unknown>} */
-  const running = {
-    fixed_volume_enabled: s.fixed,
-    optimal_iso: "0",
-    direct_sdm: false,
-    volume_min: s.min,
-    volume_max: s.max,
-    startup_volume: s.startup,
-    matrix_enabled: s.loudness,
-    loudness_enabled: s.loudness,
-    loudness_range_low: "-45",
-    loudness_range_high: "-15",
-  };
-  await seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
-  volume.value = "-12.5";
-  volumeDrag.value = null;
-  volumeRange.value = s.report;
+  await seedVolume(
+    {
+      fixed_volume_enabled: s.fixed,
+      optimal_iso: "0",
+      direct_sdm: false,
+      volume_min: s.min,
+      volume_max: s.max,
+      startup_volume: s.startup,
+      matrix_enabled: s.loudness,
+      loudness_enabled: s.loudness,
+      loudness_range_low: "-45",
+      loudness_range_high: "-15",
+    },
+    s.report,
+  );
 }
 
 /**

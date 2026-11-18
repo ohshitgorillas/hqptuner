@@ -35,16 +35,16 @@ import {
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { accent, accentHex, dyslexic } from "../../../../hqptuner/static/store/ui/theme.js";
 import { fieldsOffering } from "../../support/fields-offering.js";
-import { renderTree } from "../../support/vnodeseam.js";
+import { dropStorage, useStorage } from "../../support/storage.js";
+import { tapFieldOption } from "../../support/rendered/drawer-render.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 
 /**
  * The globals the preference setters touch, viewed as optional members.
  *
- * @type {{ document?: unknown, localStorage?: unknown }}
+ * @type {{ document?: unknown }}
  */
 const env = globalThis;
 
@@ -62,23 +62,13 @@ function choose(format) {
   if (prefs.displayFormat) prefs.displayFormat.value = format;
 }
 
-/** A storage that keeps what it is handed. */
-function fakeStorage() {
-  const map = new Map();
-  return {
-    getItem: (/** @type {string} */ k) => (map.has(k) ? map.get(k) : null),
-    setItem: (/** @type {string} */ k, /** @type {string} */ v) => map.set(k, v),
-    removeItem: (/** @type {string} */ k) => map.delete(k),
-  };
-}
-
 /** A root element the way the theme store touches it. */
 const fakeDocument = () => ({
   documentElement: { dataset: {}, style: { setProperty: () => undefined, removeProperty: () => undefined } },
 });
 
 beforeEach(() => {
-  env.localStorage = fakeStorage();
+  useStorage();
   plainNames.value = false;
   apodLight.value = "off";
   dyslexic.value = false;
@@ -93,7 +83,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete env.document;
-  delete env.localStorage;
+  dropStorage();
 });
 
 /** Every element of the drawer's markup, in document order. @returns {MarkupElement[]} */
@@ -122,33 +112,12 @@ function litLabel(id) {
 }
 
 /**
- * The first vnode in a subtree whose props match `pred`.
- *
- * @param {unknown} node
- * @param {(props: Record<string, unknown>) => boolean} pred
- * @returns {VNode | undefined}
- */
-function findIn(node, pred) {
-  if (Array.isArray(node)) return node.map((n) => findIn(n, pred)).find(Boolean);
-  if (!node || typeof node !== "object") return undefined;
-  const v = /** @type {VNode} */ (node);
-  if (v.props && pred(v.props)) return v;
-  return findIn(v.props?.children, pred);
-}
-
-/**
  * Tap option `value` of field `id`.
  *
  * @param {string} id
  * @param {string} value
  */
-async function tap(id, value) {
-  const { seen } = renderTree(html`<${Drawer} schema=${VISUAL_DRAWER} />`);
-  const field = seen.find((v) => v.props?.["data-field"] === id);
-  const hit = findIn(field?.props.children, (p) => p["data-v"] === value);
-  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (fn) await fn();
-}
+const tap = (id, value) => tapFieldOption(VISUAL_DRAWER, id, value);
 
 /**
  * The Settings rail row of one readout, by the readout's id.
