@@ -26,24 +26,21 @@ import { render } from "preact-render-to-string";
 
 import { useStorage } from "../../support/storage.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
-import { renderTree } from "../../support/vnodeseam.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
+import { fieldReading } from "../../support/readings.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 useStorage();
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { RateDial } = await import("../../../../hqptuner/static/components/faceplate/drawers/output/RateDial.js");
-const { Drawer } = await import("../../../../hqptuner/static/components/faceplate/drawer/Drawer.js");
-const { OUTPUT_BLOCKS, OUTPUT_DRAWER } =
-  await import("../../../../hqptuner/static/components/faceplate/drawers/output.js");
-const { config, engineState, engineStatus, enums, metadata } =
-  await import("../../../../hqptuner/static/store/signals.js");
+const { engineState, engineStatus, enums, metadata } = await import("../../../../hqptuner/static/store/signals.js");
 const { discardAll } = await import("../../../../hqptuner/static/store/actions.js");
 const { effective } = await import("../../../../hqptuner/static/store/resolve.js");
 const { openPopover, openStage } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { pickTier } = await import("../../../../hqptuner/static/store/faceplate/drawers/output.js");
+const { engineRoute, outputMarkup, pickPin, pressKey, rateRow, seedForm } =
+  await import("../../support/rendered/outputdrawer.js");
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -85,31 +82,20 @@ function routes(path, opts) {
     pins.push(JSON.parse(String(opts.body)));
     return ok({ report: { live: [{ setting: "rate", ok: true }], stored: {} } });
   }
-  if (path === "/api/state") return ok({ data: engineState.value });
-  if (path === "/api/enumerations") return ok({ data: enums.value });
-  return undefined;
+  return engineRoute(path);
 }
 
 /** Load the /config payload: limits at PCM 4x and SDM 256x, both inside the device's reach. */
 async function load() {
-  config.value = {
-    fields: [
-      { name: "defaults_samplerate", type: "select" },
-      { name: "defaults_bitrate", type: "select" },
-      { name: "mode", type: "select" },
-      { name: "backend", type: "select" },
-      { name: "net_dop", type: "checkbox" },
-      { name: "net_device", type: "select", options: [{ value: STANDA, label: STANDA }] },
-    ],
-  };
-  await seedReadings({
+  const readings = {
     defaults_samplerate: fieldReading("192000", { show: "file", restarts: true }),
     defaults_bitrate: fieldReading("12288000", { show: "file", restarts: true }),
     mode: "pcm",
     backend: "network",
     net_dop: false,
     net_device: STANDA,
-  });
+  };
+  await seedForm(readings, { net_device: [{ value: STANDA, label: STANDA }] });
 }
 
 /**
@@ -162,19 +148,6 @@ const picked = () =>
     .map((e) => attr(e, "data-pin"));
 
 /**
- * Tap the picker option `pin`, or nothing when the dial carries none, and let its write run out.
- *
- * @param {string} pin
- */
-async function pick(pin) {
-  const { seen } = renderTree(html`<${RateDial} />`);
-  const hit = seen.find((v) => typeof v.type === "string" && (v.props ?? {})["data-pin"] === pin);
-  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (fn) await fn();
-  await quiesce(wire);
-}
-
-/**
  * A tap on tier `i` of `band`, through the store's press seam, and let its write run out.
  *
  * @param {"pcm" | "sdm"} band
@@ -206,73 +179,54 @@ for (const { fam, chain, output, list, band, tier, hz } of [
 ]) {
   test(`test_a_tap_in_the_playing_${band}_band_under_${fam}_pins_${hz}`, async () => {
     run({ chain, output, list });
-    await pick(fam);
+    await pickPin(wire, fam);
     await tap(/** @type {"pcm" | "sdm"} */ (band), tier);
     assert.deepEqual(pins, [{ fields: { rate: hz } }]);
   });
 }
 
 test("test_a_tap_that_pins_stages_nothing", async () => {
-  await pick("f48");
+  await pickPin(wire, "f48");
   await tap("pcm", PCM_16X);
   assert.deepEqual(wire.stages, []);
 });
 
 test("test_a_tap_in_the_band_not_playing_adds_no_pin_while_a_family_is_picked", async () => {
-  await pick("f44");
+  await pickPin(wire, "f44");
   await tap("pcm", PCM_16X);
   await tap("sdm", SDM_1024X);
   assert.deepEqual(pins.length, 1);
 });
 
 test("test_a_tap_in_the_band_not_playing_moves_its_limit_while_a_family_is_picked", async () => {
-  await pick("f44");
+  await pickPin(wire, "f44");
   await tap("pcm", PCM_16X);
   await tap("sdm", SDM_1024X);
   assert.deepEqual(effective("sdm_rate"), "49152000");
 });
 
 test("test_picking_a_family_writes_nothing_until_a_tap", async () => {
-  await pick("f44");
-  await pick("f48");
+  await pickPin(wire, "f44");
+  await pickPin(wire, "f48");
   await tap("pcm", PCM_16X);
   assert.deepEqual(pins, [{ fields: { rate: "768000" } }]);
 });
 
 test("test_picking_auto_clears_a_standing_pin", async () => {
   run({ pin: 192000 });
-  await pick("auto");
+  await pickPin(wire, "auto");
   assert.deepEqual(pins, [{ fields: { rate: "0" } }]);
 });
 
 test("test_a_rate_the_engines_list_lacks_offers_no_pin", async () => {
   run({ list: PCM_HZ.slice(0, 8) });
-  await pick("f44");
+  await pickPin(wire, "f44");
   await tap("pcm", PCM_16X);
   await tap("pcm", PCM_2X);
   assert.deepEqual(pins, [{ fields: { rate: "88200" } }]);
 });
 
 // --- a key under a picked family -----------------------------------------------------------------------------------
-
-/** A key press as the slider reads it. @param {string} key */
-const keyEvent = (key) => ({ key, preventDefault: () => undefined });
-
-/**
- * Press `key` on the slider of `band`, or nothing when the dial carries none, and let its write run out.
- *
- * @param {"pcm" | "sdm"} band
- * @param {string} key
- */
-async function press(band, key) {
-  const { seen } = renderTree(html`<${RateDial} />`);
-  const hit = seen.find(
-    (v) => typeof v.type === "string" && (v.props ?? {}).role === "slider" && (v.props ?? {})["data-band"] === band,
-  );
-  const fn = /** @type {((e: unknown) => unknown) | undefined} */ (hit?.props.onKeyDown);
-  if (fn) await fn(keyEvent(key));
-  await quiesce(wire);
-}
 
 // Nothing pinned: the step starts from the playing tier (PCM 8x, SDM 512x), never from the needle (PCM 4x, SDM 256x),
 // and lands in the picked family, not the playing rate's.
@@ -283,8 +237,8 @@ for (const { fam, chain, output, list, band, key, hz } of [
 ]) {
   test(`test_${key}_in_the_playing_${band}_band_under_${fam}_pins_${hz}_one_tier_from_the_playing_tier`, async () => {
     run({ chain, output, list });
-    await pick(fam);
-    await press(/** @type {"pcm" | "sdm"} */ (band), key);
+    await pickPin(wire, fam);
+    await pressKey(wire, /** @type {"pcm" | "sdm"} */ (band), key);
     assert.deepEqual(pins, [{ fields: { rate: hz } }]);
   });
 }
@@ -294,7 +248,7 @@ test("test_an_arrow_key_steps_the_pin_from_the_pinned_tier", async () => {
   openStage.value = null;
   run({ output: "352800", pin: 96000 });
   openStage.value = OUTPUT;
-  await press("pcm", "ArrowRight");
+  await pressKey(wire, "pcm", "ArrowRight");
   assert.deepEqual(pins, [{ fields: { rate: "192000" } }]);
 });
 
@@ -314,7 +268,7 @@ for (const { pin, fam } of [
 }
 
 test("test_a_family_picked_with_nothing_pinned_reads_auto_when_the_drawer_reopens", async () => {
-  await pick("f48");
+  await pickPin(wire, "f48");
   reopen();
   assert.deepEqual(picked(), ["auto"]);
 });
@@ -336,26 +290,12 @@ test("test_the_pin_is_marked_on_its_own_tier_apart_from_the_needle_and_the_playi
 const MARK = "restart-mark";
 
 /**
- * Whether `inner` lies inside `outer`.
- *
- * @param {MarkupElement} inner
- * @param {MarkupElement} outer
- */
-const within = (inner, outer) =>
-  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
-
-/**
  * Whether the rate dial row carries the restart mark, or null when no drawer row encloses the dial.
  *
  * @returns {boolean | null}
  */
 function rateRowMarked() {
-  const all = elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`));
-  const ring = all.find((e) => classes(e).includes("dial") && attr(e, "role") === "group");
-  if (!ring) return null;
-  const row = all
-    .filter((e) => classes(e).includes("drow") && within(ring, e))
-    .sort((a, b) => a.html.length - b.html.length)[0];
+  const row = rateRow(outputMarkup());
   return row ? elements(row.html).some((e) => attr(e, "data-testid") === MARK) : null;
 }
 
@@ -366,19 +306,19 @@ test("test_under_auto_the_rate_row_carries_the_restart_mark", () => {
 
 for (const fam of ["f44", "f48"]) {
   test(`test_picking_${fam}_takes_the_restart_mark_off_the_rate_row`, async () => {
-    await pick(fam);
+    await pickPin(wire, fam);
     assert.deepEqual(rateRowMarked(), false);
   });
 }
 
 test("test_picking_auto_after_a_family_puts_the_restart_mark_back_on_the_rate_row", async () => {
-  await pick("f48");
-  await pick("auto");
+  await pickPin(wire, "f48");
+  await pickPin(wire, "auto");
   assert.deepEqual(rateRowMarked(), true);
 });
 
 test("test_turning_allow_pinned_rates_off_puts_the_restart_mark_back_on_the_rate_row", async () => {
-  await pick("f44");
+  await pickPin(wire, "f44");
   setAllowPinnedRates(false);
   await quiesce(wire);
   assert.deepEqual(rateRowMarked(), true);

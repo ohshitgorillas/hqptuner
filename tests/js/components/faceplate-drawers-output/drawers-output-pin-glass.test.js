@@ -23,19 +23,17 @@ import { render } from "preact-render-to-string";
 
 import { useStorage } from "../../support/storage.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
-import { renderTree } from "../../support/vnodeseam.js";
 import { attr, elements, text } from "../../support/markup.js";
-import { seedReadings } from "../../support/readings.js";
 
 useStorage();
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { RateDial } = await import("../../../../hqptuner/static/components/faceplate/drawers/output/RateDial.js");
-const { config, engineState, engineStatus, enums, metadata } =
-  await import("../../../../hqptuner/static/store/signals.js");
+const { engineState, engineStatus, enums, metadata } = await import("../../../../hqptuner/static/store/signals.js");
 const { discardAll } = await import("../../../../hqptuner/static/store/actions.js");
 const { openPopover, openStage } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/prefs.js");
+const { engineRoute, pickPin, seedForm } = await import("../../support/rendered/outputdrawer.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -66,31 +64,20 @@ let wire;
 /** @param {string} path */
 function routes(path) {
   if (path === "/api/config/live") return ok({ report: { live: [], stored: {} } });
-  if (path === "/api/state") return ok({ data: engineState.value });
-  if (path === "/api/enumerations") return ok({ data: enums.value });
-  return undefined;
+  return engineRoute(path);
 }
 
 /** Load the /config payload and put the engine on PCM playing, nothing pinned. */
 async function load() {
-  config.value = {
-    fields: [
-      { name: "defaults_samplerate", type: "select" },
-      { name: "defaults_bitrate", type: "select" },
-      { name: "mode", type: "select" },
-      { name: "backend", type: "select" },
-      { name: "net_dop", type: "checkbox" },
-      { name: "net_device", type: "select", options: [{ value: STANDA, label: STANDA }] },
-    ],
-  };
-  await seedReadings({
+  const readings = {
     defaults_samplerate: "192000",
     defaults_bitrate: "12288000",
     mode: "pcm",
     backend: "network",
     net_dop: false,
     net_device: STANDA,
-  });
+  };
+  await seedForm(readings, { net_device: [{ value: STANDA, label: STANDA }] });
   enums.value = {
     rates: [{ index: "0", rate: "0" }, ...PCM_HZ.map((r, n) => ({ index: String(n + 1), rate: String(r) }))],
   };
@@ -110,19 +97,6 @@ beforeEach(async () => {
   openStage.value = OUTPUT;
   await quiesce(wire);
 });
-
-/**
- * Tap the picker option `pin`, or nothing when the dial carries none, and let anything it sends run out.
- *
- * @param {string} pin
- */
-async function pick(pin) {
-  const { seen } = renderTree(html`<${RateDial} />`);
-  const hit = seen.find((v) => typeof v.type === "string" && (v.props ?? {})["data-pin"] === pin);
-  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (fn) await fn();
-  await quiesce(wire);
-}
 
 /**
  * Whether an element's own text is the rate `hz` and nothing else, read in kHz or Hz.
@@ -166,7 +140,7 @@ function look(i, hz) {
  */
 async function lookAgainstAuto(i, fam, own, other) {
   const auto = { own: look(i, own), other: look(i, other) };
-  await pick(fam);
+  await pickPin(wire, fam);
   return [look(i, own) === auto.own, look(i, other) === auto.other];
 }
 

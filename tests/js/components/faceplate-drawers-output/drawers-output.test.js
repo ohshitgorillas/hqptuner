@@ -29,25 +29,22 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { RateDial } from "../../../../hqptuner/static/components/faceplate/drawers/output/RateDial.js";
 import { DevicePicker } from "../../../../hqptuner/static/components/faceplate/drawers/output/DevicePicker.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
-import {
-  config,
-  engineState,
-  engineStatus,
-  enums,
-  generation,
-  metadata,
-} from "../../../../hqptuner/static/store/signals.js";
+import { engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { configRoute, fire, rowHolding } from "../../support/rendered/drawer-render.js";
+import {
+  keyEvent,
+  outputMarkup,
+  rateRow,
+  seedForm,
+  servedOutput,
+  slider,
+} from "../../support/rendered/outputdrawer.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
-import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
 
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -65,45 +62,8 @@ let refreshes = [];
 /** The values the wire serves, by field name; `load` sets them. @type {Record<string, unknown>} */
 let file = {};
 
-/** The Engine's list index of each output mode. */
-const MODE_INDEX = { auto: 0, pcm: 1, sdm: 2 };
-
-/** The daemon's limits of each numeric field here. */
-const BOUNDS = { channels: { min: 2, max: 32, step: 1 } };
-
-/**
- * One field's served reading: the output mode from the Engine on the live lane with no restart of its own; every
- * other field here from the File on the restore lane, restarting the engine; each carrying what the staging wire
- * holds for it.
- *
- * @param {string} name
- * @param {unknown} value
- * @param {Record<string, unknown>} staged
- */
-function served1(name, value, staged) {
-  const held = name in staged && staged[name] !== value ? staged[name] : null;
-  if (name === "mode") {
-    const index = MODE_INDEX[/** @type {keyof typeof MODE_INDEX} */ (value)];
-    return fieldReading(index, {
-      name: String(value),
-      lane: "live",
-      file: { value, generation: generation.value },
-      staged: held,
-    });
-  }
-  const bounds = BOUNDS[/** @type {keyof typeof BOUNDS} */ (name)] ?? null;
-  return fieldReading(value, { show: "file", lane: "restore", restarts: true, bounds, staged: held });
-}
-
-/**
- * The served field readings of every value `load` set.
- *
- * @param {StagingWire | undefined} w
- */
-function served(w) {
-  const staged = w ? w.staged.http : {};
-  return Object.fromEntries(Object.entries(file).map(([name, value]) => [name, served1(name, value, staged)]));
-}
+/** @param {StagingWire | undefined} w */
+const served = (w) => servedOutput(file, w);
 
 /** @type {StagingWire} */
 let wire;
@@ -123,25 +83,14 @@ async function load({ mode = "pcm" } = {}) {
     net_device: STANDA,
     channels: 2,
   };
-  config.value = {
-    fields: [
-      { name: "defaults_samplerate", type: "select" },
-      { name: "defaults_bitrate", type: "select" },
-      { name: "mode", type: "select" },
-      { name: "backend", type: "select" },
-      { name: "net_dop", type: "checkbox" },
-      { name: "net_device", type: "select", options: NET_OPTIONS },
-      { name: "channels", type: "number" },
-    ],
-  };
-  await seedReadings(served(wire));
+  await seedForm(served(wire), { net_device: NET_OPTIONS });
 }
+
+const configured = configRoute(served);
 
 /** @param {string} path @param {{ method?: string }} opts @param {StagingWire} w */
 function routes(path, opts, w) {
-  if (path === "/api/config" && (opts.method ?? "GET") === "GET")
-    return ok({ generation: generation.value, fields: served(w) });
-  if (path !== "/api/config/refresh") return undefined;
+  if (path !== "/api/config/refresh") return configured(path, opts, w);
   refreshes.push(String(opts.method));
   return ok(null);
 }
@@ -174,27 +123,6 @@ function tiersWith(cls, band) {
     .filter((e) => e.name === "g" && attr(e, "data-i") !== undefined && classes(e).includes(cls))
     .map((e) => attr(e, "data-i"));
 }
-
-/**
- * Fire the handler of the first vnode matching `pred` in one render of `tree`, or nothing when none matches.
- *
- * @param {unknown} tree
- * @param {(props: Record<string, unknown>) => boolean} pred
- * @param {string} handler
- * @param {unknown} [event]
- */
-async function fire(tree, pred, handler, event = undefined) {
-  const { seen } = renderTree(/** @type {Parameters<typeof renderTree>[0]} */ (tree));
-  const hit = seen.find((v) => typeof v.type === "string" && pred(v.props ?? {}));
-  const fn = /** @type {((e: unknown) => unknown) | undefined} */ (hit?.props[handler]);
-  if (fn) await fn(event);
-}
-
-/** @param {string} band */
-const slider = (band) => (/** @type {Record<string, unknown>} */ p) => p.role === "slider" && p["data-band"] === band;
-
-/** A key press as the slider reads it. @param {string} key */
-const keyEvent = (key) => ({ key, preventDefault: () => undefined });
 
 /** The x the dial prints tier `i` at, and the width of its viewBox. @param {number} i */
 function tierX(i) {
@@ -305,31 +233,6 @@ const CHANNELS = "channels";
 /** Live-lane key: the output mode, set at once by `SetMode`. */
 const OUTPUT_MODE = "output_mode";
 
-const drawer = () => elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`));
-
-/**
- * Whether `inner` lies inside `outer`.
- *
- * @param {MarkupElement} inner
- * @param {MarkupElement} outer
- */
-const within = (inner, outer) =>
-  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
-
-/**
- * The smallest drawer row enclosing the first element matching `pred`, or undefined when none does.
- *
- * @param {MarkupElement[]} all
- * @param {(e: MarkupElement) => boolean} pred
- */
-function rowAround(all, pred) {
-  const inner = all.find(pred);
-  if (!inner) return undefined;
-  return all
-    .filter((e) => classes(e).includes(ROW) && within(inner, e))
-    .sort((a, b) => a.html.length - b.html.length)[0];
-}
-
 /**
  * Whether `row` carries the restart mark, or null when the row is not drawn at all.
  *
@@ -342,10 +245,8 @@ const marked = (row) => (row ? elements(row.html).some((e) => attr(e, "data-test
 const rowOf = (all, key) => all.find((e) => classes(e).includes(ROW) && attr(e, "data-k") === key);
 
 /** @param {MarkupElement[]} all */
-const deviceRow = (all) => rowAround(all, (e) => classes(e).includes("devpick") && attr(e, "data-k") === "net_device");
-
-/** @param {MarkupElement[]} all */
-const rateRow = (all) => rowAround(all, (e) => classes(e).includes("dial") && attr(e, "role") === "group");
+const deviceRow = (all) =>
+  rowHolding(all, [all.find((e) => classes(e).includes("devpick") && attr(e, "data-k") === "net_device")]);
 
 for (const { name, row, mark } of [
   { name: "an_unedited_output_device_row_carries_the_mark", row: deviceRow, mark: true },
@@ -362,6 +263,6 @@ for (const { name, row, mark } of [
   },
 ]) {
   test(`test_${name}`, () => {
-    assert.equal(marked(row(drawer())), mark);
+    assert.equal(marked(row(outputMarkup())), mark);
   });
 }

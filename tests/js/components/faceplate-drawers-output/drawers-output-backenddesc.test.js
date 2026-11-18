@@ -16,18 +16,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
-import { stagingWire } from "../../support/wire/wire.js";
-import { attr, classes, elements, text } from "../../support/markup.js";
-import { seedReadings } from "../../support/readings.js";
+import { NETWORK_FILE, loadOutput, outputMarkup } from "../../support/rendered/outputdrawer.js";
+import { attr, classes, text } from "../../support/markup.js";
 
 /** The Backend row's catalog key, the form field it edits. */
 const BACKEND_KEY = "backend";
@@ -82,52 +73,12 @@ const META = {
   },
 };
 
-const NET = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
-
 /**
  * Seeds the store with a daemon whose form offers `offered` and runs the Network backend, which both daemons offer.
  *
  * @param {{ value: string, label: string }[]} offered
  */
-async function load(offered) {
-  stagingWire();
-  config.value = {
-    fields: [
-      { name: "mode", type: "select" },
-      { name: "backend", type: "select", options: offered },
-      { name: "defaults_samplerate", type: "select" },
-      { name: "defaults_bitrate", type: "select" },
-      { name: "channels", type: "number" },
-      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: "net_dop", type: "checkbox" },
-      { name: "net_anydsd", type: "checkbox" },
-      { name: "net_bits", type: "number" },
-      { name: "net_ipv6", type: "checkbox" },
-      { name: "net_period", type: "number" },
-    ],
-  };
-  await seedReadings({
-    mode: "pcm",
-    backend: "network",
-    defaults_samplerate: "192000",
-    defaults_bitrate: "12288000",
-    channels: 2,
-    net_device: NET,
-    net_dop: false,
-    net_anydsd: true,
-    net_bits: 20,
-    net_ipv6: true,
-    net_period: 0,
-  });
-  engineState.value = { state: "0" };
-  engineStatus.value = { status: {}, metadata: {} };
-  enums.value = null;
-  metadata.value = META;
-  openStage.value = null;
-  openPopover.value = null;
-  await pickChannelLayout("2");
-  await discardAll();
-}
+const load = (offered) => loadOutput(NETWORK_FILE, { options: { backend: offered }, meta: META });
 
 /**
  * The text the Backend row prints, its popovers included, or null when the drawer draws no Backend row.
@@ -135,9 +86,7 @@ async function load(offered) {
  * @returns {string | null}
  */
 function backendRowText() {
-  const row = elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`)).find(
-    (e) => classes(e).includes("drow") && attr(e, "data-k") === BACKEND_KEY,
-  );
+  const row = outputMarkup().find((e) => classes(e).includes("drow") && attr(e, "data-k") === BACKEND_KEY);
   return row ? text(row) : null;
 }
 

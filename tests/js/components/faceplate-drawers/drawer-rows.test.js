@@ -17,14 +17,12 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { config, generation } from "../../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../../hqptuner/static/store/actions.js";
+import { configRoute, drawerTree, fire } from "../../support/rendered/drawer-render.js";
 import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
-import { ok, stagingWire } from "../../support/wire/wire.js";
-import { renderTree } from "../../support/vnodeseam.js";
+import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -125,12 +123,7 @@ const OUTPUT_MODE = "output_mode";
 let wire;
 
 beforeEach(async () => {
-  wire = stagingWire({
-    routes: (path, opts, w) =>
-      path === "/api/config" && (opts.method ?? "GET") === "GET"
-        ? ok({ generation: generation.value, fields: served(w) })
-        : undefined,
-  });
+  wire = stagingWire({ routes: configRoute(served) });
   config.value = { fields: FIELDS };
   await seedReadings(served(wire));
   await resetDrawerStore();
@@ -163,7 +156,7 @@ const rowsOf = (...rows) => ({
  * @returns {MarkupElement[]}
  */
 function inRow(schema, key) {
-  const all = elements(render(html`<${Drawer} schema=${schema} />`));
+  const all = elements(render(drawerTree(schema)));
   const row = all.find((e) => attr(e, "data-k") === key);
   return row ? elements(row.html) : [];
 }
@@ -205,21 +198,6 @@ function inputValue(schema, key, type) {
   return input ? attr(input, "value") : undefined;
 }
 
-/**
- * Fire a handler on the first vnode matching `pred`.
- *
- * @param {DrawerSchema} schema
- * @param {(props: Record<string, unknown>, type: unknown) => boolean} pred
- * @param {string} handler
- * @param {unknown} [event]
- */
-async function fire(schema, pred, handler, event) {
-  const { seen } = renderTree(html`<${Drawer} schema=${schema} />`);
-  const hit = seen.find((v) => typeof v.type === "string" && pred(v.props ?? {}, v.type));
-  const fn = /** @type {((e: unknown) => unknown) | undefined} */ (hit?.props[handler]);
-  if (fn) await fn(event);
-}
-
 test("test_a_rows_sublabel_prints_in_its_head", () => {
   assert.equal(textIn(rowsOf({ key: "volume_max", sub: "subfixture" }), "volume_max", "s"), "subfixture");
 });
@@ -255,7 +233,7 @@ test("test_an_option_list_prints_every_options_line", () => {
 
 test("test_tapping_a_listed_option_stages_it", async () => {
   await fire(
-    rowsOf({ key: "idle_time", optMan: true }),
+    drawerTree(rowsOf({ key: "idle_time", optMan: true })),
     (p) => p.role === "listitem" && p["data-v"] === "60",
     "onClick",
   );
@@ -302,7 +280,7 @@ test("test_a_text_row_draws_a_text_box_holding_its_value", async () => {
 });
 
 test("test_changing_a_text_row_stages_the_typed_value", async () => {
-  await fire(rowsOf({ key: "matrix_pipelines" }), (p, type) => type === "input", "onChange", {
+  await fire(drawerTree(rowsOf({ key: "matrix_pipelines" })), (p, type) => type === "input", "onChange", {
     currentTarget: { value: "8" },
   });
   assert.equal(wire.staged.http.matrix_pipelines, "8");

@@ -16,23 +16,13 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
-import { seedReadings } from "../../support/readings.js";
-import { quiesce, stagingWire } from "../../support/wire/wire.js";
+import { edit } from "../../../../hqptuner/static/store/actions.js";
+import { rowHolding, within } from "../../support/rendered/drawer-render.js";
+import { NETWORK_FILE, loadOutput, outputMarkup, outputTree } from "../../support/rendered/outputdrawer.js";
+import { quiesce } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr } from "../../support/markup.js";
-
-/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-
-const NET = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
+import { attr, elements, hasAttr } from "../../support/markup.js";
 
 /** The network backend's DoP setting, off on the wire. */
 const DOP = "net_dop";
@@ -44,87 +34,20 @@ const DSD_RATES = "net_anydsd";
 const ON = "1";
 const OFF = "0";
 
-/** The drawer row style every row carries. */
-const ROW = "drow";
-
 /** @type {import("../../support/wire/wire.js").StagingWire} */
 let wire;
 
 beforeEach(async () => {
-  wire = stagingWire();
-  config.value = {
-    fields: [
-      { name: "mode", type: "select" },
-      { name: "backend", type: "select" },
-      { name: "defaults_samplerate", type: "select" },
-      { name: "defaults_bitrate", type: "select" },
-      { name: "channels", type: "number" },
-      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: DOP, type: "checkbox" },
-      { name: DSD_RATES, type: "checkbox" },
-      { name: "net_bits", type: "number" },
-      { name: "net_ipv6", type: "checkbox" },
-      { name: "net_period", type: "number" },
-    ],
-  };
-  await seedReadings({
-    mode: "pcm",
-    backend: "network",
-    defaults_samplerate: "192000",
-    defaults_bitrate: "12288000",
-    channels: 2,
-    net_device: NET,
-    [DOP]: false,
-    [DSD_RATES]: true,
-    net_bits: 20,
-    net_ipv6: true,
-    net_period: 0,
-  });
-  engineState.value = { state: "0" };
-  engineStatus.value = { status: {}, metadata: {} };
-  enums.value = null;
-  metadata.value = null;
-  openStage.value = null;
-  openPopover.value = null;
-  await pickChannelLayout("2");
-  await discardAll();
+  wire = await loadOutput(NETWORK_FILE);
 });
-
-const tree = () => html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`;
-
-const markup = () => elements(render(tree()));
-
-/**
- * Whether `inner` lies inside `outer`.
- *
- * @param {MarkupElement} inner
- * @param {MarkupElement} outer
- */
-const within = (inner, outer) =>
-  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
 
 /**
  * The control drawn for `key`: the first element carrying it as its catalog key.
  *
- * @param {MarkupElement[]} all
+ * @param {import("../../support/markup.js").MarkupElement[]} all
  * @param {string} key
  */
 const control = (all, key) => all.find((e) => attr(e, "data-k") === key);
-
-/**
- * The smallest drawer row enclosing every one of `inner`, or undefined when one of them is missing or no row holds
- * them all.
- *
- * @param {MarkupElement[]} all
- * @param {(MarkupElement | undefined)[]} inner
- */
-function rowHolding(all, inner) {
-  if (inner.some((e) => e === undefined)) return undefined;
-  const held = /** @type {MarkupElement[]} */ (inner);
-  return all
-    .filter((e) => classes(e).includes(ROW) && held.every((i) => within(i, e)))
-    .sort((a, b) => a.html.length - b.html.length)[0];
-}
 
 /**
  * Whether the row holding the control drawn for `key` reads dirty, or null when no row holds it.
@@ -132,14 +55,14 @@ function rowHolding(all, inner) {
  * @param {string} key
  */
 function rowDirty(key) {
-  const all = markup();
+  const all = outputMarkup();
   const row = rowHolding(all, [control(all, key)]);
   return row ? hasAttr(row, "data-dirty") : null;
 }
 
 /** The number of labels the smallest row holding both DSD controls prints, or null when no row holds both. */
 function sharedRowLabels() {
-  const all = markup();
+  const all = outputMarkup();
   const row = rowHolding(all, [control(all, DOP), control(all, DSD_RATES)]);
   return row ? elements(row.html).filter((e) => e.name === "b").length : null;
 }
@@ -153,7 +76,7 @@ function sharedRowLabels() {
  * @param {string} value
  */
 async function pick(key, value) {
-  const { out, seen } = renderTree(tree());
+  const { out, seen } = renderTree(outputTree());
   const all = elements(out);
   const own = control(all, key);
   const options = all.filter((e) => e.name === "button" && attr(e, "data-v") === value);
