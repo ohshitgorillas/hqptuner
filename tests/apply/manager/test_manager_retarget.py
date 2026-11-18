@@ -6,14 +6,14 @@ playing engine with the advisor reading the 4322 stream, so the reader holds its
 host and metering port to a second loopback address and counts what the fake there accepted.
 """
 
-import struct
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 
 import fake_metering
-from apps import advance_app, advanced, app_manager, connection_stands, settled, wait_for_api
-from conftest import METADATA_MIN, spawn_threaded_daemon
+from apps import advance_app, advanced, app_manager, connection_stands, control_config, settled, wait_for_api
+from conftest import spawn_threaded_daemon
 from counted_control import CountedDaemon, counted_daemon, still_open
 from fastapi.testclient import TestClient
 from narrow import FixtureError
@@ -86,13 +86,6 @@ async def test_retarget_closing_the_connection_is_no_departure_where_the_new_dae
 OLD_HOST = "127.0.0.1"
 NEW_HOST = "127.0.0.2"
 
-BINS = 1025
-BANDWIDTH = 22050.0
-TRANSFORM_TIME = 1024 / 44100
-HEADER_FIELDS = (1, 1, BINS, 16, BANDWIDTH, TRANSFORM_TIME, 2.0, 0)
-LEVELS = (-3.0, -6.0, -20.0, -18.0)
-FRAME = struct.pack("<4I3fI", *HEADER_FIELDS) + struct.pack(f"<4f{2 * BINS}f", *LEVELS, *([1e-3] * (2 * BINS)))
-
 #: What `State` reports while the engine is playing.
 PLAYING = "2"
 
@@ -106,23 +99,11 @@ def test_retarget_points_the_metering_reader_at_the_configured_host_and_metering
     old_daemon = spawn_threaded_daemon({"state": PLAYING}, host=OLD_HOST)
     control_port = next(old_daemon)
     new_daemon = spawn_threaded_daemon({"state": PLAYING}, host=NEW_HOST, bind_port=control_port)
-    old_stream = fake_metering.spawn(FRAME, frames=1, host=OLD_HOST, accepted=accepted_before)
-    new_stream = fake_metering.spawn(FRAME, frames=1, host=NEW_HOST, accepted=accepted)
+    old_stream = fake_metering.spawn(fake_metering.FLAT_FRAME, frames=1, host=OLD_HOST, accepted=accepted_before)
+    new_stream = fake_metering.spawn(fake_metering.FLAT_FRAME, frames=1, host=NEW_HOST, accepted=accepted)
     try:
         next(new_daemon)
-        cfg = Config(
-            hqp_host=OLD_HOST,
-            hqp_control_port=control_port,
-            hqp_metering_port=next(old_stream),
-            hqp_username="",
-            hqp_password="",
-            data_dir=METADATA_MIN,
-            backup_dir=tmp_path,
-            preset_dir=tmp_path / "presets",
-            live_preset_file=tmp_path / "live-presets.json",
-            autopilot_file=tmp_path / "autopilot.json",
-            advisor_enabled=True,
-        )
+        cfg = replace(control_config(control_port, tmp_path), hqp_host=OLD_HOST, hqp_metering_port=next(old_stream))
         new_metering_port = next(new_stream)
         with TestClient(create_app(cfg, VirtualClock())) as client:
             wait_for_api(client, connection_stands)

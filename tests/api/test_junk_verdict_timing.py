@@ -13,12 +13,11 @@ sent has been read by the time it concludes there is none.
 
 from __future__ import annotations
 
-import struct
 from typing import TYPE_CHECKING
 
 import fake_metering
 import pytest
-from apps import advance_app, app_manager, live_app
+from apps import live_app, served_ceiling
 from conftest import spawn_threaded_daemon
 
 from hqptuner.engine.metering import BLOCK_SECONDS
@@ -30,8 +29,6 @@ if TYPE_CHECKING:
     from fastapi.testclient import TestClient
 
 SOURCE_RATE = 96_000
-BANDWIDTH = SOURCE_RATE / 2
-BINS = 1025
 SPUR_KHZ = 30.0
 TRANSFORM_TIME = BLOCK_SECONDS / 4
 
@@ -46,12 +43,7 @@ PAST_A_BLOCK = 5
 POLLS = 20
 
 
-def _spur_frame() -> bytes:
-    reals = [1e-3] * BINS
-    reals[round(SPUR_KHZ * 1000 * (BINS - 1) / BANDWIDTH)] = 1.0
-    header = struct.pack("<4I3fI", 1, 1, BINS, 11, BANDWIDTH, TRANSFORM_TIME, 0.0, 0)
-    levels = (-3.0, -6.0, -20.0, -18.0)
-    return header + struct.pack(f"<4f{2 * BINS}f", *levels, *reals, *([0.0] * BINS))
+SPUR_FRAME = fake_metering.spur_frame(source_rate=SOURCE_RATE, spur_khz=SPUR_KHZ, transform_time=TRANSFORM_TIME)
 
 
 @pytest.fixture
@@ -63,7 +55,7 @@ def streaming(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Calla
 
     def build(frames: int) -> TestClient:
         daemon = spawn_threaded_daemon({"state": PLAYING, "_metadata": f'<metadata samplerate="{SOURCE_RATE}"/>'})
-        stream = fake_metering.spawn(_spur_frame(), frames=frames)
+        stream = fake_metering.spawn(SPUR_FRAME, frames=frames)
         fakes.extend([daemon, stream])
         control_port = next(daemon)
         monkeypatch.setenv("HQPTUNER_HQP_METERING_PORT", str(next(stream)))
@@ -78,18 +70,6 @@ def streaming(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Calla
         next(fake, None)
 
 
-def _served_ceiling(client: TestClient) -> float | None:
-    """The ceiling of the first recommendation `/api/status` serves within ``POLLS`` poll passes, or None."""
-    interval = app_manager(client).cfg.poll_interval
-    for _ in range(POLLS):
-        junk = client.get("/api/status").json()["data"]["junk"]
-        if junk is not None:
-            ceiling: float = junk["ceiling_khz"]
-            return ceiling
-        advance_app(client, interval)
-    return None
-
-
 @pytest.mark.parametrize(
     ("frames", "ceiling"),
     [(SHORT_OF_A_BLOCK, None), (PAST_A_BLOCK, SPUR_KHZ)],
@@ -98,4 +78,4 @@ def _served_ceiling(client: TestClient) -> float | None:
 def test_status_serves_a_junk_verdict_only_once_a_block_has_closed(
     streaming: Callable[[int], TestClient], frames: int, ceiling: float | None
 ) -> None:
-    assert _served_ceiling(streaming(frames)) == ceiling
+    assert served_ceiling(streaming(frames), POLLS) == ceiling

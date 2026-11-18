@@ -17,11 +17,12 @@ the 4321 control daemon and a config-preset load needs the 8088 one.
 """
 
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import connection_stands, wait_for_api
+from apps import connection_stands, two_lane_config, wait_for_api
 from audit_records import last, records
 from fake_config_xml import cfg_xml
 from fake_http import state
@@ -29,7 +30,6 @@ from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
 #: The volume trace's records all carry a `volume.`-prefixed event, and it takes
@@ -92,21 +92,7 @@ def autopilot_client(
     """The REST surface on both fakes at once — control on the threaded 4321
     daemon, config on the 8088 one — with every store under ``tmp_path`` so no
     case here writes into the repo's state directory."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=threaded_daemon_port,
-        hqp_http_port=http_daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        autopilot_file=tmp_path / "autopilot.json",
-        advisor_enabled=True,
-        hqp_home="/x/home",
-        debug_log=audit_log,
-    )
+    cfg = replace(two_lane_config(http_daemon, threaded_daemon_port, tmp_path), debug_log=audit_log)
     with TestClient(create_app(cfg, VirtualClock())) as client:
         wait_for_api(client, connection_stands)
         yield client

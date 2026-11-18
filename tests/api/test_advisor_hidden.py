@@ -26,18 +26,17 @@ from __future__ import annotations
 
 import contextlib
 import json
-import struct
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Protocol
 
 import fake_metering
 import pytest
-from apps import advance_app, app_manager, connection_stands, wait_for_api
-from conftest import METADATA_MIN, spawn_threaded_daemon
+from apps import connection_stands, control_config, served_ceiling, two_lane_config, wait_for_api
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -46,8 +45,6 @@ if TYPE_CHECKING:
 SEEDED_ON = {"schema": 1, "enabled": True, "presets": {}}
 
 SOURCE_RATE = 96_000
-STREAM_BANDWIDTH = SOURCE_RATE / 2
-STREAM_BINS = 1025
 SPUR_KHZ = 30.0
 
 #: What `State` reports while the engine is playing, the only state in which the reader holds its 4322 socket.
@@ -70,20 +67,7 @@ def advisor_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_p
 
     def build(*, advisor: bool) -> TestClient:
         (tmp_path / "autopilot.json").write_text(json.dumps(SEEDED_ON))
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=threaded_daemon_port,
-            hqp_http_port=http_daemon["_port"],
-            hqp_username="u",
-            hqp_password="p",
-            alarm_threshold=1.0,
-            backup_dir=tmp_path,
-            preset_dir=tmp_path / "presets",
-            live_preset_file=tmp_path / "live-presets.json",
-            autopilot_file=tmp_path / "autopilot.json",
-            hqp_home="/x/home",
-            advisor_enabled=advisor,
-        )
+        cfg = replace(two_lane_config(http_daemon, threaded_daemon_port, tmp_path), advisor_enabled=advisor)
         client = TestClient(create_app(cfg, VirtualClock()))
         client.__enter__()
         opened.append(client)
@@ -95,15 +79,6 @@ def advisor_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_p
         client.__exit__(None, None, None)
 
 
-def spur_frame() -> bytes:
-    """One single-channel metering frame: a -60 dB floor in every bin but the one nearest ``SPUR_KHZ``, at 0 dB."""
-    reals = [1e-3] * STREAM_BINS
-    reals[round(SPUR_KHZ * 1000 * (STREAM_BINS - 1) / STREAM_BANDWIDTH)] = 1.0
-    header = struct.pack("<4I3fI", 1, 1, STREAM_BINS, 11, STREAM_BANDWIDTH, 0.1, 0.0, 0)
-    levels = (-3.0, -6.0, -20.0, -18.0)
-    return header + struct.pack(f"<4f{2 * STREAM_BINS}f", *levels, *reals, *([0.0] * STREAM_BINS))
-
-
 @pytest.fixture
 def spur_client(tmp_path: Path) -> Iterator[AdvisorClient]:
     """The REST surface on a playing daemon and a 4322 stream carrying a spur, built for one setting of the advisor
@@ -113,21 +88,11 @@ def spur_client(tmp_path: Path) -> Iterator[AdvisorClient]:
 
     def build(*, advisor: bool) -> TestClient:
         daemon = spawn_threaded_daemon({"state": PLAYING, "_metadata": f'<metadata samplerate="{SOURCE_RATE}"/>'})
-        stream = fake_metering.spawn(spur_frame())
-        fakes.extend([daemon, stream])
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=next(daemon),
-            hqp_metering_port=next(stream),
-            hqp_username="",
-            hqp_password="",
-            data_dir=METADATA_MIN,
-            backup_dir=tmp_path,
-            preset_dir=tmp_path / "presets",
-            live_preset_file=tmp_path / "live-presets.json",
-            autopilot_file=tmp_path / "autopilot.json",
-            advisor_enabled=advisor,
+        stream = fake_metering.spawn(
+            fake_metering.spur_frame(source_rate=SOURCE_RATE, spur_khz=SPUR_KHZ, transform_time=0.1)
         )
+        fakes.extend([daemon, stream])
+        cfg = replace(control_config(next(daemon), tmp_path), hqp_metering_port=next(stream), advisor_enabled=advisor)
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
         wait_for_api(client, connection_stands)
         return client
@@ -141,18 +106,6 @@ def spur_client(tmp_path: Path) -> Iterator[AdvisorClient]:
 def stored_enabled(tmp_path: Path) -> bool | None:
     store: dict[str, Any] = json.loads((tmp_path / "autopilot.json").read_text())
     return store.get("enabled")
-
-
-def junk_ceiling(client: TestClient) -> float | None:
-    """The ceiling of the first recommendation `/api/status` serves within ``POLLS`` poll passes, or None."""
-    interval = app_manager(client).cfg.poll_interval
-    for _ in range(POLLS):
-        junk = client.get("/api/status").json()["data"]["junk"]
-        if junk is not None:
-            ceiling: float = junk["ceiling_khz"]
-            return ceiling
-        advance_app(client, interval)
-    return None
 
 
 @pytest.mark.parametrize(("advisor", "reported"), [(True, True), (False, False)])
@@ -178,7 +131,7 @@ def test_the_metering_reader_runs_whether_or_not_the_advisor_is_on(
 def test_status_serves_the_readers_recommendation_only_while_the_advisor_is_on(
     *, spur_client: AdvisorClient, advisor: bool, ceiling: float | None
 ) -> None:
-    assert junk_ceiling(spur_client(advisor=advisor)) == ceiling
+    assert served_ceiling(spur_client(advisor=advisor), POLLS) == ceiling
 
 
 @pytest.mark.parametrize(("advisor", "stored"), [(True, False), (False, True)])

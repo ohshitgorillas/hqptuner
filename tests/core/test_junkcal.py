@@ -14,19 +14,18 @@ from __future__ import annotations
 
 import contextlib
 import json
-import struct
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import fake_metering
 import pytest
-from apps import advance_app, app_manager, connection_stands, wait_for_api
-from conftest import METADATA_MIN, spawn_threaded_daemon
+from apps import advance_app, app_manager, connection_stands, control_config, wait_for_api
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.engine.metering import BLOCK_SECONDS
 
 if TYPE_CHECKING:
@@ -37,8 +36,6 @@ if TYPE_CHECKING:
 INSTANT = datetime(2003, 4, 5, 6, 7, 8, tzinfo=UTC)
 
 SOURCE_RATE = 96_000
-BANDWIDTH = SOURCE_RATE / 2
-BINS = 1025
 SPUR_KHZ = 30.0
 TRANSFORM_TIME = BLOCK_SECONDS / 4
 
@@ -52,12 +49,7 @@ PAST_A_BLOCK = 5
 POLLS = 20
 
 
-def _spur_frame() -> bytes:
-    reals = [1e-3] * BINS
-    reals[round(SPUR_KHZ * 1000 * (BINS - 1) / BANDWIDTH)] = 1.0
-    header = struct.pack("<4I3fI", 1, 1, BINS, 11, BANDWIDTH, TRANSFORM_TIME, 0.0, 0)
-    levels = (-3.0, -6.0, -20.0, -18.0)
-    return header + struct.pack(f"<4f{2 * BINS}f", *levels, *reals, *([0.0] * BINS))
+SPUR_FRAME = fake_metering.spur_frame(source_rate=SOURCE_RATE, spur_khz=SPUR_KHZ, transform_time=TRANSFORM_TIME)
 
 
 @pytest.fixture
@@ -66,21 +58,8 @@ def captured(tmp_path: Path) -> Iterator[Path]:
     capture = tmp_path / "junkcal"
     capture.mkdir()
     daemon = spawn_threaded_daemon({"state": PLAYING, "_metadata": f'<metadata samplerate="{SOURCE_RATE}"/>'})
-    stream = fake_metering.spawn(_spur_frame(), frames=PAST_A_BLOCK)
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=next(daemon),
-        hqp_metering_port=next(stream),
-        hqp_username="",
-        hqp_password="",
-        data_dir=METADATA_MIN,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        autopilot_file=tmp_path / "autopilot.json",
-        advisor_enabled=True,
-        junkcal_dir=capture,
-    )
+    stream = fake_metering.spawn(SPUR_FRAME, frames=PAST_A_BLOCK)
+    cfg = replace(control_config(next(daemon), tmp_path), hqp_metering_port=next(stream), junkcal_dir=capture)
     with contextlib.ExitStack() as closing:
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock(now=INSTANT))))
         wait_for_api(client, connection_stands)

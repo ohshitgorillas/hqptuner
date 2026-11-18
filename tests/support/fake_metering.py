@@ -1,7 +1,8 @@
 """The fake hqplayerd metering side channel (4322) — real frames over a real socket.
 
-The frames are the caller's: this module packs no spectrum and derives nothing,
-it streams the bytes it was handed. A client that
+The frames are the caller's: the server derives nothing, it streams the bytes it
+was handed, and ``mono_frame`` packs the wire layout around the tables the caller
+passes it. ``FLAT_FRAME`` and ``spur_frame`` are the two frames the suites share. A client that
 connects is sent ``frames`` copies of that frame back to back and then held
 open, so a reader keeps its socket for the length of the case and the fake
 never spins: once the reader's buffer is full the send blocks, and once the
@@ -29,13 +30,46 @@ queued ahead of it before it ends.
 
 import contextlib
 import socket
+import struct
 import threading
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 #: How long a torn-down server thread gets to notice, in seconds. Only a
 #: deadlock reaches it; the shutdown below is by socket, not by waiting.
 JOIN_SECONDS = 5.0
+
+
+#: The four ``f32`` levels in dBFS every frame carries ahead of its transform.
+LEVELS = (-3.0, -6.0, -20.0, -18.0)
+
+#: The bins of a frame's transform.
+BINS = 1025
+
+
+def mono_frame(
+    *, bandwidth: float, transform_time: float, bits: int, gain: float, reals: Sequence[float], imags: Sequence[float]
+) -> bytes:
+    """One single-channel frame: a ``<4I3fI`` header, ``LEVELS``, then the reals and the imaginaries."""
+    header = struct.pack("<4I3fI", 1, 1, len(reals), bits, bandwidth, transform_time, gain, 0)
+    return header + struct.pack(f"<4f{len(reals) + len(imags)}f", *LEVELS, *reals, *imags)
+
+
+#: A frame of a 44.1 kHz source with no tone in it: a -60 dB floor in every real and imaginary.
+FLAT_FRAME = mono_frame(
+    bandwidth=22050.0, transform_time=1024 / 44100, bits=16, gain=2.0, reals=[1e-3] * BINS, imags=[1e-3] * BINS
+)
+
+
+def spur_frame(*, source_rate: int, spur_khz: float, transform_time: float) -> bytes:
+    """A frame of a ``source_rate`` source whose transform carries a -60 dB floor and one 0 dB bin at ``spur_khz``:
+    a persistent tone the reader's spur rule reads."""
+    bandwidth = source_rate / 2
+    reals = [1e-3] * BINS
+    reals[round(spur_khz * 1000 * (BINS - 1) / bandwidth)] = 1.0
+    return mono_frame(
+        bandwidth=bandwidth, transform_time=transform_time, bits=11, gain=0.0, reals=reals, imags=[0.0] * BINS
+    )
 
 
 @dataclass

@@ -1,12 +1,13 @@
-"""Two things built directly, outside pytest's fixture graph: a control-only REST app on a live daemon, and a port
-nothing listens on. `live_app` is a plain generator function, so it serves both `yield from live_app(...)` inside a
-fixture and `next(app)`/`next(app, None)` by hand around a manually built daemon."""
+"""Things built directly, outside pytest's fixture graph: the configs a REST app is built on, a control-only REST app
+on a live daemon, and a port nothing listens on. `live_app` is a plain generator function, so it serves both
+`yield from live_app(...)` inside a fixture and `next(app)`/`next(app, None)` by hand around a manually built daemon."""
 
 import asyncio
 import socket
 from collections.abc import Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -106,18 +107,10 @@ def wait_for_api(client: TestClient, until: Callable[[TestClient], bool], polls:
     raise FixtureError(reason="app never became ready against the fake daemons")
 
 
-def live_app(
-    control_port: int,
-    tmp_path: Path,
-    request_timeout: float | None = None,
-    poll_interval: float | None = None,
-) -> Iterator[TestClient]:
-    """Control lane only — no credentials, so the app talks 4321 alone.
-
-    ``poll_interval`` reshapes the manager's background poll the same way
-    ``request_timeout`` reshapes the per-command deadline. Passing nothing keeps
-    the production pacing."""
-    cfg = Config(
+def control_config(control_port: int, tmp_path: Path) -> Config:
+    """The config of an app that talks to one fake control daemon and carries no credentials, so it talks 4321 alone,
+    with every store under ``tmp_path``. A case that needs more, such as a metering port, ``replace``s it onto this."""
+    return Config(
         hqp_host="127.0.0.1",
         hqp_control_port=control_port,
         hqp_username="",
@@ -135,6 +128,51 @@ def live_app(
         # preset and snapshot cases still exercise the switch it carries
         advisor_enabled=True,
     )
+
+
+def two_lane_config(http_daemon: dict[str, Any], control_port: int, tmp_path: Path) -> Config:
+    """The config of an app on both fakes at once, control on a threaded 4321 daemon and config on the 8088 one, with
+    the advisor on and every store under ``tmp_path``. A case that needs more ``replace``s it onto this."""
+    return Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=control_port,
+        hqp_http_port=http_daemon["_port"],
+        hqp_username="u",
+        hqp_password="p",
+        alarm_threshold=1.0,
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+        live_preset_file=tmp_path / "live-presets.json",
+        autopilot_file=tmp_path / "autopilot.json",
+        advisor_enabled=True,
+        hqp_home="/x/home",
+    )
+
+
+def served_ceiling(client: TestClient, polls: int) -> float | None:
+    """The ceiling of the first junk recommendation `/api/status` serves within ``polls`` poll passes, or None."""
+    interval = app_manager(client).cfg.poll_interval
+    for _ in range(polls):
+        junk = client.get("/api/status").json()["data"]["junk"]
+        if junk is not None:
+            ceiling: float = junk["ceiling_khz"]
+            return ceiling
+        advance_app(client, interval)
+    return None
+
+
+def live_app(
+    control_port: int,
+    tmp_path: Path,
+    request_timeout: float | None = None,
+    poll_interval: float | None = None,
+) -> Iterator[TestClient]:
+    """Control lane only — no credentials, so the app talks 4321 alone.
+
+    ``poll_interval`` reshapes the manager's background poll the same way
+    ``request_timeout`` reshapes the per-command deadline. Passing nothing keeps
+    the production pacing."""
+    cfg = control_config(control_port, tmp_path)
     if request_timeout is not None:
         cfg = replace(cfg, request_timeout=request_timeout)
     if poll_interval is not None:

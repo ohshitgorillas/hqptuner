@@ -14,11 +14,12 @@ store under ``tmp_path``.
 
 import json
 from collections.abc import Callable, Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import connection_stands, wait_for_api
+from apps import connection_stands, two_lane_config, wait_for_api
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -26,7 +27,6 @@ from state_import import install_app_config, seed_install, upload, zip_of
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 
 #: A live-snapshot store stamped by a newer HQPTuner than this build understands.
 FUTURE_STORE = {"schema": 99, "presets": {}}
@@ -189,21 +189,7 @@ STORES = [
 
 def _client(http_daemon: dict[str, Any], control_port: int, tmp_path: Path, store: dict[str, object]) -> TestClient:
     (tmp_path / "autopilot.json").write_text(json.dumps(store))
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=control_port,
-        hqp_http_port=http_daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        autopilot_file=tmp_path / "autopilot.json",
-        advisor_enabled=True,
-        hqp_home="/x/home",
-        debug_log=tmp_path / "audit.jsonl",
-    )
+    cfg = replace(two_lane_config(http_daemon, control_port, tmp_path), debug_log=tmp_path / "audit.jsonl")
     return TestClient(create_app(cfg, VirtualClock()))
 
 

@@ -11,30 +11,22 @@ down, when nothing can dial any more.
 
 from __future__ import annotations
 
-import struct
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import fake_metering
 import pytest
-from apps import advance_app, connection_stands, wait_for_api
-from conftest import METADATA_MIN, spawn_threaded_daemon
+from apps import advance_app, connection_stands, control_config, wait_for_api
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.engine.metering import IDLE_RECHECK
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
-
-BINS = 1025
-BANDWIDTH = 22050.0
-TRANSFORM_TIME = 1024 / 44100
-HEADER_FIELDS = (1, 1, BINS, 16, BANDWIDTH, TRANSFORM_TIME, 2.0, 0)
-LEVELS = (-3.0, -6.0, -20.0, -18.0)
-FRAME = struct.pack("<4I3fI", *HEADER_FIELDS) + struct.pack(f"<4f{2 * BINS}f", *LEVELS, *([1e-3] * (2 * BINS)))
 
 #: What `State` reports while the engine is playing.
 PLAYING = "2"
@@ -52,20 +44,10 @@ def _session[T](tmp_path: Path, *, advisor_enabled: bool, drive: Callable[[TestC
     """What ``drive`` read off the app once reachable, and the connections the fake accepted over the app's life."""
     accepted = fake_metering.Accepted()
     daemon = spawn_threaded_daemon({"state": PLAYING})
-    stream = fake_metering.spawn(FRAME, frames=1, accepted=accepted)
+    stream = fake_metering.spawn(fake_metering.FLAT_FRAME, frames=1, accepted=accepted)
     try:
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=next(daemon),
-            hqp_metering_port=next(stream),
-            hqp_username="",
-            hqp_password="",
-            data_dir=METADATA_MIN,
-            backup_dir=tmp_path,
-            preset_dir=tmp_path / "presets",
-            live_preset_file=tmp_path / "live-presets.json",
-            autopilot_file=tmp_path / "autopilot.json",
-            advisor_enabled=advisor_enabled,
+        cfg = replace(
+            control_config(next(daemon), tmp_path), hqp_metering_port=next(stream), advisor_enabled=advisor_enabled
         )
         with TestClient(create_app(cfg, VirtualClock())) as client:
             wait_for_api(client, connection_stands)
