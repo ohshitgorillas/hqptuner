@@ -1,0 +1,217 @@
+{
+  "layout": 1,
+  "cycleOpen": true,
+  "cursor": {
+    "phase": 7,
+    "status": "planned",
+    "next": "/cad-execute 7",
+    "updated": "2026-11-18"
+  },
+  "phases": [
+    {
+      "n": 1,
+      "name": "Snapshots stay on their stations",
+      "description": "saving a snapshot to one station no longer erases it from another",
+      "status": "complete",
+      "plans": [
+        {
+          "file": "PLAN.md",
+          "finished": true
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "name": "Modulators fit the output rate",
+      "description": "the picker offers only modulators the running output rate supports, and a live apply that stops playback says so",
+      "status": "complete",
+      "plans": [
+        {
+          "file": "PLAN-1.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-2.md",
+          "finished": true
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "name": "HF filter lamp follows the content",
+      "description": "the HF filter lamp lights only for content the filter acts on",
+      "status": "complete",
+      "plans": [
+        {
+          "file": "PLAN.md",
+          "finished": true
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "name": "Dimmed while HQPlayer is away",
+      "description": "the app is dimmed while HQPlayer is unavailable or disconnected",
+      "status": "complete",
+      "plans": [
+        {
+          "file": "PLAN.md",
+          "finished": true
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "name": "Untested behaviors covered",
+      "description": "every behavior on `todo.txt`'s triaged untested list is covered by a test or struck",
+      "status": "complete",
+      "plans": [
+        {
+          "file": "PLAN-1.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-2.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-3.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-4.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-5.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-6.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-7.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-8.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-9.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-10.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-11.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-12.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-13.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-14.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-15.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-16.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-17.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-18.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-19.md",
+          "finished": true
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "name": "aclean filter entries",
+      "description": "each new \"aclean\" filter has an entry in the shipped filter data",
+      "status": "complete",
+      "plans": []
+    },
+    {
+      "n": 7,
+      "name": "Visuals stay in sync after a track starts",
+      "description": "the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate",
+      "status": "planned",
+      "plans": [
+        {
+          "file": "PLAN-1.md",
+          "finished": true
+        },
+        {
+          "file": "PLAN-2.md",
+          "finished": true
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "name": "No trace on the other visualizer effects",
+      "description": "the trace shows on the spectrum only, not on Borealis or any other effect",
+      "status": "unplanned",
+      "plans": []
+    },
+    {
+      "n": 9,
+      "name": "Packaged builds open in the browser",
+      "description": "\"Open HQPTuner\" in a packaged build opens the app in the browser",
+      "status": "unplanned",
+      "plans": []
+    }
+  ],
+  "requirements": [
+    {
+      "id": "BUG-01",
+      "phase": 1,
+      "status": "Complete"
+    },
+    {
+      "id": "BUG-02",
+      "phase": 2,
+      "status": "Complete"
+    },
+    {
+      "id": "BUG-03",
+      "phase": 3,
+      "status": "Complete"
+    },
+    {
+      "id": "BUG-04",
+      "phase": null,
+      "status": "Deferred"
+    },
+    {
+      "id": "BUG-05",
+      "phase": 4,
+      "status": "Complete"
+    },
+    {
+      "id": "TEST-01",
+      "phase": 5,
+      "status": "Complete"
+    }
+  ]
+}
