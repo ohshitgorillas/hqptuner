@@ -13,7 +13,7 @@ import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";
 import { applyLivePreset } from "../../store/live/presets.js";
 import { alertsNow, alertNotes } from "../../store/faceplate/alerts.js";
-import { Popover, parkAgainst, triggerProps } from "./Popover.js";
+import { Popover, parkAgainst, place, triggerProps } from "./Popover.js";
 import { AlertLines } from "./AlertLines.js";
 import { restartMark } from "./drawer/controls.js";
 
@@ -48,10 +48,7 @@ export const noteId = (el) => `alerts-${el}`;
  */
 function parkNote(panel) {
   const home = panel.closest(".plate")?.querySelector(`[data-pop="${panel.dataset.pop}"]:not(.pop)`);
-  const at = home && parkAgainst(panel, home, { side: 22, foot: 14, at: { x: "start", y: "below", gap: 8 } });
-  if (!at) return;
-  panel.style.left = `${Math.round(at.left)}px`;
-  panel.style.top = `${Math.round(at.top)}px`;
+  place(panel, home ? parkAgainst(panel, home, { side: 22, foot: 14, at: { x: "start", y: "below", gap: 8 } }) : null);
 }
 
 /**

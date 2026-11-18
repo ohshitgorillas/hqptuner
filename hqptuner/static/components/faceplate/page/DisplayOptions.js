@@ -29,7 +29,7 @@ import { freqSpan, setFreqSpan } from "../../../store/faceplate/view.js";
 import { sourceMeters } from "../../../store/faceplate/page/meter.js";
 import { setSpectrumOffset, spectrumOffset } from "../../../store/meter/delay.js";
 import { Seg } from "../drawers/pipelines/parts.js";
-import { Popover, parkAt, triggerProps } from "../Popover.js";
+import { Popover, parkPanel, triggerProps } from "../Popover.js";
 
 /** @typedef {import("../drawers/pipelines/parts.js").SegOption} Opt */
 /** @typedef {{ target: { value: string } }} ChangeEv */
@@ -99,10 +99,7 @@ const HOW = { side: 22, foot: 14, at: { x: "before", y: "top", gap: 8 } };
 
 /** @param {HTMLElement} panel */
 function parkBeside(panel) {
-  const at = parkAt(panel, HOW);
-  if (!at) return;
-  panel.style.left = `${Math.round(at.left)}px`;
-  panel.style.top = `${Math.round(at.top)}px`;
+  parkPanel(panel, HOW);
 }
 
 /**

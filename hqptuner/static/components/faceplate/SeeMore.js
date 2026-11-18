@@ -2,7 +2,7 @@
 // under the link.
 
 import { html } from "../../lib/dom.js";
-import { Popover, parkAt, triggerProps } from "./Popover.js";
+import { Popover, parkPanel, triggerProps } from "./Popover.js";
 
 /** @typedef {import("../../store/prose.js").Fold} Fold */
 
@@ -17,10 +17,7 @@ const HOW = /** @type {const} */ ({ side: 22, foot: 14, at: { x: "start", y: "fl
  * @param {HTMLElement} panel
  */
 function park(panel) {
-  const at = parkAt(panel, HOW);
-  if (!at) return;
-  panel.style.left = `${Math.round(at.left)}px`;
-  panel.style.top = `${Math.round(at.top)}px`;
+  parkPanel(panel, HOW);
 }
 
 /**

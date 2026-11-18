@@ -19,7 +19,7 @@ import {
   pickId,
 } from "../../../store/faceplate/bottom/switcher.js";
 import { NameFace } from "../NameFace.js";
-import { Popover, parkAt, triggerProps } from "../Popover.js";
+import { Popover, parkPanel, triggerProps } from "../Popover.js";
 import { VolumeBar } from "../Volume.js";
 
 /** @typedef {import("../../../store/faceplate/bottom/switcher.js").SwitcherView} SwitcherView */
@@ -45,11 +45,7 @@ const menuId = (i) => `swpick-${i}`;
  * @param {HTMLElement} panel
  */
 function park(panel) {
-  const at = parkAt(panel, HOW);
-  if (at) {
-    panel.style.left = `${Math.round(at.left)}px`;
-    panel.style.top = `${Math.round(at.top)}px`;
-  }
+  parkPanel(panel, HOW);
 }
 
 /**

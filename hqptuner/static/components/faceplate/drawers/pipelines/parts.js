@@ -5,7 +5,7 @@ import { useRef } from "preact/hooks";
 import { html } from "../../../../lib/dom.js";
 import { paging, stepPage } from "../../../../model/builders/pager.js";
 import { openPopover } from "../../../../store/faceplate/view.js";
-import { Popover, parkAt, triggerProps } from "../../Popover.js";
+import { Popover, parkPanel, triggerProps } from "../../Popover.js";
 
 /** @typedef {{ currentTarget: { value: string } }} ChangeEv */
 /** @typedef {{ v: string, label: string }} SegOption */
@@ -110,11 +110,7 @@ const HOW = { side: 22, foot: null, at: { x: "start", y: "below", gap: 6 } };
  * @param {HTMLElement} panel
  */
 export function park(panel) {
-  const at = parkAt(panel, HOW);
-  if (at) {
-    panel.style.left = `${Math.round(at.left)}px`;
-    panel.style.top = `${Math.round(at.top)}px`;
-  }
+  parkPanel(panel, HOW);
 }
 
 /**
