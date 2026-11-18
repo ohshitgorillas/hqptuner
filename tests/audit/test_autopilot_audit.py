@@ -81,11 +81,6 @@ def first_after(path: Path, mark: int, event: str) -> dict[str, Any]:
 
 
 @pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
-@pytest.fixture
 def autopilot_client(
     http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path, audit_log: Path
 ) -> Iterator[TestClient]:

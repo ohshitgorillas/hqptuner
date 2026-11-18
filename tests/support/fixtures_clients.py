@@ -2,13 +2,14 @@
 app under test — daemonless, control-lane-only on the threaded fake, and http-
 lane on the fake 8088 daemon."""
 
+import contextlib
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 from apps import closed_port as build_closed_port
-from apps import live_app
+from apps import connection_stands, live_app, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -52,10 +53,38 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
         yield client
 
 
+def app_on_daemon(
+    stack: contextlib.ExitStack, http_daemon: dict[str, Any], tmp_path: Path, ports: Iterator[int], debug_log: Path
+) -> TestClient:
+    """`app` with its control lane on the threaded daemon whose port ``ports`` yields, handed over once it stands.
+    Both fakes close with ``stack``, the app first."""
+    port = next(ports)
+    stack.callback(next, ports, None)
+    clients = app(http_daemon, tmp_path, port, debug_log)
+    client = next(clients)
+    stack.callback(next, clients, None)
+    wait_for_api(client, connection_stands)
+    return client
+
+
 @pytest.fixture
 def audit_log(tmp_path: Path) -> Path:
     """Where the app under test writes its audit log."""
     return tmp_path / "audit.jsonl"
+
+
+@pytest.fixture
+def audit_client(
+    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
+) -> Iterator[TestClient]:
+    """The REST surface on the fake 8088 daemon with the audit log enabled."""
+    yield from app(http_daemon, tmp_path, closed_port, audit_log)
+
+
+@pytest.fixture
+def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+    """The same app with the audit log unset: the disabled case."""
+    yield from app(http_daemon, tmp_path, closed_port, None)
 
 
 @pytest.fixture

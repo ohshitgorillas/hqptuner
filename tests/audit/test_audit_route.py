@@ -11,54 +11,11 @@ wiring cases, and a hand-seeded file would stay green even if the app emitted
 nothing at all.
 """
 
-from collections.abc import Callable, Iterator
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
-
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
-
-
-def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | None) -> Iterator[TestClient]:
-    """The REST surface on the fake 8088 daemon (the `http_client` shape), with
-    the audit log pointed wherever the case wants it — or disabled."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=port,
-        hqp_http_port=daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        hqp_home="/x/home",
-        debug_log=debug_log,
-    )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
-        yield client
-
-
-@pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
-@pytest.fixture
-def audit_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
-) -> Iterator[TestClient]:
-    yield from _app(http_daemon, tmp_path, closed_port, audit_log)
-
-
-@pytest.fixture
-def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
-    """The same app with the audit log unset — the disabled case."""
-    yield from _app(http_daemon, tmp_path, closed_port, None)
-
 
 # --- driving the write paths, and reading them back over the route ------------
 

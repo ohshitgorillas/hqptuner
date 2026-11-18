@@ -21,14 +21,13 @@ from types import MappingProxyType
 from typing import Any, NamedTuple
 
 import pytest
-from apps import connection_stands, wait_for_api
 from audit_records import records
 from conftest import spawn_threaded_daemon
 from fake_config_xml import cfg_xml
 from fake_control import DEFAULTS
 from fake_http import state
 from fastapi.testclient import TestClient
-from fixtures_clients import app
+from fixtures_clients import app_on_daemon
 
 from hqptuner.presets.store.presets import PresetStore
 
@@ -65,19 +64,6 @@ def level(raw: object) -> float | None:
 # --- the apps under test ------------------------------------------------------
 
 
-@pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
-@pytest.fixture
-def audit_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
-) -> Iterator[TestClient]:
-    """The REST surface on the fake 8088 daemon with the audit log enabled."""
-    yield from app(http_daemon, tmp_path, closed_port, audit_log)
-
-
 #: Build an app on a fresh threaded 4321 fake — ``overrides`` bakes State
 #: overrides into that daemon, ``control_state`` hands in the live State dict so
 #: the case can move the engine afterwards.
@@ -95,13 +81,7 @@ def control_client(http_daemon: dict[str, Any], tmp_path: Path, audit_log: Path)
         overrides: Mapping[str, str] = MappingProxyType({}), control_state: dict[str, str] | None = None
     ) -> TestClient:
         ports = spawn_threaded_daemon(overrides, control_state)
-        port = next(ports)
-        stack.callback(next, ports, None)
-        clients = app(http_daemon, tmp_path, port, audit_log)
-        client = next(clients)
-        stack.callback(next, clients, None)
-        wait_for_api(client, connection_stands)
-        return client
+        return app_on_daemon(stack, http_daemon, tmp_path, ports, audit_log)
 
     yield build
     stack.close()

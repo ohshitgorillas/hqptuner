@@ -16,11 +16,10 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 import pytest
-from apps import connection_stands, wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandHooks, CommandLog, OnNextArrival
 from fastapi.testclient import TestClient
-from fixtures_clients import app
+from fixtures_clients import app_on_daemon
 
 #: The command a write is read back by, which the fake drops the connection on.
 READBACK = "State"
@@ -64,11 +63,6 @@ def staged_apply_volume(client: TestClient) -> None:
     client.post("/api/config/apply")
 
 
-@pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
 #: Build the app on a fresh threaded fake 4321 daemon and return the client and
 #: the daemon's command log. With ``drop`` the connection dies on the first
 #: ``State`` after ``setter`` arrives; without it every command is answered, the
@@ -89,13 +83,7 @@ def control_client(http_daemon: dict[str, Any], tmp_path: Path, audit_log: Path)
 
         hooks: CommandHooks = {setter: OnNextArrival(arm)} if drop else {}
         ports = spawn_threaded_daemon(state=engine, log=log, hooks=hooks)
-        port = next(ports)
-        stack.callback(next, ports, None)
-        clients = app(http_daemon, tmp_path, port, audit_log)
-        client = next(clients)
-        stack.callback(next, clients, None)
-        wait_for_api(client, connection_stands)
-        return client, log
+        return app_on_daemon(stack, http_daemon, tmp_path, ports, audit_log), log
 
     yield build
     stack.close()

@@ -16,7 +16,6 @@ payload answers nothing.
 """
 
 import json
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +24,7 @@ from audit_records import last, records
 from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
-from fixtures_clients import CREDENTIAL, app
+from fixtures_clients import CREDENTIAL
 from state_import import PRESET_XML, export, store_config, upload
 
 from hqptuner.presets.store.presets import PresetStore
@@ -38,24 +37,6 @@ SOURCE_PRESET = "Source"
 
 
 # --- the app under test, with and without a debug log -------------------------
-
-
-@pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
-@pytest.fixture
-def audit_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
-) -> Iterator[TestClient]:
-    yield from app(http_daemon, tmp_path, closed_port, audit_log)
-
-
-@pytest.fixture
-def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
-    """The same app with the audit log unset — the disabled case."""
-    yield from app(http_daemon, tmp_path, closed_port, None)
 
 
 # --- reading the log back, independently of the module that writes it ---------

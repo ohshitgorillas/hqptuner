@@ -11,14 +11,13 @@ scene that stopped aborting refuses to run rather than passing. Rows are read
 back off the JSONL file, whose keys are the rows ``GET /api/audit`` serves.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
 
 import pytest
 from audit_records import records
 from fastapi.testclient import TestClient
-from fixtures_clients import app
 from narrow import FixtureError
 
 #: The config-file title staged before the 8088 lane goes down.
@@ -32,18 +31,6 @@ SAVE_NAME = "Aborted Save Target"
 
 #: The preset switch the aborted request names: the "(no preset)" switch.
 SWITCH_TO = ""
-
-
-@pytest.fixture
-def audit_log(tmp_path: Path) -> Path:
-    return tmp_path / "audit.jsonl"
-
-
-@pytest.fixture
-def audit_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
-) -> Iterator[TestClient]:
-    yield from app(http_daemon, tmp_path, closed_port, audit_log)
 
 
 class Abort(NamedTuple):
@@ -113,20 +100,16 @@ def test_an_aborted_apply_is_recorded_as_not_ok(
     assert [row["ok"] for row in rows] == [False]
 
 
-def test_an_aborted_apply_records_the_preset_switch_it_asked_for(
-    audit_client: TestClient, http_daemon: dict[str, Any], audit_log: Path
+@pytest.mark.parametrize(
+    ("key", "asked"),
+    [pytest.param("switch_to", SWITCH_TO, id="preset-switch"), pytest.param("save", SAVE_NAME, id="save-target")],
+)
+def test_an_aborted_apply_records_the_preset_switch_and_the_save_target_it_asked_for(
+    audit_client: TestClient, http_daemon: dict[str, Any], audit_log: Path, key: str, asked: str
 ) -> None:
     body = {"switch_to": SWITCH_TO, "save": {"name": SAVE_NAME}}
     rows = aborted_rows(audit_client, http_daemon, audit_log, CONFIG_LANE_DOWN, body)
-    assert [row["switch_to"] for row in rows] == [SWITCH_TO]
-
-
-def test_an_aborted_apply_records_the_save_target_it_asked_for(
-    audit_client: TestClient, http_daemon: dict[str, Any], audit_log: Path
-) -> None:
-    body = {"switch_to": SWITCH_TO, "save": {"name": SAVE_NAME}}
-    rows = aborted_rows(audit_client, http_daemon, audit_log, CONFIG_LANE_DOWN, body)
-    assert [row["save"] for row in rows] == [SAVE_NAME]
+    assert [row[key] for row in rows] == [asked]
 
 
 # --- an apply refused before anything reaches the engine ----------------------
