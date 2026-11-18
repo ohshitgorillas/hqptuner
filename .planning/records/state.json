@@ -3,7 +3,7 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 7,
-    "status": "ready to plan",
+    "status": "context gathered",
     "next": "/cad-plan 7",
     "updated": "2026-11-18"
   },
@@ -154,7 +154,7 @@
     {
       "n": 7,
       "name": "One time base",
-      "description": "every time and sample conversion has one home in a shared core structure, used everywhere, with no duplicated code",
+      "description": "a single time base, shared core structures everywhere, no duplicated code",
       "status": "unplanned",
       "plans": []
     },
