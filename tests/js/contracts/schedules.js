@@ -49,7 +49,7 @@ const SAFARI_FILE = new URL("../../support/fixtures/safari_paint_schedule.json",
  * @param {number} seed
  * @returns {() => number}
  */
-export function random(seed) {
+function random(seed) {
   let s = seed;
   return () => {
     s = (s + 0x6d2b79f5) | 0;
@@ -67,7 +67,7 @@ export function random(seed) {
  * @param {number} spanMs
  * @returns {number[]}
  */
-export function lengths(rand, rate, spanMs) {
+function lengths(rand, rate, spanMs) {
   /** @type {number[]} */
   const out = [];
   let music = 0;
@@ -78,20 +78,6 @@ export function lengths(rand, rate, spanMs) {
     music += (n * MS_PER_S) / rate;
   }
   return out;
-}
-
-/**
- * The frame lengths, samples at `rate`, of `spanMs` of music cut into frames of `frameMs` each. A `frameMs` that is a
- * multiple of 10 is a whole number of samples at 44100, 48000, 96000 and 192000 alike, so the same music is cut at the
- * same playback ms at each of them.
- *
- * @param {number} rate
- * @param {number} frameMs
- * @param {number} spanMs
- * @returns {number[]}
- */
-export function gridLengths(rate, frameMs, spanMs) {
-  return Array.from({ length: Math.ceil(spanMs / frameMs) }, () => Math.round((frameMs * rate) / MS_PER_S));
 }
 
 /**
@@ -129,7 +115,7 @@ function bursts(ns, rate, rand, { burst: [lo, hi], jitter, stall }) {
  * @param {() => number} gap
  * @returns {number[]}
  */
-export function paintsEvery(spanMs, gap) {
+function paintsEvery(spanMs, gap) {
   /** @type {number[]} */
   const out = [];
   for (let t = 3; t <= spanMs; t += gap()) out.push(t);
