@@ -1,0 +1,35 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-3232b805",
+  "round": 2,
+  "base": "3232b805",
+  "head": "3232b805",
+  "base_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1",
+  "head_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 77,
+      "severity": "low",
+      "claim": "The revision's e2e Verify bullet contradicts the new 'Retired under D-16, no question' kind on line 57: line 77 sends every red e2e case except the retired cap to the owner question, while line 57 deletes a red test_the_spectrogram_scroll_never_changes_by_more_than_one_column_between_paints without asking the owner.",
+      "failure_scenario": "At the checkpoint run, the wired code turns e2e :328 (one-column scroll step) red. Line 57 says delete it and never take it to the owner. Line 77 says it goes in the owner question. The executor either stops for an owner question that the owner's standing rule (line 39) says is never asked, or deletes the test against line 77. Either way one written instruction is broken, which is the kind of planned owner stop finding 1 closed.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "6c5169e5",
+      "base_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1",
+      "head_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1"
+    }
+  ]
+}

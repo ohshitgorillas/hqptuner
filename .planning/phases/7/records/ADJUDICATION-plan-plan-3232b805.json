@@ -1,0 +1,49 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-3232b805",
+  "round": 1,
+  "base": "3232b805",
+  "head": "3232b805",
+  "base_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1",
+  "head_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 61,
+      "severity": "high",
+      "claim": "Task 1 tells the executor to rewrite three pins as exact equality with answers the test writes, but each pin is a replay over seeded or captured paint schedules, so no rewrite fits D-16, D-14 or rule 13/18, and deletion is forbidden; the plan's only exit is a predictable owner stop, so it cannot deliver its 'make check exit=0' truth as written.",
+      "failure_scenario": "The three pins are Contract 1's speed check in tests/js/contracts/trace-and-meters.test.js:61 (wallProbe in trace-probes.js:59-75, which judges `Math.abs(moved - dt) > EPS` on every paint of SCHEDULES), spectrogram-columns.test.js's first-paint premise (also replayed via world.js on SCHEDULES), and the e2e cap tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py:335-337 (`max(...) <= math.ceil(PAINT_MS / COLUMN_MS)` on 16 ms browser paints). Under the approved rule the playhead moves dt plus or minus up to FOLLOW_SHARE*dt (playhead.js:193,207-211), so on bursty SCHEDULES the speed check turns red. The rewrite then has three options and each is barred. (1) Write an exact answer for each of hundreds of seeded or Safari paints: that means computing it from the schedule generator, which D-16 and rule 13 forbid. (2) Assert a bound such as move <= 1.2*dt: that is an allowance on a move, which D-14 and rule 18 forbid, and it stays green on the old code (old moves exactly dt), so it has no bite. (3) Delete or replace the replay pin, which rule 15 points to because Plan 1 Task 3 now holds the promise at pacePaint. Plan 2 line 61 forbids that: 'That pin is neither loosened nor deleted: stop and take it to the owner'. Plan 2 also names no owner decision for these pins. So execution reaches the stop on Contract 1 and the e2e cap at the latest, and the 'one commit, make check exit=0' of lines 32 and 66 is not reached by any planned path.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "6c5169e5",
+      "base_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1",
+      "head_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 64,
+      "severity": "medium",
+      "claim": "No test in either plan covers the carry of the line state from one paint to the next (the new PaintDecision field, loop.js storing it beside end/started/delayed, and handing it back as the next PaintInput.line), which AC3/AC9's 'lag holds through the track' needs at runtime.",
+      "failure_scenario": "Plan 1's tables write `line` as an input on every case and, per D-16, never take it from an earlier paint (PLAN-1.md:66). DESIGN.md:148 says the carried state 'is checked by feeding paints in turn, not by asserting it'. Plan 2's Testing scope (line 75) adds only rewritten pins. Take an implementation where pacePaint returns the input `line` unchanged, or where loop.js never stores the returned state, so each paint passes `line: null`. Every Plan 1 table case still passes, because each feeds its own `line`. But on the real loop, any paint without arrivals then runs settledLead with line === null, which yields ceiling -Infinity (playhead.js:177-178). followLine then gives carried - 0.2*dt (playhead.js:210-211), so the playhead drifts 20 percent slow between bursts. Nothing in the plan's named evidence (proof run, red run of rewritten pins, unedited tables) is required to fail on that.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "6c5169e5",
+      "base_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1",
+      "head_id": "3232b805a567e8d1b2626a4a6085afad8b5f75c1"
+    }
+  ]
+}
