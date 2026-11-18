@@ -18,7 +18,6 @@ terminates the app and drains the three fake generators so each runs its own
 teardown.
 """
 
-import asyncio
 import functools
 import json
 import os
@@ -35,6 +34,7 @@ from typing import IO, Any
 
 import fake_http
 import fake_metering
+from apps import serve_on_thread
 from fake_control import DEFAULTS, CommandLog, serve_shared
 
 #: Repo root — tests/e2e/support/stack.py, so three parents up. The app is run
@@ -179,18 +179,7 @@ def spawn_control(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     must accept from a loop that is not the test's own. One shared `state` dict
     across connections, the way a real daemon has one engine.
     """
-    loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=loop.run_forever, daemon=True)
-    thread.start()
-    handler = functools.partial(serve_shared, log=log, state=state)
-    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, "127.0.0.1", 0), loop).result()
-    port: int = server.sockets[0].getsockname()[1]
-    yield port
-    loop.call_soon_threadsafe(server.close)
-    asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
-    loop.call_soon_threadsafe(loop.stop)
-    thread.join()
-    loop.close()
+    return serve_on_thread(functools.partial(serve_shared, log=log, state=state))
 
 
 def _app_env(control_port: int, http_port: int, metering_port: int, tmp: Path) -> dict[str, str]:

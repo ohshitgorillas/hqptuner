@@ -7,44 +7,23 @@ which is not a package, so it is loaded by path — the same pattern
 ``tests/test_build_manual.py`` uses for its own script-under-test.
 """
 
-import importlib.util
 import io
-import shutil
 import socket
-import sys
 from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
 import httpx
 import pytest
-from narrow import FixtureError
+from conftest import load_script, miniature_repo
 
 #: The fuzz scripts directory, found relative to this file rather than through an import.
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts" / "fuzz"
 
 
-def load(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    """Load ``scripts/fuzz/<name>.py`` the way ``python scripts/fuzz/<name>.py`` would see it.
-
-    The fuzz scripts directory goes on ``sys.path`` so a sibling import resolves, and the
-    module is registered in ``sys.modules`` before it runs, as an ordinary import does.
-    """
-    monkeypatch.syspath_prepend(str(SCRIPTS_DIR))
-    path = SCRIPTS_DIR / f"{name}.py"
-    module_name = f"{name}_under_test"
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {path}")
-    module = importlib.util.module_from_spec(spec)
-    monkeypatch.setitem(sys.modules, module_name, module)
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.fixture
 def fuzz(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    return load("fuzz", monkeypatch)
+    return load_script(SCRIPTS_DIR, "fuzz", monkeypatch)
 
 
 #: The connect failure a refusing transport raises.
@@ -80,10 +59,6 @@ def test_gated_raises_state_unavailable_error_for_apply_when_state_route_fails(f
         fuzz.Run(client, io.StringIO()).gated(attack)
 
 
-#: This checkout's bracket script, copied into each miniature repo so a lookup that
-#: asks the script itself resolves the root exactly as an operator's run would.
-ABUSE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "abuse.sh"
-
 #: An image recipe in the repo's shape, naming one store under ``/state``.
 RECIPE = "FROM python:3.12-slim\nENV HQPTUNER_TALLY_FILE=/state/tally.json \\\n    HQPTUNER_LISTEN_HOST=0.0.0.0\n"
 
@@ -116,19 +91,10 @@ def with_open_run(tmp_path: Path, name: str) -> Path:
     return root
 
 
-def miniature_repo(tmp_path: Path, host_root: Path | None) -> Path:
-    """A repo root with the bracket script and a ``Dockerfile``, plus an ``hqpcreds``
-    naming ``host_root`` between two other host lines unless it is None."""
-    repo = tmp_path / "repo"
-    (repo / "scripts").mkdir(parents=True)
-    if not ABUSE_PATH.is_file():
-        raise FixtureError(reason=f"no abuse script at {ABUSE_PATH}")
-    shutil.copy2(ABUSE_PATH, repo / "scripts" / "abuse.sh")
-    (repo / "Dockerfile").write_text(RECIPE, encoding="utf-8")
-    if host_root is not None:
-        creds = f"{CHROMIUM_LINE}\nHQPTUNER_ABUSE_STATE={host_root}\n{USERNAME_LINE}\n"
-        (repo / "hqpcreds").write_text(creds, encoding="utf-8")
-    return repo
+def repo_naming(tmp_path: Path, host_root: Path | None) -> Path:
+    """A miniature repo whose ``hqpcreds`` names ``host_root`` between two other host lines, unless it is None."""
+    creds = None if host_root is None else f"{CHROMIUM_LINE}\nHQPTUNER_ABUSE_STATE={host_root}\n{USERNAME_LINE}\n"
+    return miniature_repo(tmp_path, RECIPE, creds)
 
 
 @pytest.mark.parametrize(
@@ -146,7 +112,7 @@ def test_open_bracket_finds_the_run_open_under_the_state_root_abuse_sh_resolves(
     override: str | None,
     found: str,
 ) -> None:
-    repo = miniature_repo(tmp_path, None if host_root is None else with_open_run(tmp_path, host_root))
+    repo = repo_naming(tmp_path, None if host_root is None else with_open_run(tmp_path, host_root))
     monkeypatch.delenv("HQPTUNER_ABUSE_STATE", raising=False)
     if override is not None:
         monkeypatch.setenv("HQPTUNER_ABUSE_STATE", str(with_open_run(tmp_path, override)))

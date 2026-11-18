@@ -24,18 +24,13 @@ case's own scratch directory is cut out of it.
 
 import os
 import re
-import shutil
 import socket
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from narrow import FixtureError
-
-#: The script under test, found relative to this file: it lives in
-#: ``scripts/``, outside any package.
-ABUSE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "abuse.sh"
+from conftest import miniature_repo
 
 #: The exit status ``abuse.sh`` refuses with, a precondition the operator has to
 #: put right.
@@ -96,20 +91,6 @@ def dead_api() -> Iterator[str]:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as held:
         held.bind(("127.0.0.1", 0))
         yield f"http://127.0.0.1:{held.getsockname()[1]}"
-
-
-def miniature_repo(tmp_path: Path, recipe: str, creds: str | None) -> Path:
-    """A repo root carrying this checkout's ``abuse.sh``, the given ``Dockerfile``
-    and, unless ``creds`` is None, an ``hqpcreds`` with that text."""
-    repo = tmp_path / "repo"
-    (repo / "scripts").mkdir(parents=True)
-    if not ABUSE_PATH.is_file():
-        raise FixtureError(reason=f"no abuse script at {ABUSE_PATH}")
-    shutil.copy2(ABUSE_PATH, repo / "scripts" / "abuse.sh")
-    (repo / "Dockerfile").write_text(recipe, encoding="utf-8")
-    if creds is not None:
-        (repo / "hqpcreds").write_text(creds, encoding="utf-8")
-    return repo
 
 
 def root_dir(tmp_path: Path, name: str) -> Path:

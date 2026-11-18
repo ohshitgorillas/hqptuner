@@ -7,6 +7,7 @@ fakes from `fake_http`, the fake 4322 metering streams, and the rig that runs a
 manager over a Control API fake and an 8088 fake."""
 
 import asyncio
+import contextlib
 import functools
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from http.server import BaseHTTPRequestHandler
@@ -69,10 +70,26 @@ async def daemon() -> AsyncIterator[DaemonFactory]:
 
 @pytest.fixture
 async def live_client(live_daemon_port: int) -> AsyncIterator[ControlClient]:
-    client = ControlClient("127.0.0.1", live_daemon_port, timeout=2.0)
+    client = ControlClient("127.0.0.1", live_daemon_port, timeout=REPLY_TIMEOUT)
     await client.connect()
     yield client
     await client.close()
+
+
+@contextlib.asynccontextmanager
+async def client_on_a_daemon_with(overrides: dict[str, str]) -> AsyncIterator[ControlClient]:
+    """A connected client of a fake daemon whose State carries ``overrides``, both closed at exit."""
+    handler = functools.partial(serve, overrides=overrides)
+    server = await asyncio.start_server(handler, "127.0.0.1", 0)
+    port: int = server.sockets[0].getsockname()[1]
+    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT)
+    await client.connect()
+    try:
+        yield client
+    finally:
+        await client.close()
+        server.close()
+        await server.wait_closed()
 
 
 @pytest.fixture
@@ -82,30 +99,16 @@ async def garbled_metadata_client() -> AsyncIterator[ControlClient]:
     '<' inside an attribute can't be repaired by the bare-'&' fix, so the root's
     active_* must be recovered by dropping the child."""
     bad = '<metadata artist="A&B" album="Foo <Bar> Baz"/>'
-    handler = functools.partial(serve, overrides={"_metadata": bad})
-    server = await asyncio.start_server(handler, "127.0.0.1", 0)
-    port: int = server.sockets[0].getsockname()[1]
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    yield client
-    await client.close()
-    server.close()
-    await server.wait_closed()
+    async with client_on_a_daemon_with({"_metadata": bad}) as client:
+        yield client
 
 
 @pytest.fixture
 async def disabled_volume_client() -> AsyncIterator[ControlClient]:
     """A fake daemon with volume control disabled (VolumeRange enabled=0), so a
     Volume write is rejected — the live-slider gray/error case."""
-    handler = functools.partial(serve, overrides={"_vol_enabled": "0"})
-    server = await asyncio.start_server(handler, "127.0.0.1", 0)
-    port: int = server.sockets[0].getsockname()[1]
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    yield client
-    await client.close()
-    server.close()
-    await server.wait_closed()
+    async with client_on_a_daemon_with({"_vol_enabled": "0"}) as client:
+        yield client
 
 
 #: Build a client whose daemon reports the given level back from `State`, or, for

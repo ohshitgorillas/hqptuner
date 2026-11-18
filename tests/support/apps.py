@@ -6,7 +6,8 @@ import asyncio
 import json
 import shutil
 import socket
-from collections.abc import Callable, Iterator
+import threading
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -194,6 +195,30 @@ def live_app(
     with TestClient(create_app(cfg, VirtualClock())) as client:
         wait_for_api(client, connection_stands)
         yield client
+
+
+#: A connection handler an asyncio server runs for each client that connects.
+type Handler = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
+
+
+def serve_on_thread(handler: Handler, host: str = "127.0.0.1", bind_port: int = 0) -> Iterator[int]:
+    """Serve ``handler`` on a loop of its own, in a thread of its own, over real TCP; shaped for a yield fixture.
+
+    The app under test runs its own event loop, in a `TestClient`'s thread or in another process altogether, and a
+    server on the test's loop answers nothing while a synchronous test body holds that loop. Yields the port; the end
+    of the generator stops the server and joins the thread.
+    """
+    loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=loop.run_forever, daemon=True)
+    thread.start()
+    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
+    port: int = server.sockets[0].getsockname()[1]
+    yield port
+    loop.call_soon_threadsafe(server.close)
+    asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
+    loop.call_soon_threadsafe(loop.stop)
+    thread.join()
+    loop.close()
 
 
 #: The sockets behind every port ``closed_port`` has handed out to the running test.

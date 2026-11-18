@@ -11,45 +11,25 @@ bare ``N/M`` cell is table text, not a header. Both scripts live at the repo
 root's ``scripts/`` and are not a package, so they are loaded by path.
 """
 
-import importlib.util
 import re
-import sys
 from pathlib import Path
 from types import ModuleType
 
 import pytest
-from narrow import FixtureError
+from conftest import load_script
 
 #: The scripts directory, found relative to this file rather than through an import.
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 
 
-def load(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    """Load ``scripts/<name>.py`` the way ``python scripts/<name>.py`` would see it.
-
-    The scripts directory goes on ``sys.path`` so a sibling import resolves, and the
-    module is registered in ``sys.modules`` before it runs, as an ordinary import does.
-    """
-    monkeypatch.syspath_prepend(str(SCRIPTS_DIR))
-    path = SCRIPTS_DIR / f"{name}.py"
-    module_name = f"{name}_under_test"
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {path}")
-    module = importlib.util.module_from_spec(spec)
-    monkeypatch.setitem(sys.modules, module_name, module)
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.fixture
 def build_manual(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    return load("build_manual", monkeypatch)
+    return load_script(SCRIPTS_DIR, "build_manual", monkeypatch)
 
 
 @pytest.fixture
 def page(monkeypatch: pytest.MonkeyPatch) -> re.Pattern[str]:
-    pattern: re.Pattern[str] = load("authority", monkeypatch).PAGE
+    pattern: re.Pattern[str] = load_script(SCRIPTS_DIR, "authority", monkeypatch).PAGE
     return pattern
 
 

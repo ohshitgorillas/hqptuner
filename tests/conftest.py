@@ -10,21 +10,22 @@ the type aliases) — `live_app`/`closed_port`/`wait_for_api`/`advance_app`/
 fixture below) live in `apps` now, imported from there directly by every test
 module that wants one — and the manager fixtures built on them."""
 
-import asyncio
 import contextlib
 import functools
+import importlib.util
 import os
+import shutil
 import socket
 import struct
-import threading
+import sys
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator, Mapping
 from pathlib import Path
-from types import MappingProxyType
-from typing import Any
+from types import MappingProxyType, ModuleType
+from typing import TYPE_CHECKING, Any
 
 import apps
 import pytest
-from apps import settled
+from apps import serve_on_thread, settled
 from fake_control import CommandHooks, CommandLog, serve, serve_shared
 from narrow import FixtureError
 from virtual_clock import VirtualClock
@@ -32,6 +33,9 @@ from virtual_clock import VirtualClock
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+
+if TYPE_CHECKING:
+    import asyncio
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients", "state_import"]
 
@@ -264,22 +268,49 @@ def spawn_threaded_daemon(
     # which is what a test of which address the app dials needs; the defaults
     # keep every existing caller on an ephemeral 127.0.0.1 port. `hooks` is
     # shared like `log`; it needs `state`, as only the shared server runs it.
-    loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=loop.run_forever, daemon=True)
-    thread.start()
     handler = (
         functools.partial(serve, overrides=overrides, log=log)
         if state is None
         else functools.partial(serve_shared, state=state, log=log, hooks=hooks)
     )
-    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
-    port: int = server.sockets[0].getsockname()[1]
-    yield port
-    loop.call_soon_threadsafe(server.close)
-    asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
-    loop.call_soon_threadsafe(loop.stop)
-    thread.join()
-    loop.close()
+    yield from serve_on_thread(handler, host, bind_port)
+
+
+#: This checkout's abuse bracket script, copied into each miniature repo so a lookup that asks the script itself
+#: resolves the root exactly as an operator's run would.
+ABUSE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "abuse.sh"
+
+
+def miniature_repo(tmp_path: Path, recipe: str, creds: str | None) -> Path:
+    """A repo root carrying this checkout's ``abuse.sh``, the given ``Dockerfile`` and, unless ``creds`` is None, an
+    ``hqpcreds`` with that text."""
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    if not ABUSE_PATH.is_file():
+        raise FixtureError(reason=f"no abuse script at {ABUSE_PATH}")
+    shutil.copy2(ABUSE_PATH, repo / "scripts" / "abuse.sh")
+    (repo / "Dockerfile").write_text(recipe, encoding="utf-8")
+    if creds is not None:
+        (repo / "hqpcreds").write_text(creds, encoding="utf-8")
+    return repo
+
+
+def load_script(scripts_dir: Path, name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """Load ``<scripts_dir>/<name>.py`` the way ``python <scripts_dir>/<name>.py`` would see it.
+
+    The directory goes on ``sys.path`` so a sibling import resolves, and the module is registered in ``sys.modules``
+    before it runs, as an ordinary import does. The scripts are not a package, so they are loaded by path.
+    """
+    monkeypatch.syspath_prepend(str(scripts_dir))
+    path = scripts_dir / f"{name}.py"
+    module_name = f"{name}_under_test"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise FixtureError(reason=f"no importable module at {path}")
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, module_name, module)
+    spec.loader.exec_module(module)
+    return module
 
 
 # --- a manager wired to the fake HTTP config daemon -------------------------

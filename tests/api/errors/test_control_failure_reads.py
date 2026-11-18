@@ -23,13 +23,12 @@ import asyncio
 import functools
 import socket
 import struct
-import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from apps import live_app
+from apps import live_app, serve_on_thread
 from fake_control import DEFAULTS, CommandLog, serve_shared
 from fastapi.testclient import TestClient
 
@@ -83,18 +82,7 @@ async def _serve_resetting(
 def _resetting_daemon(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     """Serve the fake from its own thread, as the suite's threaded daemon does,
     so the app's loop inside `TestClient` can reach it. Yields the port."""
-    loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=loop.run_forever, daemon=True)
-    thread.start()
-    handler = functools.partial(_serve_resetting, state=state, log=log)
-    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, HOST, 0), loop).result()
-    port: int = server.sockets[0].getsockname()[1]
-    yield port
-    loop.call_soon_threadsafe(server.close)
-    asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
-    loop.call_soon_threadsafe(loop.stop)
-    thread.join()
-    loop.close()
+    return serve_on_thread(functools.partial(_serve_resetting, state=state, log=log), HOST)
 
 
 def _resetting_app(tmp_path: Path, command: str) -> Iterator[tuple[TestClient, int]]:
