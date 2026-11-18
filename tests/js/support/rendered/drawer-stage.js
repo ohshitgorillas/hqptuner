@@ -7,13 +7,14 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 
 /**
- * Reset the drawer's store signals: the engine at adaptive volume off, no enums, metadata or pending preset, no
- * stage or popover open, no open question, and nothing staged.
+ * Reset the drawer's store signals: the engine in state `engine`, by default at adaptive volume off, no enums,
+ * metadata or pending preset, no stage or popover open, no open question, and nothing staged.
  *
+ * @param {Record<string, unknown>} [engine]
  * @returns {Promise<void>}
  */
-export async function resetDrawerStore() {
-  engineState.value = { adaptive: 0 };
+export async function resetDrawerStore(engine = { adaptive: 0 }) {
+  engineState.value = engine;
   enums.value = null;
   metadata.value = null;
   pendingPreset.value = null;

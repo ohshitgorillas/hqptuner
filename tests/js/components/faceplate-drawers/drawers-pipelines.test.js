@@ -29,7 +29,7 @@ import { PipelinesOutput } from "../../../../hqptuner/static/components/faceplat
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements } from "../../support/markup.js";
-import { loadPipelines, plain } from "../../support/rendered/pipelines-fixture.js";
+import { loadPipelines, plain, stagedRows } from "../../support/rendered/pipelines-fixture.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -57,12 +57,6 @@ const STEREO = [
 
 /** @type {ReturnType<typeof stagingWire>} */
 let wire;
-
-/** The pipeline set the server's buffer holds, or null when none is staged. @returns {Row[] | null} */
-function stagedRows() {
-  const json = wire.staged.http.matrix_pipelines;
-  return typeof json === "string" ? JSON.parse(json) : null;
-}
 
 beforeEach(async () => {
   wire = stagingWire();
@@ -120,7 +114,7 @@ test("test_a_routed_crosspoints_pin_is_lit", () => {
 
 test("test_tapping_an_empty_pin_stages_a_pipeline_there", async () => {
   await fire(overview(), (p) => p["data-src"] === "1" && p["data-mix"] === "0");
-  assert.deepEqual(stagedRows()?.at(-1), plain(1, 0));
+  assert.deepEqual(stagedRows(wire)?.at(-1), plain(1, 0));
 });
 
 test("test_an_output_tab_lists_the_pipelines_of_the_input_it_shows", async () => {
@@ -139,11 +133,11 @@ test("test_a_gain_edit_on_the_picked_pipeline_stages_its_gain", async () => {
   await loadPipelines([plain(0, 0), plain(1, 1)]);
   await pickLine(0, 0);
   await fire(output(), (p) => p["data-testid"] === "pl-gain", "onChange", { currentTarget: { value: "-4" } });
-  assert.equal(stagedRows()?.[0].gain, "-4");
+  assert.equal(stagedRows(wire)?.[0].gain, "-4");
 });
 
 test("test_removing_a_chip_stages_the_chain_without_its_stage", async () => {
   await pickLine(0, 0);
   await fire(output(), (p) => p["data-testid"] === "pl-chipx" && p["data-chip"] === "1");
-  assert.equal(stagedRows()?.[0].process, "iir:type=peak;f=1000;q=0.7;g=-3");
+  assert.equal(stagedRows(wire)?.[0].process, "iir:type=peak;f=1000;q=0.7;g=-3");
 });

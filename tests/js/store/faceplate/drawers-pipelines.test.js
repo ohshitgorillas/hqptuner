@@ -27,8 +27,9 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/drawers/pipelines.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
+import { plain, stagedRows } from "../../support/rendered/pipelines-fixture.js";
 
-/** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} Row */
+/** @typedef {import("../../support/rendered/pipelines-fixture.js").Row} Row */
 
 /** Two pipelines, In 1 to Out 1 and In 2 to Out 2, written with figures a serializer would not write. @type {Row[]} */
 const STEREO = [
@@ -66,21 +67,12 @@ async function load(rows, { channels = 2, engaged = true } = {}) {
   });
 }
 
-/** The pipeline set the server's buffer holds, or null when none is staged. @returns {Row[] | null} */
-function stagedRows() {
-  const json = wire.staged.http.matrix_pipelines;
-  return typeof json === "string" ? JSON.parse(json) : null;
-}
-
 beforeEach(async () => {
   wire = stagingWire();
   engineState.value = {};
   await load(STEREO);
   await discardAll();
 });
-
-/** A row from one input to one output with no processing. @param {number} src @param {number} mix @returns {Row} */
-const plain = (src, mix) => ({ gain: "0", gainunit: "dB", mixdown: String(mix), process: "", source: String(src) });
 
 const STRUCTURAL = /** @type {Row[]} */ (
   compileRows({ lambda: 1, angle: 30, headRadius: 0.0875, srcA: 0, srcB: 1, preampDb: 0, eqProcess: "" })
@@ -125,7 +117,7 @@ test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", async () => {
 test("test_adding_a_pipeline_stages_a_row_from_its_input_to_its_output", async () => {
   addPipeline(1, 0);
   await quiesce(wire);
-  assert.deepEqual(stagedRows()?.at(-1), plain(1, 0));
+  assert.deepEqual(stagedRows(wire)?.at(-1), plain(1, 0));
 });
 
 test("test_adding_a_pipeline_returns_its_place_in_the_set", () => {
@@ -135,20 +127,20 @@ test("test_adding_a_pipeline_returns_its_place_in_the_set", () => {
 test("test_an_untouched_row_keeps_its_wire_text", async () => {
   await setGain(1, -2, "dB");
   await quiesce(wire);
-  assert.equal(stagedRows()?.[0].process, STEREO[0].process);
+  assert.equal(stagedRows(wire)?.[0].process, STEREO[0].process);
 });
 
 test("test_a_gain_edit_stages_the_gain", async () => {
   await setGain(1, 0.5, "Lin");
   await quiesce(wire);
-  const row = stagedRows()?.[1];
+  const row = stagedRows(wire)?.[1];
   assert.equal(row?.gain, "0.5");
 });
 
 test("test_a_gain_edit_stages_its_unit", async () => {
   await setGain(1, 0.5, "Lin");
   await quiesce(wire);
-  const row = stagedRows()?.[1];
+  const row = stagedRows(wire)?.[1];
   assert.equal(row?.gainunit, "Lin");
 });
 
@@ -156,14 +148,14 @@ test("test_a_chain_edit_rebuilds_only_the_stage_it_changed", async () => {
   const [eq] = pipelinesView().pipes[0]?.stages ?? [];
   await setStages(0, [eq, { kind: "delay", t: 0.002 }]);
   await quiesce(wire);
-  assert.equal(stagedRows()?.[0].process, "iir:type=peak;f=1000.0;q=0.70;g=-3,delay:t=0.002");
+  assert.equal(stagedRows(wire)?.[0].process, "iir:type=peak;f=1000.0;q=0.70;g=-3,delay:t=0.002");
 });
 
 test("test_removing_a_pipeline_drops_its_row", async () => {
   await removePipeline(0);
   await quiesce(wire);
   assert.deepEqual(
-    stagedRows()?.map((r) => r.source),
+    stagedRows(wire)?.map((r) => r.source),
     ["1"],
   );
 });
@@ -171,14 +163,14 @@ test("test_removing_a_pipeline_drops_its_row", async () => {
 test("test_a_raw_process_string_that_parses_stages_as_written", async () => {
   setRaw(1, "delay:t=0.01,iir:type=lp;f=120;q=0.707");
   await quiesce(wire);
-  assert.equal(stagedRows()?.[1].process, "delay:t=0.01,iir:type=lp;f=120;q=0.707");
+  assert.equal(stagedRows(wire)?.[1].process, "delay:t=0.01,iir:type=lp;f=120;q=0.707");
 });
 
 test("test_an_imported_eq_lands_on_the_stereo_pair_with_its_preamp", async () => {
   await importEq(EQ_TEXT, true);
   await quiesce(wire);
   assert.deepEqual(
-    stagedRows()?.map((r) => r.gain),
+    stagedRows(wire)?.map((r) => r.gain),
     ["-6.4", "-6.4"],
   );
 });
@@ -186,5 +178,5 @@ test("test_an_imported_eq_lands_on_the_stereo_pair_with_its_preamp", async () =>
 test("test_an_unmirrored_eq_leaves_the_other_side_as_it_was", async () => {
   await importEq(EQ_TEXT, false);
   await quiesce(wire);
-  assert.deepEqual(stagedRows()?.[1], STEREO[1]);
+  assert.deepEqual(stagedRows(wire)?.[1], STEREO[1]);
 });

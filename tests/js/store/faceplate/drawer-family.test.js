@@ -13,23 +13,15 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  config,
-  engineState,
-  enums,
-  matrixConfig,
-  metadata,
-  pendingPreset,
-} from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
-import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
 import { drawerHead, pickApplyMode } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
+import { plain } from "../../support/rendered/pipelines-fixture.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
-/** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} PipelineRow */
 
 const FAMILY = "matrix";
 const TAB = "only";
@@ -40,9 +32,6 @@ const TAB = "only";
  * @param {...string} values
  */
 const opts = (...values) => values.map((value) => ({ value, label: value }));
-
-/** A pipeline row from one input to one output with no processing. @param {number} src @param {number} mix @returns {PipelineRow} */
-const plain = (src, mix) => ({ gain: "0", gainunit: "dB", mixdown: String(mix), process: "", source: String(src) });
 
 const LOADED_PIPELINES = [plain(0, 0), plain(1, 1)];
 const STAGED_PIPELINES = [plain(0, 0), plain(1, 1), plain(0, 1)];
@@ -72,14 +61,7 @@ beforeEach(async () => {
     post_correction_dac0: "",
     matrix_pipelines: JSON.stringify(LOADED_PIPELINES),
   });
-  engineState.value = {};
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openStage.value = null;
-  openPopover.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore({});
   pickApplyMode("apply");
 });
 
