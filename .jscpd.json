@@ -3,7 +3,7 @@
   "format": ["python", "javascript", "css"],
   "ignore": ["hqptuner/static/vendor/**", "**/node_modules/**", "**/*.mjs"],
   "minTokens": 50,
-  "threshold": 2.3,
+  "threshold": 0.33,
   "reporters": ["console"],
   "absolute": true
 }
