@@ -17,7 +17,7 @@
 // page's own.
 //
 // No global is patched: the painter is handed its canvas and nothing else, so two fresh painters handed the same paints
-// must draw the same. Time is counted in whole sixtieths of a second, so two runs at different rates reach the same
+// must draw the same. Time is counted in whole ticks of 15.625 ms, so two runs at different rates reach the same
 // moment exactly.
 //
 // Where the painter returns no painter at all, every helper says so in its result rather than throwing, so each case
