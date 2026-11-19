@@ -12,29 +12,15 @@
 import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 
-import { lastStream, useEventSource } from "../support/eventsource.js";
-import { quiesce, stagingWire } from "../support/wire/wire.js";
+import { lastStream } from "../support/eventsource.js";
+import { askedWire } from "../support/rendered/treewalk.js";
+import { quiesce } from "../support/wire/wire.js";
 
 /** How far the process's mocked timers move after the import, ms: a minute, past any start or poll it could park. */
 const MINUTE_MS = 60_000;
 
-/**
- * The global the wire fake installs its `fetch` on, viewed as an optional member, as the wire fake views it.
- *
- * @type {{ fetch?: unknown }}
- */
-const env = globalThis;
-
 test("test_importing_the_app_exports_boot_and_asks_the_wire_for_nothing", async () => {
-  useEventSource();
-  /** @type {string[]} every path the page asked the wire for */
-  const asked = [];
-  const wire = stagingWire();
-  const served = /** @type {(path: string, opts?: object) => Promise<unknown>} */ (env.fetch);
-  env.fetch = (/** @type {string} */ path, /** @type {object | undefined} */ opts) => {
-    asked.push(path);
-    return served(path, opts);
-  };
+  const { wire, asked } = askedWire();
   mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
   const loaded = await import("../../../hqptuner/static/app.js").then(
     (app) => typeof app.boot,

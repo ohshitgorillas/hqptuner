@@ -66,19 +66,19 @@ function pressClear() {
   click(clear);
 }
 
-test("test_pressing_clear_drops_the_selected_hit", async () => {
-  const wire = stagingWire({ routes: (path) => (path === "/api/autoeq" ? ok(LIBRARY) : undefined) });
-  draw(() => {});
-  await quiesce(wire);
-  select();
-  pressClear();
-  assert.equal(isSelected(), false);
-});
+//: Each case selects the hit, then does what its name says before asking whether the hit is still selected.
+const CASES = [
+  { name: "test_pressing_clear_drops_the_selected_hit", then: pressClear, selected: false },
+  { name: "test_a_selected_hit_carries_the_selected_state", then: () => undefined, selected: true },
+];
 
-test("test_a_selected_hit_carries_the_selected_state", async () => {
-  const wire = stagingWire({ routes: (path) => (path === "/api/autoeq" ? ok(LIBRARY) : undefined) });
-  draw(() => {});
-  await quiesce(wire);
-  select();
-  assert.equal(isSelected(), true);
-});
+for (const { name, then, selected } of CASES) {
+  test(name, async () => {
+    const wire = stagingWire({ routes: (path) => (path === "/api/autoeq" ? ok(LIBRARY) : undefined) });
+    draw(() => {});
+    await quiesce(wire);
+    select();
+    then();
+    assert.equal(isSelected(), selected);
+  });
+}

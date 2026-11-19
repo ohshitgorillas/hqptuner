@@ -1,15 +1,21 @@
 // Walkers over one render shared by the rendered suites that find a control by its tag and classes: the markup side
 // reads render-to-string's output through markup.js, the vnode side walks the tree preact builds, and `fire` calls a
 // vnode's handler since render-to-string fires no events. Every walker returns what it finds and asserts nothing.
+// The last section is the page's logged wire, which the app boot suites share.
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 import { elements, classes } from "../markup.js";
 import { propsOf } from "../wheel.js";
 import { renderTree } from "../vnodeseam.js";
+import { useEventSource } from "../eventsource.js";
+import { stagingWire } from "../wire/wire.js";
 
 /** @typedef {import("../markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../wheel.js").VNode} VNode */
+
+/** @type {{ fetch?: unknown }} */
+const env = globalThis;
 
 // --- markup ------------------------------------------------------------------------------------------------------
 
@@ -130,4 +136,25 @@ function fireNow(v, handler = "onClick", extra = {}) {
 export function pickValue(tree, v) {
   const { seen } = renderTree(tree);
   fireNow(seen.find((n) => n.type === "button" && n.props?.["data-v"] === v));
+}
+
+// --- the page's wire ---------------------------------------------------------------------------------------------
+
+/**
+ * The page's wire for a case that expects it to ask for nothing: the EventSource fake, and the staging fetch fake
+ * behind a log of every path it is handed, the staging paths it answers itself included.
+ *
+ * @returns {{ wire: ReturnType<typeof stagingWire>, asked: string[] }}
+ */
+export function askedWire() {
+  useEventSource();
+  /** @type {string[]} every path the page asked the wire for */
+  const asked = [];
+  const wire = stagingWire();
+  const served = /** @type {(path: string, opts?: object) => Promise<unknown>} */ (env.fetch);
+  env.fetch = (/** @type {string} */ path, /** @type {object | undefined} */ opts) => {
+    asked.push(path);
+    return served(path, opts);
+  };
+  return { wire, asked };
 }

@@ -15,19 +15,13 @@ import assert from "node:assert/strict";
 
 import { boot } from "../../../hqptuner/static/app.js";
 import { fakeClock } from "../support/clock.js";
-import { lastStream, useEventSource } from "../support/eventsource.js";
+import { lastStream } from "../support/eventsource.js";
 import { fakePage } from "../support/page.js";
-import { quiesce, stagingWire } from "../support/wire/wire.js";
+import { askedWire } from "../support/rendered/treewalk.js";
+import { quiesce } from "../support/wire/wire.js";
 
 /** How far the case moves the clock after boot, ms: a minute, past any poll or retry the app starts. */
 const MINUTE_MS = 60_000;
-
-/**
- * The global the wire fake installs its `fetch` on, viewed as an optional member, as the wire fake views it.
- *
- * @type {{ fetch?: unknown }}
- */
-const env = globalThis;
 
 /**
  * What a document's `html`, `head` and `body` carry beyond their children: attributes and inline style, and its title.
@@ -40,15 +34,7 @@ const dress = (doc) => {
 };
 
 test("test_a_document_with_no_app_element_boots_nothing", async () => {
-  useEventSource();
-  /** @type {string[]} every path the page asked the wire for */
-  const asked = [];
-  const wire = stagingWire();
-  const served = /** @type {(path: string, opts?: object) => Promise<unknown>} */ (env.fetch);
-  env.fetch = (/** @type {string} */ path, /** @type {object | undefined} */ opts) => {
-    asked.push(path);
-    return served(path, opts);
-  };
+  const { wire, asked } = askedWire();
   const { clock, advance } = fakeClock();
   const { doc } = fakePage({ clock, html: "<main></main>" });
   const handedIn = dress(doc);
