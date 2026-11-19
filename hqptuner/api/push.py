@@ -20,6 +20,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
@@ -174,11 +175,23 @@ def push_feed(request: Request) -> PushFeed:
 def push(request: Request) -> StreamingResponse:
     """Stream the page's read snapshots as ``text/event-stream``, each again whenever its content changes."""
     return StreamingResponse(
-        _events(push_feed(request)), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
+        relay(push_feed(request)), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
     )
 
 
-async def _events(feed: PushFeed) -> AsyncIterator[str]:
+class Feed(Protocol):
+    """What a server-sent event stream relays: a source of per-subscriber queues of ready event texts."""
+
+    def subscribe(self) -> "asyncio.Queue[str]":
+        """Attach a subscriber and answer its queue."""
+        ...
+
+    def unsubscribe(self, queue: "asyncio.Queue[str]") -> None:
+        """Detach a subscriber."""
+        ...
+
+
+async def relay(feed: Feed) -> AsyncIterator[str]:
     """Relay one subscriber's queue of ready texts, detaching it however the stream ends.
 
     Subscribing inside the generator ties the queue's lifetime to the stream's: a client gone before the first send

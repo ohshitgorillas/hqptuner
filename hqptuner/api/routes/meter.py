@@ -4,13 +4,11 @@ One ``geometry`` event ahead of the ``frame`` events it describes, then one ``fr
 (``engine/meterfeed.py``). The stream sends nothing while the engine is not playing and stays open.
 """
 
-from collections.abc import AsyncIterator
-
 from fastapi import APIRouter, Response
 from fastapi.responses import StreamingResponse
 
 from hqptuner.api.deps import Mgr
-from hqptuner.engine.meterfeed import MeterFeed
+from hqptuner.api.push import relay
 
 router = APIRouter(prefix="/api")
 
@@ -25,19 +23,5 @@ def meter_feed(manager: Mgr) -> Response:
     if manager.metering is None:
         return Response(status_code=204)
     return StreamingResponse(
-        _events(manager.metering.feed), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
+        relay(manager.metering.feed), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
     )
-
-
-async def _events(feed: MeterFeed) -> AsyncIterator[str]:
-    """Relay one subscriber's queue of ready event texts, detaching it however the stream ends.
-
-    Subscribing inside the generator ties the queue's lifetime to the stream's: a client gone before the first send
-    never attaches one.
-    """
-    queue = feed.subscribe()
-    try:
-        while True:
-            yield await queue.get()
-    finally:
-        feed.unsubscribe(queue)
