@@ -52,12 +52,15 @@ import {
   STEREO,
   bootMeter,
   capturedFeed,
+  frameTimes,
   generatedLandings,
+  setDelays,
 } from "../../support/meter/meterrig.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 /** @typedef {import("../../../../hqptuner/static/store/meter/loop.js").MeterScene} MeterScene */
 /** @typedef {import("../../support/meter/meterrig.js").Landing} Landing */
+/** @typedef {import("../../support/meter/meterrig.js").Delays} Delays */
 
 /** Wall time, ms, from one animation frame being asked for to its running, in turn. */
 const FRAME_GAPS_MS = [16, 33, 17, 250, 41, 1000, 16.7];
@@ -70,9 +73,6 @@ const SETTLE_MS = 2500;
 
 /** Wall time, ms, a closed feed stays closed. */
 const CLOSED_MS = 60000;
-
-/** One second, in ms. */
-const SECOND_MS = 1000;
 
 /** The delay the cases run at unless they set none, in seconds: shorter than a run of LENGTHS sent three times. */
 const DELAY_S = 0.25;
@@ -479,9 +479,6 @@ const BURST_SIZES = { short: [3, 5, 2, 4], long: [5, 7, 4, 6] };
 /** Paint waits, wall ms, in turn: steady at 60 Hz, then uneven with late paints. */
 const PAINTS = { steady: [16], uneven: [16, 33, 17, 41, 16.7] };
 
-/** The capture's paint wait, wall ms: 60 Hz. */
-const CAPTURE_PAINT_MS = SECOND_MS / 60;
-
 /**
  * A feed of the generated bursts of `sizes` frames in turn at 44.1 kHz.
  *
@@ -500,8 +497,7 @@ const generatedFeed = (sizes) => ({ rate: RATE_44K, landings: generatedLandings(
 function replay(feed) {
   const paints = subscribe();
   const t0 = fake.clock.now();
-  const starts = feed.landings.flatMap((l) => l.frames.map((f) => (f.at * SECOND_MS) / feed.rate));
-  const lengths = feed.landings.flatMap((l) => l.frames.map((f) => (f.n * SECOND_MS) / feed.rate));
+  const { starts, lengths } = frameTimes(feed.landings, feed.rate);
   lastStream()?.emit("geometry", geometry(feed.rate));
   let i = 0;
   for (const { wall, frames } of feed.landings) {
@@ -522,25 +518,25 @@ function replay(feed) {
  */
 const frameOf = (p) => Math.round((p.peak - FIRST_DB) / STEP_DB);
 
-/** @type {Array<{ name: string, delay: number, gaps: number[], feed: { rate: number, landings: Landing[] } }>} */
+/** @type {Array<{ name: string, delays: Delays, gaps: number[], feed: { rate: number, landings: Landing[] } }>} */
 const FEEDS = [];
 for (const [length, sizes] of Object.entries(BURST_SIZES)) {
   for (const [rate, gaps] of Object.entries(PAINTS)) {
     FEEDS.push({
       name: `${length}_bursts_at_${rate}_paints`,
-      delay: length === "short" ? 0.3 : 0.6,
+      delays: { offsetS: length === "short" ? 0.3 : 0.6 },
       gaps,
       feed: generatedFeed(sizes),
     });
   }
 }
 const CAPTURE = capturedFeed();
-FEEDS.push({ name: "the_capture_at_60_hz", delay: CAPTURE.delay, gaps: [CAPTURE_PAINT_MS], feed: CAPTURE });
+FEEDS.push({ name: "the_capture_at_60_hz", delays: CAPTURE.delays, gaps: CAPTURE.gaps, feed: CAPTURE });
 
-for (const { name, delay, gaps, feed } of FEEDS) {
+for (const { name, delays, gaps, feed } of FEEDS) {
   /** Replay the feed at its delay and paint waits. */
   const played = () => {
-    setSpectrumOffset(String(delay));
+    setDelays(delays);
     frameGaps = gaps;
     gapAt = 0;
     return replay(feed);

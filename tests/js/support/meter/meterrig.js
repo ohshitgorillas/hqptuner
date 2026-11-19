@@ -6,6 +6,7 @@
 
 import { readFileSync } from "node:fs";
 
+import { samplesToMs, secondsToMs } from "../../../../hqptuner/static/lib/timebase.js";
 import { closeMeterFeed, initMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { initMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
@@ -87,9 +88,6 @@ export function readyTrack48k(clock) {
 /** Event lengths, samples at 44.1 kHz, in turn: 22.7, 17.3, 19.3 and 23.1 ms, two of each. */
 export const LENGTHS = [1000, 1000, 765, 765, 850, 850, 1020, 1020];
 
-/** One second, in ms. */
-const SECOND_MS = 1000;
-
 /** Burst sizes in turn, and how far each burst lands off the schedule its music sets, wall ms, early and late. */
 const OFF_SCHEDULE_MS = [0, -20, 25, -10, 30, -25, 15, -5, 20, -30];
 
@@ -113,7 +111,7 @@ export function generatedLandings(sizes, lead = 0) {
   let wall = 0;
   for (let k = 0; k < BURSTS; k++) {
     const frames = Array.from({ length: sizes[k % sizes.length] }, () => ({ at, n: LENGTHS[sent++ % LENGTHS.length] }));
-    wall = Math.max(wall, k ? (at * SECOND_MS) / RATE_44K + OFF_SCHEDULE_MS[k % OFF_SCHEDULE_MS.length] - lead : 0);
+    wall = Math.max(wall, k ? samplesToMs(at, RATE_44K) + OFF_SCHEDULE_MS[k % OFF_SCHEDULE_MS.length] - lead : 0);
     landings.push({ wall, frames });
     for (const f of frames) {
       f.at = at;
@@ -126,13 +124,32 @@ export function generatedLandings(sizes, lead = 0) {
 /** The committed capture of the dev container's feed, read, never written. */
 const CAPTURE_FILE = new URL("../../../support/fixtures/meter_feed_capture.json", import.meta.url);
 
+/** The capture's paint wait, wall ms: 60 Hz. */
+const CAPTURE_PAINT_MS = secondsToMs(1) / 60;
+
+/**
+ * The delays a feed runs at, as the stores take them: the spectrum offset the user types, s, and the engine's output
+ * delay as Status reports it, whole microseconds, where the engine reports one.
+ *
+ * @typedef {{ offsetS: number, outputDelayUs?: string }} Delays
+ */
+
+/**
+ * Give the stores `delays` the way they arrive: the offset typed, the engine's output delay in a status poll.
+ *
+ * @param {Delays} delays
+ */
+export function setDelays({ offsetS, outputDelayUs }) {
+  setSpectrumOffset(String(offsetS));
+  if (outputDelayUs !== undefined) poll({ output_delay: outputDelayUs });
+}
+
 /**
  * The first `limit` frames of the committed capture as a feed: each frame lands at its own recorded time, at the
- * capture's geometry.
+ * capture's geometry, painted at 60 Hz, at the delays the capture was taken under.
  *
  * @param {number} [limit]
- * @returns {{ rate: number, channels: number, bins: number, landings: Landing[], delay: number }}  delay: engine output
- *   delay plus the owner's offset, s
+ * @returns {{ rate: number, channels: number, bins: number, landings: Landing[], delays: Delays, gaps: number[] }}
  */
 export function capturedFeed(limit = Infinity) {
   const raw = JSON.parse(readFileSync(CAPTURE_FILE, "utf8"));
@@ -145,8 +162,25 @@ export function capturedFeed(limit = Infinity) {
       const { at, n } = JSON.parse(ev.data);
       return { wall: ev.t_ms, frames: [{ at, n }] };
     });
-  const delay = Number(raw.engine_output_delay) / 1e6 + raw.owner_spectrum_offset_s;
-  return { rate: geo.rate, channels: geo.channels, bins: geo.bins, landings, delay };
+  const delays = { offsetS: raw.owner_spectrum_offset_s, outputDelayUs: raw.engine_output_delay };
+  return { rate: geo.rate, channels: geo.channels, bins: geo.bins, landings, delays, gaps: [CAPTURE_PAINT_MS] };
+}
+
+/**
+ * Where each frame of `landings` starts and ends and how long it lasts at `rate`, playback ms, read through the time
+ * base from the whole samples the suite sends.
+ *
+ * @param {Landing[]} landings
+ * @param {number} rate
+ * @returns {{ starts: number[], ends: number[], lengths: number[] }}
+ */
+export function frameTimes(landings, rate) {
+  const frames = landings.flatMap((l) => l.frames);
+  return {
+    starts: frames.map((f) => samplesToMs(f.at, rate)),
+    ends: frames.map((f) => samplesToMs(f.at + f.n, rate)),
+    lengths: frames.map((f) => samplesToMs(f.n, rate)),
+  };
 }
 
 /** Channels the cases that clear the scene run at, so the claim reaches past the first. */

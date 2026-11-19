@@ -58,17 +58,17 @@ const IDLE_MS = 60000;
 /** Wall time, ms, one settle runs the fake clock on: several animation frames. */
 const SETTLE_MS = 100;
 
-/** One second of playback, in ms. */
-const SECOND_MS = 1000;
-
-/** The two delays the playhead is held to, in seconds: one shorter than a feed's run of frames, one longer. */
-const DELAYS_S = [0.25, 1.5];
+/** The two delays the playhead is held to: one shorter than a feed's run of frames, one longer, in seconds as the user types them and in ms. */
+const DELAYS = [
+  { s: 0.25, ms: 250 },
+  { s: 1.5, ms: 1500 },
+];
 
 /** The delay the cases that are not about the delay run at, in seconds. */
 const DELAY_S = 0.25;
 
-/** The row of DROPPED_44K that begins a break: the one after the row it leaves out. */
-const BREAK_ROW = 3;
+/** Where the row of DROPPED_44K that begins a break starts, playback ms: the one after the row it leaves out, sample 3530 at 44.1 kHz. */
+const BREAK_START_MS = 80.0453514739229;
 
 /** Run the fake clock on far enough for several paints. */
 const settle = () => advance(SETTLE_MS);
@@ -115,24 +115,24 @@ const PAINTS = 12;
 
 /**
  * Feed the first burst of CONTIGUOUS_44K, let the loop paint it, feed the rest, then read the playhead and its target
- * (the feed's edge less `delay`) after each paint, none of which has a frame arrive.
+ * (the feed's edge less `delay.ms`) after each paint, none of which has a frame arrive.
  *
- * @param {number} delay  s
+ * @param {{ s: number, ms: number }} delay  the offset the user types, s, and the playback it holds the playhead behind the edge, ms
  * @returns {Array<{ at: number | null, target: number }>}  playback, ms
  */
 function afterABurst(delay) {
-  setSpectrumOffset(String(delay));
+  setSpectrumOffset(String(delay.s));
   feed(CONTIGUOUS_44K.slice(0, 5));
   settle();
   play(CONTIGUOUS_44K.slice(5));
   return Array.from({ length: PAINTS }, () => {
     advance(PAINT_MS);
-    return { at: playhead.value, target: (feedEdge() ?? NaN) - delay * SECOND_MS };
+    return { at: playhead.value, target: (feedEdge() ?? NaN) - delay.ms };
   });
 }
 
-for (const delay of DELAYS_S) {
-  test(`test_the_playhead_moves_at_every_paint_that_finds_it_behind_the_feed_edge_less_a_${delay}_s_delay`, () => {
+for (const delay of DELAYS) {
+  test(`test_the_playhead_moves_at_every_paint_that_finds_it_behind_the_feed_edge_less_a_${delay.s}_s_delay`, () => {
     const seen = afterABurst(delay);
     assert.deepEqual(
       seen.filter((s, i) => i > 0 && (seen[i - 1].at ?? NaN) < s.target && s.at === seen[i - 1].at),
@@ -140,7 +140,7 @@ for (const delay of DELAYS_S) {
     );
   });
 
-  test(`test_the_playhead_moves_at_a_paint_no_frame_arrived_before_when_the_feed_edge_less_a_${delay}_s_delay_is_ahead`, () => {
+  test(`test_the_playhead_moves_at_a_paint_no_frame_arrived_before_when_the_feed_edge_less_a_${delay.s}_s_delay_is_ahead`, () => {
     const seen = afterABurst(delay);
     assert.equal(
       seen.slice(1).some((s, i) => s.at !== seen[i].at),
@@ -148,7 +148,7 @@ for (const delay of DELAYS_S) {
     );
   });
 
-  test(`test_after_a_burst_each_paint_moves_the_playhead_its_wall_time_at_a_${delay}_s_delay`, () => {
+  test(`test_after_a_burst_each_paint_moves_the_playhead_its_wall_time_at_a_${delay.s}_s_delay`, () => {
     const seen = afterABurst(delay);
     assert.deepEqual(
       seen.filter((s, i) => i > 0 && Math.abs((s.at ?? NaN) - (seen[i - 1].at ?? NaN) - PAINT_MS) > 1e-6),
@@ -157,13 +157,13 @@ for (const delay of DELAYS_S) {
   });
 }
 
-/** Spectrum offsets, s, a typed change runs from and to: a drop, then a raise, each larger than a paint. */
-const CHANGES_S = [
-  [0.3, 0.15],
-  [0.15, 0.3],
+/** Spectrum offsets, s, a typed change runs from and to, and the playback it adds to the playhead's move, ms: a drop, then a raise, each larger than a paint. */
+const CHANGES = [
+  { from: 0.3, to: 0.15, jumpMs: 150 },
+  { from: 0.15, to: 0.3, jumpMs: -150 },
 ];
 
-for (const [from, to] of CHANGES_S) {
+for (const { from, to, jumpMs } of CHANGES) {
   test(`test_a_spectrum_offset_changed_from_${from}_s_to_${to}_s_moves_the_playhead_its_wall_time_and_the_change`, () => {
     setSpectrumOffset(String(from));
     feed(CONTIGUOUS_44K.slice(0, 5));
@@ -171,7 +171,7 @@ for (const [from, to] of CHANGES_S) {
     const before = playhead.value ?? NaN;
     setSpectrumOffset(String(to));
     advance(PAINT_MS);
-    const want = Math.min(before + PAINT_MS + (from - to) * SECOND_MS, feedEdge() ?? NaN);
+    const want = Math.min(before + PAINT_MS + jumpMs, feedEdge() ?? NaN);
     assert.equal(playhead.value, want);
   });
 }
@@ -210,8 +210,7 @@ test("test_after_a_break_the_spectrogram_history_runs_from_the_break_frame_on", 
   settle();
   play(DROPPED_44K.slice(2));
   settle();
-  const from = (DROPPED_44K[BREAK_ROW].at * SECOND_MS) / RATE_44K;
-  assert.deepEqual(history(), { from, to: feedEdge() ?? NaN, joins: 0 });
+  assert.deepEqual(history(), { from: BREAK_START_MS, to: feedEdge() ?? NaN, joins: 0 });
 });
 
 test("test_while_the_engine_is_not_playing_the_loop_asks_for_no_animation_frame", () => {

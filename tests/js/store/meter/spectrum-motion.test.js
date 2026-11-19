@@ -26,23 +26,21 @@ import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
-import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { pageRange, spectrumColors, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream } from "../../support/eventsource.js";
 import { fakeClock } from "../../support/clock.js";
 import { RATE_44K, geometry } from "../../support/meterfeed.js";
-import { bootMeter, capturedFeed, generatedLandings } from "../../support/meter/meterrig.js";
+import { bootMeter, capturedFeed, frameTimes, generatedLandings, setDelays } from "../../support/meter/meterrig.js";
 import { RANGE, TRACE, MONO, lineLevel, section } from "../../support/rendered/sourcesection.js";
 import { fxPainter } from "../../../../hqptuner/static/components/faceplate/page/spectrumfx.js";
 import { rasterCanvas } from "../../support/raster.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 /** @typedef {import("../../support/meter/meterrig.js").Landing} Landing */
-/** @typedef {{ rate: number, channels: number, bins: number, landings: Landing[], delay: number, gaps: number[] }} Feed */
-
-const SECOND_MS = 1000;
+/** @typedef {import("../../support/meter/meterrig.js").Delays} Delays */
+/** @typedef {{ rate: number, channels: number, bins: number, landings: Landing[], delays: Delays, gaps: number[] }} Feed */
 
 /** Wall time, ms, one settle runs the clock on. */
 const SETTLE_MS = 2500;
@@ -88,7 +86,14 @@ const clock = {
  * @returns {Feed}
  */
 function generated(sizes, delay, gaps, lead = 0) {
-  return { rate: RATE_44K, channels: 1, bins: 4, landings: generatedLandings(sizes, lead), delay, gaps };
+  return {
+    rate: RATE_44K,
+    channels: 1,
+    bins: 4,
+    landings: generatedLandings(sizes, lead),
+    delays: { offsetS: delay },
+    gaps,
+  };
 }
 
 /**
@@ -96,7 +101,7 @@ function generated(sizes, delay, gaps, lead = 0) {
  *
  * @returns {Feed}
  */
-const captured = () => ({ ...capturedFeed(CAPTURE_FRAMES), gaps: [SECOND_MS / 60] });
+const captured = () => capturedFeed(CAPTURE_FRAMES);
 
 /**
  * The wire's bins: `n` of them, every one at `count` steps of 0.5 dB below full scale.
@@ -158,7 +163,7 @@ const STEPPED_VIEWS = ["ridges", "fire"];
  * @returns {{ paints: Painted[], starts: number[], ends: number[] }}  where each frame starts and ends, playback ms
  */
 function play(feed, view = TRACE) {
-  setSpectrumOffset(String(feed.delay));
+  setDelays(feed.delays);
   frameGaps = feed.gaps;
   gapAt = 0;
   spectrumStyle.value = view;
@@ -177,9 +182,7 @@ function play(feed, view = TRACE) {
   });
   const t0 = fake.clock.now();
   lastStream()?.emit("geometry", geometry(feed.rate, feed.channels, feed.bins));
-  const frames = feed.landings.flatMap((l) => l.frames);
-  const starts = frames.map((f) => (f.at * SECOND_MS) / feed.rate);
-  const ends = frames.map((f) => ((f.at + f.n) * SECOND_MS) / feed.rate);
+  const { starts, ends } = frameTimes(feed.landings, feed.rate);
   let sent = 0;
   for (const { wall, frames: landing } of feed.landings) {
     fake.advance(Math.max(0, t0 + wall - fake.clock.now()));

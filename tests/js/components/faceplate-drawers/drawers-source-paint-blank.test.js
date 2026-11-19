@@ -23,6 +23,7 @@
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
+import { samplesToMs } from "../../../../hqptuner/static/lib/timebase.js";
 import { SPEC_SIZE, meterPainter } from "../../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { setSpectrogramSpan } from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
@@ -38,7 +39,6 @@ import { GLASS, TOKENS, openSourceMeter, pixelCanvas } from "../../contracts/pic
 
 /** @typedef {import("../../contracts/picture.js").PixelCanvas} PixelCanvas */
 
-const SECOND_MS = 1000;
 const STRIP_WIDTH = 600;
 
 /** Event lengths, samples at 44.1 kHz, in turn: 17.4 and 23.1 ms. */
@@ -120,14 +120,14 @@ export function columnsOf(canvas, color) {
  */
 function music() {
   let sent = 0;
-  let newest = 0;
+  let samples = 0;
   let head = FIRST_HEAD_MS;
   return {
     send: (count) => {
       for (let i = 0; i < count; i++) {
         const n = LENGTHS[sent++ % LENGTHS.length];
         follow([{ peak: -10, rms: -20, bins: MONO_BINS }], n);
-        newest += (n * SECOND_MS) / RATE_44K;
+        samples += n;
         toSpectrogram(takeMeterFrames());
       }
     },
@@ -136,7 +136,7 @@ function music() {
       head = Math.max(head, Math.min(head + PAINT_MS, to));
       playhead.value = head;
     },
-    end: () => newest,
+    end: () => samplesToMs(samples, RATE_44K),
   };
 }
 
