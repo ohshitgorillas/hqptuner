@@ -21,7 +21,7 @@ The program has two clocks and no third.
 
 | Clock | What it says | Its only source | Unit |
 |---|---|---|---|
-| **Playback time** | Where the music is | The backend's stamp on each meter feed event: `at`, the sample the event starts at, and `n`, the samples it covers, both whole numbers counted from the daemon's frames at the metering rate the geometry event names. The feed store converts both to ms at that rate, once. | samples on the wire, ms from the feed store on |
+| **Playback time** | Where the music is | The backend's stamp on each meter feed event: `at`, the sample the event starts at, and `n`, the samples it covers, both whole numbers counted from the daemon's frames at the metering rate the geometry event names. The feed store converts them to ms at that rate, once, through `hqptuner/static/lib/timebase.js`, which owns the conversion of whole samples to ms and the reading of a frame's start and end. | samples on the wire, ms from the feed store on |
 | **Wall time** | How long something has waited | The injected clock: `lib/clock.js` `Clock` in the browser, `hqptuner/clock.py` `Clock` on `mgr.clock` on the server | ms in the browser, s on the server |
 
 Playback time never measures waiting. Wall time never says where the music is. The playhead stands on the music's line, one delay behind where the stamps stand ahead of wall time. The feed store stamps each event with the wall time it arrives at, and the lead of an arrival is its newest frame's end less that time. The lead of the line is the greatest lead seen over a short fixed span of recent wall time, so a burst landing late does not move it, and one landing early moves it by no more than it was early.
@@ -39,7 +39,7 @@ Every value that carries a time names its clock and its unit in its doc comment:
 1. **Positions come from stamps, never from sums.** The backend's stamping site is the only code that adds durations to make a position. Anywhere else, a running total of `ms` is a second clock: two totals of the same thing drift whenever one gains or loses an event the other did not. A slice, a playhead or an edge takes its position from the stamps of the events it holds.
 
    The one allowance is the playhead, which moves on the loop's `dt` at wall speed, follows the line the stamps set by a bounded share of wall speed, jumps by the change when the delay changes, and never passes the newest queued frame's end, its only cap. The stamps stay the only authority for where the music is: the line is their lead over wall time, each lead read at the wall time its event arrived. A running total of event `ms` stays a defect.
-2. **Durations come off the wire.** No frame length, rate, hop or stride is assumed. Each event's length is read from the event that carries it. The program's own timing constants are display targets, each defined once: `REFRESH_HZ` (`engine/meterfeed.py`), the shortest spectrogram slice, the animation step rate. None of them stands in for a measurement.
+2. **Durations come off the wire.** No frame length, rate, hop or stride is assumed. Each event's length is read from the event that carries it. The program's own timing constants are display targets, each defined once: `REFRESH_HZ` (`engine/meterfeed.py`), the shortest spectrogram slice, the animation step rate. None of them stands in for a measurement. Samples become ms in one place, `lib/timebase.js`, and the feed store is the one caller that converts a wire stamp.
 3. **A break is explicit.** The feed store tests every event in whole samples, before any conversion: an event whose `at` is not the previous event's `at + n` is a break. A reconnect, a dropped frame and a geometry change that dropped a partial stride all show up there. Every consumer of playback time restarts at a break: a history clears, a playhead starts again. Nothing smooths, slews or interpolates across one.
 4. **One playhead.** The meters, the spectrogram's edge, the apodizing strip and every future view of playback read the one playhead the meter loop moves. No view keeps a position of its own.
 5. **One pacing decision a paint, contiguous.** One pure function decides what playback a paint shows. Each paint shows the playback from where the last one ended: no gap, no overlap. Skip, catch-up and the playhead's follow of its line live in that function, and in the pure functions it calls, and nowhere else.
@@ -61,7 +61,7 @@ Each hop owns one decision. A diff that makes a decision outside its owner is re
 | Metering reader | Reading frames off the socket | `engine/metering.py` |
 | Meter feed | The stride, and the `at`/`n` stamp, in samples, on every event | `engine/meterfeed.py` |
 | Feed route | Transport over SSE, nothing else | `api/routes/meter.py` |
-| Feed store | Decoding, queueing, detecting a break in samples, converting the stamp to ms, stamping each event with the wall time it arrived | `store/meter/feed.js` |
+| Feed store | Decoding, queueing, detecting a break in samples, converting the stamp to ms through `lib/timebase.js` (the one call site that converts wire stamps), stamping each event with the wall time it arrived | `store/meter/feed.js` |
 | Playback model | What a paint shows, and where the playhead stands | `static/model/gauges/` |
 | Meter loop | The one animation loop; applies the playback decision; hands the scene and `dt` to painters | `store/meter/loop.js` |
 | Spectrogram history | Slices placed by their events' stamps; the edge taken from the playhead | `store/meter/spectrogram.js` |
@@ -112,7 +112,7 @@ A position recovered by summing, and the same position from stamps:
 h.end += h.frameMs;
 
 // Holds: the slice ends where its last event's playback ends.
-slice.end = last.at + last.ms;
+slice.end = endOf(last);
 ```
 
 A default `dt`, and a required one:
