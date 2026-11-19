@@ -39,7 +39,8 @@ import sys
 from typing import Any
 
 from chromium import launch
-from playwright.sync_api import ConsoleMessage, Error, Page, Request, Response, sync_playwright
+from playwright.sync_api import Page, sync_playwright
+from sweepslide import attach_console
 
 MEASURE_JS = """
 ([sel, props]) => Array.from(document.querySelectorAll(sel)).map(el => {
@@ -70,9 +71,6 @@ FONTS_LOADED_JS = '() => document.fonts.status === "loaded"'
 
 # Ceiling, in ms, on the fonts loading. A ceiling on a condition, never a duration anything is expected to take.
 FONTS_TIMEOUT = 10_000
-
-# Status at or above which a response counts as a failed request rather than a served one.
-HTTP_ERROR_STATUS = 400
 
 TEXT_JS = """
 (sel) => Array.from(document.querySelectorAll(sel)).map((el, index) => {
@@ -122,30 +120,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if not (args.out or args.measure or args.eval_js or args.console or args.text):
         ap.error("nothing to do: give an output path, --measure, --eval, --console, or --text")
     return args
-
-
-def attach_console(page: Page, sink: list[dict[str, Any]]) -> None:
-    """Record console errors, uncaught page errors and failed requests into ``sink`` in arrival order."""
-
-    def on_console(msg: ConsoleMessage) -> None:
-        if msg.type == "error":
-            sink.append({"kind": "console", "text": msg.text, "location": msg.location})
-
-    def on_pageerror(err: Error) -> None:
-        sink.append({"kind": "pageerror", "text": err.message})
-
-    def on_requestfailed(req: Request) -> None:
-        failure = req.failure
-        sink.append({"kind": "requestfailed", "url": req.url, "method": req.method, "failure": failure})
-
-    def on_response(res: Response) -> None:
-        if res.status >= HTTP_ERROR_STATUS:
-            sink.append({"kind": "httperror", "url": res.url, "method": res.request.method, "status": res.status})
-
-    page.on("console", on_console)
-    page.on("pageerror", on_pageerror)
-    page.on("requestfailed", on_requestfailed)
-    page.on("response", on_response)
 
 
 def print_text_blocks(blocks: list[dict[str, Any]]) -> None:
