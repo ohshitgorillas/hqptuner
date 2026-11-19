@@ -4,6 +4,7 @@
 
 export const MS_PER_S = 1000;
 const US_PER_MS = 1000;
+const US_PER_S = 1e6;
 
 /**
  * A whole number of samples at a rate, in ms: the samples times 1000, divided once by the rate, so one correctly
@@ -32,6 +33,14 @@ export const usToMs = (us) => us / US_PER_MS;
  * @returns {number}  ms
  */
 export const secondsToMs = (s) => s * MS_PER_S;
+
+/**
+ * Seconds, as a group delay is given, in µs: one multiplication by the factor.
+ *
+ * @param {number} s
+ * @returns {number}  µs
+ */
+export const secondsToUs = (s) => s * US_PER_S;
 
 /**
  * A frame as the time base reads it.

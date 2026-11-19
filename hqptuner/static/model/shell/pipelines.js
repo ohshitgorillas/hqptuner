@@ -2,6 +2,7 @@
 // and what they carry, the overview's and an output tab's summaries, and whether a wire row does any work.
 
 import { clamp } from "../../lib/coerce.js";
+import { secondsToMs } from "../../lib/timebase.js";
 import { PEQ_TYPES } from "../gauges/eq.js";
 import { minus, signed } from "./format.js";
 import { paging } from "../builders/pager.js";
@@ -187,7 +188,7 @@ const gainText = (p) => (p.unit === "Lin" ? `Lin ${minus(+(+p.gain).toFixed(3))}
  */
 const delayText = (st) =>
   st.t !== undefined
-    ? `delay ${+(st.t * 1000).toFixed(2)} ms`
+    ? `delay ${+secondsToMs(st.t).toFixed(2)} ms`
     : st.s !== undefined
       ? `delay ${st.s} samples`
       : `delay ${st.d} m`;

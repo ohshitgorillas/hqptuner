@@ -4,6 +4,7 @@
 // arrive as strings (the family's values).
 
 import { clamp } from "../../lib/coerce.js";
+import { secondsToUs } from "../../lib/timebase.js";
 import { ampToDb } from "../../lib/units.js";
 
 /**
@@ -213,8 +214,8 @@ export function listeningGeometry(angle, circ) {
  * @param {number} lambda
  */
 export const geometryReadouts = (pp, lambda) => ({
-  itd: Math.round(pp.itd * 1e6),
-  itdLow: Math.round((pp.itd + pp.gdF - pp.gdN) * 1e6),
+  itd: Math.round(secondsToUs(pp.itd)),
+  itdLow: Math.round(secondsToUs(pp.itd + pp.gdF - pp.gdN)),
   far: ampToDb(pp.af),
   center: ampToDb((lambda * (pp.an + pp.af)) / 2 + (1 - lambda)),
 });
