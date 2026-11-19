@@ -15,6 +15,7 @@
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 import { SPEC_SIZE, meterPainter } from "../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
+import { samplesToMs, secondsToMs } from "../../../hqptuner/static/lib/timebase.js";
 import { setSpectrogramSpan } from "../../../hqptuner/static/store/faceplate/drawers/source.js";
 import { openStage } from "../../../hqptuner/static/store/faceplate/view.js";
 import { initApodHistory } from "../../../hqptuner/static/store/apodhistory.js";
@@ -37,10 +38,10 @@ import { pixelCanvas, TOKENS } from "./picture.js";
 
 /** @typedef {import("./schedules.js").Schedule} Schedule */
 /**
- * One frame the replay delivered: its identity, where it starts and how long it lasts (playback, ms) and the peak and RMS
- * it carries (dBFS).
+ * One frame the replay delivered: its identity, where it starts, where it ends and how long it lasts (playback, ms), each
+ * stamped from whole samples as the feed store stamps it, and the peak and RMS it carries (dBFS).
  *
- * @typedef {{ id: number, at: number, ms: number, peak: number, rms: number }} Frame
+ * @typedef {{ id: number, at: number, end: number, ms: number, peak: number, rms: number }} Frame
  */
 /**
  * What a paint handed the meters and the spectrum: the identity of the frame whose bins the scene holds, -1 when it holds
@@ -73,7 +74,6 @@ const BINS = 10;
 const ID_BINS = 2;
 const BYTE = 256;
 const COUNTS_PER_DB = 2;
-const MS_PER_S = 1000;
 //: The window the replay runs at, s: the finest the page offers.
 const WINDOW = "30";
 const STRIP_WIDTH = 600;
@@ -203,7 +203,13 @@ function handler(first, delivered) {
       const at = event.at ?? samples;
       const levels = levelsOf(id);
       lastStream()?.emit("frame", { channels: [{ ...levels, bins: wireBins(id) }], at, n });
-      delivered.push({ id, at: (at * MS_PER_S) / rate, ms: (n * MS_PER_S) / rate, ...levels });
+      delivered.push({
+        id,
+        at: samplesToMs(at, rate),
+        end: samplesToMs(at + n, rate),
+        ms: samplesToMs(n, rate),
+        ...levels,
+      });
       samples = at + n;
     }
   };
@@ -238,7 +244,7 @@ export function replay(schedule, observe, span = "full") {
   const world = {
     frames: delivered,
     canvas,
-    span: Number(WINDOW) * MS_PER_S,
+    span: secondsToMs(Number(WINDOW)),
     fresh: () => {
       const again = pixelCanvas(SPEC_SIZE.width, SPEC_SIZE.height);
       meterPainter(asElement(again), asElement(pixelCanvas(STRIP_WIDTH, 1)), tokens)();
