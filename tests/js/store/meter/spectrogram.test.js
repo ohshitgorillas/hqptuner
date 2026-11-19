@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 
 import * as spectrogramStore from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
+import { endOf, samplesToMs } from "../../../../hqptuner/static/lib/timebase.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { useStorage } from "../../support/storage.js";
@@ -141,18 +142,11 @@ function drawnAt(edge) {
 }
 
 /**
- * Where a slice ends: playback, ms.
- *
- * @param {DrawnSlice | undefined} slice
- */
-const end = (slice) => (slice ? slice.at + slice.ms : NaN);
-
-/**
  * Where the newest slice drawn with the playhead at `edge` ends: playback, ms.
  *
  * @param {number} edge  playback, ms
  */
-const newestEnd = (edge) => end(drawnAt(edge).at(-1));
+const newestEnd = (edge) => endOf(drawnAt(edge).at(-1) ?? { ms: NaN });
 
 /**
  * [ok, message] for one assert.ok: whether there are at least two slices and each starts where the one before it ends.
@@ -161,7 +155,7 @@ const newestEnd = (edge) => end(drawnAt(edge).at(-1));
  * @returns {[boolean, string]}
  */
 const contiguous = (slices) => [
-  slices.length > 1 && slices.slice(1).every((c, i) => c.at === end(slices[i])),
+  slices.length > 1 && slices.slice(1).every((c, i) => c.at === endOf(slices[i] ?? { ms: NaN })),
   `expected end-to-end slices, got ${slices.map((c) => `${c.at}+${c.ms}`).join(", ")}`,
 ];
 
@@ -177,8 +171,8 @@ const contiguous = (slices) => [
 function onFrameEnds(slices, rows, last) {
   const ends = new Set([...rows.slice(1).map((r) => r.at), last]);
   return [
-    slices.length > 0 && slices.every((c) => ends.has(end(c))),
-    `expected every slice to end where a frame ends, got ends ${slices.map(end).join(", ")}`,
+    slices.length > 0 && slices.every((c) => ends.has(endOf(c))),
+    `expected every slice to end where a frame ends, got ends ${slices.map((c) => endOf(c)).join(", ")}`,
   ];
 }
 
@@ -294,6 +288,27 @@ test("test_the_oldest_slice_starts_at_its_first_frames_stamp", () => {
 test("test_each_slice_starts_where_the_one_before_it_ends", () => {
   feed(CONTIGUOUS_MS);
   assert.ok(...contiguous(drawnAt(CONTIGUOUS_MS_END)));
+});
+
+// Frames of 1103 samples at 44100 Hz, each at least FINE_MS long so each is its own slice, stamped as the feed stamps
+// them: the start and the end each converted from whole samples. At this rate a start plus a length does not land on
+// the next start for every frame.
+const RATE_44K = 44100;
+const FRAME_SAMPLES = 1103;
+const FIRST_SAMPLE = 4410000;
+const STAMPED_FRAMES = 40;
+
+test("test_slices_of_frames_stamped_at_44100_hz_join_with_no_gap_and_no_overlap", () => {
+  const rows = Array.from({ length: STAMPED_FRAMES }, (_, i) => {
+    const samples = FIRST_SAMPLE + i * FRAME_SAMPLES;
+    return {
+      at: samplesToMs(samples, RATE_44K),
+      end: samplesToMs(samples + FRAME_SAMPLES, RATE_44K),
+      ms: samplesToMs(FRAME_SAMPLES, RATE_44K),
+    };
+  });
+  rows.forEach((row, i) => addSpectrumFrame({ channels: TINY_LEVEL, ...row, break: i === 0, geo: TINY }));
+  assert.ok(...contiguous(drawnAt(rows[STAMPED_FRAMES - 1]?.end ?? NaN)));
 });
 
 test("test_every_slice_ends_where_one_of_its_frames_ends", () => {

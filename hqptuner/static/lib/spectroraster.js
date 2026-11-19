@@ -21,11 +21,12 @@
 // holds one target allocates nothing per paint.
 
 import { clamp } from "./coerce.js";
+import { endOf, startOf } from "./timebase.js";
 
 /**
- * @typedef {{ at: number, ms: number, nyquist: number, channels: Uint8Array[], sum: Uint8Array }} Cell
- *   One slice of the history: it starts at `at` and lasts `ms`, both playback,
- *   ms, measured at `nyquist` Hz, with its rows per channel and summed across
+ * @typedef {{ at: number, ms: number, end?: number, nyquist: number, channels: Uint8Array[], sum: Uint8Array }} Cell
+ *   One slice of the history: it starts at `at`, lasts `ms` and ends at `end` where it carries one, all playback,
+ *   ms (lib/timebase.js reads them), measured at `nyquist` Hz, with its rows per channel and summed across
  *   channels.
  */
 /**
@@ -217,9 +218,6 @@ function tableFor({ freqs, tables }, nyquist, rows) {
   return table;
 }
 
-/** Where a slice ends, playback, ms. @param {Cell} s */
-export const endOf = (s) => s.at + s.ms;
-
 /**
  * The first index in `[lo, hi)` whose slice ends after `t`, or `hi` when none
  * does. Slices lie in stamp order without overlap, so their ends rise with index.
@@ -251,8 +249,8 @@ function mostCovering({ slices, hi, span }, i, k) {
   let most = 0;
   for (let j = i; j < hi; j++) {
     const s = /** @type {Cell} */ (slices[j]);
-    if (s.at * scale >= k + 1 - COLUMN_EPS) break;
-    const overlap = Math.min(endOf(s) * scale, k + 1) - Math.max(s.at * scale, k);
+    if (startOf(s) * scale >= k + 1 - COLUMN_EPS) break;
+    const overlap = Math.min(endOf(s) * scale, k + 1) - Math.max(startOf(s) * scale, k);
     if (overlap > COLUMN_EPS && (best < 0 || overlap > most + COLUMN_EPS)) [best, most] = [j, overlap];
   }
   return best;
@@ -332,7 +330,7 @@ function setPlan(plan, full, shift, carry) {
 export function landedColumn(view, since) {
   const i = firstEndingAfter(view, since);
   if (i >= view.hi) return W;
-  const { at } = /** @type {Cell} */ (view.slices[i]);
+  const at = startOf(/** @type {Cell} */ (view.slices[i]));
   return clamp(Math.floor((at * W) / view.span) - (edgeColumn(view) - W), 0, W);
 }
 

@@ -15,6 +15,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { endOf, startOf } from "../../../../hqptuner/static/lib/timebase.js";
 import { sliceRange } from "../../../../hqptuner/static/model/gauges/slicerange.js";
 
 /** @typedef {{ at: number, ms: number }} Slice */
@@ -60,26 +61,22 @@ function history(count) {
 
 const SLICES = history(COUNT);
 
-/**
- * Where slice `i` of SLICES starts, playback ms, NaN when there is no such slice.
- *
- * @param {number} i
- */
-const startOf = (i) => SLICES[i]?.at ?? NaN;
+//: What stands where `SLICES` has no slice: a slice of no stamp, so its start and end are NaN.
+const ABSENT = { ms: NaN };
 
 /**
- * Where slice `i` of SLICES ends, playback ms, NaN when there is no such slice.
+ * Slice `i` of SLICES, or ABSENT where there is none.
  *
  * @param {number} i
  */
-const endOf = (i) => (SLICES[i]?.at ?? NaN) + (SLICES[i]?.ms ?? NaN);
+const slice = (i) => SLICES[i] ?? ABSENT;
 
 /**
  * Halfway through slice `i` of SLICES, playback ms.
  *
  * @param {number} i
  */
-const midOf = (i) => startOf(i) + SLICES[i].ms / 2;
+const midOf = (i) => startOf(slice(i)) + slice(i).ms / 2;
 
 /**
  * A view of `slices` that counts how many times a slice is read.
@@ -107,7 +104,7 @@ function readsOver(count) {
   const slices = history(count);
   const newest = slices[slices.length - 1];
   const { view, reads } = counted(slices);
-  sliceRange(view, COST_SPAN, newest.at + newest.ms - COST_LAG);
+  sliceRange(view, COST_SPAN, endOf(newest) - COST_LAG);
   return reads();
 }
 
@@ -120,37 +117,43 @@ const CUT_EDGE = midOf(NEWEST_IN);
 //: The span of the window whose bounds cut slices, playback ms.
 const CUT_SPAN = midOf(NEWEST_IN) - midOf(OLDEST_IN);
 //: The edge of the window whose bounds fall on slice boundaries, playback ms.
-const FIT_EDGE = endOf(NEWEST_IN);
+const FIT_EDGE = endOf(slice(NEWEST_IN));
 //: The span of the window whose bounds fall on slice boundaries, playback ms.
-const FIT_SPAN = endOf(NEWEST_IN) - startOf(OLDEST_IN);
+const FIT_SPAN = endOf(slice(NEWEST_IN)) - startOf(slice(OLDEST_IN));
 
 test("test_the_newest_slice_in_the_range_ends_by_the_edge", () => {
   const { hi } = sliceRange(SLICES, CUT_SPAN, CUT_EDGE);
-  assert.ok(endOf(hi - 1) <= CUT_EDGE, `slice ${hi - 1} ends at ${endOf(hi - 1)}, past the edge ${CUT_EDGE}`);
+  assert.ok(
+    endOf(slice(hi - 1)) <= CUT_EDGE,
+    `slice ${hi - 1} ends at ${endOf(slice(hi - 1))}, past the edge ${CUT_EDGE}`,
+  );
 });
 
 test("test_the_oldest_slice_in_the_range_starts_no_earlier_than_the_span_before_the_edge", () => {
   const { lo } = sliceRange(SLICES, CUT_SPAN, CUT_EDGE);
   const from = CUT_EDGE - CUT_SPAN;
-  assert.ok(startOf(lo) >= from, `slice ${lo} starts at ${startOf(lo)}, before ${from}`);
+  assert.ok(startOf(slice(lo)) >= from, `slice ${lo} starts at ${startOf(slice(lo))}, before ${from}`);
 });
 
 test("test_a_slice_ending_exactly_at_the_edge_is_in_the_range", () => {
   const { hi } = sliceRange(SLICES, FIT_SPAN, FIT_EDGE);
-  assert.ok(endOf(hi) > FIT_EDGE, `slice ${hi} ends at ${endOf(hi)}, by the edge ${FIT_EDGE}, yet is left out`);
+  assert.ok(
+    endOf(slice(hi)) > FIT_EDGE,
+    `slice ${hi} ends at ${endOf(slice(hi))}, by the edge ${FIT_EDGE}, yet is left out`,
+  );
 });
 
 test("test_a_slice_starting_exactly_the_span_before_the_edge_is_in_the_range", () => {
   const { lo } = sliceRange(SLICES, FIT_SPAN, FIT_EDGE);
   const from = FIT_EDGE - FIT_SPAN;
   assert.ok(
-    startOf(lo - 1) < from,
-    `slice ${lo - 1} starts at ${startOf(lo - 1)}, not before ${from}, yet is left out`,
+    startOf(slice(lo - 1)) < from,
+    `slice ${lo - 1} starts at ${startOf(slice(lo - 1))}, not before ${from}, yet is left out`,
   );
 });
 
 test("test_an_edge_past_the_newest_slice_keeps_the_newest_slice_in_the_range", () => {
-  const { hi } = sliceRange(SLICES, COST_SPAN, endOf(COUNT - 1) + AHEAD);
+  const { hi } = sliceRange(SLICES, COST_SPAN, endOf(slice(COUNT - 1)) + AHEAD);
   assert.equal(hi, COUNT);
 });
 

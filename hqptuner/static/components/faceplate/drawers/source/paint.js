@@ -21,13 +21,13 @@ import {
   H,
   W,
   edgeColumn,
-  endOf,
   landedColumn,
   rasterTarget,
   rasterize,
   rgb,
   scrollPlan,
 } from "../../../../lib/spectroraster.js";
+import { endOf } from "../../../../lib/timebase.js";
 import { apodRamp } from "../../../../model/gauges/meter/meter-plot.js";
 import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";

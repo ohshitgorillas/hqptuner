@@ -22,6 +22,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
 import { clamp } from "../../lib/coerce.js";
 import { ROW_STEP_DB } from "../../lib/spectroraster.js";
+import { endOf, startOf } from "../../lib/timebase.js";
 import { dbToPower, powerToDb } from "../../lib/units.js";
 import { bandRows, pickBins } from "../../model/gauges/meter/meter.js";
 import { sliceRange } from "../../model/gauges/slicerange.js";
@@ -40,12 +41,13 @@ const ROW_MAX = 250;
 /** @typedef {import("../../model/gauges/meter/meter.js").FrameGeometry} Geometry */
 /** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /**
- * One slice: where it starts and how long it lasts, the Nyquist its rows reach, and its rows per channel and summed
- * across channels.
+ * One slice: where it starts and ends and how long it lasts, the Nyquist its rows reach, and its rows per channel and
+ * summed across channels.
  *
  * @typedef {object} Slice
  * @property {number} at  playback, ms: where its first frame starts
- * @property {number} ms  playback, ms: from `at` to where its last frame ends
+ * @property {number} end  playback, ms: where its last frame ends, so the next contiguous slice starts exactly here
+ * @property {number} ms  playback, ms: from `at` to `end`
  * @property {number} nyquist  Hz
  * @property {Uint8Array[]} channels
  * @property {Uint8Array} sum
@@ -101,12 +103,13 @@ function closeSlice(p, geo) {
   };
   slices.push({
     at: p.at,
+    end: p.end,
     ms,
     nyquist: geo.nyquist,
     channels: mean.channels.map((ch) => rowsOf(ch.bins)),
     sum: rowsOf(pickBins(mean, "sum")),
   });
-  while (p.end - slices[0].at > FINE_SPAN_MS) slices.shift();
+  while (p.end - startOf(slices[0]) > FINE_SPAN_MS) slices.shift();
   hand = null;
 }
 
@@ -147,10 +150,11 @@ function clearHistory() {
  * @param {MeterFrame} frame
  */
 export function addSpectrumFrame(frame) {
-  const { geo, channels, at, ms } = frame;
-  if (!geo || !channels.length || at === undefined) return;
+  const { geo, channels } = frame;
+  const at = startOf(frame);
+  if (!geo || !channels.length || Number.isNaN(at)) return;
   if (frame.break) clearHistory();
-  if (fold(geo, channels, at, at + ms)) version.value = version.peek() + 1;
+  if (fold(geo, channels, at, endOf(frame))) version.value = version.peek() + 1;
 }
 
 /** @type {(() => void) | null} */
