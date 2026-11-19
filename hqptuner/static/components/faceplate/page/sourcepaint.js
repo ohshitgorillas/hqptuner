@@ -145,13 +145,14 @@ function lookNow(look, dt, restart) {
  */
 function stepAll(kept, scene, dt) {
   const chs = scene.channels;
-  stepLevels(kept.levels, chs, dt);
+  const ms = secondsToMs(dt);
+  stepLevels(kept.levels, chs, ms);
   for (let i = 0; i < chs.length; i++) kept.rms[i] = chs[i].rms;
-  stepVu(kept.vu, kept.rms, secondsToMs(dt), Number(vuReference.value));
+  stepVu(kept.vu, kept.rms, ms, Number(vuReference.value));
   if (!chs.length) return;
   kept.pick = pickBins(scene, "sum", kept.pick);
   if (kept.spectrum.disp.length !== kept.pick.length) kept.spectrum = freshSpectrum(kept.pick.length);
-  stepSpectrum(kept.spectrum, kept.pick, dt);
+  stepSpectrum(kept.spectrum, kept.pick, ms);
 }
 
 /**

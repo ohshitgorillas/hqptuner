@@ -8,7 +8,7 @@
 // held long enough is where every state settles. The two holding steps also hold: a paint after their input drops still
 // shows where it was.
 //
-// Time is a table: each paint is an interval in seconds, the intervals of one stretch differ, and nothing here reads a
+// Time is a table: each paint is an interval in ms, the intervals of one stretch differ, and nothing here reads a
 // clock or waits on one. The halo step says whether a paint starts on a clear canvas and how much of the last paint's
 // halo it dims away; the canvas it acts on is modeled here as the painter composes it, the old halo dimmed by that
 // share under the trace the paint draws.
@@ -37,12 +37,12 @@ import {
 } from "../../../../../hqptuner/static/model/gauges/meter/steps.js";
 import { near } from "../../../support/near.js";
 
-//: Paint intervals, s, at and above a 30 Hz paint, changing from paint to paint.
-const PAINTS = [0.0333, 0.05, 0.0417, 0.1, 0.0667, 0.0333];
-//: One paint at 30 Hz, s.
-const PAINT = 0.0333;
-//: How long the music plays loud before it drops, s.
-const LOUD_S = 5;
+//: Paint intervals, ms, at and above a 30 Hz paint, changing from paint to paint.
+const PAINTS = [33.3, 50, 41.7, 100, 66.7, 33.3];
+//: One paint at 30 Hz, ms.
+const PAINT = 33.3;
+//: How long the music plays loud before it drops, ms.
+const LOUD_MS = 5000;
 //: How many times over the paint table a quiet stretch runs for a state to settle.
 const SETTLE_REPEAT = 100;
 //: How close two ways of cutting one stretch must agree, as a ratio of the distances moved.
@@ -181,11 +181,11 @@ const stretch = (repeat) => Array.from({ length: repeat }, () => PAINTS).flat();
 const total = (dts) => dts.reduce((sum, dt) => sum + dt, 0);
 
 /**
- * A state that has heard the loud input for LOUD_S.
+ * A state that has heard the loud input for LOUD_MS.
  *
  * @param {Driven} d
  */
-const afterLoud = (d) => d.step(d.fresh(), d.loud, LOUD_S);
+const afterLoud = (d) => d.step(d.fresh(), d.loud, LOUD_MS);
 
 /**
  * How far a state that heard the loud input moves over the quiet paints `dts`.
@@ -223,8 +223,8 @@ for (const d of STEPS.filter((s) => HOLDING.has(s.name))) {
   });
 }
 
-//: How long a ridge row takes to give way to the next, s.
-const ROW_S = 0.2;
+//: How long a ridge row takes to give way to the next, ms.
+const ROW_MS = 200;
 //: How close a slide's movement must come to the time it covers, as a share of a row.
 const SLIDE = 1e-9;
 
@@ -235,7 +235,7 @@ test("test_the_ridge_rows_slide_by_the_time_each_paint_covers_whatever_rows_it_b
   let slide = ridges.slide;
   const off = PAINTS.concat(PAINTS, PAINTS).filter((dt) => {
     stepRidges(ridges, [LOUD_FRAC], dt);
-    const slid = ridges.slide - slide + 1 - dt / ROW_S;
+    const slid = ridges.slide - slide + 1 - dt / ROW_MS;
     slide = ridges.slide;
     return !(Math.abs(slid - Math.round(slid)) <= SLIDE && ridges.slide >= 0 && ridges.slide < 1);
   });
@@ -270,27 +270,27 @@ test("test_a_pace_hands_out_as_many_whole_steps_over_a_stretch_whether_it_comes_
 const MID_DB = -20;
 //: How far apart, dB, two levels must stand for one to count as not yet at the other.
 const APART_DB = 1;
-//: How long a peak falls in the shorter of two falls compared, s; the longer one is twice it.
-const FALL_S = 0.5;
+//: How long a peak falls in the shorter of two falls compared, ms; the longer one is twice it.
+const FALL_MS = 500;
 //: The levels a run of music steps through, loud and quiet, rising and falling.
 const RUN_DB = [LOUD_DB, MID_DB, QUIET_DB, MID_DB, LOUD_DB, QUIET_DB, MID_DB];
 //: How many times over the paint table each level of a run is held, long enough for a released held peak to fall.
 const RUN_REPEAT = 10;
 
 /** One channel's level readings after a long quiet. */
-const quietLevels = () => stepLevels(freshLevels(1), target(QUIET_DB), LOUD_S);
+const quietLevels = () => stepLevels(freshLevels(1), target(QUIET_DB), LOUD_MS);
 
 /** The spectrum after a long loud stretch. */
-const loudSpectrum = () => stepSpectrum(freshSpectrum(1), [LOUD_DB], LOUD_S);
+const loudSpectrum = () => stepSpectrum(freshSpectrum(1), [LOUD_DB], LOUD_MS);
 
 /**
- * How far a level peak falls from the loud level over `seconds` of quiet.
+ * How far a level peak falls from the loud level over `ms` of quiet.
  *
- * @param {number} seconds
+ * @param {number} ms
  */
-function peakFall(seconds) {
-  const loud = stepLevels(freshLevels(1), target(LOUD_DB), LOUD_S);
-  return LOUD_DB - stepLevels(loud, target(QUIET_DB), seconds)[0].peak;
+function peakFall(ms) {
+  const loud = stepLevels(freshLevels(1), target(LOUD_DB), LOUD_MS);
+  return LOUD_DB - stepLevels(loud, target(QUIET_DB), ms)[0].peak;
 }
 
 /**
@@ -322,7 +322,7 @@ test("test_a_level_peak_jumps_to_a_louder_reading_in_one_paint", () => {
 });
 
 test("test_a_level_peak_falls_back_at_a_steady_rate", () => {
-  assert.ok(...near(peakFall(2 * FALL_S) / peakFall(FALL_S), 2, SAME));
+  assert.ok(...near(peakFall(2 * FALL_MS) / peakFall(FALL_MS), 2, SAME));
 });
 
 test("test_a_level_rms_integrates_rather_than_jumping_to_a_louder_reading", () => {

@@ -177,7 +177,7 @@ export function freshFlames(size) {
 }
 
 /**
- * The flames after a paint `dt` seconds after the last: the whole steps the paint owes through stepPace, each a
+ * The flames after a paint `dt` ms after the last: the whole steps the paint owes through stepPace, each a
  * stepFire handing in `source`. Each pass, the oldest heat any row still reads climbs one row, so a grid's rows of
  * passes leave nothing of the grid before them. However many steps a paint owes, it burns at most the steps that make
  * a grid's rows of passes, so a long gap costs no more than a full grid and shows the flames the last of its steps
@@ -186,7 +186,7 @@ export function freshFlames(size) {
  *
  * @param {FlamesState} state  written in place
  * @param {ArrayLike<number>} source  top heat per column, as fireSource gives it
- * @param {number} dt  wall time since the last paint, s, at least 0
+ * @param {number} dt  wall time since the last paint, ms, at least 0
  * @param {() => number} rand  as stepFire takes it
  * @returns {FlamesState}  `state`
  */

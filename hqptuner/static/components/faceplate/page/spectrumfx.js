@@ -9,6 +9,7 @@
 // tables are held for one suite, accent and canvas height, and rebuilt where any of the three differs.
 
 import { pixelRatio } from "../../../lib/dom.js";
+import { secondsToMs } from "../../../lib/timebase.js";
 import { fractionsOf } from "../../../model/gauges/meter/meter.js";
 import {
   BANDS,
@@ -115,7 +116,7 @@ import { accentInForce } from "../../../store/ui/theme.js";
  * @property {Float32Array} fracs  plot fractions per column
  * @property {FxState} state
  * @property {Held} held
- * @property {number} dt  s
+ * @property {number} dt  wall time since the last paint, ms
  */
 
 const BAR_GAP = 0.25; // share of a band's width left clear beside its bar
@@ -485,11 +486,11 @@ export function fxPainter(canvas, colors, { random, makeCanvas }) {
       if (!draw) return;
       fracs = fractionsOf(columns, range, fracs);
       held.palette = keyPalette(held.palette, suite, accentInForce(), ctx.canvas.height);
-      frame ??= { ctx, fracs, state, held, dt };
+      frame ??= { ctx, fracs, state, held, dt: secondsToMs(dt) };
       frame.ctx = ctx;
       frame.fracs = fracs;
       frame.state = state;
-      frame.dt = dt;
+      frame.dt = secondsToMs(dt);
       draw(frame);
     },
   };

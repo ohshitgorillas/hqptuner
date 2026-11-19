@@ -2,7 +2,7 @@
 // as far over a stretch of time whatever paints it comes in, and a paint after a gap far longer than the grid takes to
 // burn through draws no more heat than a full grid and shows nothing of what burned before the gap.
 //
-// Time is a table: each paint is an interval in seconds, the intervals of one stretch differ, and nothing here reads a
+// Time is a table: each paint is an interval in ms, the intervals of one stretch differ, and nothing here reads a
 // clock or waits on one. The random draws are a table too, handed out in order and silent, a draw of 0, past its end.
 //
 // Run: node --test tests/js/model/gauges/meter/fire.test.js
@@ -20,8 +20,8 @@ import {
 
 //: A canvas tall enough that heat is still climbing at the end of a stretch, px.
 const SIZE = fireSize(40, 80);
-//: Paint intervals, s, at and above a 30 Hz paint, changing from paint to paint.
-const PAINTS = [0.0333, 0.05, 0.0417, 0.1, 0.0667, 0.0333];
+//: Paint intervals, ms, at and above a 30 Hz paint, changing from paint to paint.
+const PAINTS = [33.3, 50, 41.7, 100, 66.7, 33.3];
 //: Random draws, varied, cycled to fill a table.
 const DRAWS = [0.91, 0.12, 0.57, 0.33, 0.78, 0.05, 0.64];
 //: Grids' worth of draws a stretch table holds, more than any stretch here takes.
@@ -35,8 +35,8 @@ const STEADY_DRAW = 0.5;
 const SETTLE_STEPS = 200;
 //: Paints the flames burn loud before the gap.
 const LOUD_PAINTS = 30;
-//: A gap far longer than heat takes to climb the grid, s.
-const GAP_S = 20;
+//: A gap far longer than heat takes to climb the grid, ms.
+const GAP_MS = 20000;
 
 const CELLS = SIZE.cols * SIZE.rows;
 
@@ -98,16 +98,16 @@ test("test_a_paint_after_a_long_gap_burns_no_more_than_a_full_grid_and_shows_onl
     freshFlames(SIZE),
   );
   const oneGrid = drawsFrom(new Array(CELLS).fill(STEADY_DRAW));
-  const after = stepFlames(before, quiet, GAP_S, oneGrid).heat;
+  const after = stepFlames(before, quiet, GAP_MS, oneGrid).heat;
   let steady = null;
   for (let k = 0; k < SETTLE_STEPS; k++) steady = stepFire(steady, quiet, SIZE, () => STEADY_DRAW);
   assert.deepEqual(after, steady);
 });
 
-//: A paint that takes no whole step: a third of one at 30 Hz, s.
-const PART_S = 1 / 90;
-//: Whole steps, one per paint at 30 Hz, s.
-const STEP_S = 1 / 30;
+//: A paint that takes no whole step: a third of one at 30 Hz, ms.
+const PART_MS = 100 / 9;
+//: Whole steps, one per paint at 30 Hz, ms.
+const STEP_MS = 100 / 3;
 //: Steps a run takes before the grids are read.
 const WARM_STEPS = 6;
 
@@ -125,26 +125,26 @@ function flamesAfter(dts) {
 // The picture is drawn from the grid before the last step toward the grid that step made, by the part of the next step
 // the paint has covered, so a paint that takes no step still moves it.
 test("test_the_flames_keep_the_grid_before_their_last_step_to_draw_from", () => {
-  const steps = new Array(WARM_STEPS).fill(STEP_S);
+  const steps = new Array(WARM_STEPS).fill(STEP_MS);
   assert.deepEqual(flamesAfter(steps).prev, flamesAfter(steps.slice(1)).heat);
 });
 
 test("test_the_part_of_a_step_a_paint_leaves_owed_is_how_far_the_picture_stands_toward_the_newest_grid", () => {
-  const steps = new Array(WARM_STEPS).fill(STEP_S);
-  const state = flamesAfter([...steps, PART_S, PART_S]);
-  assert.ok(Math.abs(state.mix - (2 * PART_S) / STEP_S) < 1e-9, `mix ${state.mix}`);
+  const steps = new Array(WARM_STEPS).fill(STEP_MS);
+  const state = flamesAfter([...steps, PART_MS, PART_MS]);
+  assert.ok(Math.abs(state.mix - (2 * PART_MS) / STEP_MS) < 1e-9, `mix ${state.mix}`);
 });
 
 test("test_the_flames_draw_a_picture_that_changes_at_every_paint_even_when_no_paint_takes_a_step", () => {
   const rand = drawsFrom(cycled(STRETCH_GRIDS * CELLS));
   const source = sourceAt(LOUD_FRAC);
-  const state = flamesAfter(new Array(WARM_STEPS).fill(STEP_S));
+  const state = flamesAfter(new Array(WARM_STEPS).fill(STEP_MS));
   const drawn = () =>
     Array.from(state.heat, (h, i) => (state.prev ? Math.round(state.prev[i] + (h - state.prev[i]) * state.mix) : h));
   let before = drawn();
   let stood = 0;
   for (let k = 0; k < 2; k++) {
-    stepFlames(state, source, PART_S, rand);
+    stepFlames(state, source, PART_MS, rand);
     const now = drawn();
     if (now.every((v, i) => v === before[i])) stood++;
     before = now;

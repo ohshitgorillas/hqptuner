@@ -4,6 +4,7 @@
 // the whole canvas, colored base to crown through the picked color suite's ramp. Accent draws in the accent in force
 // at each paint. A restart, or a paint with no spectrum, clears the canvas and starts the bands and the sway afresh.
 
+import { secondsToMs } from "../../../lib/timebase.js";
 import { fractionsOf } from "../../../model/gauges/meter/meter.js";
 import { ACCENT, BANDS, bandsOf, suiteRamp } from "../../../model/gauges/meter/spectrumfx.js";
 import { freshGravity, stepGravity } from "../../../model/gauges/meter/steps.js";
@@ -181,7 +182,7 @@ export function auroraPainter(canvas) {
     if (columns?.length) {
       fracs = fractionsOf(columns, range, fracs);
       bands = bandsOf(fracs, BANDS, bands);
-      stepGravity(gravity, bands, dt);
+      stepGravity(gravity, bands, secondsToMs(dt));
       rested = false;
     }
     gl.useProgram(program);
