@@ -28,6 +28,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { endOf, samplesToMs, secondsToMs, startOf, usToMs } from "../../../../hqptuner/static/lib/timebase.js";
 import { pacePaint } from "../../../../hqptuner/static/model/gauges/playhead.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter/meter.js").MeterFrame} MeterFrame */
@@ -108,10 +109,10 @@ const PATTERNS = {
 const SHIFTS = [-40, 55, -15, 35, 60, -30];
 //: The committed capture of the dev container's feed, read, never written.
 const CAPTURE_FILE = new URL("../../../support/fixtures/meter_feed_capture.json", import.meta.url);
-//: The capture's paint interval, wall ms: 60 Hz.
-const CAPTURE_PAINT_MS = 1000 / 60;
-const MS_PER_S = 1000;
-const US_PER_MS = 1000;
+//: The capture's paint interval, wall ms: 60 Hz, a time that is no whole number of eighths of a ms.
+const CAPTURE_PAINT_MS = secondsToMs(1) / 60;
+//: The capture rows that begin a break: its first frame, the only one whose stamp does not follow the one before it.
+const CAPTURE_BREAKS = [0];
 
 /**
  * `count` frames laid end to end from `at`, each `lengths[i % lengths.length]` long, the first marked as a break when
@@ -134,13 +135,6 @@ function frames(at, count, lengths, brk) {
   }
   return out;
 }
-
-/**
- * Where `f` ends, playback ms.
- *
- * @param {MeterFrame} f
- */
-const endOf = (f) => (f.at ?? NaN) + f.ms;
 
 /**
  * `list` in bursts of BURST, one every GAP_MS of wall time, with a paint every `dt` ms through one GAP_MS more than the
@@ -260,14 +254,19 @@ function capture() {
   const rate = JSON.parse(raw.events.find((/** @type {{ event: string }} */ ev) => ev.event === "geometry").data).rate;
   /** @type {Arrival[]} */
   const arrivals = [];
-  let ends = NaN;
-  for (const e of raw.events.filter((/** @type {{ event: string }} */ ev) => ev.event === "frame")) {
+  const rows = raw.events.filter((/** @type {{ event: string }} */ ev) => ev.event === "frame");
+  rows.forEach((/** @type {{ data: string, t_ms: number }} */ e, /** @type {number} */ i) => {
     const { at, n } = JSON.parse(e.data);
-    const frame = { channels: [], at: (at * MS_PER_S) / rate, ms: (n * MS_PER_S) / rate, break: at !== ends };
-    ends = at + n;
+    const frame = {
+      channels: [],
+      at: samplesToMs(at, rate),
+      end: samplesToMs(at + n, rate),
+      ms: samplesToMs(n, rate),
+      break: CAPTURE_BREAKS.includes(i),
+    };
     arrivals.push({ wall: e.t_ms, frames: [frame] });
-  }
-  const delay = Number(raw.engine_output_delay) / US_PER_MS + raw.owner_spectrum_offset_s * MS_PER_S;
+  });
+  const delay = usToMs(Number(raw.engine_output_delay)) + secondsToMs(raw.owner_spectrum_offset_s);
   return { arrivals, last: arrivals[arrivals.length - 1].wall, delay };
 }
 
@@ -296,7 +295,7 @@ function safari() {
   return {
     arrivals,
     last: arrivals[arrivals.length - 1].wall,
-    delay: Number(raw.store["hqptuner.spectrumOffset"]) * MS_PER_S,
+    delay: secondsToMs(Number(raw.store["hqptuner.spectrumOffset"])),
     intervals: paints.slice(1).map((/** @type {number} */ t, /** @type {number} */ i) => t - paints[i]),
   };
 }
@@ -393,7 +392,7 @@ function joined(paints) {
  * @param {MeterFrame} f
  * @param {{ from: number, to: number }} span  both playback, ms
  */
-const inside = (f, { from, to }) => Math.max(0, Math.min(endOf(f), to) - Math.max(f.at ?? NaN, from));
+const inside = (f, { from, to }) => Math.max(0, Math.min(endOf(f), to) - Math.max(startOf(f), from));
 
 /**
  * The playback ms of each frame `paints` showed, summed over every paint.
@@ -450,7 +449,7 @@ test("test_the_playhead_at_a_0_ms_delay_stands_that_far_behind_the_newest_frames
 });
 
 test("test_a_paint_at_an_unchanged_delay_leaves_the_playhead_exactly_where_it_stood_plus_the_paints_wall_time", () => {
-  const dt = 1000 / 60;
+  const dt = CAPTURE_PAINT_MS;
   const d = pacePaint({
     end: 900,
     playhead: 1000,
