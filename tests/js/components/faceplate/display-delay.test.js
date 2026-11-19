@@ -27,6 +27,7 @@ import { DisplayOptions } from "../../../../hqptuner/static/components/faceplate
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { spectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { insertNode } from "../../support/page.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 
@@ -162,11 +163,7 @@ class Element extends Node {
    * @param {Node | null} before
    */
   insertBefore(node, before) {
-    if (node.parentNode) node.parentNode.removeChild(node);
-    const at = before ? this.childNodes.indexOf(before) : -1;
-    this.childNodes.splice(at < 0 ? this.childNodes.length : at, 0, node);
-    node.parentNode = this;
-    return node;
+    return insertNode(this, node, before);
   }
 
   /** @param {Node} node */

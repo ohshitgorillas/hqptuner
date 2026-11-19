@@ -108,14 +108,19 @@ export async function seedDay() {
   });
 }
 
-/** Settle the plate on a healthy reading, nothing applying, no stage unfolded, the chain body and no popover. */
-export function settlePlate() {
-  health.value = { ...ACCEPTED };
+/** Nothing applying, no stage unfolded, the chain body and no popover. */
+export function clearPlateView() {
   applying.value = false;
   engineBusy.value = false;
   unfolded.value = null;
   body.value = "chain";
   openPopover.value = null;
+}
+
+/** Settle the plate on a healthy reading and a clear view. */
+export function settlePlate() {
+  health.value = { ...ACCEPTED };
+  clearPlateView();
 }
 
 /** @type {{ fetch?: unknown }} */

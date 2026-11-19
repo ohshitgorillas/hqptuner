@@ -193,6 +193,23 @@ function serialize(n) {
 }
 
 /**
+ * Put `node` into `parent`'s children before `before` (at the end when `before` is null or not a child), taking it off
+ * any parent it has first.
+ *
+ * @param {any} parent
+ * @param {any} node
+ * @param {any} before
+ * @returns {any} `node`
+ */
+export function insertNode(parent, node, before) {
+  node.parentNode?.removeChild(node);
+  const at = before ? parent.childNodes.indexOf(before) : -1;
+  parent.childNodes.splice(at < 0 ? parent.childNodes.length : at, 0, node);
+  node.parentNode = parent;
+  return node;
+}
+
+/**
  * Event listeners by type, with dispatch through the capture, target and bubble phases.
  */
 class Target {
@@ -346,11 +363,7 @@ class PageNode extends Target {
   }
   /** @param {any} node @param {any} before */
   insertBefore(node, before) {
-    node.parentNode?.removeChild(node);
-    const at = before ? this.childNodes.indexOf(before) : -1;
-    this.childNodes.splice(at < 0 ? this.childNodes.length : at, 0, node);
-    node.parentNode = this;
-    return node;
+    return insertNode(this, node, before);
   }
   /** @param {any} node */
   appendChild(node) {

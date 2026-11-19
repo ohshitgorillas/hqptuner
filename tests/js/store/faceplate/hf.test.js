@@ -12,35 +12,15 @@ import assert from "node:assert/strict";
 
 import { engineState, engineStatus, enums, health } from "../../../../hqptuner/static/store/signals.js";
 import { hfNow } from "../../../../hqptuner/static/store/faceplate/hf.js";
-
-/** The `junk_filters` names, in the engine's order, which is not their sorted order. */
-const NAMES = ["none", "20k", "2x"];
+import { NAMES, running } from "../../support/rendered/switcherwire.js";
 
 /** The running junk filter's index every case starts from. */
 const RUNNING = "1";
 
-/**
- * One `junk_filters` entry as the daemon sends it: every attribute a string, its value the index of the next entry.
- *
- * @param {string} name
- * @param {number} i
- */
-const item = (name, i) => ({ index: String(i), value: String((i + 2) % NAMES.length), name });
-
-/**
- * Write one running engine onto the wire-side signals.
- *
- * @param {string} junk  the running junk filter's index
- */
-function wire(junk) {
-  engineState.value = { state: "2", active_chain: "pcm", filter_junk: junk, filter1x: "0", filterNx: "0", shaper: "0" };
-  enums.value = { junk_filters: NAMES.map(item), filters: [], shapers: [] };
-}
-
-beforeEach(() => wire(RUNNING));
+beforeEach(() => running(RUNNING));
 
 const at = (/** @type {string} */ junk) => {
-  wire(junk);
+  running(junk);
   return hfNow().txt;
 };
 
@@ -72,7 +52,7 @@ test("test_the_hf_options_are_labeled_by_name_in_engine_order", () => {
  * @param {"state" | "enums"} lost  the wire side that went missing
  */
 function lose(lost) {
-  wire(RUNNING);
+  running(RUNNING);
   if (lost === "state") engineState.value = null;
   else enums.value = null;
 }
@@ -111,7 +91,7 @@ test("test_hf_offers_no_options_without_an_enumeration", () => {
 });
 
 const current = (/** @type {string} */ junk) => {
-  wire(junk);
+  running(junk);
   return hfNow()
     .options.filter((o) => o.cur === true)
     .map((o) => o.value);

@@ -25,10 +25,9 @@ import {
   openStage,
   setFreqSpan,
 } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { renderTree } from "../../support/vnodeseam.js";
+import { pickValue } from "../../support/rendered/treewalk.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 //: The Display popover's id, which its trigger and its panel both carry as `data-pop`.
@@ -53,12 +52,7 @@ beforeEach(() => {
  *
  * @param {string} v
  */
-function pick(v) {
-  const { seen } = renderTree(html`<${Faceplate} />`);
-  const hit = seen.find((/** @type {VNode} */ n) => n.type === "button" && n.props?.["data-v"] === v);
-  const fn = hit?.props.onClick;
-  if (typeof fn === "function") fn({ preventDefault() {}, stopPropagation() {} });
-}
+const pick = (v) => pickValue(html`<${Faceplate} />`, v);
 
 /**
  * Whether a button shows lit.

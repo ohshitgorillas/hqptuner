@@ -24,6 +24,7 @@ import { useStorage } from "../../support/storage.js";
 import { ok } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { isEl, every, inside, kids, vcls } from "../../support/rendered/treewalk.js";
 import { propsOf } from "../../support/wheel.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -32,92 +33,28 @@ import { propsOf } from "../../support/wheel.js";
 useStorage();
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
-const { engineState, engineStatus, enums, matrixConfig, volume, volumeDrag, volumeRange } =
-  await import("../../../../hqptuner/static/store/signals.js");
-const { setBottomBar, setPlainNames } = await import("../../../../hqptuner/static/store/ui/prefs.js");
+const { engineStatus, volume, volumeDrag, volumeRange } = await import("../../../../hqptuner/static/store/signals.js");
+const { setPlainNames } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
-const { loadLists, resetLists } = await import("../../support/listsfixture.js");
-const { readings } = await import("../../../../hqptuner/static/store/core/readings.js");
-const { seedReadings } = await import("../../support/readings.js");
-const { profileReading } = await import("../../support/profile-fixtures.js");
 const { setSwitcherTarget, switcherView, setSlot } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
 const { Switcher } = await import("../../../../hqptuner/static/components/faceplate/bottom/Switcher.js");
-
-const ALL = ["1x filter", "Nx filter", "Modulator", "Matrix profile", "Output mode", "Volume"];
+const { SWITCHER_READS, tracked, loadSwitcher, forgetPosts, sent } =
+  await import("../../support/rendered/switcherwire.js");
 
 /** @type {{ fetch?: unknown }} */
 const env = globalThis;
 
-/** @type {{ path: string, body: unknown }[]} */
-let posts = [];
-
-/** @type {Record<string, () => unknown>} */
-const READS = {
-  "/api/state": () => ok({ data: { ...engineState.value } }),
-  "/api/enumerations": () => ok({ data: { ...enums.value } }),
-  "/api/config": () => ok({ ...readings.value }),
-  "/api/matrix": () => ok({ data: { ...matrixConfig.value } }),
-  "/api/config/pending": () => ok({ live: {}, http: {} }),
-};
-
-/**
- * The answer to one request, each body recorded first.
- *
- * @param {string} path
- * @param {{ body?: string }} [opts]
- */
-async function answer(path, opts = {}) {
-  if (opts.body) posts.push({ path, body: JSON.parse(opts.body) });
-  if (path === "/api/config/live") return ok({ report: { live: [], stored: {} } });
-  if (path === "/api/matrix/profile") return ok({ ok: true });
-  if (path === "/api/volume") return ok({ volume: "-27.5" });
-  return READS[path] ? READS[path]() : ok({});
-}
-
-/** The bodies posted to one path. @param {string} path */
-const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
-
-/** The wire's requests handed over and not yet answered. */
-const wire = { inflight: new Set() };
-
-/**
- * One request answered as `answer` answers it, kept in `wire.inflight` until it is.
- *
- * @param {string} path
- * @param {{ body?: string }} [opts]
- */
-function tracked(path, opts) {
-  const req = answer(path, opts);
-  wire.inflight.add(req);
-  req.then(
-    () => wire.inflight.delete(req),
-    () => wire.inflight.delete(req),
-  );
-  return req;
-}
-
 beforeEach(async () => {
   useStorage();
-  env.fetch = tracked;
-  await loadLists({ chain: "sdm", plain: true });
-  resetLists();
-  matrixConfig.value = { fields: [] };
-  enums.value = { ...enums.value, matrix_profiles: ["Desk", "Lounge"] };
-  await seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
+  env.fetch = tracked({ ...SWITCHER_READS, "/api/volume": () => ok({ volume: "-27.5" }) });
+  await loadSwitcher();
   volume.value = "-27.5";
   volumeDrag.value = null;
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };
-  setBottomBar("switcher");
-  for (const t of ALL) {
-    setSwitcherTarget(t);
-    setSlot(0, "");
-    setSlot(1, "");
-  }
-  setSwitcherTarget("Modulator");
   setSlot(0, "ASDM7EC 512+fs");
   setSlot(1, "ASDM5");
-  posts = [];
+  forgetPosts();
 });
 
 // --- markup ------------------------------------------------------------------------------------------------------
@@ -125,50 +62,10 @@ beforeEach(async () => {
 /** Every element of one render of the bar. */
 const drawn = () => elements(render(html`<${Switcher} />`));
 
-/**
- * Whether an element is a `name` carrying every class in `cls`.
- *
- * @param {MarkupElement} e
- * @param {string} name
- * @param {string[]} cls
- */
-const isA = (e, name, cls) => e.name === name && cls.every((c) => classes(e).includes(c));
-
-/**
- * Every element of a list that is a `name` with the classes in `cls`.
- *
- * @param {MarkupElement[]} all
- * @param {string} name
- * @param {...string} cls
- */
-const every = (all, name, ...cls) => all.filter((e) => isA(e, name, cls));
-
-/**
- * The elements inside `e`, `e` itself left out; none when `e` is missing.
- *
- * @param {MarkupElement | undefined} e
- */
-const inside = (e) => (e ? elements(e.html).slice(0, -1) : []);
-
-/**
- * The elements directly inside `e`.
- *
- * @param {MarkupElement | undefined} e
- */
-const kids = (e) => {
-  const all = inside(e);
-  return all.filter(
-    (k) => !all.some((o) => o !== k && o.start <= k.start && o.start + o.html.length >= k.start + k.html.length),
-  );
-};
-
 /** The two slots of the bar, as `div.slots > div.slot`. */
-const slots = () => kids(every(drawn(), "div", "slots")[0]).filter((e) => isA(e, "div", ["slot"]));
+const slots = () => kids(every(drawn(), "div", "slots")[0]).filter((e) => isEl(e, "div", ["slot"]));
 
 // --- taps --------------------------------------------------------------------------------------------------------
-
-/** A vnode's classes. @param {VNode} v */
-const vcls = (v) => String(propsOf(v).class ?? propsOf(v).className ?? "").split(/\s+/);
 
 /**
  * The vnodes of one render that are a `name` carrying class `cls`, in document order.

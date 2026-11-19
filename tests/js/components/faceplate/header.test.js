@@ -19,56 +19,30 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Header } from "../../../../hqptuner/static/components/faceplate/Header.js";
-import {
-  health,
-  config,
-  pendingPreset,
-  engineState,
-  matrixConfig,
-  lastApply,
-} from "../../../../hqptuner/static/store/signals.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
-import { applying, applyOp, discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
+import { applyOp, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
-import {
-  liveBook,
-  livePresets,
-  livePresetStation,
-  livePresetsBusy,
-  livePresetError,
-} from "../../../../hqptuner/static/store/live/presets.js";
-import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
-import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { body, panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { seedReadings } from "../../support/readings.js";
 import { ok } from "../../support/wire/wire.js";
+import { CALLS, presetAnswer, recordFetch } from "../../support/rendered/connpanel.js";
+import { resetPlateSignals, clearPlateView, restoreFetch } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
-
 const panel = createConnPanel();
 
-/** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
-const CALLS = [];
-
 /**
- * The answer to one request: the preset read, both applies, and the reads around them in their real shapes.
+ * The answer to one request: the station load's paths, and the reads around it in their real shapes.
  *
  * @param {string} path
  */
 function answer(path) {
-  if (path === "/api/preset/Night") return ok({ name: "Night", config: { volume_max: "-9" } });
-  if (path === "/api/config") return ok(readings.value);
-  if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
-  if (path === "/api/config/apply") return ok({ report: {} });
-  if (path === "/api/livepresets") return ok({ presets: [], stations: {} });
+  const served = presetAnswer(path);
+  if (served) return served;
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: {} });
   if (path === "/api/connection") return ok({ host: "", username: "", remember: true, has_password: false });
   if (path === "/api/discover") return ok([]);
@@ -109,35 +83,18 @@ function holdApply() {
 const snap = () => ({ chain: "pcm", fields: { mode: "pcm" }, names: {} });
 
 beforeEach(async () => {
-  CALLS.length = 0;
-  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
-    CALLS.push({ path, method: opts.method || "GET", body: opts.body ? JSON.parse(opts.body) : null });
-    return answer(path);
-  };
-  engineState.value = {};
-  matrixConfig.value = { fields: [] };
-  config.value = { fields: [] };
-  liveBook.value = { Day: { Warm: snap() }, Night: { Quiet: snap() } };
-  livePresets.value = null;
-  livePresetStation.value = null;
-  livePresetsBusy.value = "";
-  livePresetError.value = "";
-  lastApply.value = null;
-  pendingPreset.value = null;
+  recordFetch(answer);
+  resetPlateSignals({ book: { Day: { Warm: snap() }, Night: { Quiet: snap() } } });
   await discardAll();
   await loadStation("Day");
   health.value = { reachable: true, ready: true, info: {} };
-  applying.value = false;
-  engineBusy.value = false;
-  unfolded.value = null;
-  body.value = "chain";
-  openPopover.value = null;
+  clearPlateView();
   CALLS.length = 0;
 });
 
 afterEach(async () => {
   await releaseApply();
-  env.fetch = REAL_FETCH;
+  restoreFetch();
   panelOpen.value = false;
 });
 

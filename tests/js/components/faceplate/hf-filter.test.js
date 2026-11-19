@@ -17,10 +17,12 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { engineState, engineStatus, enums, health } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { HfFilter, HfFilterPopover } from "../../../../hqptuner/static/components/faceplate/HfFilter.js";
-import { ok, quiesce } from "../../support/wire/wire.js";
+import { quiesce } from "../../support/wire/wire.js";
+import { NAMES, running, forgetPosts, sent, tracked, wire } from "../../support/rendered/switcherwire.js";
+import { inside } from "../../support/rendered/treewalk.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
@@ -30,85 +32,17 @@ import { propsOf } from "../../support/wheel.js";
 /** The popover's id. */
 const ID = "hf";
 
-/** The `junk_filters` names, in the engine's order. */
-const NAMES = ["none", "20k", "2x"];
-
-/**
- * One `junk_filters` entry as the daemon sends it: every attribute a string, its value the index of another entry.
- *
- * @param {string} name
- * @param {number} i
- */
-const item = (name, i) => ({ index: String(i), value: String((i + 2) % NAMES.length), name });
-
-/**
- * Write one running engine onto the wire-side signals.
- *
- * @param {string} junk  the running junk filter's index
- */
-function running(junk) {
-  engineState.value = { state: "2", active_chain: "pcm", filter_junk: junk, filter1x: "0", filterNx: "0", shaper: "0" };
-  enums.value = { junk_filters: NAMES.map(item), filters: [], shapers: [] };
-}
-
 /** @type {{ fetch?: unknown }} */
 const env = globalThis;
 
-/** @type {{ path: string, body: unknown }[]} */
-let posts = [];
-
-/**
- * The answer to one request, each body recorded first.
- *
- * @param {string} path
- * @param {{ body?: string }} [opts]
- */
-async function answer(path, opts = {}) {
-  if (opts.body) posts.push({ path, body: JSON.parse(opts.body) });
-  if (path === "/api/config/live") return ok({ report: { live: [], stored: {} } });
-  if (path === "/api/state") return ok({ data: { ...engineState.value } });
-  if (path === "/api/enumerations") return ok({ data: { ...enums.value } });
-  if (path === "/api/config/pending") return ok({ live: {}, http: {} });
-  return ok({});
-}
-
-/** The wire's requests handed over and not yet answered. */
-const wire = { inflight: new Set() };
-
-/**
- * One request answered as `answer` answers it, kept in `wire.inflight` until it is.
- *
- * @param {string} path
- * @param {{ body?: string }} [opts]
- */
-function tracked(path, opts) {
-  const req = answer(path, opts);
-  wire.inflight.add(req);
-  req.then(
-    () => wire.inflight.delete(req),
-    () => wire.inflight.delete(req),
-  );
-  return req;
-}
-
-/** The bodies posted to one path. @param {string} path */
-const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
-
 beforeEach(() => {
-  env.fetch = tracked;
+  env.fetch = tracked();
   running("1");
   engineStatus.value = null;
   health.value = null;
   openPopover.value = null;
-  posts = [];
+  forgetPosts();
 });
-
-/**
- * The elements inside `e`, `e` itself left out; none when `e` is missing.
- *
- * @param {MarkupElement | undefined} e
- */
-const inside = (e) => (e ? elements(e.html).slice(0, -1) : []);
 
 /** The text of the value span inside the readout's button, or undefined where none is drawn. */
 const readoutValue = () => {

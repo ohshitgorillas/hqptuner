@@ -6,6 +6,7 @@
 
 import { elements, classes } from "../markup.js";
 import { propsOf } from "../wheel.js";
+import { renderTree } from "../vnodeseam.js";
 
 /** @typedef {import("../markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../wheel.js").VNode} VNode */
@@ -104,6 +105,29 @@ export const descend = (v) => (v ? [v, ...vkids(v).flatMap(descend)] : []);
  * @param {Record<string, unknown>} [extra]  what the event carries beyond the no-op methods
  */
 export async function fire(v, handler = "onClick", extra = {}) {
+  await fireNow(v, handler, extra);
+}
+
+/**
+ * Call one handler of a vnode at once, if it carries it, and hand back what it returns.
+ *
+ * @param {VNode | undefined} v
+ * @param {string} [handler]
+ * @param {Record<string, unknown>} [extra]  what the event carries beyond the no-op methods
+ */
+function fireNow(v, handler = "onClick", extra = {}) {
   const fn = v ? propsOf(v)[handler] : undefined;
-  if (typeof fn === "function") await fn({ preventDefault: () => {}, stopPropagation: () => {}, ...extra });
+  if (typeof fn === "function") return fn({ preventDefault: () => {}, stopPropagation: () => {}, ...extra });
+  return undefined;
+}
+
+/**
+ * Click the button carrying `data-v` `v` in one render of `tree`, or do nothing when no button carries it.
+ *
+ * @param {Parameters<typeof renderTree>[0]} tree
+ * @param {string} v
+ */
+export function pickValue(tree, v) {
+  const { seen } = renderTree(tree);
+  fireNow(seen.find((n) => n.type === "button" && n.props?.["data-v"] === v));
 }

@@ -20,9 +20,7 @@ import { Faceplate } from "../../../../hqptuner/static/app.js";
 import { body, openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { setSpectrumStyle, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
-import { renderTree } from "../../support/vnodeseam.js";
-
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
+import { pickValue } from "../../support/rendered/treewalk.js";
 
 //: The Display popover's id, which its trigger and its panel both carry as `data-pop`.
 const DISPLAY = "display";
@@ -70,12 +68,7 @@ beforeEach(() => {
  *
  * @param {string} v
  */
-function pick(v) {
-  const { seen } = renderTree(html`<${Faceplate} />`);
-  const hit = seen.find((/** @type {VNode} */ n) => n.type === "button" && n.props?.["data-v"] === v);
-  const fn = hit?.props.onClick;
-  if (typeof fn === "function") fn({ preventDefault() {}, stopPropagation() {} });
-}
+const pick = (v) => pickValue(html`<${Faceplate} />`, v);
 
 test("test_picking_a_spectrum_style_in_the_display_popover_sets_it", () => {
   pick(RIDGES);

@@ -9,58 +9,24 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  config,
-  pendingPreset,
-  engineState,
-  matrixConfig,
-  lastApply,
-} from "../../../../hqptuner/static/store/signals.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { loadPreset, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
 import { seedReadings } from "../../support/readings.js";
+import { CALLS, presetAnswer, recordFetch } from "../../support/rendered/connpanel.js";
+import { resetPlateSignals, restoreFetch } from "../../support/rendered/alerts.js";
 
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
-
-/** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
-const CALLS = [];
-
-/**
- * The answer to one request: the preset read, the apply, and the reads around them in their real shapes.
- *
- * @param {string} path
- */
-function answer(path) {
-  if (path === "/api/preset/Night") return ok({ name: "Night", config: { volume_max: "-9" } });
-  if (path === "/api/config") return ok(readings.value);
-  if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
-  if (path === "/api/config/apply") return ok({ report: {} });
-  if (path === "/api/livepresets") return ok({ presets: [] });
-  return ok({});
-}
+/** The answer to one request: the station load's paths in their real shapes, and an empty object for the rest. */
+const answer = (/** @type {string} */ path) => presetAnswer(path) ?? ok({});
 
 beforeEach(async () => {
-  CALLS.length = 0;
-  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
-    CALLS.push({ path, method: opts.method || "GET", body: opts.body ? JSON.parse(opts.body) : null });
-    return answer(path);
-  };
-  engineState.value = {};
-  matrixConfig.value = { fields: [] };
-  config.value = { fields: [] };
+  recordFetch(answer);
+  resetPlateSignals();
   await seedReadings({ active_preset: { value: "Day", readonly: true } });
-  lastApply.value = null;
-  pendingPreset.value = null;
   await discardAll();
   CALLS.length = 0;
 });
 
-afterEach(() => {
-  env.fetch = REAL_FETCH;
-});
+afterEach(restoreFetch);
 
 /** The apply requests the wire saw. */
 const applies = () => CALLS.filter((c) => c.method === "POST" && c.path === "/api/config/apply");

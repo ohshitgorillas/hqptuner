@@ -16,40 +16,24 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { useStorage } from "../../support/storage.js";
-import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
 
 let storage = useStorage();
 
-const { engineState, engineStatus, enums, matrixConfig } = await import("../../../../hqptuner/static/store/signals.js");
+const { engineStatus } = await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
-const { loadLists, resetLists } = await import("../../support/listsfixture.js");
-const { readings } = await import("../../../../hqptuner/static/store/core/readings.js");
-const { seedReadings } = await import("../../support/readings.js");
-const { profileReading } = await import("../../support/profile-fixtures.js");
+const { loadLists } = await import("../../support/listsfixture.js");
+const { ALL, SWITCHER_READS, answer, loadSwitcher, forgetPosts, sent } =
+  await import("../../support/rendered/switcherwire.js");
 const { setSwitcherTarget, switcherView, setSlot, slotLive, slotList, plateBottom } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
-
-const ALL = ["1x filter", "Nx filter", "Modulator", "Matrix profile", "Output mode", "Volume"];
 
 const K_SLOTS = "hqptuner.switcherSlots";
 const K_TARGET = "hqptuner.switcherTarget";
 
 /** @type {{ fetch?: unknown }} */
 const env = globalThis;
-
-/** @type {{ path: string, body: unknown }[]} */
-let posts = [];
-
-/** @type {Record<string, () => unknown>} */
-const READS = {
-  "/api/state": () => ok({ data: { ...engineState.value } }),
-  "/api/enumerations": () => ok({ data: { ...enums.value } }),
-  "/api/config": () => ok({ ...readings.value }),
-  "/api/matrix": () => ok({ data: { ...matrixConfig.value } }),
-  "/api/config/pending": () => ok({ live: {}, http: {} }),
-};
 
 /** What a write's answer waits on while a case holds the writes open; null answers at once. @type {Promise<void> | null} */
 let held = null;
@@ -64,39 +48,12 @@ function hold() {
   return release;
 }
 
-/**
- * The answer to one request, each body recorded first.
- *
- * @param {string} path
- * @param {{ body?: string }} [opts]
- */
-async function answer(path, opts = {}) {
-  if (opts.body) posts.push({ path, body: JSON.parse(opts.body) });
-  if (opts.body && held) await held;
-  if (path === "/api/config/live") return ok({ report: { live: [], stored: {} } });
-  if (path === "/api/matrix/profile") return ok({ ok: true });
-  return READS[path] ? READS[path]() : ok({});
-}
-
-/** The bodies posted to one path. @param {string} path */
-const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
-
 beforeEach(async () => {
   storage = useStorage();
-  env.fetch = answer;
-  await loadLists({ chain: "sdm", plain: true });
-  resetLists();
-  matrixConfig.value = { fields: [] };
-  enums.value = { ...enums.value, matrix_profiles: ["Desk", "Lounge"] };
-  await seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
-  setBottomBar("switcher");
-  for (const t of ALL) {
-    setSwitcherTarget(t);
-    setSlot(0, "");
-    setSlot(1, "");
-  }
-  setSwitcherTarget("Modulator");
-  posts = [];
+  env.fetch = (/** @type {string} */ path, /** @type {{ body?: string }} */ opts) =>
+    answer(path, opts, SWITCHER_READS, held);
+  await loadSwitcher();
+  forgetPosts();
   held = null;
 });
 
