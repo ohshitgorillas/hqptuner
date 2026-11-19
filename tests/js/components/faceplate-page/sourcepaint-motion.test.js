@@ -23,10 +23,11 @@ import assert from "node:assert/strict";
 import { meterFloor, pageRange, spectrumColors, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { near } from "../../support/near.js";
 import {
+  HOLD_MS,
   LOUD_DB,
   MID_DB,
   QUIET_DB,
-  STEP_S,
+  STEP_MS,
   TRACE,
   apart,
   channel,
@@ -52,7 +53,7 @@ const CANVAS_STYLES = [BARS, "ridges", "fade", "fire"];
 //: The styles that do not draw on the effects canvas, each one a style can leave bars for.
 const LEFT_FOR = [TRACE, "aurora"];
 //: Paints of a canvas style before its canvas is read.
-const WARM_S = 4 * STEP_S;
+const WARM_MS = 4 * STEP_MS;
 //: Ink the test lays on every pixel of the effects canvas itself, where no painter put it.
 const MARK = 0.5;
 //: How much of a history may survive a fresh start, or of the test's own ink may be lost: none, up to float noise.
@@ -84,8 +85,8 @@ afterEach(() => {
 function inked(style) {
   const { canvas, fx } = fxCanvas();
   const root = section(2, "", { fx, aurora: null });
-  paint(root, level(LOUD_DB, true), STEP_S, { picked: style });
-  hold(root, () => level(LOUD_DB), WARM_S, { picked: style });
+  paint(root, level(LOUD_DB, true), STEP_MS, { picked: style });
+  hold(root, () => level(LOUD_DB), WARM_MS, { picked: style });
   return inkOf(canvas) > 0;
 }
 
@@ -106,10 +107,10 @@ for (const style of CANVAS_STYLES) {
 function leftFor(then) {
   const { canvas, fx } = fxCanvas();
   const root = section(2, "", { fx, aurora: null });
-  paint(root, level(LOUD_DB, true), STEP_S, { picked: BARS });
-  hold(root, () => level(LOUD_DB), 1, { picked: BARS });
+  paint(root, level(LOUD_DB, true), STEP_MS, { picked: BARS });
+  hold(root, () => level(LOUD_DB), HOLD_MS, { picked: BARS });
   const laid = inkOf(canvas);
-  paint(root, level(LOUD_DB), STEP_S, { picked: then });
+  paint(root, level(LOUD_DB), STEP_MS, { picked: then });
   return { root, canvas, laid };
 }
 
@@ -123,7 +124,7 @@ function markLeftAfter(then) {
   const { root, canvas, laid } = leftFor(then);
   canvas.ink.fill(MARK);
   const marked = inkOf(canvas);
-  hold(root, () => level(LOUD_DB), 1, { picked: then });
+  hold(root, () => level(LOUD_DB), HOLD_MS, { picked: then });
   return laid > 0 ? inkOf(canvas) / marked : Number.NaN;
 }
 
@@ -151,13 +152,13 @@ for (const then of LEFT_FOR) {
 function survives(read, scene, restart) {
   meterFloor.value = FLOOR_60;
   const root = section(2);
-  paint(root, level(LOUD_DB, true), STEP_S);
-  hold(root, () => level(LOUD_DB), 1);
-  paint(root, level(QUIET_DB), STEP_S);
+  paint(root, level(LOUD_DB, true), STEP_MS);
+  hold(root, () => level(LOUD_DB), HOLD_MS);
+  paint(root, level(QUIET_DB), STEP_MS);
   const before = read(root);
-  paint(root, scene(restart), STEP_S);
+  paint(root, scene(restart), STEP_MS);
   const clean = section(2);
-  paint(clean, scene(true), STEP_S);
+  paint(clean, scene(true), STEP_MS);
   return apart(read(root), read(clean)) / apart(before, read(clean));
 }
 
@@ -175,9 +176,9 @@ test("test_a_change_in_the_number_of_channels_starts_the_held_marks_afresh", () 
 function restartedCanvas(history) {
   const { canvas, fx } = fxCanvas();
   const root = section(2, "", { fx, aurora: null });
-  paint(root, level(LOUD_DB, true), STEP_S, { picked: BARS });
-  if (history) hold(root, () => level(LOUD_DB), 1, { picked: BARS });
-  paint(root, level(MID_DB, true), STEP_S, { picked: BARS });
+  paint(root, level(LOUD_DB, true), STEP_MS, { picked: BARS });
+  if (history) hold(root, () => level(LOUD_DB), HOLD_MS, { picked: BARS });
+  paint(root, level(MID_DB, true), STEP_MS, { picked: BARS });
   return Float32Array.from(canvas.ink);
 }
 

@@ -1,6 +1,6 @@
 // Painter suite for hqptuner/static/components/faceplate/page/spectrumfx.js: the page spectrum's effects canvas, laid
 // over the SVG trace. A paint is handed the shown columns in dBFS, the range in dB, the picked style, and its color
-// suite, the seconds since the last paint and whether it restarts. The bars, ridges, fade and fire styles draw here.
+// suite, the ms since the last paint and whether it restarts. The bars, ridges, fade and fire styles draw here.
 // While the trace or aurora style is picked this painter is unselected: as its style is left it is handed one empty
 // paint, carrying the style now picked, and then nothing (timing rule 12). A restart or a paint with no
 // spectrum starts the style afresh. Motion keeps to the time a paint is told has passed, so late paints and steady
@@ -49,9 +49,9 @@ const WIDE_RANGE = 90;
 const LOUD_DB = -6;
 const MID_DB = -RANGE / 2;
 const QUIET_DB = -RANGE - 30;
-//: One steady paint, s, and a late one four steady paints long; both exact in binary.
-const STEP_S = 1 / 32;
-const LATE_S = 1 / 8;
+//: One steady paint, ms, and a late one four steady paints long; both exact in binary.
+const STEP_MS = 31.25;
+const LATE_MS = 125;
 const STEADY_PER_LATE = 4;
 //: Moments compared along a run, one late paint apart: two seconds in all.
 const MOMENTS = 16;
@@ -198,7 +198,7 @@ const flat = (db) => new Float32Array(COLS).fill(db);
 const NO_SPECTRUM = new Float32Array(0);
 
 /**
- * One paint of `fx` in `style` under Mono, `dt` seconds after the last.
+ * One paint of `fx` in `style` under Mono, `dt` ms after the last.
  *
  * @param {Painter} fx
  * @param {string} style
@@ -206,7 +206,7 @@ const NO_SPECTRUM = new Float32Array(0);
  * @param {{ dt?: number, restart?: boolean, range?: number, suite?: string }} [o]
  */
 function paintOnce(fx, style, columns, o = {}) {
-  const { dt = STEP_S, restart = false, range = RANGE, suite = MONO } = o;
+  const { dt = STEP_MS, restart = false, range = RANGE, suite = MONO } = o;
   fx.paint(columns, range, style, { suite, dt, restart });
 }
 
@@ -496,8 +496,8 @@ function momentsOf(style, dt, per) {
  * @param {string} style
  */
 function lateAgainstSteady(style) {
-  const steady = momentsOf(style, STEP_S, STEADY_PER_LATE);
-  const late = momentsOf(style, LATE_S, 1);
+  const steady = momentsOf(style, STEP_MS, STEADY_PER_LATE);
+  const late = momentsOf(style, LATE_MS, 1);
   let apart = 0;
   let moved = 0;
   for (let k = 1; k <= MOMENTS; k++) {

@@ -9,7 +9,6 @@
 // tables are held for one suite, accent and canvas height, and rebuilt where any of the three differs.
 
 import { pixelRatio } from "../../../lib/dom.js";
-import { secondsToMs } from "../../../lib/timebase.js";
 import { fractionsOf } from "../../../model/gauges/meter/meter.js";
 import {
   BANDS,
@@ -412,7 +411,7 @@ function fire(f) {
 }
 
 /**
- * Throw where a paint is not told, as a number of seconds, how long it has been since the last.
+ * Throw where a paint is not told, as a number of ms, how long it has been since the last.
  *
  * @param {unknown} dt
  */
@@ -428,7 +427,7 @@ const fresh = () => ({ caps: null, ridges: null, halo: null, flames: null });
 /**
  * The painter for the effects canvas `canvas`, drawing from the random source `random` and making any canvas of its
  * own with `makeCanvas`: `paint` draws `columns` at `range` dB under `style` in color suite `suite`, in the accent in
- * force when it paints, its motion `dt` seconds on from the last paint. A paint with no columns clears the canvas
+ * force when it paints, its motion `dt` ms on from the last paint. A paint with no columns clears the canvas
  * where anything is shown, and the next paint with columns starts afresh.
  *
  * @param {HTMLCanvasElement} canvas
@@ -471,7 +470,7 @@ export function fxPainter(canvas, colors, { random, makeCanvas }) {
      * @param {ArrayLike<number>} columns  dBFS per column, as the trace shows them
      * @param {number} range  dB, positive
      * @param {string} style
-     * @param {PaintOptions} opts  dt is seconds since the last paint
+     * @param {PaintOptions} opts  dt is ms since the last paint
      */
     paint(columns, range, style, { suite, dt, restart }) {
       timed(dt);
@@ -486,11 +485,11 @@ export function fxPainter(canvas, colors, { random, makeCanvas }) {
       if (!draw) return;
       fracs = fractionsOf(columns, range, fracs);
       held.palette = keyPalette(held.palette, suite, accentInForce(), ctx.canvas.height);
-      frame ??= { ctx, fracs, state, held, dt: secondsToMs(dt) };
+      frame ??= { ctx, fracs, state, held, dt };
       frame.ctx = ctx;
       frame.fracs = fracs;
       frame.state = state;
-      frame.dt = secondsToMs(dt);
+      frame.dt = dt;
       draw(frame);
     },
   };

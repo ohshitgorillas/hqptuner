@@ -14,7 +14,7 @@
 //
 // A scene is a meter-loop scene: channels of peak, RMS and bins in dBFS, the linear power of one frame of them, and
 // whether the paint restarts. Every run a helper starts begins with a restart, as the meter loop's first paint does. A
-// paint is told the seconds since the last one; the page's Range, the spectrum style and the color suite it paints
+// paint is told the ms since the last one; the page's Range, the spectrum style and the color suite it paints
 // under are the prefs store's, which `paint` sets from the look it is handed before each paint, so a suite using it
 // restores `pageRange`, `spectrumStyle` and `spectrumColors` after each test.
 
@@ -48,10 +48,12 @@ import { rasterCanvas } from "../raster.js";
 export const BINS = 65;
 /** The narrowest Range, dB. */
 export const RANGE = 120;
-/** One steady paint, s. */
-export const STEP_S = 1 / 32;
-/** A long settle, s. */
-export const SETTLE_S = 5;
+/** One steady paint, ms; exact in binary. */
+export const STEP_MS = 31.25;
+/** A short hold, ms. */
+export const HOLD_MS = 1000;
+/** A long settle, ms. */
+export const SETTLE_MS = 5000;
 /** Levels, dBFS. */
 export const LOUD_DB = -6;
 export const MID_DB = -30;
@@ -232,7 +234,7 @@ export const level = (db, restart = false) => sceneOf([channel(db, db, db), chan
 export const nothing = () => level(-Infinity, true);
 
 /**
- * Paint `scene` into `root` under the look, `dt` seconds after the last paint.
+ * Paint `scene` into `root` under the look, `dt` ms after the last paint.
  *
  * @param {Section} root
  * @param {Scene} scene
@@ -247,27 +249,27 @@ export function paint(root, scene, dt, o = {}) {
 }
 
 /**
- * `seconds` of steady paints of `scene`, STEP_S apart.
+ * `ms` of steady paints of `scene`, STEP_MS apart.
  *
  * @param {Section} root
  * @param {() => Scene} scene
- * @param {number} seconds
+ * @param {number} ms
  * @param {Look} [o]
  */
-export function hold(root, scene, seconds, o = {}) {
-  for (let t = 0; t < seconds - 1e-9; t += STEP_S) paint(root, scene(), STEP_S, o);
+export function hold(root, scene, ms, o = {}) {
+  for (let t = 0; t < ms; t += STEP_MS) paint(root, scene(), STEP_MS, o);
 }
 
 /**
- * A stereo section that has shown `db` steadily for `seconds`, starting with a restart.
+ * A stereo section that has shown `db` steadily for `ms`, starting with a restart.
  *
  * @param {number} db
- * @param {number} [seconds]
+ * @param {number} [ms]
  */
-export function steady(db, seconds = SETTLE_S) {
+export function steady(db, ms = SETTLE_MS) {
   const root = section(2);
-  paint(root, level(db, true), STEP_S);
-  hold(root, () => level(db), seconds);
+  paint(root, level(db, true), STEP_MS);
+  hold(root, () => level(db), ms);
   return root;
 }
 

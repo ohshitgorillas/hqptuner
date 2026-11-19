@@ -35,6 +35,14 @@ export const usToMs = (us) => us / US_PER_MS;
 export const secondsToMs = (s) => s * MS_PER_S;
 
 /**
+ * ms in the seconds a vendor shader's clock counts: one division by the factor.
+ *
+ * @param {number} ms
+ * @returns {number}  seconds
+ */
+export const msToSeconds = (ms) => ms / MS_PER_S;
+
+/**
  * Seconds, as a group delay is given, in µs: one multiplication by the factor.
  *
  * @param {number} s

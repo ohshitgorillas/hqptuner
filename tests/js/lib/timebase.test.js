@@ -1,4 +1,5 @@
-// Behavioral suite for lib/timebase.js, the browser's one time base: whole samples to ms at a rate, and a frame's start
+// Behavioral suite for lib/timebase.js, the browser's one time base: whole samples to ms at a rate, ms to the seconds a
+// vendor shader counts in, and a frame's start
 // and end, where a frame with no stamp reads as NaN and a frame with no converted end ends where its start plus its
 // length says.
 //
@@ -7,10 +8,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { endOf, samplesToMs, startOf } from "../../../hqptuner/static/lib/timebase.js";
+import { endOf, msToSeconds, samplesToMs, startOf } from "../../../hqptuner/static/lib/timebase.js";
 
 test("test_one_second_of_samples_is_1000_ms", () => {
   assert.equal(samplesToMs(176400, 176400), 1000);
+});
+
+test("test_2500_ms_is_2_point_5_seconds", () => {
+  assert.equal(msToSeconds(2500), 2.5);
 });
 
 test("test_samples_at_no_rate_are_no_time", () => {

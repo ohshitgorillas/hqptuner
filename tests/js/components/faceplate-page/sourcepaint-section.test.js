@@ -33,13 +33,14 @@ import { accent, accentHex, accentInForce } from "../../../../hqptuner/static/st
 import { near } from "../../support/near.js";
 import {
   BINS,
+  HOLD_MS,
   LOUD_DB,
   MID_DB,
   MONO,
   QUIET_DB,
   RANGE,
-  SETTLE_S,
-  STEP_S,
+  SETTLE_MS,
+  STEP_MS,
   angleAt,
   channel,
   hold,
@@ -141,7 +142,7 @@ afterEach(() => {
 function peakHeight(peak, floor) {
   meterFloor.value = floor;
   const root = section(2);
-  paint(root, level(peak, true), STEP_S);
+  paint(root, level(peak, true), STEP_MS);
   return peaks(root)[0];
 }
 
@@ -160,7 +161,7 @@ test("test_a_peak_under_the_levels_floor_fills_none_of_the_trough", () => {
 test("test_the_bars_follow_the_channels_in_order", () => {
   meterFloor.value = FLOOR_60;
   const root = section(2);
-  paint(root, sceneOf([channel(MID_DB, MID_DB, MID_DB), channel(-15, -15, -15)], true), STEP_S);
+  paint(root, sceneOf([channel(MID_DB, MID_DB, MID_DB), channel(-15, -15, -15)], true), STEP_MS);
   assert.deepEqual(peaks(root).map(Math.round), [50, 75]);
 });
 
@@ -168,13 +169,13 @@ test("test_the_bars_follow_the_channels_in_order", () => {
 
 test("test_the_held_mark_is_hidden_while_nothing_has_been_heard", () => {
   const root = section(2, "visible");
-  paint(root, nothing(), STEP_S);
+  paint(root, nothing(), STEP_MS);
   assert.equal(root.els.holds[0].style.visibility, "hidden");
 });
 
 test("test_the_held_mark_shows_once_something_is_heard", () => {
   const root = section(2, "hidden");
-  paint(root, level(MID_DB, true), STEP_S);
+  paint(root, level(MID_DB, true), STEP_MS);
   assert.notEqual(root.els.holds[0].style.visibility, "hidden");
 });
 
@@ -194,8 +195,8 @@ function inks(part, left, right, suite) {
   const root = section(2);
   const scene = (/** @type {boolean} */ restart) =>
     sceneOf([channel(left, left, left), channel(right, right, right)], restart);
-  paint(root, scene(true), STEP_S, { suite });
-  hold(root, () => scene(false), 1, { suite });
+  paint(root, scene(true), STEP_MS, { suite });
+  hold(root, () => scene(false), HOLD_MS, { suite });
   return root.els[part].map((e) => e.style.getPropertyValue("--lv-ink"));
 }
 
@@ -265,8 +266,8 @@ function barsAfter(opening, peak, rms, suite) {
   const root = section(2);
   const scene = (/** @type {number} */ top, /** @type {boolean} */ restart) =>
     sceneOf([channel(top, rms, rms), channel(top, rms, rms)], restart);
-  paint(root, scene(opening, true), STEP_S, { suite });
-  hold(root, () => scene(peak, false), 1, { suite });
+  paint(root, scene(opening, true), STEP_MS, { suite });
+  hold(root, () => scene(peak, false), HOLD_MS, { suite });
   return root;
 }
 
@@ -319,8 +320,8 @@ function needlesAt(left, right, ref) {
   const root = section(2);
   const scene = (/** @type {boolean} */ restart) =>
     sceneOf([channel(0, left, left), channel(0, right, right)], restart);
-  paint(root, scene(true), STEP_S);
-  hold(root, () => scene(false), SETTLE_S);
+  paint(root, scene(true), STEP_MS);
+  hold(root, () => scene(false), SETTLE_MS);
   return needles(root);
 }
 
@@ -337,8 +338,8 @@ test("test_a_change_of_vu_reference_moves_the_reading", () => {
 });
 
 test("test_a_needle_with_nothing_heard_rests_at_the_bottom_of_the_scale", () => {
-  const root = steady(MID_DB, 1);
-  paint(root, nothing(), STEP_S);
+  const root = steady(MID_DB, HOLD_MS);
+  paint(root, nothing(), STEP_MS);
   assert.ok(...near(needles(root)[0], angleAt(SCALE_BOTTOM), DEG_TOL));
 });
 
@@ -352,7 +353,7 @@ test("test_a_needle_with_nothing_heard_rests_at_the_bottom_of_the_scale", () => 
  */
 function firstLineY(db, range) {
   const root = section(2);
-  paint(root, level(db, true), STEP_S, { range });
+  paint(root, level(db, true), STEP_MS, { range });
   return lineY(root);
 }
 
@@ -365,7 +366,7 @@ test("test_the_same_level_on_a_range_twice_as_deep_draws_the_line_a_quarter_of_t
 });
 
 test("test_the_line_runs_from_the_left_edge_to_the_right_edge", () => {
-  const xs = pointsOf(steady(MID_DB, STEP_S).els.trace).map(([x]) => x);
+  const xs = pointsOf(steady(MID_DB, STEP_MS).els.trace).map(([x]) => x);
   assert.deepEqual([Math.round(Math.min(...xs)), Math.round(Math.max(...xs))], [0, SW]);
 });
 
@@ -379,7 +380,7 @@ function loudBinX(span) {
   const bins = new Float32Array(BINS).fill(QUIET_DB);
   bins[HALF_BIN] = LOUD_DB;
   const root = section(2);
-  paint(root, sceneOf([channel(LOUD_DB, LOUD_DB, bins), channel(LOUD_DB, LOUD_DB, bins)], true), STEP_S);
+  paint(root, sceneOf([channel(LOUD_DB, LOUD_DB, bins), channel(LOUD_DB, LOUD_DB, bins)], true), STEP_MS);
   const pts = pointsOf(root.els.trace);
   return pts.length ? pts.reduce((best, p) => (p[1] < best[1] ? p : best))[0] : Number.NaN;
 }
@@ -395,7 +396,7 @@ test("test_at_half_span_half_nyquist_sits_at_the_right_edge", () => {
 test("test_the_line_shows_the_channels_power_average_per_bin", () => {
   const root = section(2);
   const pair = [channel(PAIR_HOT_DB, PAIR_HOT_DB, PAIR_HOT_DB), channel(PAIR_SOFT_DB, PAIR_SOFT_DB, PAIR_SOFT_DB)];
-  paint(root, sceneOf(pair, true), STEP_S);
+  paint(root, sceneOf(pair, true), STEP_MS);
   assert.ok(...near(lineLevel(root), PAIR_AVERAGE_DB, DB_TOL));
 });
 
@@ -403,7 +404,7 @@ test("test_the_line_shows_the_channels_power_average_per_bin", () => {
 function sloped() {
   const bins = Float32Array.from({ length: BINS }, (_, k) => -10 - (40 * k) / (BINS - 1));
   const root = section(2);
-  paint(root, sceneOf([channel(-10, -20, bins), channel(-10, -20, bins)], true), STEP_S);
+  paint(root, sceneOf([channel(-10, -20, bins), channel(-10, -20, bins)], true), STEP_MS);
   return root;
 }
 
@@ -438,6 +439,6 @@ test("test_a_paint_told_no_time_is_an_error", () => {
 test("test_with_no_canvas_painters_the_section_still_paints_under_a_canvas_style", () => {
   meterFloor.value = FLOOR_60;
   const root = section(2);
-  paint(root, level(MID_DB, true), STEP_S, { picked: BARS });
+  paint(root, level(MID_DB, true), STEP_MS, { picked: BARS });
   assert.ok(...near(peaks(root)[0], 50, PCT_TOL));
 });

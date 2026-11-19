@@ -4,7 +4,7 @@
 // the whole canvas, colored base to crown through the picked color suite's ramp. Accent draws in the accent in force
 // at each paint. A restart, or a paint with no spectrum, clears the canvas and starts the bands and the sway afresh.
 
-import { secondsToMs } from "../../../lib/timebase.js";
+import { msToSeconds } from "../../../lib/timebase.js";
 import { fractionsOf } from "../../../model/gauges/meter/meter.js";
 import { ACCENT, BANDS, bandsOf, suiteRamp } from "../../../model/gauges/meter/spectrumfx.js";
 import { freshGravity, stepGravity } from "../../../model/gauges/meter/steps.js";
@@ -19,7 +19,7 @@ import { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } from "../../../vendor/cava/no
  *   suite: string | undefined,
  *   opts: { dt: number, restart: boolean },
  * ) => void} paint  draws the columns, dBFS as the trace shows them, over `range` dB (positive), in color suite `suite`
- *   (Accent where none is given), `opts.dt` wall seconds after the last paint; a restart or no spectrum starts afresh
+ *   (Accent where none is given), `opts.dt` wall ms after the last paint; a restart or no spectrum starts afresh
  * @property {() => void} clear  blanks the canvas
  */
 
@@ -145,7 +145,7 @@ export function auroraPainter(canvas) {
   const levels = new Float32Array(BANDS); // the bands as the shader is handed them
   let gravity = freshGravity(BANDS);
   let rested = true; // whether `gravity` is fresh, with no step taken since
-  let sway = 0; // s, wall time summed from every `dt` since the bands last started afresh
+  let sway = 0; // ms, wall time summed from every `dt` since the bands last started afresh
   /** @type {Float32Array | undefined} */
   let fracs; // the plot fractions of the last paint, written over by the next
   /** @type {Float32Array | undefined} */
@@ -161,7 +161,7 @@ export function auroraPainter(canvas) {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.bindVertexArray(vao);
     gl.uniform1fv(barsAt, levels);
-    gl.uniform1f(timeAt, sway);
+    gl.uniform1f(timeAt, msToSeconds(sway));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, QUAD_VERTICES);
   };
 
@@ -182,7 +182,7 @@ export function auroraPainter(canvas) {
     if (columns?.length) {
       fracs = fractionsOf(columns, range, fracs);
       bands = bandsOf(fracs, BANDS, bands);
-      stepGravity(gravity, bands, secondsToMs(dt));
+      stepGravity(gravity, bands, dt);
       rested = false;
     }
     gl.useProgram(program);

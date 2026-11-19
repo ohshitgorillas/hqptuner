@@ -1,6 +1,6 @@
 // Suite for the page spectrum's aurora painter, hqptuner/static/components/faceplate/page/aurora.js: `auroraPainter`
 // builds a painter on a WebGL2 canvas, or none where the canvas cannot run its shaders, and each paint is handed the
-// shown spectrum columns, the range, the color suite and the wall seconds since the last paint. The aurora moves the
+// shown spectrum columns, the range, the color suite and the wall ms since the last paint. The aurora moves the
 // same over the same stretch of time whatever the paint rate; a restart, or a paint with no spectrum, starts it afresh
 // over a cleared canvas; the color suite, and under Accent the accent in force, change what a paint draws; a paint
 // told no time is an error.
@@ -53,8 +53,8 @@ const WIDE_RANGE = 120;
 //: Loud and quiet levels on a 60 dB plot, dBFS.
 const LOUD_DB = -12;
 const QUIET_DB = -48;
-//: The time unit runs are counted in, s.
-const TICK_S = 1 / 60;
+//: The time unit runs are counted in, ms; exact in binary.
+const TICK_MS = 15.625;
 //: One meter loop step, ticks; a step and a half; three steps.
 const STEP = 2;
 const SLOW = 3;
@@ -276,7 +276,7 @@ function shows(paints) {
   if (!fx) return "no painter";
   for (const p of paints) {
     p.before?.();
-    fx.paint(p.cols, p.range ?? RANGE, p.suite ?? ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });
+    fx.paint(p.cols, p.range ?? RANGE, p.suite ?? ACCENT, { dt: p.ticks * TICK_MS, restart: p.restart ?? false });
   }
   return structuredClone(showing());
 }
@@ -486,7 +486,7 @@ function outcome(look) {
   const fx = pagePainter();
   if (!fx) return "no painter";
   for (const p of paintsOf(STEADY))
-    fx.paint(p.cols, RANGE, ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });
+    fx.paint(p.cols, RANGE, ACCENT, { dt: p.ticks * TICK_MS, restart: p.restart ?? false });
   try {
     fx.paint(columns(QUIET_DB), RANGE, ACCENT, look);
     return "painted";

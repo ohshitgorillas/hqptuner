@@ -4,7 +4,6 @@
 // part steps through the model on the `dt` the paint carries. Only the picked style's canvas painter is painted; one
 // the pick has just left, and every unpicked one at a restart, gets a single empty paint that clears it.
 
-import { secondsToMs } from "../../../lib/timebase.js";
 import { fraction, pickBins, spanShare, traceColumns } from "../../../model/gauges/meter/meter.js";
 import { hexAt, rampOf } from "../../../model/gauges/meter/spectrumfx.js";
 import { freshLevels, freshSpectrum, stepLevels, stepSpectrum } from "../../../model/gauges/meter/steps.js";
@@ -46,7 +45,7 @@ export const SH = 400;
  * @property {string} picked  the spectrum style the Display popover picked
  * @property {string} suite  the color suite
  * @property {string} selected  the canvas painter the picked style draws on, "" for none
- * @property {number} dt  wall time since the last paint, s
+ * @property {number} dt  wall time since the last paint, ms
  * @property {boolean} restart
  */
 
@@ -120,10 +119,10 @@ function selectedOf(picked) {
 }
 
 /**
- * Fill `look` from the stores for a paint `dt` seconds after the last.
+ * Fill `look` from the stores for a paint `dt` ms after the last.
  *
  * @param {SceneLook} look
- * @param {number} dt
+ * @param {number} dt  wall time since the last paint, ms
  * @param {boolean} restart
  */
 function lookNow(look, dt, restart) {
@@ -141,18 +140,17 @@ function lookNow(look, dt, restart) {
  *
  * @param {Kept} kept
  * @param {MeterScene} scene
- * @param {number} dt
+ * @param {number} dt  wall time since the last paint, ms
  */
 function stepAll(kept, scene, dt) {
   const chs = scene.channels;
-  const ms = secondsToMs(dt);
-  stepLevels(kept.levels, chs, ms);
+  stepLevels(kept.levels, chs, dt);
   for (let i = 0; i < chs.length; i++) kept.rms[i] = chs[i].rms;
-  stepVu(kept.vu, kept.rms, ms, Number(vuReference.value));
+  stepVu(kept.vu, kept.rms, dt, Number(vuReference.value));
   if (!chs.length) return;
   kept.pick = pickBins(scene, "sum", kept.pick);
   if (kept.spectrum.disp.length !== kept.pick.length) kept.spectrum = freshSpectrum(kept.pick.length);
-  stepSpectrum(kept.spectrum, kept.pick, ms);
+  stepSpectrum(kept.spectrum, kept.pick, dt);
 }
 
 /**
@@ -300,7 +298,7 @@ export function sourcePainter(els) {
      * Paint one meter-loop scene into the section and onto the picked style's canvas.
      *
      * @param {MeterScene} scene
-     * @param {{ dt: number }} o  dt is wall seconds since the last paint
+     * @param {{ dt: number }} o  dt is wall time since the last paint, ms
      */
     paint(scene, { dt }) {
       if (typeof dt !== "number" || !Number.isFinite(dt)) throw new TypeError(`sourcePainter paint: dt ${String(dt)}`);
