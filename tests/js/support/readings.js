@@ -102,3 +102,17 @@ export async function seedReadings(fields, stamp = generation.value) {
   }
   await adopted;
 }
+
+/**
+ * A wire answer the test settles by hand: `reply` is what a route returns, `answer(response)` is the moment the engine answers.
+ *
+ * @returns {{ reply: Promise<ReturnType<typeof ok>>, answer: (response: ReturnType<typeof ok>) => void }}
+ */
+export function heldReply() {
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answer = () => {};
+  const reply = new Promise((resolve) => {
+    answer = resolve;
+  });
+  return { reply, answer };
+}

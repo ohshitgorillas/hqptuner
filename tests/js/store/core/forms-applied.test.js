@@ -107,13 +107,19 @@ afterEach(async () => {
   await settled();
 });
 
-// Break: the sent edits are cleared only where the apply's own readback lands, so a reload landing first leaves them.
-test("test_reload_overtaking_the_apply_readback_drops_the_sent_edit", async () => {
+/** An apply whose readback is held while a reload is read and lands first, with the edits it sent still to be judged. */
+async function reloadOvertakingApply() {
   const { item, run, held, readback } = await appliedForm();
   const reload = item.reload();
   await held.started(2);
   held.reads[2].answer(NEWER_READING);
   await finished(reload);
+  return { item, run, readback };
+}
+
+// Break: the sent edits are cleared only where the apply's own readback lands, so a reload landing first leaves them.
+test("test_reload_overtaking_the_apply_readback_drops_the_sent_edit", async () => {
+  const { item, run, readback } = await reloadOvertakingApply();
   const shown = { ...item.values.value };
   readback.answer(OVERTAKEN_READING);
   await finished(run);
@@ -122,11 +128,7 @@ test("test_reload_overtaking_the_apply_readback_drops_the_sent_edit", async () =
 
 // Break: the sent edits are held aside while the readback is out and put back when the superseded readback is dropped.
 test("test_overtaken_apply_readback_landing_late_does_not_bring_the_sent_edit_back", async () => {
-  const { item, run, held, readback } = await appliedForm();
-  const reload = item.reload();
-  await held.started(2);
-  held.reads[2].answer(NEWER_READING);
-  await finished(reload);
+  const { item, run, readback } = await reloadOvertakingApply();
   readback.answer(OVERTAKEN_READING);
   await finished(run);
   assert.deepEqual(item.values.value, KEPT);

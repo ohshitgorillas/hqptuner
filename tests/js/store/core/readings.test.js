@@ -11,7 +11,7 @@ import {
 } from "../../../../hqptuner/static/store/core/readings.js";
 import { health, engineState, engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
+import { fieldReading, heldReply, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/store/reading.js").FieldReading} FieldReading */
 const GEN = 47;
@@ -100,18 +100,8 @@ test("test_an_existing_field_observes_replacement_readings", async () => {
 // Break: an older request arriving last replaces a newer completed reading.
 test("test_older_refetch_cannot_overwrite_a_newer_reading", async () => {
   await quiesce(wire);
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answerfirst = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const first = new Promise((resolve) => {
-    answerfirst = resolve;
-  });
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answersecond = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const second = new Promise((resolve) => {
-    answersecond = resolve;
-  });
+  const { reply: first, answer: answerfirst } = heldReply();
+  const { reply: second, answer: answersecond } = heldReply();
   const replies = [first, second];
   wire = stagingWire({ routes: (path) => (path === "/api/config" ? replies.shift() : undefined) });
   const older = refreshReadings();

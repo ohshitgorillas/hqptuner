@@ -240,12 +240,20 @@ test("test_form_apply_reads_health_back_after_the_write", async () => {
   }
 });
 
-// Break: the readback runs inside the apply's op run, so a refused readback after a confirmed write lands on the line.
-test("test_failed_readback_after_a_successful_write_puts_nothing_on_the_alert_line", async () => {
+/**
+ * A draft whose write lands and whose readback is then refused, applied once: `landed` is what the apply resolved to.
+ */
+async function applyWithRefusedReadback() {
   const reading = failingAfter();
   const item = await draft({ load: reading.load, write: async () => reading.fail() });
   item.set("gain", 4);
-  await item.apply();
+  const landed = await item.apply();
+  return { item, landed };
+}
+
+// Break: the readback runs inside the apply's op run, so a refused readback after a confirmed write lands on the line.
+test("test_failed_readback_after_a_successful_write_puts_nothing_on_the_alert_line", async () => {
+  await applyWithRefusedReadback();
   assert.deepEqual(lineErrors(), []);
 });
 
@@ -304,19 +312,13 @@ test("test_base_keeps_the_last_reading_while_the_readback_is_outstanding", async
 
 // Break: a failed readback clears base instead of leaving the last reading shown.
 test("test_failed_readback_keeps_the_last_reading_as_base", async () => {
-  const reading = failingAfter();
-  const item = await draft({ load: reading.load, write: async () => reading.fail() });
-  item.set("gain", 4);
-  await item.apply();
+  const { item } = await applyWithRefusedReadback();
   assert.equal(item.base.value, BASE);
 });
 
 // Break: a failed readback lowers stale, presenting the pre-write reading as current.
 test("test_failed_readback_leaves_the_values_marked_stale", async () => {
-  const reading = failingAfter();
-  const item = await draft({ load: reading.load, write: async () => reading.fail() });
-  item.set("gain", 4);
-  await item.apply();
+  const { item } = await applyWithRefusedReadback();
   assert.equal(item.stale?.value, true);
 });
 
@@ -329,10 +331,8 @@ test("test_apply_resolves_true_when_the_write_lands", async () => {
 
 // Break: apply reports the readback's outcome instead of the write's, so a refused readback reads as a failed write.
 test("test_apply_resolves_true_when_the_write_lands_but_its_readback_fails", async () => {
-  const reading = failingAfter();
-  const item = await draft({ load: reading.load, write: async () => reading.fail() });
-  item.set("gain", 4);
-  assert.equal(await item.apply(), true);
+  const { landed } = await applyWithRefusedReadback();
+  assert.equal(landed, true);
 });
 
 // Break: apply resolves to nothing, or to the op's FAILED sentinel, when the write is refused.

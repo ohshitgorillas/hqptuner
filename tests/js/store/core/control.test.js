@@ -2,7 +2,7 @@ import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { control, drawerSession } from "../../../../hqptuner/static/store/faceplate/drawer/control.js";
 import { readings, dropDrag } from "../../../../hqptuner/static/store/core/readings.js";
-import { seedReadings } from "../../support/readings.js";
+import { heldReply, seedReadings } from "../../support/readings.js";
 import { health, config } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok, bad, stagingWire, quiesce } from "../../support/wire/wire.js";
@@ -54,6 +54,20 @@ afterEach(async () => {
   config.value = null;
   await quiesce(wire);
 });
+
+/**
+ * The staging wire whose writes are answered by `next()` and whose other reads of `/api/config` answer the readings as they stand.
+ *
+ * @param {() => Promise<ReturnType<typeof ok>> | undefined} next
+ */
+function holdPosts(next) {
+  return stagingWire({
+    routes: (path, opts) => {
+      if (opts.method === "POST") return next();
+      return path === "/api/config" ? ok(readings.value) : undefined;
+    },
+  });
+}
 
 // Break: a binding keeps its first reading or chooses Engine over the named File.
 test("test_control_value_follows_the_served_display_store", async () => {
@@ -289,12 +303,7 @@ test("test_gray_follows_the_staged_fixed_volume_flag", async () => {
 
 // Break: the release clears its hold after the POST but before the refetch lands.
 test("test_live_hold_lasts_until_the_readback_lands", async () => {
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answer = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const reply = new Promise((resolve) => {
-    answer = resolve;
-  });
+  const { reply, answer } = heldReply();
   wire = stagingWire({ routes: (path) => (path === "/api/config" ? reply : ok({})) });
   const item = control(KEY, { drag: "preview" });
   const run = item.drop(HELD);
@@ -309,12 +318,7 @@ test("test_live_hold_lasts_until_the_readback_lands", async () => {
 
 // Break: staging clears the thumb before a fresh reading can carry the edit.
 test("test_stage_release_keeps_the_edit_until_fresh_reading", async () => {
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answer = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const reply = new Promise((resolve) => {
-    answer = resolve;
-  });
+  const { reply, answer } = heldReply();
   wire = stagingWire({ routes: (path) => (path === "/api/config" ? reply : undefined) });
   const item = control(KEY, { drag: "stage" });
   item.move(HELD);
@@ -334,18 +338,8 @@ test("test_stage_release_keeps_the_edit_until_fresh_reading", async () => {
 
 // Break: a completed release clears a newly started drag that has not written yet.
 test("test_earlier_release_preserves_a_new_unreleased_drag", async () => {
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answer = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const reply = new Promise((resolve) => {
-    answer = resolve;
-  });
-  wire = stagingWire({
-    routes: (path, opts) => {
-      if (opts.method === "POST") return reply;
-      return path === "/api/config" ? ok(readings.value) : undefined;
-    },
-  });
+  const { reply, answer } = heldReply();
+  wire = holdPosts(() => reply);
   const item = control(KEY, { drag: "preview" });
   const released = item.drop(ENGINE);
   item.move(HELD);
@@ -359,18 +353,8 @@ test("test_earlier_release_preserves_a_new_unreleased_drag", async () => {
 
 // Break: one binding's completed release clears another binding's newer drag.
 test("test_release_preserves_a_new_drag_from_another_binding", async () => {
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answer = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const reply = new Promise((resolve) => {
-    answer = resolve;
-  });
-  wire = stagingWire({
-    routes: (path, opts) => {
-      if (opts.method === "POST") return reply;
-      return path === "/api/config" ? ok(readings.value) : undefined;
-    },
-  });
+  const { reply, answer } = heldReply();
+  wire = holdPosts(() => reply);
   const earlier = control(KEY, { drag: "preview" });
   const later = control(KEY, { drag: "preview" });
   const released = earlier.drop(ENGINE);
@@ -385,25 +369,10 @@ test("test_release_preserves_a_new_drag_from_another_binding", async () => {
 
 // Break: an older completed write releases the drag owned by a newer write.
 test("test_stale_write_leaves_the_later_hold_in_place", async () => {
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answerfirst = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const first = new Promise((resolve) => {
-    answerfirst = resolve;
-  });
-  /** @type {(value: ReturnType<typeof ok>) => void} */
-  let answersecond = () => {};
-  /** @type {Promise<ReturnType<typeof ok>>} */
-  const second = new Promise((resolve) => {
-    answersecond = resolve;
-  });
+  const { reply: first, answer: answerfirst } = heldReply();
+  const { reply: second, answer: answersecond } = heldReply();
   const replies = [first, second];
-  wire = stagingWire({
-    routes: (path, opts) => {
-      if (opts.method === "POST") return replies.shift();
-      return path === "/api/config" ? ok(readings.value) : undefined;
-    },
-  });
+  wire = holdPosts(() => replies.shift());
   const item = control(KEY, { drag: "preview" });
   const older = item.drop(ENGINE);
   const newer = item.drop(HELD);

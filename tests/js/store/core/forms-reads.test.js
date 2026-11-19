@@ -335,6 +335,16 @@ async function overlappingReloads() {
   };
 }
 
+/** The overlapping reads where the later one is refused and then the earlier one lands; resolves to the draft. */
+async function earlierLandsAfterLaterFailed() {
+  const { item, earlier, later } = await overlappingReloads();
+  later.reject(new Error("fixture later read refusal"));
+  await landed(later.run);
+  earlier.resolve(EARLIER);
+  await landed(earlier.run);
+  return item;
+}
+
 // Break: base takes every read that lands, so the earlier read, landing last, overwrites the later one.
 test("test_earlier_read_landing_after_the_later_one_leaves_the_later_reading_as_base", async () => {
   const { item, earlier, later } = await overlappingReloads();
@@ -357,21 +367,13 @@ test("test_earlier_read_failing_after_the_later_one_landed_leaves_the_form_fresh
 
 // Break: the superseded read is only dropped once a later read has landed, so it lowers stale over a later failure.
 test("test_earlier_read_landing_after_the_later_one_failed_leaves_the_form_stale", async () => {
-  const { item, earlier, later } = await overlappingReloads();
-  later.reject(new Error("fixture later read refusal"));
-  await landed(later.run);
-  earlier.resolve(EARLIER);
-  await landed(earlier.run);
+  const item = await earlierLandsAfterLaterFailed();
   assert.equal(item.stale?.value, true);
 });
 
 // Break: the superseded read is only dropped once a later read has landed, so it replaces base after a later failure.
 test("test_earlier_read_landing_after_the_later_one_failed_keeps_the_last_reading_as_base", async () => {
-  const { item, earlier, later } = await overlappingReloads();
-  later.reject(new Error("fixture later read refusal"));
-  await landed(later.run);
-  earlier.resolve(EARLIER);
-  await landed(earlier.run);
+  const item = await earlierLandsAfterLaterFailed();
   assert.equal(item.base.value, BASE);
 });
 
