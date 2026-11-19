@@ -95,8 +95,6 @@ const SEEKS = [500, 9000];
 const REJOIN_BACK = 10;
 //: Wall ms the paints keep running after a generated feed's last arrival.
 const TAIL_MS = 300;
-//: The most a float sum of wall times may differ from the whole, ms.
-const EPS = 1e-9;
 //: Paint intervals in turn, wall ms: 60 Hz, 30 Hz, and uneven with late paints and one dropped.
 const PATTERNS = {
   steady_60hz: [PAINT_MS],
@@ -606,9 +604,9 @@ function movesOf(paints) {
 //: What each run's moves must never do, as the move that does it.
 const BREACHES = {
   moves_other_than_its_wall_time_at_an_unchanged_delay_short_of_the_newest_end: (/** @type {Move} */ m) =>
-    m.jump === 0 && m.after < m.newest && Math.abs(m.after - m.before - m.dt) > EPS,
+    m.jump === 0 && m.after < m.newest && m.after !== m.before + m.dt,
   jumps_further_than_its_wall_time_at_an_unchanged_delay: (/** @type {Move} */ m) =>
-    m.jump === 0 && m.after - m.before > m.dt + EPS,
+    m.jump === 0 && m.after > m.before + m.dt,
   moves_past_the_newest_queued_end: (/** @type {Move} */ m) => m.after > m.newest,
 };
 
@@ -643,7 +641,7 @@ for (const run of RUNS.filter((r) => r.until !== null)) {
   test(`test_in_${run.name}_the_playhead_moves_exactly_its_wall_time_at_every_paint_while_the_feed_lands`, () => {
     const until = run.until ?? NaN;
     assert.deepEqual(
-      movesOf(run.paints).filter((m) => m.wall <= until && Math.abs(m.after - m.before - m.dt) > EPS),
+      movesOf(run.paints).filter((m) => m.wall <= until && m.after !== m.before + m.dt),
       [],
     );
   });
@@ -704,7 +702,7 @@ test("test_a_burst_landing_early_or_late_leaves_the_playhead_where_it_was_at_eve
   assert.deepEqual(
     {
       some: both.length > 0,
-      apart: both.filter((wall) => Math.abs((on.get(wall) ?? NaN) - (off.get(wall) ?? NaN)) > EPS),
+      apart: both.filter((wall) => on.get(wall) !== off.get(wall)),
     },
     { some: true, apart: [] },
   );
@@ -758,5 +756,5 @@ test("test_the_same_wall_time_moves_the_playhead_the_same_distance_whatever_the_
       ],
       250,
     ).paints.at(-1)?.d.playhead ?? NaN;
-  assert.equal(Math.abs(to([PAINT_MS, PAINT_MS]) - to([SLOWER_PAINT_MS])) < 1e-9, true);
+  assert.equal(to([PAINT_MS, PAINT_MS]), to([SLOWER_PAINT_MS]));
 });
