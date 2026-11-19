@@ -12,10 +12,10 @@ files:
   - tests/js/store/meter/loop-boot.test.js
   - tests/js/store/meter/loop-painters.test.js
   - tests/js/store/meter/loop.test.js
-  - tests/js/support/meterrig.js
+  - tests/js/support/meter/meterrig.js
   - tests/js/contracts/schedules.js
   - tests/js/model/gauges/playhead.test.js
-  - tests/js/support/seeded.js
+  - tests/js/support/meter/seeded.js
   - tests/js/contracts/spectrogram-picture.test.js
   - tests/js/contracts/trace-and-meters.test.js
   - tests/js/components/faceplate-drawers/drawers-source-paint-blank.test.js
@@ -54,7 +54,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 2: The meter store suites share their feed and loop rigs
 
-- **Files:** tests/js/store/meter/apodstamp.test.js, tests/js/store/meter/apodstrip.test.js, tests/js/store/meter/feed.test.js, tests/js/store/meter/spectrum-motion.test.js, tests/js/store/meter/loop-boot.test.js, tests/js/store/meter/loop-painters.test.js, tests/js/store/meter/loop.test.js, tests/js/support/meterrig.js
+- **Files:** tests/js/store/meter/apodstamp.test.js, tests/js/store/meter/apodstrip.test.js, tests/js/store/meter/feed.test.js, tests/js/store/meter/spectrum-motion.test.js, tests/js/store/meter/loop-boot.test.js, tests/js/store/meter/loop-painters.test.js, tests/js/store/meter/loop.test.js, tests/js/support/meter/meterrig.js
 - **Reads:** tests/js/store/meter/loop-painters.test.js#generatedFeed, tests/js/store/meter/feed.test.js
 - **Decisions:** D-03
 - **Pins:** tests/js/store/meter/apodstamp.test.js, tests/js/store/meter/apodstrip.test.js, tests/js/store/meter/feed.test.js, tests/js/store/meter/spectrum-motion.test.js, tests/js/store/meter/loop-boot.test.js, tests/js/store/meter/loop-painters.test.js, tests/js/store/meter/loop.test.js
@@ -63,7 +63,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 3: The contracts share their seeded generator and their probe run
 
-- **Files:** tests/js/contracts/schedules.js, tests/js/model/gauges/playhead.test.js, tests/js/support/seeded.js, tests/js/contracts/spectrogram-picture.test.js, tests/js/contracts/trace-and-meters.test.js
+- **Files:** tests/js/contracts/schedules.js, tests/js/model/gauges/playhead.test.js, tests/js/support/meter/seeded.js, tests/js/contracts/spectrogram-picture.test.js, tests/js/contracts/trace-and-meters.test.js
 - **Reads:** tests/js/contracts/schedules.js#random, tests/js/model/gauges/playhead.test.js#random, tests/js/contracts/spectrogram-picture.test.js, tests/js/contracts/trace-and-meters.test.js
 - **Decisions:** D-03, D-11
 - **Pins:** tests/js/contracts/trace-and-meters.test.js, tests/js/contracts/spectrogram-picture.test.js, tests/js/contracts/spectrogram-columns.test.js, tests/js/model/gauges/playhead.test.js
@@ -72,12 +72,12 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 4: The meter store suites and the Source paint suite convert no time themselves
 
-- **Files:** tests/js/store/meter/loop.test.js, tests/js/store/meter/loop-painters.test.js, tests/js/store/meter/spectrum-motion.test.js, tests/js/support/meterrig.js, tests/js/components/faceplate-drawers/drawers-source-paint-blank.test.js
+- **Files:** tests/js/store/meter/loop.test.js, tests/js/store/meter/loop-painters.test.js, tests/js/store/meter/spectrum-motion.test.js, tests/js/support/meter/meterrig.js, tests/js/components/faceplate-drawers/drawers-source-paint-blank.test.js
 - **Reads:** tests/js/store/meter/loop.test.js#afterABurst, tests/js/store/meter/loop-painters.test.js#generatedFeed, tests/js/store/meter/loop-painters.test.js#capturedFeed, tests/js/store/meter/loop-painters.test.js#replay, tests/js/store/meter/spectrum-motion.test.js#generated, tests/js/store/meter/spectrum-motion.test.js#captured, tests/js/store/meter/spectrum-motion.test.js#play, tests/js/components/faceplate-drawers/drawers-source-paint-blank.test.js#music, tests/js/contracts/world.js#handler, hqptuner/static/lib/timebase.js
 - **Decisions:** D-02, D-10
 - **Pins:** tests/js/store/meter/loop.test.js, tests/js/store/meter/loop-painters.test.js, tests/js/store/meter/spectrum-motion.test.js, tests/js/components/faceplate-drawers/drawers-source-paint-blank.test.js
 - **Action:** Every `SECOND_MS` goes from `loop.test.js`, `loop-painters.test.js`, `spectrum-motion.test.js` and `drawers-source-paint-blank.test.js`, and with it every samples-to-ms, seconds-to-ms and µs conversion these suites still make themselves once Plan 3 has removed their `dt` products. D-10 sorts each one. An expected value a case states is written by hand: in `loop.test.js`, the playhead's target behind the feed's edge at each delay and the jump a changed offset adds, in ms beside the seconds the user types, and the break row's start in ms (rule 13: no table works out a stamp). Plumbing calls the time base: the wall time a generated burst lands at, the capture's 60 Hz paint wait, the capture's engine delay and owner offset on their way to the store (sent as the wire carries them, or converted through the time base's µs and seconds conversions, the test writer's choice), and the frame starts, lengths and ends the paint judgements read for a generated or captured feed, read through the time base from the same whole samples the suite sends, as the replay world reads its frames (Plan 4 Task 1). `drawers-source-paint-blank.test.js`'s running newest end is the whole-sample end converted once through the time base, never a running sum of converted lengths (D-02). Where Task 2 has moved one of these rigs into `meterrig.js`, the change lands there. Every case keeps what it asserts.
-- **Verify:** Testing scope: plumbing and hand-written expected values; the suites' own cases are the check; no new test; testing stops there. (1) `grep -rnE "SECOND_MS|/ *1e6|(\*|/) *1000\b|\b1000 *(\*|/)" tests/js/store/meter tests/js/support/meterrig.js tests/js/components/faceplate-drawers/drawers-source-paint-blank.test.js` prints nothing. (2) The sweep over every JavaScript test: `grep -rnE "SECOND_MS|US_PER_MS|(MS|US)_PER_S\s*=|/ *1e6|(\*|/) *1000\b|\b1000 *(\*|/)" tests/js` prints no time conversion; the one line it may print is the output drawer pin suite's kHz comparison, `hz / 1000`, in that suite or in the rig Plan 12 moved it to. (3) `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test` over every file in Pins gives the same outcome per test as at commit `503ddec8`. (4) `scripts/gate.sh npx tsc -p tsconfig.node.json` passes.
+- **Verify:** Testing scope: plumbing and hand-written expected values; the suites' own cases are the check; no new test; testing stops there. (1) `grep -rnE "SECOND_MS|/ *1e6|(\*|/) *1000\b|\b1000 *(\*|/)" tests/js/store/meter tests/js/support/meter/meterrig.js tests/js/components/faceplate-drawers/drawers-source-paint-blank.test.js` prints nothing. (2) The sweep over every JavaScript test: `grep -rnE "SECOND_MS|US_PER_MS|(MS|US)_PER_S\s*=|/ *1e6|(\*|/) *1000\b|\b1000 *(\*|/)" tests/js` prints no time conversion; the one line it may print is the output drawer pin suite's kHz comparison, `hz / 1000`, in that suite or in the rig Plan 12 moved it to. (3) `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test` over every file in Pins gives the same outcome per test as at commit `503ddec8`. (4) `scripts/gate.sh npx tsc -p tsconfig.node.json` passes.
 
 ### Task 5: The meter store suites judge the playhead and the covering frame exactly
 

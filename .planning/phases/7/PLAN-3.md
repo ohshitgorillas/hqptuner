@@ -26,6 +26,8 @@ files:
   - tests/js/store/meter/loop-painters.test.js
   - tests/js/store/meter/loop.test.js
   - tests/js/store/meter/spectrum-motion.test.js
+  - hqptuner/static/lib/timebase.js
+  - tests/js/lib/timebase.test.js
 ---
 
 # Phase 7: One time base - Plan 3: Wall time in ms through the painters
@@ -46,7 +48,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 - D-01 binds this plan: ms everywhere, seconds behind one conversion in the drawing code rejected. D-07: `same()` goes, `STEP_SLACK` stays.
 - The order is bottom-up, the model steps first. Until Task 4 lands, the seam above each moved layer converts once, through the time base's functions, never a local constant; Task 3 and Task 4 remove each such seam as the layer above moves.
 - The aurora's shader is vendor code (`hqptuner/static/vendor/cava/northern_lights.js`) whose `time` uniform counts seconds. It is an outside interface like the wire, so `aurora.js` converts once at that uniform, through the time base (planner's choice).
-- Copy rule: two thrown messages, in `spectrumfx.js` and `aurora.js`, say "seconds". Once `dt` is ms they state a falsehood, so their corrected wording ships only as the owner approves it, verbatim (`CLAUDE.md`, "Factual errors in owner copy").
+- Copy rule: two thrown messages, in `spectrumfx.js` and `aurora.js`, say "seconds". Once `dt` is ms they state a falsehood, so their corrected wording ships only as the owner approves it, verbatim (`CLAUDE.md`, "Factual errors in owner copy"). Owner ruling 18 Nov: these two thrown messages need no wording approval; each is corrected to say ms and nothing else in it changes.
 - Testing policy: `docs/spec/testing.md` rules 8, 11, 13 and 18, and `docs/spec/timing.md` rule 7. Expected values in moved tests are written in ms by hand; the test writer chooses them.
 - No suite this plan moves keeps or gains a seconds-to-ms factor of its own (D-10): a time the suite writes is written in ms, and where plumbing needs a rate's period or a conversion it takes the time base's value. A moved suite's `dt * SECOND_MS` and `/ 1000` go with its move.
 - Plan 2 comes first (`depends_on`): Task 4's exact comparisons read playback values that Plan 1's stamps and Plan 2 Task 3's exact playhead move make exact.
@@ -95,5 +97,5 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 - **Reads:** hqptuner/static/components/faceplate/page/spectrumfx.js#timed, hqptuner/static/components/faceplate/page/aurora.js
 - **Decisions:** D-01
 - **Pins:** tests/js/components/faceplate-page/spectrumfx-fx.test.js, tests/js/components/faceplate-page/aurora-glsl.test.js
-- **Action:** The two thrown messages that say "seconds" (`timed` in `spectrumfx.js`, the `dt` check in `aurora.js`) are false once `dt` is ms, and they are user-facing text under `CLAUDE.md`: propose corrected wording to the owner and land only the wording the owner approves, character for character, no em dash; until then this task is not done. It is the plan's last task so that Tasks 3 and 4 land and are verified without waiting on the approval. Nothing but the two strings changes.
+- **Action:** The two thrown messages that say "seconds" (`timed` in `spectrumfx.js`, the `dt` check in `aurora.js`) are false once `dt` is ms, and they are user-facing text under `CLAUDE.md`: propose corrected wording to the owner and land only the wording the owner approves, character for character, no em dash; until then this task is not done. It is the plan's last task so that Tasks 3 and 4 land and are verified without waiting on the approval. Nothing but the two strings changes. Owner ruling 18 Nov: no approval is needed for these two messages; correct "seconds" to ms and commit.
 - **Verify:** Testing scope: error copy only, no behavior changes; no new test; testing stops there. (1) human-verify: the owner has approved the two messages' wording, and the landed strings match it exactly. (2) Every file in Pins passes. (3) `scripts/gate.sh make lint-js` passes.

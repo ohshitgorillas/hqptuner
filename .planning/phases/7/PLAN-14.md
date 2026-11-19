@@ -30,7 +30,7 @@ files:
   - tests/js/store/connpanel-verdict.test.js
   - tests/js/store/connpanel.test.js
   - tests/js/store/faceplate/view-panel.test.js
-  - tests/js/support/connpanel.js
+  - tests/js/support/rendered/connpanel.js
   - tests/js/store/drawer-restart.test.js
   - tests/js/store/resolve-facade.test.js
   - tests/js/store/easy/easy-pips.test.js
@@ -112,10 +112,10 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 5: The panel, restart and easy suites share their rigs
 
-- **Files:** tests/js/store/connpanel-verdict.test.js, tests/js/store/connpanel.test.js, tests/js/store/faceplate/view-panel.test.js, tests/js/support/connpanel.js, tests/js/store/drawer-restart.test.js, tests/js/store/resolve-facade.test.js, tests/js/store/easy/easy-pips.test.js, tests/js/store/easy/easy.test.js, tests/js/support/easy/easytable.js
-- **Reads:** tests/js/store/connpanel.test.js, tests/js/support/connpanel.js, tests/js/support/easy/easytable.js
+- **Files:** tests/js/store/connpanel-verdict.test.js, tests/js/store/connpanel.test.js, tests/js/store/faceplate/view-panel.test.js, tests/js/support/rendered/connpanel.js, tests/js/store/drawer-restart.test.js, tests/js/store/resolve-facade.test.js, tests/js/store/easy/easy-pips.test.js, tests/js/store/easy/easy.test.js, tests/js/support/easy/easytable.js
+- **Reads:** tests/js/store/connpanel.test.js, tests/js/support/rendered/connpanel.js, tests/js/support/easy/easytable.js
 - **Decisions:** D-03
-- **Action:** Clones removed (5): the connection phases table and panel rig (connpanel-verdict against connpanel twice and against view-panel, into `tests/js/support/connpanel.js`, which Plan 13 created), the volume-max key rig (drawer-restart~resolve-facade), the presets table (easy-pips~easy).
+- **Action:** Clones removed (5): the connection phases table and panel rig (connpanel-verdict against connpanel twice and against view-panel, into `tests/js/support/rendered/connpanel.js`, which Plan 13 created), the volume-max key rig (drawer-restart~resolve-facade), the presets table (easy-pips~easy).
 - **Verify:** Plan 12's common Verify over this task's files.
 
 ### Task 6: The list, profile and layout store suites share their rigs

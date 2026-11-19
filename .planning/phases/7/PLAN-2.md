@@ -13,6 +13,7 @@ files:
   - tests/js/model/gauges/slicerange.test.js
   - tests/js/lib/spectroraster.test.js
   - tests/js/model/gauges/playhead.test.js
+  - .filepawl.toml
 ---
 
 # Phase 7: One time base - Plan 2: The playback model and the history read the time base

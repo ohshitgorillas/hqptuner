@@ -5,6 +5,9 @@ requirements: []
 depends_on: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 files:
   - .jscpd.json
+  - tests/fields/test_field_at_location.py
+  - tests/fields/test_field_kept_at_codec.py
+  - tests/support/field_codecs.py
 ---
 
 # Phase 7: One time base - Plan 16: The duplication budget
@@ -15,7 +18,8 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ## Must be true when done
 
-- `scripts/gate.sh npx jscpd` reports at most 43 clones, every one of a justified kind, and the `threshold` in `.jscpd.json` equals the duplication percentage that run prints.
+- `scripts/gate.sh npx jscpd` reports at most 43 clones, every one of a justified kind, and the `threshold` in `.jscpd.json` is the lowest two-decimal value at which every per-format run of `scripts/gate.sh make jscpd` passes (owner ruling 2026-11-19: the gate stays per-format; the value sits just above the highest single format's figure).
+- The `CODEC_HOLDS` table has one home, `tests/support/field_codecs.py`, and `tests/fields/test_field_at_location.py` and `tests/fields/test_field_kept_at_codec.py` import it (owner ruling 2026-11-19).
 - `scripts/gate.sh make check` reports no failing test that was passing at commit `503ddec8`, and the phase 8 tables are byte-identical to that commit.
 - Every acceptance criterion of the phase holds on the tree as it stands.
 
@@ -29,7 +33,8 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 1: The jscpd threshold is what the repository measures
 
-- **Files:** .jscpd.json
+- **Files:** .jscpd.json, tests/fields/test_field_at_location.py, tests/fields/test_field_kept_at_codec.py, tests/support/field_codecs.py
+- **Owner rulings 2026-11-19 (these replace the two stop conditions in the Action below and Verify item 1's equality):** (a) The `CODEC_HOLDS` table repeated in `tests/fields/test_field_at_location.py` and `tests/fields/test_field_kept_at_codec.py` moves to one home, `tests/support/field_codecs.py`, and both files import it; no assertion and no table value changes. The four import-led clones with a fixture constant at the tail (`ENGINE`, `ROW0`, `NOW`, `GATE_PATH`) count as justified. (b) The gate stays per-format and the Makefile is not touched. After (a) lands, set `threshold` to the lowest two-decimal value at which every per-format run of `scripts/gate.sh make jscpd` passes, measured on that tree. Verify item 1 reads: the clone count is at most 43 and `threshold` is that lowest passing value, with `make jscpd` failing at 0.01 below it.
 - **Reads:** .jscpd.json, Makefile
 - **Decisions:** D-03, D-09
 - **Action:** Run `scripts/gate.sh npx jscpd` over every format at once and read from its log the clone count and the duplication percentage, taking the figure jscpd compares `threshold` against (read in the installed jscpd which of lines or tokens that is; the 2.3 now set matches the JavaScript tokens figure, 2.29%). Read every clone it still lists: each must be of a justified kind (an import list or module docstring repeated across split test files, a type declaration that cannot share a field list, a per-script entry point, the `blockstats.py` mirror). If the count is above 43, or any listed clone is of no justified kind, stop: report the clones over the bound to the owner as a blocking question, each with its two sites, and change nothing. Otherwise set `threshold` to the printed figure, as printed. Then run `scripts/gate.sh make jscpd`; if a single format's figure is above the threshold so set, the per-format gate and AC1 collide: stop and put both figures to the owner as a blocking question instead of choosing one. `.jscpd.json` changes in `threshold` alone.

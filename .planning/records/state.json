@@ -3,14 +3,9 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 7,
-    "status": "planned",
-    "next": "/cad-execute 7",
-    "updated": "2026-11-18",
-    "plan": {
-      "k": 1,
-      "j": 16,
-      "name": "The time base and the feed's stamps"
-    }
+    "status": "executed",
+    "next": "/cad-verify 7",
+    "updated": "2026-11-19"
   },
   "phases": [
     {
@@ -160,71 +155,71 @@
       "n": 7,
       "name": "One time base",
       "description": "a single time base, shared core structures everywhere, no duplicated code",
-      "status": "planned",
+      "status": "executed",
       "plans": [
         {
           "file": "PLAN-1.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-2.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-3.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-4.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-5.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-6.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-7.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-8.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-9.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-10.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-11.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-12.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-13.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-14.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-15.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-16.md",
-          "finished": false
+          "finished": true
         }
       ]
     },

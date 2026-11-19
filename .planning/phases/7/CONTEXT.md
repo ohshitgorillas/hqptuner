@@ -33,7 +33,7 @@ Plan shape: multiple plans (owner: big, planning splits the work into several pl
 
 ## Acceptance criteria
 
-- [ ] AC1: `scripts/gate.sh npx jscpd` reports at most 43 clones, and the `threshold` in `.jscpd.json` equals the duplication percentage that run prints.
+- [ ] AC1: `scripts/gate.sh npx jscpd` reports at most 43 clones, and the `threshold` in `.jscpd.json` is the lowest two-decimal value at which every per-format run of `scripts/gate.sh make jscpd` passes. [reworded by owner ruling 2026-11-19: the gate is per-format and compares strictly, so no value equals the combined run's printed figure and passes]
 - [ ] AC2: `grep -rnE "(MS|US)_PER_S\s*=" hqptuner/static tests/js` prints hits in one file only, and that file is under `hqptuner/static/lib/`.
 - [ ] AC3: At 44100, 48000, 88200, 96000, 176400 and 192000 Hz, the end of every frame the feed store emits is strictly equal (`===`) to the start of the contiguous frame after it.
 - [ ] AC4: `grep -rn "MS_PER_S" hqptuner/static/components hqptuner/static/model/gauges/meter` prints nothing, and no constant in `hqptuner/static/model/gauges/meter/steps.js` has a name ending in `_S`.

@@ -16,7 +16,7 @@ files:
   - tests/js/components/faceplate-controls/numbox.test.js
   - tests/js/components/faceplate-controls/select.test.js
   - tests/js/components/faceplate-controls/slider.test.js
-  - tests/js/support/controls.js
+  - tests/js/support/rendered/controls.js
   - tests/js/components/faceplate-alerts/drawer.test.js
   - tests/js/components/faceplate-alerts/header.test.js
   - tests/js/components/faceplate-alerts/plate-unread-saves.test.js
@@ -26,7 +26,7 @@ files:
   - tests/js/store/faceplate-alerts/alerts-unread.test.js
   - tests/js/store/faceplate-alerts/alerts.test.js
   - tests/js/support/wire/unreadsaves.js
-  - tests/js/support/alerts.js
+  - tests/js/support/rendered/alerts.js
   - tests/js/components/faceplate-lists/console.test.js
   - tests/js/components/faceplate-lists/default-mark.test.js
   - tests/js/components/faceplate-lists/option-list.test.js
@@ -38,23 +38,23 @@ files:
   - tests/js/components/faceplate-page/presets.test.js
   - tests/js/store/faceplate-page/presets.test.js
   - tests/js/support/listsfixture.js
-  - tests/js/support/pagefixtures.js
+  - tests/js/support/rendered/pagefixtures.js
   - tests/js/components/faceplate-settings/about-state-import-owed.test.js
   - tests/js/components/faceplate-settings/about-state-import-stores.test.js
   - tests/js/components/faceplate-settings/about-state-import.test.js
-  - tests/js/support/aboutstate.js
+  - tests/js/support/rendered/aboutstate.js
   - tests/js/components/faceplate/display-delay.test.js
   - tests/js/support/page.js
   - tests/js/components/faceplate/display-span.test.js
   - tests/js/components/faceplate/display.test.js
   - tests/js/components/faceplate/header.test.js
   - tests/js/store/faceplate/loadpreset.test.js
-  - tests/js/support/connpanel.js
+  - tests/js/support/rendered/connpanel.js
   - tests/js/components/faceplate/hf-filter.test.js
   - tests/js/store/faceplate/hf.test.js
   - tests/js/components/faceplate/switcher.test.js
   - tests/js/store/faceplate/switcher.test.js
-  - tests/js/support/switcherwire.js
+  - tests/js/support/rendered/switcherwire.js
   - tests/js/components/faceplate/rail-staged.test.js
   - tests/js/store/faceplate/drawer-family.test.js
   - tests/js/support/rendered/treewalk.js
@@ -91,7 +91,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 2: The control suites share their input fake and their tables
 
-- **Files:** tests/js/components/faceplate-controls/numbox.test.js, tests/js/components/faceplate-controls/select.test.js, tests/js/components/faceplate-controls/slider.test.js, tests/js/support/controls.js
+- **Files:** tests/js/components/faceplate-controls/numbox.test.js, tests/js/components/faceplate-controls/select.test.js, tests/js/components/faceplate-controls/slider.test.js, tests/js/support/rendered/controls.js
 - **Reads:** tests/js/components/faceplate-controls/numbox.test.js, tests/js/components/faceplate-controls/slider.test.js
 - **Decisions:** D-03
 - **Action:** Clones removed (6): the fake input element and its handlers (numbox~slider, numbox~select), the clamp table and the grayed-box table (numbox against slider and select).
@@ -99,7 +99,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 3: The alert suites share their unread-saves rig
 
-- **Files:** tests/js/components/faceplate-alerts/drawer.test.js, tests/js/components/faceplate-alerts/header.test.js, tests/js/components/faceplate-alerts/plate-unread-saves.test.js, tests/js/components/faceplate-alerts/plate-unread.test.js, tests/js/components/faceplate-alerts/rail.test.js, tests/js/components/faceplate-settings/rail.test.js, tests/js/store/faceplate-alerts/alerts-unread.test.js, tests/js/store/faceplate-alerts/alerts.test.js, tests/js/support/wire/unreadsaves.js, tests/js/support/alerts.js
+- **Files:** tests/js/components/faceplate-alerts/drawer.test.js, tests/js/components/faceplate-alerts/header.test.js, tests/js/components/faceplate-alerts/plate-unread-saves.test.js, tests/js/components/faceplate-alerts/plate-unread.test.js, tests/js/components/faceplate-alerts/rail.test.js, tests/js/components/faceplate-settings/rail.test.js, tests/js/store/faceplate-alerts/alerts-unread.test.js, tests/js/store/faceplate-alerts/alerts.test.js, tests/js/support/wire/unreadsaves.js, tests/js/support/rendered/alerts.js
 - **Reads:** tests/js/support/wire/unreadsaves.js, tests/js/components/faceplate-alerts/plate-unread-saves.test.js
 - **Decisions:** D-03
 - **Action:** Clones removed (7): the advice fixture (alerts drawer~store alerts), the static wire and discard steps (header~plate-unread-saves twice), the saves rig (plate-unread-saves~plate-unread twice, ~alerts-unread), the rail buttons finder (alerts `rail.test.js`~settings `rail.test.js`). Expected to stay: plate-unread-saves~plate-unread lines 30-37, an import list.
@@ -107,7 +107,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 4: The list and page suites share their loaders and button tables
 
-- **Files:** tests/js/components/faceplate-lists/console.test.js, tests/js/components/faceplate-lists/default-mark.test.js, tests/js/components/faceplate-lists/option-list.test.js, tests/js/store/faceplate-lists/facets.test.js, tests/js/components/faceplate-page/conversion.test.js, tests/js/store/faceplate-page/conversion.test.js, tests/js/components/faceplate-page/meter-rangebuttons.test.js, tests/js/components/faceplate-page/meter-vu.test.js, tests/js/components/faceplate-page/presets.test.js, tests/js/store/faceplate-page/presets.test.js, tests/js/support/listsfixture.js, tests/js/support/pagefixtures.js
+- **Files:** tests/js/components/faceplate-lists/console.test.js, tests/js/components/faceplate-lists/default-mark.test.js, tests/js/components/faceplate-lists/option-list.test.js, tests/js/store/faceplate-lists/facets.test.js, tests/js/components/faceplate-page/conversion.test.js, tests/js/store/faceplate-page/conversion.test.js, tests/js/components/faceplate-page/meter-rangebuttons.test.js, tests/js/components/faceplate-page/meter-vu.test.js, tests/js/components/faceplate-page/presets.test.js, tests/js/store/faceplate-page/presets.test.js, tests/js/support/listsfixture.js, tests/js/support/rendered/pagefixtures.js
 - **Reads:** tests/js/support/listsfixture.js, tests/js/components/faceplate-page/presets.test.js
 - **Decisions:** D-03
 - **Action:** Clones removed (5): the kept-rate table (console~facets), the defaults serve (default-mark~option-list), the conversion metadata (component~store `conversion.test.js`), the range buttons (meter-rangebuttons~meter-vu), the lists load (component~store `presets.test.js`). Expected to stay: console~rate-floor-row, meter-rangebuttons against meter-vu and meter (lines 12-20), import lists.
@@ -115,7 +115,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 5: The state import suites share their rig
 
-- **Files:** tests/js/components/faceplate-settings/about-state-import-owed.test.js, tests/js/components/faceplate-settings/about-state-import-stores.test.js, tests/js/components/faceplate-settings/about-state-import.test.js, tests/js/support/aboutstate.js
+- **Files:** tests/js/components/faceplate-settings/about-state-import-owed.test.js, tests/js/components/faceplate-settings/about-state-import-stores.test.js, tests/js/components/faceplate-settings/about-state-import.test.js, tests/js/support/rendered/aboutstate.js
 - **Reads:** tests/js/components/faceplate-settings/about-state-import-owed.test.js
 - **Decisions:** D-03
 - **Action:** Clones removed (3): the refusing switch and the store imports loaded after it (owed against stores twice and against `about-state-import.test.js`). Expected to stay: hardware-stale~store `hardware.test.js`, an import list.
@@ -123,7 +123,7 @@ A single time base. Duplicated code is illegal. We use shared core structures ev
 
 ### Task 6: The faceplate suites share their page, panel and switcher rigs
 
-- **Files:** tests/js/components/faceplate/display-delay.test.js, tests/js/support/page.js, tests/js/components/faceplate/display-span.test.js, tests/js/components/faceplate/display.test.js, tests/js/components/faceplate/header.test.js, tests/js/store/faceplate/loadpreset.test.js, tests/js/support/connpanel.js, tests/js/components/faceplate/hf-filter.test.js, tests/js/store/faceplate/hf.test.js, tests/js/components/faceplate/switcher.test.js, tests/js/store/faceplate/switcher.test.js, tests/js/support/switcherwire.js, tests/js/components/faceplate/rail-staged.test.js, tests/js/store/faceplate/drawer-family.test.js, tests/js/support/rendered/treewalk.js
+- **Files:** tests/js/components/faceplate/display-delay.test.js, tests/js/support/page.js, tests/js/components/faceplate/display-span.test.js, tests/js/components/faceplate/display.test.js, tests/js/components/faceplate/header.test.js, tests/js/store/faceplate/loadpreset.test.js, tests/js/support/rendered/connpanel.js, tests/js/components/faceplate/hf-filter.test.js, tests/js/store/faceplate/hf.test.js, tests/js/components/faceplate/switcher.test.js, tests/js/store/faceplate/switcher.test.js, tests/js/support/rendered/switcherwire.js, tests/js/components/faceplate/rail-staged.test.js, tests/js/store/faceplate/drawer-family.test.js, tests/js/support/rendered/treewalk.js
 - **Reads:** tests/js/support/page.js, tests/js/support/rendered/treewalk.js, tests/js/components/faceplate/switcher.test.js
 - **Decisions:** D-03
 - **Action:** Clones removed (13): the node removal (display-delay~`page.js`), the span setup (display-span~display), the connection panel rig (header~loadpreset twice), the running-junk reading (hf-filter~store `hf.test.js`), the posts and inflight wire (hf-filter~component `switcher.test.js` twice), the staged rail (rail-staged~drawer-family), the switcher rig (component~store `switcher.test.js` four times), the children walk (component `switcher.test.js`~`treewalk.js`). Expected to stay: display-meters~display-range and rail-staged~`rail.test.js`, import lists.
