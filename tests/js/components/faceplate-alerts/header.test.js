@@ -16,71 +16,30 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Header } from "../../../../hqptuner/static/components/faceplate/Header.js";
-import {
-  health,
-  config,
-  pendingPreset,
-  engineState,
-  engineStatus,
-  matrixConfig,
-  lastApply,
-} from "../../../../hqptuner/static/store/signals.js";
-import { applying, discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
+import { health, engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
-import { liveBook, livePresets } from "../../../../hqptuner/static/store/live/presets.js";
-import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
-import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, hasAttr } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { seedReadings } from "../../support/readings.js";
 import { staticWire } from "../../support/wire/wire.js";
+import { ACCEPTED, resetPlateSignals, seedDay, settlePlate, restoreFetch } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
-
 const panel = createConnPanel();
-
-/** A /api/health reading whose credentials the daemon accepted. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
 
 beforeEach(async () => {
   staticWire();
-  engineState.value = {};
-  engineStatus.value = null;
-  matrixConfig.value = { fields: [] };
-  config.value = {
-    fields: [],
-  };
-  liveBook.value = {};
-  livePresets.value = null;
-  lastApply.value = null;
-  pendingPreset.value = null;
+  resetPlateSignals();
   await discardAll();
-  await seedReadings({
-    active_preset: { value: "Day", readonly: true },
-    profiles: {
-      value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
-      readonly: true,
-    },
-  });
-  health.value = { ...HEALTHY };
-  applying.value = false;
-  engineBusy.value = false;
-  unfolded.value = null;
-  body.value = "chain";
-  openPopover.value = null;
+  await seedDay();
+  settlePlate();
 });
 
-afterEach(() => {
-  env.fetch = REAL_FETCH;
-});
+afterEach(restoreFetch);
 
 const refuse = () => {
-  health.value = { ...HEALTHY, credentials_ok: false };
+  health.value = { ...ACCEPTED, credentials_ok: false };
 };
 
 /** A Roon track playing, the engine idle time at its default. */

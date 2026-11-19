@@ -16,40 +16,16 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  health,
-  config,
-  pendingPreset,
-  engineState,
-  engineStatus,
-  enums,
-  matrixConfig,
-  lastApply,
-} from "../../../../hqptuner/static/store/signals.js";
-import { applying, discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
-import {
-  liveBook,
-  livePresets,
-  livePresetError,
-  livePresetsBusy,
-  livePresetStation,
-} from "../../../../hqptuner/static/store/live/presets.js";
-import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
-import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { readPlate, shownLines, lineTap } from "../../support/plateline.js";
-import { seedReadings } from "../../support/readings.js";
 import { attr } from "../../support/markup.js";
 import { quiesce } from "../../support/wire/wire.js";
 import { unreadWire, STATE, ENUMS, BOOK } from "../../support/wire/unreadwire.js";
 import { FAILURES, fail, succeedEverywhere } from "../../support/unreadareas.js";
+import { TAP, resetPlateSignals, seedDay, settlePlate, restoreFetch } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
-
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
 
 /** The plate's design size. */
 const DESIGN_SIZE = { w: 1080, h: 810 };
@@ -57,53 +33,21 @@ const DESIGN_SIZE = { w: 1080, h: 810 };
 /** The severity the owner gave these lines, as a line carries it. */
 const WARN = "warn";
 
-/** A /api/health reading whose credentials the daemon accepted. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
-
-/** A tap event: the members a tap handler may call. */
-const TAP = { preventDefault() {}, stopPropagation() {}, target: {}, currentTarget: {} };
-
 /** @type {StagingWire} */
 let wire;
 
 beforeEach(async () => {
   wire = unreadWire();
   viewport.value = { ...DESIGN_SIZE };
-  engineState.value = STATE();
-  engineStatus.value = null;
-  enums.value = ENUMS();
-  matrixConfig.value = { fields: [] };
-  config.value = {
-    fields: [],
-  };
-  liveBook.value = BOOK();
-  livePresets.value = null;
-  livePresetStation.value = null;
-  livePresetsBusy.value = "";
-  livePresetError.value = "";
-  lastApply.value = null;
-  pendingPreset.value = null;
+  resetPlateSignals({ state: STATE(), enumerations: ENUMS(), book: BOOK() });
   await discardAll();
   await quiesce(wire);
-  await seedReadings({
-    active_preset: { value: "Day", readonly: true },
-    profiles: {
-      value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
-      readonly: true,
-    },
-  });
-  health.value = { ...HEALTHY };
-  applying.value = false;
-  engineBusy.value = false;
-  unfolded.value = null;
-  body.value = "chain";
-  openPopover.value = null;
+  await seedDay();
+  settlePlate();
   await succeedEverywhere(wire);
 });
 
-afterEach(() => {
-  env.fetch = REAL_FETCH;
-});
+afterEach(restoreFetch);
 
 /** How many warning lines show directly under the top bar. */
 const warnings = () => shownLines(readPlate().under).filter((e) => attr(e, "data-sev") === WARN).length;

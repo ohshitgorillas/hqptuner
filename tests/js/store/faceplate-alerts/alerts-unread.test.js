@@ -15,71 +15,34 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  health,
-  engineState,
-  engineStatus,
-  enums,
-  config,
-  matrixConfig,
-  lastApply,
-} from "../../../../hqptuner/static/store/signals.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
-import {
-  liveBook,
-  livePresets,
-  livePresetError,
-  livePresetsBusy,
-  livePresetStation,
-} from "../../../../hqptuner/static/store/live/presets.js";
 import { faceplateAlerts } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { quiesce } from "../../support/wire/wire.js";
 import { unreadWire, STATE, ENUMS, BOOK } from "../../support/wire/unreadwire.js";
-import { seedReadings } from "../../support/readings.js";
 import { fail, succeed, succeedEverywhere } from "../../support/unreadareas.js";
 import { fakeClock } from "../../support/clock.js";
+import { ACCEPTED, resetPlateSignals, seedDay, restoreFetch } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 
 initHealth(fakeClock().clock);
-
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
-
-/** A /api/health reading whose credentials the daemon accepted. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
 
 /** @type {StagingWire} */
 let wire;
 
 beforeEach(async () => {
   wire = unreadWire();
-  health.value = { ...HEALTHY };
-  engineStatus.value = null;
-  engineState.value = STATE();
-  enums.value = ENUMS();
-  config.value = { fields: [] };
-  matrixConfig.value = { fields: [] };
-  liveBook.value = BOOK();
-  livePresets.value = null;
-  livePresetStation.value = null;
-  livePresetsBusy.value = "";
-  livePresetError.value = "";
-  lastApply.value = null;
+  health.value = { ...ACCEPTED };
+  resetPlateSignals({ state: STATE(), enumerations: ENUMS(), book: BOOK() });
   await discardAll();
   await quiesce(wire);
   await succeedEverywhere(wire);
-  await seedReadings({
-    active_preset: { value: "Day", readonly: true },
-    profiles: { value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) }, readonly: true },
-  });
+  await seedDay();
 });
 
-afterEach(() => {
-  env.fetch = REAL_FETCH;
-});
+afterEach(restoreFetch);
 
 /**
  * How many alerts the list holds beyond `base`.

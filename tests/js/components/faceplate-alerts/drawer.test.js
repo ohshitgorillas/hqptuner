@@ -15,57 +15,24 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { elements, attr, classes } from "../../support/markup.js";
 import { reset, DSD1024, PCM_8X } from "../../support/shaperfit-fixtures.js";
 import { fakeClock } from "../../support/clock.js";
+import { HEALTHY, ADVICE, poll, newTrack } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
 initHealth(fakeClock().clock);
 
-/** The daemon generation the suite runs at. */
-const GEN = 1;
-
-/** A /api/health reading as served: the connection Ready and the credentials the daemon accepted. */
-const HEALTHY = { phase: "Ready", generation: GEN, credentials_ok: true };
-
-/** The junk advisor's object as /api/status carries it. */
-const ADVICE = { filter: "30k", reason: "reason-fixture", ceiling_khz: 30 };
-
-let serial = 0;
-
-/**
- * One /api/status poll on the current track: playing at a healthy speed, with the fields a case names laid over it.
- *
- * @param {Record<string, string>} [fields]  Status frame attributes
- * @param {Record<string, unknown>} [extra]  the payload's other keys: `junk`
- */
-function poll(fields = {}, extra = {}) {
-  engineStatus.value = {
-    status: {
-      state: "2",
-      track_serial: String(serial),
-      process_speed: "1.5",
-      output_fill: "0.9",
-      clips: "0",
-      apod: "0",
-      active_filter: "sinc-M",
-      ...fields,
-    },
-    ...extra,
-  };
-}
-
 /** Start a case with nothing wrong: SDM at DSD1024 past its modulator's floor, accepted credentials, a fresh track. */
 async function quiet() {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD1024, pcmRate: PCM_8X });
   health.value = { ...HEALTHY };
   openStage.value = null;
-  serial += 1;
-  poll();
+  newTrack();
 }
 
 /**

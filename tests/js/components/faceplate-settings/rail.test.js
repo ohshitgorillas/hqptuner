@@ -20,6 +20,7 @@ import { config, engineStatus } from "../../../../hqptuner/static/store/signals.
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { seedReadings } from "../../support/readings.js";
+import { railButtons, stageButton } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -85,7 +86,7 @@ beforeEach(async () => {
 const rendered = () => elements(render(html`<${SettingsRail} categories=${CATEGORIES} />`));
 
 /** The rendered rail's category buttons. */
-const buttons = () => rendered().filter((e) => e.name === "button");
+const buttons = () => railButtons(html`<${SettingsRail} categories=${CATEGORIES} />`);
 
 /**
  * The rendered button of one category, or an empty element when there is none.
@@ -93,8 +94,7 @@ const buttons = () => rendered().filter((e) => e.name === "button");
  * @param {string} id
  * @returns {MarkupElement}
  */
-const button = (id) =>
-  buttons().find((b) => attr(b, "data-stage") === id) || { name: "", attrs: "", start: -1, html: "" };
+const button = (id) => stageButton(buttons(), id);
 
 /**
  * The elements named `name` inside one category's button.

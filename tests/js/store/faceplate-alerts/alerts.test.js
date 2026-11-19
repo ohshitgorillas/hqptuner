@@ -15,7 +15,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { health, engineStatus, lastApply } from "../../../../hqptuner/static/store/signals.js";
+import { health, lastApply } from "../../../../hqptuner/static/store/signals.js";
 import { liveOp } from "../../../../hqptuner/static/store/live/write.js";
 import { livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
 import { descriptionError, hydrateDescriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
@@ -30,6 +30,7 @@ import { fakeClock } from "../../support/clock.js";
 import { stagingWire, bad } from "../../support/wire/wire.js";
 import { unreadWire } from "../../support/wire/unreadwire.js";
 import { fail } from "../../support/unreadareas.js";
+import { HEALTHY, ADVICE, poll, newTrack } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/shell/alerts.js").Alert} Alert */
 /** @typedef {import("../../support/shaperfit-fixtures.js").Scenario} Scenario */
@@ -42,40 +43,6 @@ const HOLD_MS = 6000;
 
 /** The rail stage that runs the SDM modulator. */
 const MODULATOR_STAGE = "shaping";
-
-/** The daemon generation the suite runs at. */
-const GEN = 1;
-
-/** A /api/health reading as served: the connection Ready and the credentials the daemon accepted. */
-const HEALTHY = { phase: "Ready", generation: GEN, credentials_ok: true };
-
-/** The junk advisor's object as /api/status carries it. */
-const ADVICE = { filter: "30k", reason: "Ultrasonic junk above 30 kHz suggests the 30k filter", ceiling_khz: 30 };
-
-let serial = 0;
-
-/**
- * One /api/status poll on the current track: playing at a healthy speed on a non-apodizing filter the enumeration
- * carries, with the fields a case names laid over it.
- *
- * @param {Record<string, string>} [fields]  Status frame attributes
- * @param {Record<string, unknown>} [extra]  the payload's other keys: `metadata`, `junk`
- */
-function poll(fields = {}, extra = {}) {
-  engineStatus.value = {
-    status: {
-      state: "2",
-      track_serial: String(serial),
-      process_speed: "1.5",
-      output_fill: "0.9",
-      clips: "0",
-      apod: "0",
-      active_filter: "sinc-M",
-      ...fields,
-    },
-    ...extra,
-  };
-}
 
 /**
  * Start a case with nothing wrong: the engine running SDM at DSD1024, past its modulator's floor, accepted
@@ -92,8 +59,7 @@ async function quiet(scenario = {}) {
   descriptionError.value = "";
   favoritesError.value = "";
   narrowingError.value = "";
-  serial += 1;
-  poll();
+  newTrack();
 }
 
 /** @param {Record<string, string>} fields */

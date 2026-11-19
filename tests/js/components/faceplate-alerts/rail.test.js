@@ -16,53 +16,25 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Rail } from "../../../../hqptuner/static/components/faceplate/Rail.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { engineStatus, health, matrixConfig, volume } from "../../../../hqptuner/static/store/signals.js";
+import { health, matrixConfig, volume } from "../../../../hqptuner/static/store/signals.js";
 import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { alertsNow } from "../../../../hqptuner/static/store/faceplate/alerts.js";
-import { elements, attr, classes } from "../../support/markup.js";
+import { attr, classes } from "../../support/markup.js";
 import { reset, DSD512, DSD1024, PCM_8X } from "../../support/shaperfit-fixtures.js";
 import { fakeClock } from "../../support/clock.js";
 import { seedReadings } from "../../support/readings.js";
+import { HEALTHY, poll, newTrack, railButtons, stageButton } from "../../support/rendered/alerts.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/shaperfit-fixtures.js").Scenario} Scenario */
 
 initHealth(fakeClock().clock);
-
-/** The daemon generation the suite runs at. */
-const GEN = 1;
-
-/** A /api/health reading as served: the connection Ready and the credentials the daemon accepted. */
-const HEALTHY = { phase: "Ready", generation: GEN, credentials_ok: true };
-
-let serial = 0;
-
-/**
- * One /api/status poll on the current track: playing at a healthy speed, with the fields a case names laid over it.
- *
- * @param {Record<string, string>} [fields]
- */
-function poll(fields = {}) {
-  engineStatus.value = {
-    status: {
-      state: "2",
-      track_serial: String(serial),
-      process_speed: "1.5",
-      output_fill: "0.9",
-      clips: "0",
-      apod: "0",
-      active_filter: "sinc-M",
-      ...fields,
-    },
-  };
-}
 
 /**
  * Start a case with nothing wrong: SDM at DSD1024 past its modulator's floor, accepted credentials, a fresh track at a
@@ -78,12 +50,11 @@ async function quiet(scenario = {}) {
   hiddenStages.value = [];
   openStage.value = null;
   health.value = { ...HEALTHY };
-  serial += 1;
-  poll();
+  newTrack();
 }
 
 /** The rendered rail's stage buttons. */
-const buttons = () => elements(render(html`<${Rail} />`)).filter((e) => e.name === "button");
+const buttons = () => railButtons(html`<${Rail} />`);
 
 /**
  * The rendered button of one stage, or an empty element when there is none.
@@ -91,8 +62,7 @@ const buttons = () => elements(render(html`<${Rail} />`)).filter((e) => e.name =
  * @param {string} id
  * @returns {MarkupElement}
  */
-const button = (id) =>
-  buttons().find((b) => attr(b, "data-stage") === id) || { name: "", attrs: "", start: -1, html: "" };
+const button = (id) => stageButton(buttons(), id);
 
 test("test_clipping_this_track_blinks_the_volume_stage_amber", async () => {
   await quiet();
