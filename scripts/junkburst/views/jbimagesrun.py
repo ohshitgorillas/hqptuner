@@ -14,8 +14,7 @@ from typing import Any
 import numpy as np
 from jbcandidates import mask_reading
 from jbconfig import BY_TRACK, DER, HEADLINE_WINDOW
-from jbcurves import Grid, content_curves, musical_frames
-from jbderived import load_burst, musical_groups, summed_db
+from jbderived import musical_groups, read_burst
 from jbedge import g90_value
 from jbimages import CANDIDATE_I_CUTS, CANDIDATE_I_FOLDS_HZ, CANDIDATE_I_SPAN_HZ, block_share, frame_corr
 from jblabels import collapse_overlaps, load_labels, load_tracks, owner_label, primary_artist
@@ -54,12 +53,7 @@ class Corpus:
 
 def _burst_rows(stamp: str, album: str, label: str, corpus: Corpus) -> None:
     """Score one burst's headline blocks into the corpus, pooling its frame correlations under its album."""
-    meta, db = load_burst(stamp)
-    grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
-    summed = summed_db(db)
-    del db
-    curves = content_curves(summed, grid)
-    musical = musical_frames(summed, grid, curves)
+    meta, grid, summed, _curves, musical = read_burst(stamp)
     for group in musical_groups(meta["arrived"], musical, HEADLINE_WINDOW):
         block = summed[group]
         corr = frame_corr(block, grid)

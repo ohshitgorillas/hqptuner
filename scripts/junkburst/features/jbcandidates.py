@@ -29,7 +29,7 @@ from jbconfig import (
     QUIET_MAX_LEVEL_DB,
     SMOOTH_BINS,
 )
-from jbcurves import Grid, band_bins, band_level_db, median_smooth, row_floor
+from jbcurves import Grid, band_bins, band_level_db, median_smooth, per_hz_level, row_floor
 
 #: Fewest mirrored bin pairs candidate F will take a correlation over.
 MIN_CORR_BINS = 2
@@ -302,16 +302,6 @@ class MaskReading:
     corr: float
 
 
-def _per_hz_level(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
-    """Per frame: one band's summed-channel power normalized to per-Hz, in dB, or ``None`` when it is off the grid."""
-    span = band_bins(grid, lo_hz, hi_hz)
-    level = band_level_db(frames, grid, lo_hz, hi_hz)
-    if span is None or level is None:
-        return None
-    lo, hi = span
-    return np.asarray(level - 10.0 * np.log10((hi - lo + 1) * grid.hz_per_bin))
-
-
 def _pearson(a: np.ndarray, b: np.ndarray) -> float:
     """Pearson correlation of two frame series, NaN when either carries fewer than two frames or no variation."""
     if a.size < MIN_CORR_FRAMES or np.std(a) == 0.0 or np.std(b) == 0.0:
@@ -323,8 +313,8 @@ def _pearson(a: np.ndarray, b: np.ndarray) -> float:
 def _fold_mask(frames: np.ndarray, grid: Grid, fold_hz: float) -> MaskReading:
     """Return the mask reading at one fold, NaN throughout when either band falls outside the burst's grid."""
     nan = MaskReading(float("nan"), float("nan"), float("nan"))
-    above = _per_hz_level(frames, grid, fold_hz + MASK_ABOVE_HZ[0], fold_hz + MASK_ABOVE_HZ[1])
-    music = _per_hz_level(frames, grid, *CANDIDATE_E_REF_HZ)
+    above = per_hz_level(frames, grid, fold_hz + MASK_ABOVE_HZ[0], fold_hz + MASK_ABOVE_HZ[1])
+    music = per_hz_level(frames, grid, *CANDIDATE_E_REF_HZ)
     if above is None or music is None:
         return nan
     above_med, music_med = float(np.median(above)), float(np.median(music))

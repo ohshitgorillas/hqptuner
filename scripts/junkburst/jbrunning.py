@@ -26,8 +26,8 @@ from pathlib import Path
 
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
-from jbcurves import Grid, content_curves, median_smooth, musical_frames
-from jbderived import load_burst, musical_groups, summed_db
+from jbcurves import Grid, median_smooth
+from jbderived import musical_groups, read_burst
 from jbframeonlyscore import PLATEAU_SMOOTH_BINS, band_slope, median_band, steady_bursts
 
 #: Where the report is written, and the command that writes it.
@@ -135,12 +135,7 @@ class Corpus:
 def _burst_calc(entry: dict[str, str]) -> BurstCalc:
     """Read one burst's raw frames in time order and score both readings over them, once."""
     stamp, track, label = entry["stamp"], entry["track"], entry["label"]
-    meta, db = load_burst(stamp)
-    grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
-    summed = summed_db(db)
-    del db
-    curves = content_curves(summed, grid)
-    musical = musical_frames(summed, grid, curves)
+    meta, grid, summed, _curves, musical = read_burst(stamp)
     arrived = meta["arrived"]
     t0 = float(arrived[0])
 

@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "junkburst" / "f
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "junkburst" / "views"))
 
 import numpy as np
-from jbcandidates import BlockResidual, block_residual, min_curve
-from jbconfig import CANDIDATE_E_REF_HZ, CANDIDATE_G_BAND_HZ, CANDIDATE_G_FOLDS_HZ, CANDIDATE_G_GUARD_HZ
+from jbcandidates import BlockResidual, block_residual, fold_step, min_curve
+from jbconfig import CANDIDATE_E_REF_HZ, CANDIDATE_G_FOLDS_HZ
 from jbcurves import Grid, band_bins, row_floor
 from jbderived import blocks as split_blocks
 from jbderived import load_burst, summed_db
@@ -39,20 +39,6 @@ TABLE1_BURSTS = (
     ("20260918T075417Z", "Wine Dark Sea"),
     ("20260917T202257Z", "Morningrise"),
 )
-
-
-def signed_fold_step(curve: np.ndarray, grid: Grid, fold_hz: float) -> float:
-    """Signed step in dB across one fold: median of the band above it minus median of the band below.
-
-    Same bands as candidate G (``jbcandidates.fold_step``), kept signed rather than G's own ``abs()``.
-    """
-    lo_span = band_bins(grid, fold_hz - CANDIDATE_G_GUARD_HZ - CANDIDATE_G_BAND_HZ, fold_hz - CANDIDATE_G_GUARD_HZ)
-    hi_span = band_bins(grid, fold_hz + CANDIDATE_G_GUARD_HZ, fold_hz + CANDIDATE_G_GUARD_HZ + CANDIDATE_G_BAND_HZ)
-    if lo_span is None or hi_span is None:
-        return float("nan")
-    lo_a, lo_b = lo_span
-    hi_a, hi_b = hi_span
-    return float(np.median(curve[hi_a : hi_b + 1]) - np.median(curve[lo_a : lo_b + 1]))
 
 
 def curve_value(curve: np.ndarray, grid: Grid, hz: float) -> float:
@@ -117,8 +103,8 @@ def print_table1() -> None:
                 stamp,
                 str(index),
                 f"{t_s:.2f}",
-                fmt(signed_fold_step(curve, grid, CANDIDATE_G_FOLDS_HZ[0])),
-                fmt(signed_fold_step(curve, grid, CANDIDATE_G_FOLDS_HZ[1])),
+                fmt(fold_step(curve, grid, CANDIDATE_G_FOLDS_HZ[0])),
+                fmt(fold_step(curve, grid, CANDIDATE_G_FOLDS_HZ[1])),
                 *(fmt(curve_value(curve, grid, hz)) for hz in MIN_CURVE_HZ),
                 fmt(ref_above_floor(residual, grid)),
             ]

@@ -255,6 +255,16 @@ def band_level_db(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) ->
     return span_level_db(frames, band_bins(grid, lo_hz, hi_hz))
 
 
+def per_hz_level(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
+    """Per frame: one band's summed-channel power normalized to per-Hz, in dB, or ``None`` when it is off the grid."""
+    span = band_bins(grid, lo_hz, hi_hz)
+    level = band_level_db(frames, grid, lo_hz, hi_hz)
+    if span is None or level is None:
+        return None
+    lo, hi = span
+    return np.asarray(level - 10.0 * np.log10((hi - lo + 1) * grid.hz_per_bin))
+
+
 def frame_content(rows: np.ndarray, grid: Grid, above_hz: float, curves: ContentCurves | None = None) -> np.ndarray:
     """Per row: does the band above ``above_hz`` clear that row's own floor by CONTRAST_DB."""
     c = curves if curves is not None else content_curves(rows, grid)

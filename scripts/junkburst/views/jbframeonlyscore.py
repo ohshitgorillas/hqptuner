@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from jbconfig import DER, HEADLINE_WINDOW
-from jbcurves import Grid, band_bins, content_curves, median_smooth, musical_frames
-from jbderived import load_burst, musical_groups, summed_db
+from jbcurves import Grid, band_bins, median_smooth
+from jbderived import musical_groups, read_burst
 from jbframestep import FRAME_STEP_FOLDS_HZ, fold_frame_step
 from jblabels import collapse_overlaps, load_labels, load_tracks, owner_label, primary_artist
 
@@ -171,12 +171,7 @@ def steady_bursts() -> list[dict[str, str]]:
 def _burst_rows(entry: dict[str, str], corpus: Corpus) -> None:
     """Score one burst's every raw frame, over its steady headline blocks, into the corpus."""
     stamp, track, label = entry["stamp"], entry["track"], entry["label"]
-    meta, db = load_burst(stamp)
-    grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
-    summed = summed_db(db)
-    del db
-    curves = content_curves(summed, grid)
-    musical = musical_frames(summed, grid, curves)
+    meta, grid, summed, _curves, musical = read_burst(stamp)
     smoothed = median_smooth(summed[:, : grid.kept], PLATEAU_SMOOTH_BINS)
     top_cap = min(PLATEAU_TOP_HZ, grid.bandwidth - PLATEAU_TOP_GUARD_HZ)
     arrived = meta["arrived"]

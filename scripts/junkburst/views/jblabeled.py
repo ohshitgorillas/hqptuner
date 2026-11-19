@@ -41,8 +41,8 @@ from jbconfig import (
     MASK_SWEEP_WINDOWS,
     WINDOWS,
 )
-from jbcurves import Grid, content_curves, frame_content, musical_frames, readings, readings_walkup, walk_curves
-from jbderived import load_burst, musical_groups, summed_db
+from jbcurves import Grid, frame_content, readings, readings_walkup, walk_curves
+from jbderived import musical_groups, read_burst
 from jbedge import EDGE_CANDIDATES, block_edge_values, edge_tables
 from jblabeledprint import print_family_totals, print_summary, print_target_blocks
 from jblabeledreport import write_labeled_report
@@ -107,12 +107,7 @@ class Accumulators:
 
 def _burst_context(stamp: str, label: str, group: str) -> BurstContext:
     """Read one burst and derive the masks every window scores against."""
-    meta, db = load_burst(stamp)
-    grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
-    summed = summed_db(db)
-    del db
-    curves = content_curves(summed, grid)
-    musical = musical_frames(summed, grid, curves)
+    meta, grid, summed, curves, musical = read_burst(stamp)
     return BurstContext(
         stamp=stamp,
         label=label,

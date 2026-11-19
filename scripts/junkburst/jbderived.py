@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 from jbconfig import DER
+from jbcurves import ContentCurves, Grid, content_curves, musical_frames
 
 
 def load_burst(stamp: str) -> tuple[dict[str, Any], np.ndarray]:
@@ -15,6 +16,16 @@ def load_burst(stamp: str) -> tuple[dict[str, Any], np.ndarray]:
     meta: dict[str, Any] = json.loads((DER / f"{stamp}.json").read_text(encoding="utf-8"))
     db = np.load(DER / f"{stamp}.npy").astype(np.float32)
     return meta, db
+
+
+def read_burst(stamp: str) -> tuple[dict[str, Any], Grid, np.ndarray, ContentCurves, np.ndarray]:
+    """Read one derived burst into its header, grid, summed-channel frames, content curves and musical-frame mask."""
+    meta, db = load_burst(stamp)
+    grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
+    summed = summed_db(db)
+    del db
+    curves = content_curves(summed, grid)
+    return meta, grid, summed, curves, musical_frames(summed, grid, curves)
 
 
 def summed_db(db: np.ndarray) -> np.ndarray:

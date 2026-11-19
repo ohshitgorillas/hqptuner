@@ -13,7 +13,7 @@ both folds takes the fold whose above-fold level reads higher, the fold ``jbcand
 from __future__ import annotations
 
 import numpy as np
-from jbcurves import Grid, band_bins, band_level_db
+from jbcurves import Grid, band_bins, per_hz_level
 
 #: The two image folds FS is read at, the folds every other fold candidate walks.
 FRAME_STEP_FOLDS_HZ = (22_050.0, 24_000.0)
@@ -29,16 +29,6 @@ FRAME_STEP_FLOORS = (5, 10, 20)
 FRAME_STEP_CUTS = (6.0, 8.0, 10.0, 12.0)
 #: The shares of lit frames that must clear a step cut for the block to read junk.
 FRAME_STEP_SHARE_CUTS = (0.3, 0.5, 0.7)
-
-
-def per_hz_level(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
-    """Per frame: one band's power normalized to per-Hz, in dB, or ``None`` when the band is off the burst's grid."""
-    span = band_bins(grid, lo_hz, hi_hz)
-    level = band_level_db(frames, grid, lo_hz, hi_hz)
-    if span is None or level is None:
-        return None
-    lo, hi = span
-    return np.asarray(level - 10.0 * np.log10((hi - lo + 1) * grid.hz_per_bin))
 
 
 def _band_median(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:

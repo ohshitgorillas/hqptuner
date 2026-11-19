@@ -18,8 +18,8 @@ from jbconfig import (
     REPORT,
     WINDOWS,
 )
-from jbcurves import Grid, content_curves, frame_content, musical_frames, readings
-from jbderived import Stats, load_burst, musical_groups, stats, summed_db, track_key
+from jbcurves import Grid, frame_content, readings
+from jbderived import Stats, musical_groups, read_burst, stats, track_key
 from jbreport import SpectrumSweep, write_report
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
@@ -42,12 +42,7 @@ class BurstArrays:
 
 def _read_burst(stamp: str) -> tuple[dict[str, Any], Grid, np.ndarray]:
     """Read one derived burst into its per-frame content masks and header facts, with the frames it was read from."""
-    meta, db = load_burst(stamp)
-    grid = Grid(int(meta["bins"]), float(meta["bandwidth"]))
-    summed = summed_db(db)
-    del db
-    curves = content_curves(summed, grid)
-    musical = musical_frames(summed, grid, curves)
+    meta, grid, summed, curves, musical = read_burst(stamp)
     content24 = frame_content(summed, grid, LABEL_HZ, curves) & musical
     burst = {
         "stamp": stamp,
