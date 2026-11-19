@@ -14,8 +14,9 @@ from typing import Any
 import numpy as np
 from jbcandidates import mask_reading
 from jbconfig import HEADLINE_WINDOW
-from jbderived import musical_groups, read_burst
+from jbderived import musical_groups, read_burst, write_lines
 from jbedge import g90_value
+from jbframeonlyscore import blocks_by_burst, graded_report_lines, score_each, tally_verdict
 from jbframestep import (
     FRAME_STEP_BAND_HZ,
     FRAME_STEP_CUTS,
@@ -30,7 +31,7 @@ from jbframestep import (
 )
 from jbimagesrun import IMAGE_NAMED_ALBUM, steady_bursts
 from jbmirror import MIRROR_VETO_LEVEL
-from jbpolicy import POLICY_ENGAGE_RUN
+from jbpolicy import POLICY_ENGAGE_RUN, burst_engages
 from jbpolicyyield import POLICY_RUN_RULE_YIELD_AT
 
 #: Where the report is written, and the command that writes it.
@@ -83,12 +84,8 @@ def _burst_rows(stamp: str, album: str, label: str, corpus: Corpus) -> None:
 
 def score_corpus() -> Corpus:
     """Read every graded steady burst once and score FS and the veto's inputs on its headline blocks."""
-    bursts = steady_bursts()
     corpus = Corpus()
-    for n, (stamp, album, label) in enumerate(bursts, 1):
-        _burst_rows(stamp, album, label, corpus)
-        if n % 25 == 0 or n == len(bursts):
-            print(f"scored {n}/{len(bursts)}", flush=True)
+    score_each(steady_bursts(), lambda burst: _burst_rows(*burst, corpus))
     print(f"steady blocks={len(corpus.rows)}", flush=True)
     return corpus
 
@@ -148,43 +145,11 @@ def _junk(row: BlockRow, floor: int, step_cut: float, share_cut: float) -> bool:
     return (not veto) or bool(np.isfinite(row.g90) and row.g90 >= POLICY_RUN_RULE_YIELD_AT)
 
 
-def _engages(junk: list[bool]) -> bool:
-    """Report whether the burst carries ``POLICY_ENGAGE_RUN`` consecutive junk blocks; a block not junk breaks it."""
-    length = 0
-    for reading in junk:
-        length = length + 1 if reading else 0
-        if length >= POLICY_ENGAGE_RUN:
-            return True
-    return False
-
-
-def _by_burst(rows: list[BlockRow]) -> dict[str, list[BlockRow]]:
-    """Per burst stamp: its blocks, in the order they were scored."""
-    out: dict[str, list[BlockRow]] = {}
-    for row in rows:
-        out.setdefault(row.stamp, []).append(row)
-    return out
-
-
 def _verdict(blocks: list[BlockRow], floor: int, step_cut: float, share_cut: float) -> str:
     """One burst's result: ``thin`` under two scored blocks, else ``engage`` or ``no``."""
     if len(blocks) < POLICY_ENGAGE_RUN:
         return "thin"
-    return "engage" if _engages([_junk(b, floor, step_cut, share_cut) for b in blocks]) else "no"
-
-
-def _tally(row: dict[str, Any], label: str, verdict: str) -> None:
-    """Fold one burst's verdict into a grade row, a thin fake burst counted apart rather than against the rule."""
-    if label != "FAKE":
-        if verdict == "engage":
-            row["real_engaged"] += 1
-        return
-    if verdict == "thin":
-        row["fake_thin"] += 1
-    elif verdict == "engage":
-        row["fake_engaged"] += 1
-    else:
-        row["fake_missed"] += 1
+    return "engage" if burst_engages([_junk(b, floor, step_cut, share_cut) for b in blocks]) else "no"
 
 
 def _grade_row(bursts: dict[str, list[BlockRow]], floor: int, step_cut: float, share_cut: float) -> dict[str, Any]:
@@ -201,7 +166,7 @@ def _grade_row(bursts: dict[str, list[BlockRow]], floor: int, step_cut: float, s
     }
     for stamp, blocks in bursts.items():
         verdict = _verdict(blocks, floor, step_cut, share_cut)
-        _tally(row, blocks[0].label, verdict)
+        tally_verdict(row, blocks[0].label, verdict)
         if blocks[0].album == IMAGE_NAMED_ALBUM:
             row["named"][stamp] = verdict
     return row
@@ -209,7 +174,7 @@ def _grade_row(bursts: dict[str, list[BlockRow]], floor: int, step_cut: float, s
 
 def grade_rows(corpus: Corpus) -> list[dict[str, Any]]:
     """One row per floor, step cut and share cut: the burst counts, and the named album's bursts one by one."""
-    bursts = _by_burst(corpus.rows)
+    bursts = blocks_by_burst(corpus.rows)
     return [
         _grade_row(bursts, floor, step_cut, share_cut)
         for floor in FRAME_STEP_FLOORS
@@ -288,31 +253,9 @@ def _grade_intro() -> str:
 
 def write_report(corpus: Corpus, rows: list[dict[str, Any]]) -> None:
     """Write every table to ``REPORT``, each under the command that produced it."""
-    lines = [
-        "# Frame-step candidate FS over the labeled corpus",
-        "",
-        _intro(),
-        "",
-        "## Per album",
-        "",
-        f"Produced by `{RUN_CMD}`.",
-        "",
-        *album_table(corpus),
-        "",
-        "## Grade",
-        "",
-        _grade_intro(),
-        "",
-        f"Produced by `{RUN_CMD}`.",
-        "",
-        *grade_table(rows),
-        "",
-        "## Named album, burst by burst",
-        "",
-        *named_tables(rows),
-    ]
-    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {REPORT}")
+    sections = (album_table(corpus), _grade_intro(), grade_table(rows), named_tables(rows))
+    lines = graded_report_lines("# Frame-step candidate FS over the labeled corpus", _intro(), RUN_CMD, sections)
+    write_lines(REPORT, lines)
 
 
 def main() -> None:

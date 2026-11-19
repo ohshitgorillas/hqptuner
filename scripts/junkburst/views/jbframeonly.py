@@ -11,6 +11,7 @@ from pathlib import Path
 
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
+from jbderived import write_lines
 from jbframeonlyscore import (
     EDGE_BAND_HZ,
     EDGE_SWEEP_TOP_HZ,
@@ -376,8 +377,7 @@ def write_report(corpus: Corpus) -> None:
     lines += ["## Run-length summary", ""]
     for _title, summary_title, pred in conditions:
         lines += [*run_summary_table(per, summary_title, pred), ""]
-    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {REPORT}")
+    write_lines(REPORT, lines)
 
 
 def main() -> None:

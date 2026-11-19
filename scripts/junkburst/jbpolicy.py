@@ -190,17 +190,22 @@ def policy_junk(
     }
 
 
-def _engages(junk: dict[int, bool], blocks: list[int]) -> bool:
+def burst_engages(junk: list[bool]) -> bool:
     """Report whether the burst carries ``POLICY_ENGAGE_RUN`` consecutive blocks reading junk.
 
     A block the album line drops is not junk, so it breaks the run exactly as a kept block reading real does.
     """
     length = 0
-    for i in blocks:
-        length = length + 1 if junk.get(i, False) else 0
+    for reading in junk:
+        length = length + 1 if reading else 0
         if length >= POLICY_ENGAGE_RUN:
             return True
     return False
+
+
+def _engages(junk: dict[int, bool], blocks: list[int]) -> bool:
+    """Report whether the burst's blocks, read through ``junk`` by index, carry the engaging run."""
+    return burst_engages([junk.get(i, False) for i in blocks])
 
 
 def policy_bursts(mask_rows: list[MaskRow]) -> dict[str, list[int]]:

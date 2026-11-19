@@ -13,13 +13,14 @@ from typing import Any
 
 import numpy as np
 from jbcandidates import mask_reading
-from jbconfig import BY_TRACK, DER, HEADLINE_WINDOW
-from jbderived import musical_groups, read_burst
+from jbconfig import BY_TRACK, HEADLINE_WINDOW
+from jbderived import musical_groups, read_burst, write_lines
 from jbedge import g90_value
+from jbframeonlyscore import blocks_by_burst, graded_report_lines, graded_steady, score_each, tally_verdict
 from jbimages import CANDIDATE_I_CUTS, CANDIDATE_I_FOLDS_HZ, CANDIDATE_I_SPAN_HZ, block_share, frame_corr
-from jblabels import collapse_overlaps, load_labels, load_tracks, owner_label, primary_artist
+from jblabels import load_labels, load_tracks, primary_artist
 from jbmirror import MIRROR_VETO_LEVEL
-from jbpolicy import POLICY_ENGAGE_RUN, POLICY_G90_FIXED_CUT
+from jbpolicy import POLICY_ENGAGE_RUN, POLICY_G90_FIXED_CUT, burst_engages
 from jbpolicyyield import POLICY_RUN_RULE_YIELD_AT
 
 #: The share cuts the first question is swept over.
@@ -74,33 +75,21 @@ def steady_bursts() -> list[tuple[str, str, str]]:
     """Every graded steady burst as (stamp, album row key, owner label), duplicate arrivals collapsed."""
     tracks = load_tracks()
     by_album, by_track = load_labels()
-    stamps = sorted(p.stem for p in DER.glob("*.npy"))
-    labeled = [s for s in stamps if owner_label(s, tracks, by_album, by_track) is not None]
-    graded, duplicates = collapse_overlaps(labeled)
-    print(f"derived={len(stamps)} labeled={len(labeled)} duplicates={len(duplicates)} graded={len(graded)}")
     out = []
-    for stamp in graded:
+    for stamp, label in graded_steady(tracks, by_album, by_track):
         row = tracks.get(stamp, {})
-        if row.get("transition", "").strip() == "yes":
-            continue
         artist, album, track = row.get("artist", "").strip(), row.get("album", "").strip(), row.get("track", "").strip()
         key = album or f"{artist} (no album)"
         if by_album.get((primary_artist(artist), album)) == BY_TRACK:
             key = f"{key} — {track}"
-        label = owner_label(stamp, tracks, by_album, by_track)
-        assert label is not None
         out.append((stamp, key, label))
     return out
 
 
 def score_corpus() -> Corpus:
     """Read every graded steady burst once and score candidate I and the second question on its headline blocks."""
-    bursts = steady_bursts()
     corpus = Corpus()
-    for n, (stamp, album, label) in enumerate(bursts, 1):
-        _burst_rows(stamp, album, label, corpus)
-        if n % 25 == 0 or n == len(bursts):
-            print(f"scored {n}/{len(bursts)}", flush=True)
+    score_each(steady_bursts(), lambda burst: _burst_rows(*burst, corpus))
     print(f"steady blocks={len(corpus.rows)}", flush=True)
     return corpus
 
@@ -155,34 +144,16 @@ def _junk(row: BlockRow, corr_cut: float, share_cut: float) -> bool:
     return (not veto) or row.g90 >= POLICY_RUN_RULE_YIELD_AT
 
 
-def _engages(junk: list[bool]) -> bool:
-    """Report whether the burst carries ``POLICY_ENGAGE_RUN`` consecutive junk blocks; a block not junk breaks it."""
-    length = 0
-    for reading in junk:
-        length = length + 1 if reading else 0
-        if length >= POLICY_ENGAGE_RUN:
-            return True
-    return False
-
-
-def _by_burst(rows: list[BlockRow]) -> dict[str, list[BlockRow]]:
-    """Per burst stamp: its blocks, in the order they were scored."""
-    out: dict[str, list[BlockRow]] = {}
-    for row in rows:
-        out.setdefault(row.stamp, []).append(row)
-    return out
-
-
 def _verdict(blocks: list[BlockRow], corr_cut: float, share_cut: float) -> str:
     """One burst's result: ``thin`` under two kept blocks, else ``engage`` or ``no``."""
     if sum(1 for b in blocks if _kept(b, corr_cut, share_cut)) < POLICY_ENGAGE_RUN:
         return "thin"
-    return "engage" if _engages([_junk(b, corr_cut, share_cut) for b in blocks]) else "no"
+    return "engage" if burst_engages([_junk(b, corr_cut, share_cut) for b in blocks]) else "no"
 
 
 def grade_rows(corpus: Corpus) -> list[dict[str, Any]]:
     """One row per correlation cut and share cut: the burst counts, and the named album's bursts one by one."""
-    bursts = _by_burst(corpus.rows)
+    bursts = blocks_by_burst(corpus.rows)
     out = []
     for corr_cut in CANDIDATE_I_CUTS:
         for share_cut in IMAGE_SHARE_CUTS:
@@ -197,25 +168,11 @@ def grade_rows(corpus: Corpus) -> list[dict[str, Any]]:
             }
             for stamp, blocks in bursts.items():
                 verdict = _verdict(blocks, corr_cut, share_cut)
-                _tally(row, blocks[0].label, verdict)
+                tally_verdict(row, blocks[0].label, verdict)
                 if blocks[0].album == IMAGE_NAMED_ALBUM:
                     row["named"][stamp] = verdict
             out.append(row)
     return out
-
-
-def _tally(row: dict[str, Any], label: str, verdict: str) -> None:
-    """Fold one burst's verdict into a grade row, a thin fake burst counted apart rather than against the rule."""
-    if label != "FAKE":
-        if verdict == "engage":
-            row["real_engaged"] += 1
-        return
-    if verdict == "thin":
-        row["fake_thin"] += 1
-    elif verdict == "engage":
-        row["fake_engaged"] += 1
-    else:
-        row["fake_missed"] += 1
 
 
 def grade_table(rows: list[dict[str, Any]]) -> list[str]:
@@ -282,33 +239,10 @@ def _grade_intro() -> str:
 
 def write_report(corpus: Corpus, rows: list[dict[str, Any]]) -> None:
     """Write every table to ``REPORT``, each under the command that produced it."""
-    lines = [
-        "# Image-fold candidate I over the labeled corpus",
-        "",
-        _intro(),
-        "",
-        "## Per album",
-        "",
-        f"Produced by `{RUN_CMD}`.",
-        "",
-        *album_table(corpus),
-        "",
-        "## Grade",
-        "",
-        _grade_intro(),
-        "",
-        f"Produced by `{RUN_CMD}`.",
-        "",
-        *grade_table(rows),
-        "",
-        "## Named album, burst by burst",
-        "",
-        f"Produced by `{RUN_CMD}`.",
-        "",
-        *named_tables(rows),
-    ]
-    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {REPORT}")
+    named = [f"Produced by `{RUN_CMD}`.", "", *named_tables(rows)]
+    sections = (album_table(corpus), _grade_intro(), grade_table(rows), named)
+    lines = graded_report_lines("# Image-fold candidate I over the labeled corpus", _intro(), RUN_CMD, sections)
+    write_lines(REPORT, lines)
 
 
 def main() -> None:

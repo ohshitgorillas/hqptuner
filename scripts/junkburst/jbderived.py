@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from jbconfig import DER
 from jbcurves import ContentCurves, Grid, content_curves, musical_frames
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def load_burst(stamp: str) -> tuple[dict[str, Any], np.ndarray]:
@@ -26,6 +29,12 @@ def read_burst(stamp: str) -> tuple[dict[str, Any], Grid, np.ndarray, ContentCur
     del db
     curves = content_curves(summed, grid)
     return meta, grid, summed, curves, musical_frames(summed, grid, curves)
+
+
+def write_lines(report: Path, lines: list[str]) -> None:
+    """Write a report's lines to its file, one per row, and say where it went."""
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"wrote {report}")
 
 
 def summed_db(db: np.ndarray) -> np.ndarray:

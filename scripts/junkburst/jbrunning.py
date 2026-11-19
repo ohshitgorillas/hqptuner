@@ -27,7 +27,7 @@ from pathlib import Path
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
 from jbcurves import Grid, median_smooth
-from jbderived import musical_groups, read_burst
+from jbderived import musical_groups, read_burst, write_lines
 from jbframeonlyscore import PLATEAU_SMOOTH_BINS, band_slope, median_band, steady_bursts
 
 #: Where the report is written, and the command that writes it.
@@ -249,6 +249,19 @@ def _pairing_rows(corpus: Corpus, track: str, label: str, point: Point) -> list[
     return [o for o in corpus.outcomes if o.track == track and o.label == label and o.point == point]
 
 
+def _split_outcomes(
+    corpus: Corpus, track: str, label: str, point: Point
+) -> tuple[list[Outcome], list[Outcome], list[Outcome], list[Outcome]]:
+    """One track's outcomes at one sweep point: all of them, then the engaged, the real and the unresolved."""
+    rows = _pairing_rows(corpus, track, label, point)
+    return (
+        rows,
+        [o for o in rows if o.status == "engaged"],
+        [o for o in rows if o.status == "real"],
+        [o for o in rows if o.status == "unresolved"],
+    )
+
+
 def _fastest(engaged: list[Outcome]) -> Outcome:
     """Return the engaged outcome with the fewest seconds to engage."""
     return min(engaged, key=lambda o: o.seconds if o.seconds is not None else float("inf"))
@@ -270,10 +283,7 @@ def per_track_table(corpus: Corpus, point: Point) -> list[str]:
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     for track, label in _tracks(corpus):
-        rows = _pairing_rows(corpus, track, label, point)
-        engaged = [o for o in rows if o.status == "engaged"]
-        real = [o for o in rows if o.status == "real"]
-        unresolved = [o for o in rows if o.status == "unresolved"]
+        rows, engaged, real, unresolved = _split_outcomes(corpus, track, label, point)
         if engaged:
             best = _fastest(engaged)
             diag = corpus.diagnostics.get(best.stamp, (float("nan"),) * 5)
@@ -300,10 +310,7 @@ def _summary_row(corpus: Corpus, point: Point) -> str:
     real_engaged = fake_engaged = fake_engaged_named = fake_only_unresolved = 0
     fake_seconds: list[float] = []
     for track, label in _tracks(corpus):
-        rows = _pairing_rows(corpus, track, label, point)
-        engaged = [o for o in rows if o.status == "engaged"]
-        real = [o for o in rows if o.status == "real"]
-        unresolved = [o for o in rows if o.status == "unresolved"]
+        _rows, engaged, real, unresolved = _split_outcomes(corpus, track, label, point)
         if label != "FAKE":
             real_engaged += 1 if engaged else 0
             continue
@@ -353,8 +360,7 @@ def write_report(corpus: Corpus) -> None:
     ]
     for point in SWEEP:
         lines += [*per_track_table(corpus, point), ""]
-    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {REPORT}")
+    write_lines(REPORT, lines)
 
 
 def main() -> None:

@@ -11,6 +11,7 @@ frame's own elapsed time since that burst's first frame, so bursts of the same t
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from jbconfig import DER, HEADLINE_WINDOW
@@ -18,6 +19,9 @@ from jbcurves import Grid, band_bins, median_smooth
 from jbderived import musical_groups, read_burst
 from jbframestep import FRAME_STEP_FOLDS_HZ, fold_frame_step
 from jblabels import collapse_overlaps, load_labels, load_tracks, owner_label, primary_artist
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: The edge sweep: the lower 1 kHz band's own top, swept 19.0 to 24.5 kHz in 250 Hz steps.
 EDGE_SWEEP_TOP_HZ = tuple(19_000.0 + 250.0 * i for i in range(23))
@@ -147,23 +151,43 @@ def slope_break(row: np.ndarray, grid: Grid, edge_hz: float) -> float:
     return above - below
 
 
-def steady_bursts() -> list[dict[str, str]]:
-    """Every graded steady burst, duplicate arrivals collapsed: its stamp, track key, position and owner label."""
-    tracks = load_tracks()
-    by_album, by_track = load_labels()
+def graded_steady(
+    tracks: dict[str, dict[str, str]],
+    by_album: dict[tuple[str, str], str],
+    by_track: dict[tuple[str, str, str], str],
+) -> list[tuple[str, str]]:
+    """Every graded steady burst as (stamp, owner label), duplicate arrivals collapsed and transitions dropped."""
     stamps = sorted(p.stem for p in DER.glob("*.npy"))
     labeled = [s for s in stamps if owner_label(s, tracks, by_album, by_track) is not None]
     graded, duplicates = collapse_overlaps(labeled)
     print(f"derived={len(stamps)} labeled={len(labeled)} duplicates={len(duplicates)} graded={len(graded)}")
     out = []
     for stamp in graded:
-        row = tracks.get(stamp, {})
-        if row.get("transition", "").strip() == "yes":
+        if tracks.get(stamp, {}).get("transition", "").strip() == "yes":
             continue
-        artist, track = row.get("artist", "").strip(), row.get("track", "").strip()
-        key = f"{primary_artist(artist)} — {track}" if track else f"{artist or 'unknown'} (no track)"
         label = owner_label(stamp, tracks, by_album, by_track)
         assert label is not None
+        out.append((stamp, label))
+    return out
+
+
+def score_each[B](bursts: list[B], score: Callable[[B], None]) -> None:
+    """Score every burst through ``score``, reporting progress every 25 bursts and at the last."""
+    for n, burst in enumerate(bursts, 1):
+        score(burst)
+        if n % 25 == 0 or n == len(bursts):
+            print(f"scored {n}/{len(bursts)}", flush=True)
+
+
+def steady_bursts() -> list[dict[str, str]]:
+    """Every graded steady burst, duplicate arrivals collapsed: its stamp, track key, position and owner label."""
+    tracks = load_tracks()
+    by_album, by_track = load_labels()
+    out = []
+    for stamp, label in graded_steady(tracks, by_album, by_track):
+        row = tracks.get(stamp, {})
+        artist, track = row.get("artist", "").strip(), row.get("track", "").strip()
+        key = f"{primary_artist(artist)} — {track}" if track else f"{artist or 'unknown'} (no track)"
         out.append({"stamp": stamp, "track": key, "position_s": row.get("position_s", "0") or "0", "label": label})
     return out
 
@@ -200,11 +224,70 @@ def _burst_rows(entry: dict[str, str], corpus: Corpus) -> None:
 
 def score_corpus() -> Corpus:
     """Read every graded steady burst once and score its raw frames, no lit gate, into the corpus."""
-    bursts = steady_bursts()
     corpus = Corpus()
-    for n, entry in enumerate(bursts, 1):
-        _burst_rows(entry, corpus)
-        if n % 25 == 0 or n == len(bursts):
-            print(f"scored {n}/{len(bursts)}", flush=True)
+    score_each(steady_bursts(), lambda entry: _burst_rows(entry, corpus))
     print(f"raw frames={len(corpus.rows)}", flush=True)
     return corpus
+
+
+class _Stamped(Protocol):
+    """A scored block that names the burst it was read from."""
+
+    @property
+    def stamp(self) -> str:
+        """The burst's stamp."""
+        ...
+
+
+def blocks_by_burst[B: _Stamped](rows: list[B]) -> dict[str, list[B]]:
+    """Per burst stamp: its blocks, in the order they were scored."""
+    out: dict[str, list[B]] = {}
+    for row in rows:
+        out.setdefault(row.stamp, []).append(row)
+    return out
+
+
+def tally_verdict(row: dict[str, Any], label: str, verdict: str) -> None:
+    """Fold one burst's verdict into a grade row, a thin fake burst counted apart rather than against the rule."""
+    if label != "FAKE":
+        if verdict == "engage":
+            row["real_engaged"] += 1
+        return
+    if verdict == "thin":
+        row["fake_thin"] += 1
+    elif verdict == "engage":
+        row["fake_engaged"] += 1
+    else:
+        row["fake_missed"] += 1
+
+
+def graded_report_lines(
+    title: str, intro: str, run_cmd: str, sections: tuple[list[str], str, list[str], list[str]]
+) -> list[str]:
+    """One graded-run report: its title and intro, then the per-album table, the grade table and the named album.
+
+    ``sections`` is the per-album table, the grade intro, the grade table and the named-album tables, in that order.
+    """
+    per_album, grade_intro, grade, named = sections
+    produced = [f"Produced by `{run_cmd}`.", ""]
+    return [
+        title,
+        "",
+        intro,
+        "",
+        "## Per album",
+        "",
+        *produced,
+        *per_album,
+        "",
+        "## Grade",
+        "",
+        grade_intro,
+        "",
+        *produced,
+        *grade,
+        "",
+        "## Named album, burst by burst",
+        "",
+        *named,
+    ]
