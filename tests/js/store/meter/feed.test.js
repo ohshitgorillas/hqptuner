@@ -31,21 +31,13 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  initMeterFeed,
-  meterFeedOpen,
-  meterGeometry,
-  takeMeterFrames,
-} from "../../../../hqptuner/static/store/meter/feed.js";
+import { meterFeedOpen, meterGeometry, takeMeterFrames } from "../../../../hqptuner/static/store/meter/feed.js";
 import { endOf } from "../../../../hqptuner/static/lib/timebase.js";
-import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
-import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { useStorage } from "../../support/storage.js";
-import { newTrack, poll } from "../../support/apodpolls.js";
+import { lastStream } from "../../support/eventsource.js";
+import { poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
+import { bootMeter } from "../../support/meter/meterrig.js";
 import {
   AN_HOUR_ON_44K,
   BEFORE_A_GEOMETRY_44K,
@@ -60,6 +52,7 @@ import {
   ONE_SECOND_APART_44K,
   RATE_176K,
   RATE_44K,
+  RATE_48K,
   geometry,
   play,
 } from "../../support/meterfeed.js";
@@ -68,7 +61,6 @@ const { clock, advance } = fakeClock();
 
 const GEO = geometry(RATE_44K);
 const GEO_176K = geometry(RATE_176K);
-const RATE_48K = 48000;
 
 /**
  * One feed's arrivals: the wall ms the clock moves on before the events of `rows` arrive together.
@@ -165,15 +157,7 @@ function read(geo, arrivals) {
 }
 
 beforeEach(() => {
-  engineStatus.value = { metering: false };
-  useEventSource();
-  useStorage();
-  setApodWindow("30");
-  initApodHistory();
-  initSpectrogram();
-  newTrack();
-  poll();
-  initMeterFeed(clock);
+  bootMeter(clock);
   takeMeterFrames();
 });
 
@@ -226,21 +210,18 @@ test("test_taken_frames_are_not_taken_again", () => {
   assert.deepEqual(take(), []);
 });
 
-test("test_a_frame_keeps_the_geometry_it_arrived_under_when_a_new_one_follows", () => {
-  lastStream()?.emit("geometry", GEO);
-  play(CONTIGUOUS_44K.slice(0, 1));
-  lastStream()?.emit("geometry", GEO_176K);
-  play(ONE_SAMPLE_GAP_176K.slice(0, 1));
-  assert.deepEqual(take()[0]?.geo, GEO);
-});
-
-test("test_a_frame_arriving_under_a_new_geometry_carries_the_new_geometry", () => {
-  lastStream()?.emit("geometry", GEO);
-  play(CONTIGUOUS_44K.slice(0, 1));
-  lastStream()?.emit("geometry", GEO_176K);
-  play(ONE_SAMPLE_GAP_176K.slice(0, 1));
-  assert.deepEqual(take()[1]?.geo, GEO_176K);
-});
+for (const [name, index, geo] of /** @type {const} */ ([
+  ["keeps_the_geometry_it_arrived_under_when_a_new_one_follows", 0, GEO],
+  ["arriving_under_a_new_geometry_carries_the_new_geometry", 1, GEO_176K],
+])) {
+  test(`test_a_frame_${name}`, () => {
+    lastStream()?.emit("geometry", GEO);
+    play(CONTIGUOUS_44K.slice(0, 1));
+    lastStream()?.emit("geometry", GEO_176K);
+    play(ONE_SAMPLE_GAP_176K.slice(0, 1));
+    assert.deepEqual(take()[index]?.geo, geo);
+  });
+}
 
 for (const { rate, rows } of CONTIGUOUS_AT_RATES) {
   test(`test_in_a_contiguous_feed_at_${rate}_hz_each_frame_ends_exactly_where_the_next_one_starts`, () => {

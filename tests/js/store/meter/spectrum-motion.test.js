@@ -24,42 +24,28 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
-import { initMeterLoop, onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
-import { initMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import { onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
-import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
-import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { pageRange, setApodWindow, spectrumColors, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { useStorage } from "../../support/storage.js";
-import { newTrack, poll } from "../../support/apodpolls.js";
+import { pageRange, spectrumColors, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { lastStream } from "../../support/eventsource.js";
 import { fakeClock } from "../../support/clock.js";
 import { RATE_44K, geometry } from "../../support/meterfeed.js";
+import { bootMeter, capturedFeed, generatedLandings } from "../../support/meter/meterrig.js";
 import { RANGE, TRACE, MONO, lineLevel, section } from "../../support/rendered/sourcesection.js";
 import { fxPainter } from "../../../../hqptuner/static/components/faceplate/page/spectrumfx.js";
 import { rasterCanvas } from "../../support/raster.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
-/** @typedef {{ wall: number, frames: Array<{ at: number, n: number }> }} Landing */
+/** @typedef {import("../../support/meter/meterrig.js").Landing} Landing */
 /** @typedef {{ rate: number, channels: number, bins: number, landings: Landing[], delay: number, gaps: number[] }} Feed */
 
 const SECOND_MS = 1000;
 
 /** Wall time, ms, one settle runs the clock on. */
 const SETTLE_MS = 2500;
-
-/** Event lengths, samples at 44.1 kHz, in turn: 22.7, 17.3, 19.3 and 23.1 ms, two of each. */
-const LENGTHS = [1000, 1000, 765, 765, 850, 850, 1020, 1020];
-
-/** Where each burst lands against the music's own schedule, wall ms, in turn. */
-const OFF_SCHEDULE_MS = [0, -20, 25, -10, 30, -25, 15, -5, 20, -30];
-
-/** Bursts per generated feed. */
-const BURSTS = 30;
 
 /** Frames of the capture the case plays. */
 const CAPTURE_FRAMES = 200;
@@ -92,9 +78,8 @@ const clock = {
 };
 
 /**
- * A generated feed of `BURSTS` bursts of `sizes` frames in turn at 44.1 kHz, one channel of four bins; a burst lands
- * where the music before it would have ended on the wall, off by OFF_SCHEDULE_MS in turn, never before the burst before
- * it.
+ * A generated feed of bursts of `sizes` frames in turn at 44.1 kHz, one channel of four bins, landing `lead` ms ahead of
+ * their music.
  *
  * @param {number[]} sizes
  * @param {number} delay  s
@@ -103,21 +88,7 @@ const clock = {
  * @returns {Feed}
  */
 function generated(sizes, delay, gaps, lead = 0) {
-  /** @type {Landing[]} */
-  const landings = [];
-  let at = 0;
-  let sent = 0;
-  let wall = 0;
-  for (let k = 0; k < BURSTS; k++) {
-    const frames = Array.from({ length: sizes[k % sizes.length] }, () => ({ at, n: LENGTHS[sent++ % LENGTHS.length] }));
-    wall = Math.max(wall, k ? (at * SECOND_MS) / RATE_44K + OFF_SCHEDULE_MS[k % OFF_SCHEDULE_MS.length] - lead : 0);
-    landings.push({ wall, frames });
-    for (const f of frames) {
-      f.at = at;
-      at += f.n;
-    }
-  }
-  return { rate: RATE_44K, channels: 1, bins: 4, landings, delay, gaps };
+  return { rate: RATE_44K, channels: 1, bins: 4, landings: generatedLandings(sizes, lead), delay, gaps };
 }
 
 /**
@@ -125,22 +96,7 @@ function generated(sizes, delay, gaps, lead = 0) {
  *
  * @returns {Feed}
  */
-function captured() {
-  const raw = JSON.parse(
-    readFileSync(new URL("../../../support/fixtures/meter_feed_capture.json", import.meta.url), "utf8"),
-  );
-  const named = (/** @type {string} */ name) =>
-    raw.events.filter((/** @type {{ event: string }} */ ev) => ev.event === name);
-  const geo = JSON.parse(named("geometry")[0].data);
-  const landings = named("frame")
-    .slice(0, CAPTURE_FRAMES)
-    .map((/** @type {{ t_ms: number, data: string }} */ ev) => {
-      const { at, n } = JSON.parse(ev.data);
-      return { wall: ev.t_ms, frames: [{ at, n }] };
-    });
-  const delay = Number(raw.engine_output_delay) / 1e6 + raw.owner_spectrum_offset_s;
-  return { rate: geo.rate, channels: geo.channels, bins: geo.bins, landings, delay, gaps: [SECOND_MS / 60] };
-}
+const captured = () => ({ ...capturedFeed(CAPTURE_FRAMES), gaps: [SECOND_MS / 60] });
 
 /**
  * The wire's bins: `n` of them, every one at `count` steps of 0.5 dB below full scale.
@@ -155,16 +111,7 @@ function binsOf(count, n) {
 }
 
 beforeEach(() => {
-  engineStatus.value = { metering: false };
-  useEventSource();
-  useStorage();
-  setApodWindow("30");
-  initApodHistory();
-  initSpectrogram();
-  newTrack();
-  poll();
-  initMeterFeed(clock);
-  initMeterLoop(clock);
+  bootMeter(clock, { loop: true });
   fake.advance(SETTLE_MS);
   pageRange.value = String(RANGE);
   spectrumStyle.value = TRACE;

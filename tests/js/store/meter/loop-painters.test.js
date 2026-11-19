@@ -35,25 +35,29 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { signal } from "@preact/signals-core";
 
-import { initMeterLoop, onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
-import { initMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import { onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
-import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
-import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { useStorage } from "../../support/storage.js";
-import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
+import { lastStream } from "../../support/eventsource.js";
+import { STOPPED, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
 import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.js";
+import {
+  BINS,
+  LENGTHS,
+  SILENT,
+  STEREO,
+  bootMeter,
+  capturedFeed,
+  generatedLandings,
+} from "../../support/meter/meterrig.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 /** @typedef {import("../../../../hqptuner/static/store/meter/loop.js").MeterScene} MeterScene */
+/** @typedef {import("../../support/meter/meterrig.js").Landing} Landing */
 
 /** Wall time, ms, from one animation frame being asked for to its running, in turn. */
 const FRAME_GAPS_MS = [16, 33, 17, 250, 41, 1000, 16.7];
@@ -78,9 +82,6 @@ const HELD_BACK_S = 3.5;
 
 /** How many times LENGTHS is sent ahead of the held-back frame: music enough that the delay's playhead starts inside it. */
 const AHEAD = 40;
-
-/** Event lengths, samples at 44.1 kHz, in turn: 22.7, 17.3, 19.3 and 23.1 ms, two of each. */
-const LENGTHS = [1000, 1000, 765, 765, 850, 850, 1020, 1020];
 
 /** An hour of samples at 44.1 kHz: where the frame that breaks from every run sent here starts. */
 const AN_HOUR_ON = 158760000;
@@ -174,17 +175,7 @@ function subscribe() {
 }
 
 beforeEach(() => {
-  engineStatus.value = { metering: false };
-  useEventSource();
-  useStorage();
-  setApodWindow("30");
-  setSpectrumOffset(String(DELAY_S));
-  initApodHistory();
-  initSpectrogram();
-  newTrack();
-  poll();
-  initMeterFeed(clock);
-  initMeterLoop(clock);
+  bootMeter(clock, { delayS: DELAY_S, loop: true });
   settle();
   lastStream()?.emit("geometry", geometry(RATE_44K));
   framesRun = [];
@@ -340,15 +331,6 @@ test("test_a_painter_subscribed_during_a_paint_is_called_at_every_paint_after_it
   assert.deepEqual(joined.slice(-later.length), later);
 });
 
-/** Channels the cases that clear the scene run at, so the claim reaches past the first. */
-const STEREO = 2;
-
-/** Bins in each channel of the geometry those cases run at. */
-const BINS = 4;
-
-/** One channel of a scene with nothing heard: every level, and every one of its bins, at -Infinity dBFS. */
-const SILENT = { peak: -Infinity, rms: -Infinity, bins: Array.from({ length: BINS }, () => -Infinity) };
-
 /** The scene a painter is handed when the loop stops: restarted, nothing heard on any channel, no time passed. */
 const CLEARED = {
   dt: 0,
@@ -487,22 +469,12 @@ test("test_a_signal_a_painter_reads_changing_while_the_engine_plays_again_restar
   );
 });
 
-/**
- * A feed to send: wall ms after the case starts, and the frames that land together then.
- *
- * @typedef {{ wall: number, frames: Array<{ at: number, n: number }> }} Landing
- */
-
 /** The reading the first frame sent carries, dBFS: each frame after it carries STEP_DB more, so a scene names the newest frame it shows. */
 const FIRST_DB = -90;
 const STEP_DB = 0.25;
 
-/** Burst sizes in turn, and how far each burst lands off the schedule its music sets, wall ms, early and late. */
+/** Burst sizes in turn. */
 const BURST_SIZES = { short: [3, 5, 2, 4], long: [5, 7, 4, 6] };
-const OFF_SCHEDULE_MS = [0, -20, 25, -10, 30, -25, 15, -5, 20, -30];
-
-/** Bursts per generated feed. */
-const BURSTS = 30;
 
 /** Paint waits, wall ms, in turn: steady at 60 Hz, then uneven with late paints. */
 const PAINTS = { steady: [16], uneven: [16, 33, 17, 41, 16.7] };
@@ -510,50 +482,13 @@ const PAINTS = { steady: [16], uneven: [16, 33, 17, 41, 16.7] };
 /** The capture's paint wait, wall ms: 60 Hz. */
 const CAPTURE_PAINT_MS = SECOND_MS / 60;
 
-/** The committed capture of the dev container's feed, read, never written. */
-const CAPTURE_FILE = new URL("../../../support/fixtures/meter_feed_capture.json", import.meta.url);
-
 /**
- * A feed of `BURSTS` bursts of `sizes` frames in turn at 44.1 kHz, LENGTHS in turn; a burst lands where the music before
- * it would have ended on the wall, off by OFF_SCHEDULE_MS in turn, never before the burst before it.
+ * A feed of the generated bursts of `sizes` frames in turn at 44.1 kHz.
  *
  * @param {number[]} sizes
  * @returns {{ rate: number, landings: Landing[] }}
  */
-function generatedFeed(sizes) {
-  /** @type {Landing[]} */
-  const landings = [];
-  let at = 0;
-  let sent = 0;
-  let wall = 0;
-  for (let k = 0; k < BURSTS; k++) {
-    const frames = Array.from({ length: sizes[k % sizes.length] }, () => ({ at, n: LENGTHS[sent++ % LENGTHS.length] }));
-    wall = Math.max(wall, k ? (at * SECOND_MS) / RATE_44K + OFF_SCHEDULE_MS[k % OFF_SCHEDULE_MS.length] : 0);
-    landings.push({ wall, frames });
-    for (const f of frames) {
-      f.at = at;
-      at += f.n;
-    }
-  }
-  return { rate: RATE_44K, landings };
-}
-
-/**
- * The committed capture as a feed: each frame lands at its own recorded time, at the geometry's rate.
- *
- * @returns {{ rate: number, landings: Landing[], delay: number }}  delay: engine output delay plus the owner's offset, s
- */
-function capturedFeed() {
-  const raw = JSON.parse(readFileSync(CAPTURE_FILE, "utf8"));
-  const rate = JSON.parse(raw.events.find((/** @type {{ event: string }} */ ev) => ev.event === "geometry").data).rate;
-  const landings = raw.events
-    .filter((/** @type {{ event: string }} */ ev) => ev.event === "frame")
-    .map((/** @type {{ t_ms: number, data: string }} */ ev) => {
-      const { at, n } = JSON.parse(ev.data);
-      return { wall: ev.t_ms, frames: [{ at, n }] };
-    });
-  return { rate, landings, delay: Number(raw.engine_output_delay) / 1e6 + raw.owner_spectrum_offset_s };
-}
+const generatedFeed = (sizes) => ({ rate: RATE_44K, landings: generatedLandings(sizes) });
 
 /**
  * Send `feed` on the stream open now, each landing at its wall time on the clock, and run the clock on to the last.

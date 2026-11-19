@@ -18,23 +18,14 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { closeMeterFeed, openMeterFeed, takeMeterFrames } from "../../../../hqptuner/static/store/meter/feed.js";
+import { takeMeterFrames } from "../../../../hqptuner/static/store/meter/feed.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { spectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { apodBins, initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
-import { health } from "../../../../hqptuner/static/store/signals.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { useStorage } from "../../support/storage.js";
-import { append, newTrack, setPollStep } from "../../support/apodpolls.js";
+import { append } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
-import {
-  RATE_48K,
-  STAMPED_48K,
-  STAMPED_48K_END_MS,
-  STAMPED_48K_SECOND_END_MS,
-  geometry,
-  play,
-} from "../../support/meterfeed.js";
+import { STAMPED_48K, STAMPED_48K_END_MS, STAMPED_48K_SECOND_END_MS, play } from "../../support/meterfeed.js";
+import { ELSEWHERE_MS, newestAt, readyTrack48k } from "../../support/meter/meterrig.js";
 
 const { clock } = fakeClock();
 
@@ -44,36 +35,14 @@ const OFFSET_S = 0.25;
 /** An engine output delay as Status reports it: microseconds. */
 const ENGINE_DELAY_US = "500000";
 
-/** The lifecycle generation of the Ready connection every case starts on. */
-const GEN = 3;
-
-/** A playback position no table here reaches: playback, ms. */
-const ELSEWHERE_MS = 1000;
-
 /** How many of STAMPED_48K's events end at STAMPED_48K_SECOND_END_MS. */
 const FIRST_TWO = 2;
 
 initApodHistory();
 
-/** The newest bin's stamp, NaN where it has none: playback, ms. */
-const newestAt = () => apodBins.value.at(-1)?.at ?? NaN;
-
-/** Open a fresh feed and send it the 48 kHz geometry. */
-function open() {
-  closeMeterFeed();
-  useEventSource();
-  openMeterFeed(clock);
-  lastStream()?.emit("geometry", geometry(RATE_48K));
-}
-
 beforeEach(() => {
-  health.value = { phase: "Ready", generation: GEN };
-  useStorage();
+  readyTrack48k(clock);
   spectrumOffset.value = OFFSET_S;
-  playhead.value = null;
-  setPollStep(1);
-  newTrack();
-  open();
 });
 
 // --- the delay plays no part ---------------------------------------------------------------------------------------

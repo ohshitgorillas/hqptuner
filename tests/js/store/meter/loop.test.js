@@ -25,19 +25,17 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { initMeterLoop, onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
-import { feedEdge, initMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import { onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
+import { feedEdge } from "../../../../hqptuner/static/store/meter/feed.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
-import { initSpectrogram, spectrogramRange } from "../../../../hqptuner/static/store/meter/spectrogram.js";
-import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { spectrogramRange } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { useStorage } from "../../support/storage.js";
-import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
+import { lastStream } from "../../support/eventsource.js";
+import { STOPPED, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
 import { CONTIGUOUS_44K, DROPPED_44K, RATE_44K, geometry, play } from "../../support/meterfeed.js";
+import { bootMeter } from "../../support/meter/meterrig.js";
 
 const fake = fakeClock();
 const advance = fake.advance;
@@ -105,17 +103,7 @@ function history() {
 }
 
 beforeEach(() => {
-  engineStatus.value = { metering: false };
-  useEventSource();
-  useStorage();
-  setApodWindow("30");
-  setSpectrumOffset(String(DELAY_S));
-  initApodHistory();
-  initSpectrogram();
-  newTrack();
-  poll();
-  initMeterFeed(clock);
-  initMeterLoop(clock);
+  bootMeter(clock, { delayS: DELAY_S, loop: true });
   settle();
 });
 

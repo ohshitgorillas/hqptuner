@@ -22,6 +22,7 @@ import { bootPage } from "../../support/bootpage.js";
 import { lastStream } from "../../support/eventsource.js";
 import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
 import { CONTIGUOUS_44K, RATE_44K, geometry, play } from "../../support/meterfeed.js";
+import { BINS, SILENT, STEREO } from "../../support/meter/meterrig.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/meter/loop.js").MeterScene} MeterScene */
 
@@ -51,13 +52,6 @@ const PLAYING_TIMES_MS = [7000, 7016, 7049];
 
 /** Wall time, ms on the page, of the animation frames the case hands out once the engine has stopped. */
 const STOPPED_TIMES_MS = [7299, 7316, 8316];
-
-/** Channels, and bins in each, of the feed the stopping case plays: more than one of each, so the claim reaches all. */
-const STEREO = 2;
-const BINS = 4;
-
-/** One channel of a scene with nothing heard: every level, and every one of its bins, at -Infinity dBFS. */
-const SILENT = { peak: -Infinity, rms: -Infinity, bins: Array.from({ length: BINS }, () => -Infinity) };
 
 /** The scene a painter is handed when the engine stops: no time passed, restarted, nothing heard on any channel. */
 const CLEARED = { dt: 0, restart: true, channels: Array.from({ length: STEREO }, () => SILENT) };
