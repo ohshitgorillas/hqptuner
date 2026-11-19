@@ -20,10 +20,14 @@ import statistics
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from hqptuner.engine import junkcurve
+
 if TYPE_CHECKING:
     import argparse
     from pathlib import Path
 
+# The engine's median filter, which ``junkcal_cli`` takes from here.
+median_smooth = junkcurve.median_smooth
 FLOOR_PERCENTILE = 10
 MIN_FIT_POINTS = 2
 
@@ -96,15 +100,6 @@ def parse_band(text: str) -> tuple[float, float]:
     lo = parse_hz(lo_text) if lo_text.strip() else 0.0
     hi = parse_hz(hi_text) if hi_text.strip() else math.inf
     return lo, hi
-
-
-def median_smooth(levels: list[float], width: int) -> list[float]:
-    """Return ``levels`` under a median filter of ``width`` bins; width 1 returns the curve unchanged."""
-    if width <= 1:
-        return list(levels)
-    half = width // 2
-    n = len(levels)
-    return [statistics.median(levels[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]
 
 
 def percentile(levels: list[float], pct: int) -> float:

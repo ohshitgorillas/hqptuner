@@ -286,7 +286,7 @@ class MeteringReader:
                 if ctx is None or not ctx.playing or not self._wanted():
                     return ctx is not None  # paused or unread keeps the evidence; no State reading held does not
                 if read is None:
-                    read = asyncio.create_task(_read_frame(reader))
+                    read = asyncio.create_task(read_frame(reader))
                 if not await self._arrived(read):
                     continue  # the tick won: re-check the engine, leave the read running
                 header, body = read.result()
@@ -340,7 +340,8 @@ class MeteringReader:
         )
 
 
-async def _read_frame(reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
+async def read_frame(reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
+    """Read one frame: the fixed header, then ``channels * (16 + 8 * bins)`` bytes of payload."""
     header = HEADER.unpack(await reader.readexactly(HEADER.size))
     channels, bins = int(header[1]), int(header[2])
     if not (0 < channels <= MAX_CHANNELS and 1 < bins <= MAX_BINS):

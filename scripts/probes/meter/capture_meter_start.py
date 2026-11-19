@@ -52,14 +52,7 @@ from hqptuner.config import Config
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.meterfeed import MeterFeed, reduce_frame
-from hqptuner.engine.metering import (
-    HEADER,
-    IDLE_RECHECK,
-    MAX_BINS,
-    MAX_CHANNELS,
-    RECONNECT_DELAY,
-    ImplausibleMeteringHeaderError,
-)
+from hqptuner.engine.metering import IDLE_RECHECK, RECONNECT_DELAY, read_frame
 from hqptuner.engine.trackcontext import PLAYING
 
 SCHEMA = "meter_start_capture/1"
@@ -107,15 +100,6 @@ def parse_sse(text: str) -> tuple[str, Any]:
         elif key == "data":
             data = value
     return name, json.loads(data)
-
-
-async def read_frame(reader: asyncio.StreamReader) -> Frame:
-    """Read one frame: the fixed header, then ``channels * (16 + 8 * bins)`` bytes of payload."""
-    header = HEADER.unpack(await reader.readexactly(HEADER.size))
-    channels, bins = int(header[1]), int(header[2])
-    if not (0 < channels <= MAX_CHANNELS and 1 < bins <= MAX_BINS):
-        raise ImplausibleMeteringHeaderError(channels=channels, bins=bins)
-    return header, await reader.readexactly(channels * (16 + 8 * bins))
 
 
 class Tap:
