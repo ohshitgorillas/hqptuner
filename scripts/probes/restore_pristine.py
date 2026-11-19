@@ -10,53 +10,27 @@ readback, never by the POST's 200.
 """
 
 import asyncio
-import os
 import sys
-import tempfile
 from pathlib import Path
 
-import httpx
+sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
+
+from probekit import ARCHIVE, CliError, connect_state, credentials, open_http, settle
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
-from hqptuner.engine.control import ControlClient
 
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-ARCHIVE = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe" / "pristine-settings.zip"
 SETTLE_TRIES = 60
-SETTLE_WAIT = 1.0
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
-
-
-async def _settle(http: HttpConfigClient) -> None:
-    for _ in range(SETTLE_TRIES):
-        try:
-            await http.get_config()
-            return
-        except (httpx.HTTPError, OSError):
-            await asyncio.sleep(SETTLE_WAIT)
-    message = "daemon never came back"
-    raise CliError(message)
 
 
 async def _run() -> int:
     """Restore the pristine archive over the daemon's settings and report whether the readback matches it exactly."""
-    user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
     if not ARCHIVE.is_file():
         message = f"no pristine archive at {ARCHIVE}"
         raise CliError(message)
     pristine = ARCHIVE.read_bytes()
 
-    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
-    await control.connect()
-    state = await control.get_state()
+    control, state = await connect_state()
     active = (await control.get_active_config()) or None
     await control.close()
     if state.get("state") != "0":
@@ -64,10 +38,10 @@ async def _run() -> int:
         raise CliError(message)
 
     want = engineconf.base_config_xml(pristine, active)
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
-    await _settle(http)
+    http = open_http(user, password, 60.0)
+    await settle(http, SETTLE_TRIES)
     await http.restore(pristine, scope="system")
-    await _settle(http)
+    await settle(http, SETTLE_TRIES)
     got = engineconf.base_config_xml(await http.backup(), active)
     print(f"working config byte-identical to the pristine capture: {got == want}")
     if got != want:

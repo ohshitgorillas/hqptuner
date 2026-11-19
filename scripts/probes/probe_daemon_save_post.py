@@ -26,70 +26,40 @@ Aborts before any write unless the engine is stopped.
 import asyncio
 import os
 import sys
-from collections.abc import Awaitable, Callable
+from pathlib import Path
 
-import httpx
+sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
 
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions, serialize_matrix_form
-from hqptuner.conf.httpforms import FormField
-from hqptuner.engine.control import ControlClient
+from probekit import (
+    CliError,
+    await_profile,
+    connect_state,
+    correction,
+    credentials,
+    open_http,
+    open_raw,
+    poll_correction,
+    rpc,
+)
+
+from hqptuner.conf.httpconf import serialize_matrix_form
 
 PROFILE = os.environ.get("PROBE_PROFILE", "hqptuner-probe-post")
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
 OTHER = os.environ.get("PROBE_OTHER", "stereo")
-SETTLE_TRIES = 40
-SETTLE_WAIT = 1.0
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
-
-
-async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
-    last: Exception | None = None
-    for _ in range(SETTLE_TRIES):
-        try:
-            return await make()
-        except (httpx.HTTPError, OSError) as exc:
-            last = exc
-            await asyncio.sleep(SETTLE_WAIT)
-    message = f"daemon never answered: {last}"
-    raise CliError(message)
-
-
-def _correction(fields: list[FormField]) -> dict[str, object]:
-    return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
-
-
-async def _settled_correction(http: HttpConfigClient, differs_from: dict[str, object] | None) -> dict[str, object]:
-    """Read the correction slice, polling past the reload and device rediscovery."""
-    seen: dict[str, object] = {}
-    for _ in range(20):
-        seen = _correction((await _rpc(http.get_matrix))["fields"])
-        if differs_from is None or seen != differs_from:
-            return seen
-        await asyncio.sleep(1.0)
-    return seen
 
 
 async def _run() -> int:
     """Establish whether a profile saved through the daemon's own POST /matrix/save carries its post-process chain."""
-    user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
 
-    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
-    await control.connect()
-    state = await control.get_state()
+    control, state = await connect_state()
     if state.get("state") != "0":
         message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
         raise CliError(message)
     original_profile = state.get("matrix_profile", "")
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=120.0))
-    at_rest = _correction((await _rpc(http.get_matrix))["fields"])
+    http = open_http(user, password, 120.0)
+    at_rest = correction((await rpc(http.get_matrix))["fields"])
     print(f"active profile {original_profile!r}; correction at rest: {at_rest}")
     if not at_rest.get("post_correction_enabled"):
         message = "correction is not engaged — nothing to prove a profile carries"
@@ -97,9 +67,7 @@ async def _run() -> int:
 
     try:
         # save the CURRENT matrix (correction engaged) under the daemon's own route
-        async with httpx.AsyncClient(
-            base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=120.0
-        ) as raw:
+        async with open_raw(user, password, 120.0) as raw:
             form = await raw.get("/matrix")
             form.raise_for_status()
             fields, _ = serialize_matrix_form(form.text)
@@ -114,14 +82,7 @@ async def _run() -> int:
 
         # registration lands only once the reload settles — an immediate list is
         # stale, which is what made the first run of this probe read "not saved"
-        names: list[str] = []
-        for _ in range(30):
-            await control.close()
-            await control.connect()
-            names = await control.get_matrix_profiles()
-            if PROFILE in names:
-                break
-            await asyncio.sleep(1.0)
+        names = await await_profile(control, PROFILE)
         print(f"profile registered: {PROFILE in names}")
         if PROFILE not in names:
             print("Q5 unanswered — the daemon did not register its own save")
@@ -129,12 +90,12 @@ async def _run() -> int:
 
         # switch away: post-process should go with it
         await control.set_matrix_profile(OTHER)
-        away = await _settled_correction(http, at_rest)
+        away = await poll_correction(http, at_rest)
         print(f"correction after switching to {OTHER!r}: {away}")
 
         # switch back: does the saved profile bring post-process with it?
         await control.set_matrix_profile(PROFILE)
-        back = await _settled_correction(http, away)
+        back = await poll_correction(http, away)
         print(f"correction after switching back to {PROFILE!r}: {back}")
         print(f"Q5 a daemon-saved profile carries its post-process: {bool(back.get('post_correction_enabled'))}")
     finally:
@@ -142,7 +103,7 @@ async def _run() -> int:
         await control.connect()
         await control.set_matrix_profile(original_profile)
         readback = (await control.get_state()).get("matrix_profile", "")
-        final = await _settled_correction(http, None)
+        final = await poll_correction(http, None)
         print(f"profile restored to {readback!r}: {readback == original_profile}; correction now: {final}")
         print(f"note: {PROFILE!r} is memory-only and disappears at the next daemon restart")
         await control.close()

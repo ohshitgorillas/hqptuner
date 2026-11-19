@@ -22,63 +22,33 @@ Aborts before any write unless the engine is stopped.
 """
 
 import asyncio
-import io
 import os
 import re
-import subprocess
 import sys
-import tempfile
-import zipfile
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import httpx
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
+
+from probekit import (
+    CliError,
+    connect_state,
+    correction,
+    credentials,
+    open_http,
+    open_raw,
+    poll_correction,
+    push,
+    restart_daemon,
+    rpc,
+    save_pristine,
+    settle,
+    working,
+)
+
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions, serialize_matrix_form
-from hqptuner.conf.httpforms import FormField
-from hqptuner.engine.control import ControlClient
-
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-OUT = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe"
-SETTLE_TRIES = 40
-SETTLE_WAIT = 1.0
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
-
-
-def _restart_daemon() -> None:
-    subprocess.run(["/usr/bin/sudo", "systemctl", "restart", "hqplayerd"], check=True)
-
-
-async def _settle(http: HttpConfigClient) -> None:
-    for _ in range(SETTLE_TRIES):
-        try:
-            await http.get_config()
-            return
-        except (httpx.HTTPError, OSError):
-            await asyncio.sleep(SETTLE_WAIT)
-    message = "daemon never came back"
-    raise CliError(message)
-
-
-async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
-    last: Exception | None = None
-    for _ in range(SETTLE_TRIES):
-        try:
-            return await make()
-        except (httpx.HTTPError, OSError) as exc:
-            last = exc
-            await asyncio.sleep(SETTLE_WAIT)
-    message = f"daemon never answered: {last}"
-    raise CliError(message)
-
-
-async def _working(http: HttpConfigClient, active: str | None) -> bytes:
-    return engineconf.base_config_xml(await _rpc(http.backup), active)
+from hqptuner.conf.httpconf import serialize_matrix_form
 
 
 def _rows(xml_or_body: bytes) -> list[bytes]:
@@ -99,10 +69,6 @@ def _profile_rows(xml: bytes, name: str) -> list[bytes]:
         re.DOTALL,
     )
     return _rows(m.group(1)) if m else []
-
-
-def _correction(fields: list[FormField]) -> dict[str, object]:
-    return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
 
 
 async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> None:
@@ -132,42 +98,20 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
     print(f"  POST /matrix -> HTTP {resp.status_code}")
 
 
-async def _poll_correction(http: HttpConfigClient, was: dict[str, object]) -> dict[str, object]:
-    """Poll the matrix form until the correction plugin moves off ``was``, giving up after 20 passes.
-
-    The reload takes ~6.5 s and /config keeps serving through it, so the form is read
-    repeatedly rather than once.
-    """
-    current = was
-    for _ in range(20):
-        current = _correction((await _rpc(http.get_matrix))["fields"])
-        if current != was:
-            return current
-        await asyncio.sleep(1.0)
-    return current
-
-
 async def _run() -> int:
     """Establish whether a POST /matrix re-asserts post-process wiped by a profile switch, and whether it persists."""
-    user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
     target = os.environ.get("PROBE_PROFILE", "stereo")
 
-    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
-    await control.connect()
-    state = await control.get_state()
+    control, state = await connect_state()
     if state.get("state") != "0":
         message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
         raise CliError(message)
     original_profile = state.get("matrix_profile", "")
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
+    http = open_http(user, password, 60.0)
     active = (await control.get_active_config()) or None
-    pristine = await _rpc(http.backup)
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "pristine-settings.zip").write_bytes(pristine)
+    pristine = await save_pristine(http)
     before_xml = engineconf.base_config_xml(pristine, active)
     config_rows = _matrix_rows(before_xml)
     target_rows = _profile_rows(before_xml, target)
@@ -184,63 +128,51 @@ async def _run() -> int:
     rc = 0
     try:
         if mode == "toggle":
-            async with httpx.AsyncClient(
-                base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=120.0
-            ) as raw:
-                start = _correction((await _rpc(http.get_matrix))["fields"])
+            async with open_raw(user, password, 120.0) as raw:
+                start = correction((await rpc(http.get_matrix))["fields"])
                 print(f"correction at rest: {start}")
                 await _post_matrix(raw, {"post_correction_enabled": "0"})
-                await _settle(http)
-                off = await _poll_correction(http, start)
-                in_file = re.search(rb'<plugin[^>]*type="correction"/>', await _working(http, active))
+                await settle(http)
+                off = await poll_correction(http, start)
+                in_file = re.search(rb'<plugin[^>]*type="correction"/>', await working(http, active))
                 found = in_file.group(0) if in_file else None
                 print(f"correction in the config file after the POST: {found!r}")
                 print(f"correction after a POST turning it OFF: {off}")
                 print(f"CONTROL POST /matrix can change the running post-process: {off != start}")
             return rc
         await control.set_matrix_profile(target)
-        cleared = _correction((await _rpc(http.get_matrix))["fields"])
+        cleared = correction((await rpc(http.get_matrix))["fields"])
         print(f"correction after the switch (expect wiped): {cleared}")
 
         dac = os.environ.get("PROBE_DAC", "Holo Audio Cyan 2")
-        async with httpx.AsyncClient(
-            base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=120.0
-        ) as raw:
+        async with open_raw(user, password, 120.0) as raw:
             await _post_matrix(raw, {"post_correction_enabled": "1", "post_correction_dac0": dac})
-        await _settle(http)
+        await settle(http)
 
         # Q4 — is the correction plugin running again? Poll past the reload.
-        restored = await _poll_correction(http, cleared)
+        restored = await poll_correction(http, cleared)
         print(f"correction after the re-assert POST: {restored}")
         print(f"Q4 POST /matrix restores the wiped post-process: {restored != cleared}")
 
         # Q3 — did the POST persist the profile's rows into the working config?
-        after_xml = await _working(http, active)
+        after_xml = await working(http, active)
         after_rows = _matrix_rows(after_xml)
         print(f"config <matrix> rows after the POST: {len(after_rows)}")
         print(f"Q3 POST persists the profile's rows into the config: {after_rows == target_rows}")
         print(f"   (config rows unchanged from before the load: {after_rows == config_rows})")
     finally:
-        with zipfile.ZipFile(io.BytesIO(pristine)) as z:
-            member = engineconf.running_config_name(z.namelist(), active)
-        if member is None:
-            message = "cannot resolve the working config member"
-            raise CliError(message)
-        archive = engineconf.rewrite_zip(pristine, {member: before_xml})
-        await _rpc(lambda: http.restore(archive, scope="system"))
-        await _settle(http)
-        back = await _working(http, active)
+        back = await push(http, pristine, before_xml, active)
         identical = back == before_xml
         print(f"config restored byte-identical to the pristine capture: {identical}")
-        _restart_daemon()
-        await _settle(http)
+        restart_daemon()
+        await settle(http)
         await control.close()
         await control.connect()
         if original_profile:
             await control.set_matrix_profile(original_profile)
         readback = (await control.get_state()).get("matrix_profile", "")
         print(f"matrix profile restored to {readback!r}: {readback == original_profile}")
-        final = _correction((await _rpc(http.get_matrix))["fields"])
+        final = correction((await rpc(http.get_matrix))["fields"])
         print(f"correction as left running: {final}")
         await control.close()
         if not identical or readback != original_profile:

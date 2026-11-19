@@ -27,27 +27,24 @@ top-priority service.
 """
 
 import asyncio
-import os
 import sys
+from pathlib import Path
 from typing import Any
 
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
+sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
+
+from probekit import CliError, connect_state, credentials, open_http
+
+from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-CONTROL_PORT = int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321"))
 SETTLE = 1.0
 ARGC = 3  # script, profile-with-chain, profile-without-chain
 
 # post_process fields worth printing: the whole chain, so a cleared bauer or
 # loudness shows up next to correction rather than being inferred from it.
 PREFIXES = ("post_correction", "post_bauer_enabled", "post_loudness_enabled")
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
 
 
 def _chain(fields: list[FormField]) -> dict[str, Any]:
@@ -74,21 +71,16 @@ async def _run() -> int:
         message = "usage: probe_switch_post_effect.py <profile-with-chain> <profile-without-chain>"
         raise CliError(message)
     with_chain, no_chain = sys.argv[1], sys.argv[2]
-    user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
 
-    control = ControlClient(HOST, CONTROL_PORT)
-    await control.connect()
-    state = await control.get_state()
+    control, state = await connect_state()
     if state.get("state") != "0":
         message = f"engine is not stopped (state={state.get('state')!r}) — refusing to switch"
         raise CliError(message)
     original = state.get("matrix_profile", "")
     print(f"engine idle; active matrix profile {original!r}")
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
+    http = open_http(user, password, 60.0)
     names = await control.get_matrix_profiles()
     for name in (with_chain, no_chain):
         if name not in names:

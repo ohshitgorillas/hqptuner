@@ -21,33 +21,38 @@ Aborts before any write unless the engine is stopped.
 """
 
 import asyncio
-import io
 import os
 import re
 import sys
-import tempfile
-import zipfile
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import httpx
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions, serialize_matrix_form
+from hqptuner.conf.httpconf import HttpConfigClient, serialize_matrix_form
 from hqptuner.engine.control import ControlClient
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "kit"))
+
+from probekit import (
+    CONTROL_PORT,
+    HOST,
+    CliError,
+    backup,
+    connect_state,
+    credentials,
+    open_http,
+    open_raw,
+    push,
+    rpc,
+    save_pristine,
+    settle,
+    working,
+)
+
 PLUGIN = "loudness"
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-OUT = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe"
-SETTLE_TRIES = 40
-SETTLE_WAIT = 1.0
 # which questions to run, comma-separated in PROBE_STEPS
 STEPS = set((os.environ.get("PROBE_STEPS") or "q1,q2,q3,q4").split(","))
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
 
 
 def strip_plugin(xml: bytes, plugin_type: str) -> bytes:
@@ -71,61 +76,6 @@ def plugin_tag(xml: bytes, plugin_type: str) -> bytes:
     return m.group(0) if m else b""
 
 
-async def settle(http: HttpConfigClient) -> None:
-    """Wait for the daemon to serve again after a restore."""
-    for _ in range(SETTLE_TRIES):
-        try:
-            await http.get_config()
-            return
-        except httpx.HTTPError:
-            await asyncio.sleep(SETTLE_WAIT)
-    message = "daemon never came back after a restore"
-    raise CliError(message)
-
-
-async def rpc[T](make: Callable[[], Awaitable[T]]) -> T:
-    """Any daemon call, retried through a restart window.
-
-    Every step here follows a restore, and a restore restarts the daemon — so a
-    connect attempt landing in that window is expected, not a failure.
-    """
-    last: Exception | None = None
-    for _ in range(SETTLE_TRIES):
-        try:
-            return await make()
-        except (httpx.HTTPError, OSError) as exc:
-            last = exc
-            await asyncio.sleep(SETTLE_WAIT)
-    message = f"daemon never answered: {last}"
-    raise CliError(message)
-
-
-async def backup(http: HttpConfigClient) -> bytes:
-    """Return the daemon's own settings archive, retried through a restart window."""
-    return await rpc(http.backup)
-
-
-async def working(http: HttpConfigClient, active: str | None) -> bytes:
-    """Return the running config's working-member XML, from a fresh backup."""
-    return engineconf.base_config_xml(await backup(http), active)
-
-
-async def push(http: HttpConfigClient, backup_bytes: bytes, working_xml: bytes, active: str | None) -> bytes:
-    """Restore an archive carrying ``working_xml`` as its working member, then read the running config back.
-
-    Never trust the POST's own 200.
-    """
-    with zipfile.ZipFile(io.BytesIO(backup_bytes)) as z:
-        member = engineconf.running_config_name(z.namelist(), active)
-    if member is None:
-        message = "cannot resolve the working config member"
-        raise CliError(message)
-    archive = engineconf.rewrite_zip(backup_bytes, {member: working_xml})
-    await rpc(lambda: http.restore(archive, scope="system"))
-    await settle(http)
-    return await working(http, active)
-
-
 async def post_matrix_form(client: httpx.AsyncClient) -> None:
     """Submit the daemon's own /matrix form, complete and unchanged.
 
@@ -146,7 +96,7 @@ async def engine_alive() -> bool:
     A config the daemon cannot init on shows up exactly here: the web lane
     keeps serving while the engine is dead, so `settle` alone would not notice.
     """
-    client = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
+    client = ControlClient(HOST, CONTROL_PORT)
     errors: list[Exception] = []
     try:
         await client.connect()
@@ -240,14 +190,9 @@ async def _later_steps(http: HttpConfigClient, original: bytes, active: str | No
 
 async def _run() -> int:
     """Establish whether an absent post-process plugin element can be brought back, reverting the config afterwards."""
-    user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
 
-    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
-    await control.connect()
-    state = await control.get_state()
+    control, state = await connect_state()
     if state.get("state") != "0":
         await control.close()
         message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
@@ -255,13 +200,11 @@ async def _run() -> int:
     active = (await control.get_active_config()) or None
     await control.close()
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
-    raw = httpx.AsyncClient(base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=60.0)
-    OUT.mkdir(parents=True, exist_ok=True)
+    http = open_http(user, password, 60.0)
+    raw = open_raw(user, password, 60.0)
     findings: list[str] = []
     # captured BEFORE the try: the revert in the finally reads them
-    pristine = await backup(http)
-    (OUT / "pristine-settings.zip").write_bytes(pristine)
+    pristine = await save_pristine(http)
     original = engineconf.base_config_xml(pristine, active)
     if not original:
         message = "no working config in /backup — nothing to probe against"

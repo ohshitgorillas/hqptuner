@@ -9,52 +9,19 @@ list after the restore is the proof, never the POST's 200.
 """
 
 import asyncio
-import io
 import os
 import re
 import sys
-import zipfile
-from collections.abc import Awaitable, Callable
+from pathlib import Path
 
-import httpx
+sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
+
+from probekit import CliError, connect_state, credentials, open_http, push, rpc
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.conf.matrixprofiles import delete_profile
-from hqptuner.engine.control import ControlClient
 
 DOOMED = (os.environ.get("PROBE_DOOMED") or "hqptuner-probe,hqptuner-probe-post").split(",")
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-SETTLE_TRIES = 40
-SETTLE_WAIT = 1.0
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
-
-
-async def _settle(http: HttpConfigClient) -> None:
-    for _ in range(SETTLE_TRIES):
-        try:
-            await http.get_config()
-            return
-        except (httpx.HTTPError, OSError):
-            await asyncio.sleep(SETTLE_WAIT)
-    message = "daemon never came back"
-    raise CliError(message)
-
-
-async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
-    last: Exception | None = None
-    for _ in range(SETTLE_TRIES):
-        try:
-            return await make()
-        except (httpx.HTTPError, OSError) as exc:
-            last = exc
-            await asyncio.sleep(SETTLE_WAIT)
-    message = f"daemon never answered: {last}"
-    raise CliError(message)
 
 
 def _names(xml: bytes) -> list[str]:
@@ -63,22 +30,17 @@ def _names(xml: bytes) -> list[str]:
 
 async def _run() -> int:
     """Delete the named probe-authored matrix profiles from the running config and confirm their removal by readback."""
-    user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
 
-    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
-    await control.connect()
-    state = await control.get_state()
+    control, state = await connect_state()
     if state.get("state") != "0":
         message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
         raise CliError(message)
     active = (await control.get_active_config()) or None
     await control.close()
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=120.0))
-    backup = await _rpc(http.backup)
+    http = open_http(user, password, 120.0)
+    backup = await rpc(http.backup)
     xml = engineconf.base_config_xml(backup, active)
     before = _names(xml)
     print(f"profiles before: {before}")
@@ -89,15 +51,7 @@ async def _run() -> int:
 
     for name in doomed:
         xml = delete_profile(xml, name)
-    with zipfile.ZipFile(io.BytesIO(backup)) as z:
-        member = engineconf.running_config_name(z.namelist(), active)
-    if member is None:
-        message = "cannot resolve the working config member"
-        raise CliError(message)
-    await _rpc(lambda: http.restore(engineconf.rewrite_zip(backup, {member: xml}), scope="system"))
-    await _settle(http)
-
-    after = _names(engineconf.base_config_xml(await _rpc(http.backup), active))
+    after = _names(await push(http, backup, xml, active))
     print(f"profiles after: {after}")
     print(f"removed {doomed}: {all(name not in after for name in doomed)}")
     return 0 if all(name not in after for name in doomed) else 1

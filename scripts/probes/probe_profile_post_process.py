@@ -25,84 +25,31 @@ Aborts before any write unless the engine is stopped.
 """
 
 import asyncio
-import io
 import os
 import re
-import subprocess
 import sys
-import tempfile
-import zipfile
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-import httpx
+sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
+
+from probekit import (
+    ARCHIVE,
+    CliError,
+    await_profile,
+    connect_state,
+    correction,
+    credentials,
+    open_http,
+    push,
+    restart_daemon,
+    rpc,
+    save_pristine,
+    settle,
+)
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
-from hqptuner.conf.httpforms import FormField
-from hqptuner.engine.control import ControlClient
 
 PROFILE = "hqptuner-probe"
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-OUT = Path(os.environ.get("PROBE_OUT") or tempfile.gettempdir()) / "hqptuner-probe"
-SETTLE_TRIES = 40
-SETTLE_WAIT = 1.0
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
-
-
-def _restart_daemon() -> None:
-    """Restart hqplayerd.
-
-    A config restore does NOT restart it (probe run 1: the unit's uptime was
-    untouched across a restore), and the saved-profile registry is built at
-    process start only — so a profile written into the config is invisible to
-    ``MatrixListProfiles`` until the daemon comes back.
-    """
-    subprocess.run(["/usr/bin/sudo", "systemctl", "restart", "hqplayerd"], check=True)
-
-
-async def _settle(http: HttpConfigClient) -> None:
-    for _ in range(SETTLE_TRIES):
-        try:
-            await http.get_config()
-            return
-        except (httpx.HTTPError, OSError):
-            await asyncio.sleep(SETTLE_WAIT)
-    message = "daemon never came back after a restore"
-    raise CliError(message)
-
-
-async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
-    """Any daemon call, retried through a restart window."""
-    last: Exception | None = None
-    for _ in range(SETTLE_TRIES):
-        try:
-            return await make()
-        except (httpx.HTTPError, OSError) as exc:
-            last = exc
-            await asyncio.sleep(SETTLE_WAIT)
-    message = f"daemon never answered: {last}"
-    raise CliError(message)
-
-
-async def _working(http: HttpConfigClient, active: str | None) -> bytes:
-    return engineconf.base_config_xml(await _rpc(http.backup), active)
-
-
-async def _push(http: HttpConfigClient, backup: bytes, working: bytes, active: str | None) -> bytes:
-    with zipfile.ZipFile(io.BytesIO(backup)) as z:
-        member = engineconf.running_config_name(z.namelist(), active)
-    if member is None:
-        message = "cannot resolve the working config member"
-        raise CliError(message)
-    archive = engineconf.rewrite_zip(backup, {member: working})
-    await _rpc(lambda: http.restore(archive, scope="system"))
-    await _settle(http)
-    return await _working(http, active)
 
 
 def _matrix_body(xml: bytes) -> bytes:
@@ -158,34 +105,23 @@ def _with_probe_profile(xml: bytes, *, carry_post: bool = True) -> bytes:
     return xml[: anchor.start()] + block + xml[anchor.start() :]
 
 
-def _correction(fields: list[FormField]) -> dict[str, object]:
-    return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
-
-
 async def _run() -> int:
     """Establish whether the daemon keeps a profile's authored post_process and installs it on a live switch."""
-    user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
 
-    control = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
-    await control.connect()
-    state = await control.get_state()
+    control, state = await connect_state()
     if state.get("state") != "0":
         message = f"engine is not stopped (state={state.get('state')!r}) — refusing to write"
         raise CliError(message)
     original_profile = state.get("matrix_profile", "")
     print(f"engine idle; active matrix profile {original_profile!r}")
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
+    http = open_http(user, password, 60.0)
     active = (await control.get_active_config()) or None
-    pristine = await _rpc(http.backup)
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "pristine-settings.zip").write_bytes(pristine)
-    print(f"pristine archive saved to {OUT / 'pristine-settings.zip'} ({len(pristine)} bytes)")
+    pristine = await save_pristine(http)
+    print(f"pristine archive saved to {ARCHIVE} ({len(pristine)} bytes)")
 
-    before = _correction((await _rpc(http.get_matrix))["fields"])
+    before = correction((await rpc(http.get_matrix))["fields"])
     print(f"running correction BEFORE: {before}")
 
     rc = 0
@@ -193,7 +129,7 @@ async def _run() -> int:
         carry_post = os.environ.get("PROBE_VARIANT", "post") != "rows"
         print(f"variant: probe profile {'WITH' if carry_post else 'WITHOUT'} a <post_process>")
         working = engineconf.base_config_xml(pristine, active)
-        got = await _push(http, pristine, _with_probe_profile(working, carry_post=carry_post), active)
+        got = await push(http, pristine, _with_probe_profile(working, carry_post=carry_post), active)
 
         # Q1 — did the daemon keep the post-process we authored inside the profile?
         element = _profile_element(got, PROFILE)
@@ -204,37 +140,30 @@ async def _run() -> int:
 
         # Q2 — does a live switch install it into the running engine? The registry
         # only rebuilds at process start, so the daemon has to come back first.
-        _restart_daemon()
-        await _settle(http)
+        restart_daemon()
+        await settle(http)
         # the registry lands after the reload settles; an immediate list is stale
-        names: list[str] = []
-        for _ in range(30):
-            await control.close()
-            await control.connect()
-            names = await control.get_matrix_profiles()
-            if PROFILE in names:
-                break
-            await asyncio.sleep(1.0)
+        names = await await_profile(control, PROFILE)
         print(f"probe profile reachable by a live switch: {PROFILE in names}")
         print(f"profiles the daemon registered ({len(names)}): {names}")
         in_file = re.findall(rb'<matrix_profile\b[^>]*name="([^"]*)"', got)
         print(f"profiles in the config file ({len(in_file)}): {[n.decode() for n in in_file]}")
         if PROFILE in names:
             await control.set_matrix_profile(PROFILE)
-            after = _correction((await _rpc(http.get_matrix))["fields"])
+            after = correction((await rpc(http.get_matrix))["fields"])
             print(f"running correction AFTER the switch: {after}")
             print(f"Q2 MatrixSetProfile installs the profile's post-process: {after != before}")
         else:
             print("Q2 unanswered — the daemon never registered the probe profile")
             rc = 1
     finally:
-        back = await _push(http, pristine, engineconf.base_config_xml(pristine, active), active)
+        back = await push(http, pristine, engineconf.base_config_xml(pristine, active), active)
         identical = back == engineconf.base_config_xml(pristine, active)
         print(f"config restored byte-identical to the pristine capture: {identical}")
         # second restart: the probe profile is still in the daemon's memory
         # registry until the process comes back on the pristine config
-        _restart_daemon()
-        await _settle(http)
+        restart_daemon()
+        await settle(http)
         await control.close()
         await control.connect()
         await control.set_matrix_profile(original_profile)

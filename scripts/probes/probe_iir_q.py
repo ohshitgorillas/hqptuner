@@ -37,13 +37,16 @@ import math
 import os
 import re
 import sys
+from pathlib import Path
 
 import httpx
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
+
+from probekit import CliError, credentials, open_raw
+
 from hqptuner.conf.httpconf import serialize_matrix_form
 
-HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
-HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
 # Joint fit for (rate, grid bounds) lands ~99 kHz / 20 Hz - 20 kHz.
 # Both plausible rates are evaluated so a prediction that depends on the guess is
 # visible as a spread rather than passed off as a single number.
@@ -68,10 +71,6 @@ DISCRIMINATING = ("A  peak above grid", "C  two overlapping", "E  peak below gri
 
 _STAGE_RE = re.compile(r"iir:type=(?P<type>\w+);(?P<args>.+)")
 _RANGE_RE = re.compile(r"plot magnitude value range:\s*(-?[\d.]+),(-?[\d.]+)")
-
-
-class CliError(Exception):
-    """A condition that stops this probe cold; `main` prints it and owns the exit code."""
 
 
 def _peak_biquad(w0: float, alpha: float, amp: float) -> tuple[float, ...]:
@@ -188,15 +187,9 @@ async def _measure(client: httpx.AsyncClient, fields: dict[str, str], chain: str
 
 async def _run() -> int:
     """Establish whether the iir plugin's q is the RBJ cookbook Q or the classic EE Q, by plotting skirt chains."""
-    user = os.environ.get("HQPTUNER_HQP_USERNAME")
-    password = os.environ.get("HQPTUNER_HQP_PASSWORD")
-    if not user or not password:
-        message = "set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)"
-        raise CliError(message)
+    user, password = credentials()
 
-    client = httpx.AsyncClient(
-        base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=60.0
-    )
+    client = open_raw(user, password, 60.0)
     try:
         pristine = (await client.get("/matrix")).text
         fields, _ = serialize_matrix_form(pristine)
