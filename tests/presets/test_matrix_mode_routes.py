@@ -23,15 +23,12 @@ hand-writes one.
 """
 
 import json
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
 #: A stamp no released HQPTuner can claim to understand.
@@ -59,35 +56,23 @@ def preset_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[Callable[..., TestClient]]:
+def joined_api(
+    tmp_path: Path, preset_dir: Path, daemonless_api: Callable[..., TestClient]
+) -> Callable[..., TestClient]:
     """The REST surface over a mode file AND a preset store, both in ``tmp_path``.
 
     A factory taking the preset names to seed, so a case can decide what exists
     before the app opens — including nothing at all, over a preset store
     directory the case hand-wrote itself, or over a mode file another HQPTuner
     version stamped."""
-    clients: list[TestClient] = []
 
     def build(names: Sequence[str] = ()) -> TestClient:
         store = PresetStore(preset_dir)
         for name in names:
             store.save(name, PRESET_PAYLOAD)
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            matrix_mode_file=tmp_path / "matrixmodes.json",
-            preset_dir=preset_dir,
-        )
-        client = TestClient(create_app(cfg, VirtualClock()))
-        clients.append(client)
-        client.__enter__()
-        return client
+        return daemonless_api(matrix_mode_file=tmp_path / "matrixmodes.json", preset_dir=preset_dir)
 
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
+    return build
 
 
 @pytest.fixture

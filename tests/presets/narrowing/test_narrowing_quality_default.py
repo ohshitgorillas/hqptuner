@@ -22,14 +22,12 @@ level. The plain round trip and the full defaults table are
 quality default lives here.
 """
 
-import json
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import pytest
+from narrow import drop, edit_facets, set_to, store_at, stored
 
-from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError
 
 #: The default quality reads at, and the facet's unchanged domain.
 QUALITY_DEFAULT = 0
@@ -37,38 +35,6 @@ QUALITY_DEFAULT = 0
 #: Integers outside the domain, bools, and non-integers — all refused on write
 #: and degraded to the default on read.
 INVALID: list[object] = [1, 2, 6, -1, True, False, "4", 3.5, None]
-
-
-def store_at(tmp_path: Path) -> NarrowingStore:
-    return NarrowingStore(tmp_path / "narrowing.json")
-
-
-def stored(tmp_path: Path, facets: dict[str, object]) -> Path:
-    """A file the store itself wrote, so its layout is the store's own."""
-    store_at(tmp_path).write(facets)
-    return tmp_path / "narrowing.json"
-
-
-def edit_facets(path: Path, mutate: Callable[[dict[str, Any]], None]) -> None:
-    """Reach into the facet map of a file the store wrote and change it."""
-    doc = json.loads(path.read_text())
-    inner = doc.get("facets")
-    mutate(inner if isinstance(inner, dict) else doc)
-    path.write_text(json.dumps(doc))
-
-
-def set_to(facet: str, value: object) -> Callable[[dict[str, Any]], None]:
-    def mutate(facets: dict[str, Any]) -> None:
-        facets[facet] = value
-
-    return mutate
-
-
-def drop(facet: str) -> Callable[[dict[str, Any]], None]:
-    def mutate(facets: dict[str, Any]) -> None:
-        facets.pop(facet, None)
-
-    return mutate
 
 
 # --- the default ---------------------------------------------------------------

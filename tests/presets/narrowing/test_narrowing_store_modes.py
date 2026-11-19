@@ -22,14 +22,12 @@ damaged stored one degrades to. The plain round trip and the defaults table are
 `DEFAULTS` and `SET` tables and covers every facet the same way.
 """
 
-import json
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import pytest
+from narrow import drop, edit_facets, set_to, store_at, stored
 
-from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError
 
 #: The two new facets and the default each reads at.
 MODE_DEFAULTS: dict[str, str] = {"genre_mode": "or", "focus_mode": "and"}
@@ -42,38 +40,6 @@ WRONG_TYPE: list[object] = [1, True, None, ["and"], {"mode": "and"}]
 #: a case that watches a facet return to its default cannot be reading a value
 #: that was never moved.
 NON_DEFAULT: dict[str, object] = {"genre_mode": "and", "focus_mode": "or"}
-
-
-def store_at(tmp_path: Path) -> NarrowingStore:
-    return NarrowingStore(tmp_path / "narrowing.json")
-
-
-def stored(tmp_path: Path, facets: dict[str, object]) -> Path:
-    """A file the store itself wrote, so its layout is the store's own."""
-    store_at(tmp_path).write(facets)
-    return tmp_path / "narrowing.json"
-
-
-def edit_facets(path: Path, mutate: Callable[[dict[str, Any]], None]) -> None:
-    """Reach into the facet map of a file the store wrote and change it."""
-    doc = json.loads(path.read_text())
-    inner = doc.get("facets")
-    mutate(inner if isinstance(inner, dict) else doc)
-    path.write_text(json.dumps(doc))
-
-
-def set_to(facet: str, value: object) -> Callable[[dict[str, Any]], None]:
-    def mutate(facets: dict[str, Any]) -> None:
-        facets[facet] = value
-
-    return mutate
-
-
-def drop(facet: str) -> Callable[[dict[str, Any]], None]:
-    def mutate(facets: dict[str, Any]) -> None:
-        facets.pop(facet, None)
-
-    return mutate
 
 
 # --- the domain a write accepts ----------------------------------------------

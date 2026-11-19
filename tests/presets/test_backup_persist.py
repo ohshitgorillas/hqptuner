@@ -3,7 +3,6 @@
 against the faithful fake daemon."""
 
 import contextlib
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +12,6 @@ from conftest import ManagerFactory
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
-from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import presetlane
@@ -59,17 +57,6 @@ async def test_apply_engine_without_credentials_declines_the_http_lane() -> None
     manager = ConnectionManager(Config(), clock=VirtualClock())
     with pytest.raises(HttpLaneDeclinedError):
         await manager.applyops.apply_engine({"cuda": "0"})
-
-
-@pytest.fixture
-async def dead_lane_manager(closed_port: int, tmp_path: Path) -> AsyncIterator[ConnectionManager]:
-    """A manager whose 8088 lane points at a port nothing serves."""
-    http = HttpConfigClient("127.0.0.1", closed_port, "u", "p")
-    manager = ConnectionManager(
-        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"), http, VirtualClock()
-    )
-    yield manager
-    await http.aclose()
 
 
 async def test_apply_engine_reports_an_unreachable_http_lane(dead_lane_manager: ConnectionManager) -> None:

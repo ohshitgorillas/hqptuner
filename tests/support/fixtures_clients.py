@@ -1,11 +1,12 @@
 """Fixture plugin (registered from conftest.py): `TestClient`s over the REST
 app under test — daemonless, control-lane-only on the threaded fake, and http-
 lane on the fake 8088 daemon — and a manager on an in-loop fake control daemon
-whose command hooks a case arms."""
+whose command hooks a case arms. The description store file builders the store and route suites share sit here too."""
 
 import asyncio
 import contextlib
 import functools
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
+from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 
@@ -72,6 +74,27 @@ def app_on_daemon(
     return client
 
 
+#: A stamp left by an earlier write, far enough in the past that no write made during a test run can land on it.
+ANCIENT = "2000-01-01T00:00:00+00:00"
+
+
+def seed_descriptions(tmp_path: Path, content: str) -> Path:
+    """Write ``content`` as the description store file under ``tmp_path`` and return its path."""
+    path = tmp_path / "descriptions.json"
+    path.write_text(content)
+    return path
+
+
+def stamped_descriptions(profiles: dict[str, dict[str, str]]) -> bytes:
+    """A store file as another HQPTuner would have left it."""
+    return json.dumps({"schema": 1, "profiles": profiles}).encode()
+
+
+def description_entry(text: str, updated: str = ANCIENT) -> dict[str, str]:
+    """One profile's description as the store file holds it."""
+    return {"text": text, "updated": updated}
+
+
 #: A manager connected to a fake daemon whose command hooks the case arms, that daemon's State, and its hooks.
 HookedBuilt = tuple[ConnectionManager, dict[str, str], CommandHooks]
 
@@ -100,6 +123,43 @@ async def hooked_manager(clock: VirtualClock) -> AsyncIterator[Callable[..., Awa
         await manager.aclose()
         server.close()
         await server.wait_closed()
+
+
+@pytest.fixture
+def daemonless_api(closed_port: int) -> Iterator[Callable[..., TestClient]]:
+    """Build REST surfaces over state files a case points at, with nothing behind them.
+
+    Every client is built with no credentials and a control lane pointed at `closed_port`, a port nothing
+    listens on: nothing here can reach hqplayerd, so a route that answers at all answered without it.
+    A factory rather than a plain client so a case can hand-write a file another HQPTuner version stamped
+    and then open the app over it. Keyword arguments are the state files to point `Config` at (``favorites_file=...``);
+    ``clock`` is the app's clock, a fresh `VirtualClock` if none."""
+    clients: list[TestClient] = []
+
+    def build(clock: VirtualClock | None = None, **files: Path) -> TestClient:
+        cfg = Config(hqp_host="127.0.0.1", hqp_control_port=closed_port, hqp_username="", hqp_password="")
+        for field, path in files.items():
+            setattr(cfg, field, path)
+        client = TestClient(create_app(cfg, clock or VirtualClock()))
+        clients.append(client)
+        client.__enter__()
+        return client
+
+    yield build
+    for client in clients:
+        client.__exit__(None, None, None)
+
+
+@pytest.fixture
+async def dead_lane_manager(closed_port: int, tmp_path: Path) -> AsyncIterator[ConnectionManager]:
+    """A manager whose 8088 lane points at a port nothing serves."""
+    http = HttpConfigClient("127.0.0.1", closed_port, "u", "p")
+    manager = ConnectionManager(
+        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"), http, VirtualClock()
+    )
+    yield manager
+    await manager.aclose()
+    await http.aclose()
 
 
 @pytest.fixture

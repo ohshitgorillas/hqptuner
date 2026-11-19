@@ -28,6 +28,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from fixtures_clients import ANCIENT, description_entry, seed_descriptions, stamped_descriptions
 
 from hqptuner.presets.store.descriptions import (
     DescriptionError,
@@ -38,31 +39,12 @@ from hqptuner.presets.store.descriptions import (
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated": "2024-01-01T00:00:00+00:00"}}}
 
-#: A stamp left by an earlier write, far enough in the past that no write made
-#: during a test run can land on it.
-ANCIENT = "2000-01-01T00:00:00+00:00"
-
 NAME = "Living Room"
 TEXT = "Wide stereo, gentle tilt below 200 Hz."
 
 
 def store_at(tmp_path: Path) -> DescriptionStore:
     return DescriptionStore(tmp_path / "descriptions.json")
-
-
-def seed(tmp_path: Path, content: str) -> Path:
-    path = tmp_path / "descriptions.json"
-    path.write_text(content)
-    return path
-
-
-def stamped(profiles: dict[str, dict[str, str]]) -> bytes:
-    """A store file as another HQPTuner would have left it."""
-    return json.dumps({"schema": 1, "profiles": profiles}).encode()
-
-
-def entry(text: str, updated: str = ANCIENT) -> dict[str, str]:
-    return {"text": text, "updated": updated}
 
 
 # --- reading a store that was never written ---------------------------------
@@ -133,7 +115,7 @@ def test_rewriting_a_name_replaces_its_text(tmp_path: Path) -> None:
 # case does not depend on two writes landing in different clock ticks: a store
 # that keeps the stamp it found on disk fails here whatever the resolution.
 def test_rewriting_a_name_replaces_the_stamp_an_earlier_write_left(tmp_path: Path) -> None:
-    seed(tmp_path, stamped({NAME: entry("warm")}).decode())
+    seed_descriptions(tmp_path, stamped_descriptions({NAME: description_entry("warm")}).decode())
     assert store_at(tmp_path).write(NAME, TEXT)[NAME]["updated"] != ANCIENT
 
 
@@ -232,19 +214,19 @@ def test_rewriting_a_name_is_allowed_with_the_store_full(tmp_path: Path) -> None
 
 
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:
-    seed(tmp_path, json.dumps(TOO_NEW))
+    seed_descriptions(tmp_path, json.dumps(TOO_NEW))
     with pytest.raises(DescriptionSchemaError, match="99"):
         store_at(tmp_path).read()
 
 
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_write(tmp_path: Path) -> None:
-    seed(tmp_path, json.dumps(TOO_NEW))
+    seed_descriptions(tmp_path, json.dumps(TOO_NEW))
     with pytest.raises(DescriptionSchemaError, match="99"):
         store_at(tmp_path).write(NAME, TEXT)
 
 
 def test_the_schema_refusal_is_caught_by_a_caller_catching_the_general_error(tmp_path: Path) -> None:
-    seed(tmp_path, json.dumps(TOO_NEW))
+    seed_descriptions(tmp_path, json.dumps(TOO_NEW))
     with pytest.raises(DescriptionError):
         store_at(tmp_path).read()
 
@@ -252,14 +234,14 @@ def test_the_schema_refusal_is_caught_by_a_caller_catching_the_general_error(tmp
 def test_a_refused_write_leaves_the_newer_file_untouched(tmp_path: Path) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
     # this test owns is the on-disk check.
-    path = seed(tmp_path, json.dumps(TOO_NEW))
+    path = seed_descriptions(tmp_path, json.dumps(TOO_NEW))
     with contextlib.suppress(DescriptionError):
         store_at(tmp_path).write(NAME, TEXT)
     assert json.loads(path.read_text()) == TOO_NEW
 
 
 def test_a_file_another_hqptuner_wrote_reads_back_its_text(tmp_path: Path) -> None:
-    seed(tmp_path, stamped({NAME: entry("warm")}).decode())
+    seed_descriptions(tmp_path, stamped_descriptions({NAME: description_entry("warm")}).decode())
     assert store_at(tmp_path).read()[NAME]["text"] == "warm"
 
 
@@ -269,24 +251,27 @@ def test_a_file_another_hqptuner_wrote_reads_back_its_text(tmp_path: Path) -> No
 def test_merge_adds_a_name_the_store_did_not_have(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write("Study", "near field")
-    assert store.merge(stamped({NAME: entry("warm")}))[NAME]["text"] == "warm"
+    assert store.merge(stamped_descriptions({NAME: description_entry("warm")}))[NAME]["text"] == "warm"
 
 
 def test_merge_keeps_a_name_the_payload_did_not_carry(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write("Study", "near field")
-    assert store.merge(stamped({NAME: entry("warm")}))["Study"]["text"] == "near field"
+    assert store.merge(stamped_descriptions({NAME: description_entry("warm")}))["Study"]["text"] == "near field"
 
 
 def test_a_name_in_both_takes_the_payloads_text(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write(NAME, TEXT)
-    assert store.merge(stamped({NAME: entry("from the payload")}))[NAME]["text"] == "from the payload"
+    assert (
+        store.merge(stamped_descriptions({NAME: description_entry("from the payload")}))[NAME]["text"]
+        == "from the payload"
+    )
 
 
 def test_a_merged_payload_reads_back_off_disk(tmp_path: Path) -> None:
     store = store_at(tmp_path)
-    store.merge(stamped({NAME: entry("warm")}))
+    store.merge(stamped_descriptions({NAME: description_entry("warm")}))
     assert store_at(tmp_path).read()[NAME]["text"] == "warm"
 
 
@@ -312,8 +297,10 @@ def test_a_payload_that_is_not_a_descriptions_store_is_refused(tmp_path: Path, p
 #: A readable descriptions store carrying one entry that cannot be stored, and
 #: one good one beside it, keyed by `id`.
 SPOILED = {
-    "entry-not-a-map": json.dumps({"schema": 1, "profiles": {NAME: "warm", "Study": entry("near field")}}).encode(),
-    "empty-name": stamped({"": entry("warm"), "Study": entry("near field")}),
+    "entry-not-a-map": json.dumps(
+        {"schema": 1, "profiles": {NAME: "warm", "Study": description_entry("near field")}}
+    ).encode(),
+    "empty-name": stamped_descriptions({"": description_entry("warm"), "Study": description_entry("near field")}),
 }
 
 

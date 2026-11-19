@@ -27,17 +27,16 @@ behind.
 """
 
 import contextlib
+import functools
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
+from narrow import edit_facets, set_to, store_at, stored
 
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.presets.store.narrowing import NarrowingError, NarrowingSchemaError, NarrowingStore
 
@@ -124,33 +123,10 @@ TOO_NEW = 99
 UNREADABLE = ["not json at all {", "[]", '"linear"', "17", "null"]
 
 
-def store_at(tmp_path: Path) -> NarrowingStore:
-    return NarrowingStore(tmp_path / "narrowing.json")
-
-
 def seed(tmp_path: Path, content: str) -> Path:
     path = tmp_path / "narrowing.json"
     path.write_text(content)
     return path
-
-
-def stored(tmp_path: Path, facets: dict[str, object]) -> Path:
-    """A file the store itself wrote, so its layout is the store's own."""
-    store_at(tmp_path).write(facets)
-    return tmp_path / "narrowing.json"
-
-
-def edit_facets(path: Path, mutate: Callable[[dict[str, Any]], None]) -> None:
-    """Reach into the facet map of a file the store wrote and change it.
-
-    Either layout is accepted — the facets nested under ``facets``, or the
-    facets beside the stamp at the top level — so these cases pin what a stored
-    entry means rather than where it sits.
-    """
-    doc = json.loads(path.read_text())
-    inner = doc.get("facets")
-    mutate(inner if isinstance(inner, dict) else doc)
-    path.write_text(json.dumps(doc))
 
 
 def keep_only(names: set[str]) -> Callable[[dict[str, Any]], None]:
@@ -168,15 +144,6 @@ def keep_only(names: set[str]) -> Callable[[dict[str, Any]], None]:
     return mutate
 
 
-def set_to(facet: str, value: object) -> Callable[[dict[str, Any]], None]:
-    """A `edit_facets` mutation that stores ``value`` under ``facet``."""
-
-    def mutate(facets: dict[str, Any]) -> None:
-        facets[facet] = value
-
-    return mutate
-
-
 def restamp(path: Path, schema: int) -> None:
     doc = json.loads(path.read_text())
     doc["schema"] = schema
@@ -190,32 +157,11 @@ def unstamp(path: Path) -> None:
 
 
 @pytest.fixture
-def narrowing_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
-    """The REST surface over a narrowing file in ``tmp_path``, daemonless.
-
-    A factory rather than a plain client so a case can hand a file another
-    HQPTuner version stamped to a freshly opened app. Every client is built with
-    no credentials and a control lane pointed at `closed_port`, a port nothing
-    listens on: nothing here can reach hqplayerd, so a route that answers at all
-    answered without it."""
-    clients: list[TestClient] = []
-
-    def build() -> TestClient:
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            narrowing_file=tmp_path / "narrowing.json",
-        )
-        client = TestClient(create_app(cfg, VirtualClock()))
-        clients.append(client)
-        client.__enter__()
-        return client
-
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
+def narrowing_api(tmp_path: Path, daemonless_api: Callable[..., TestClient]) -> Callable[[], TestClient]:
+    """The REST surface over a narrowing file in ``tmp_path``, daemonless: nothing here can reach hqplayerd, so a
+    route that answers at all answered without it. A factory so a case can hand a file another HQPTuner version
+    stamped to a freshly opened app."""
+    return functools.partial(daemonless_api, narrowing_file=tmp_path / "narrowing.json")
 
 
 @pytest.fixture

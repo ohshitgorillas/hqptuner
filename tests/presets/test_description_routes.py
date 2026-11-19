@@ -26,6 +26,7 @@ a frame.
 """
 
 import contextlib
+import functools
 import io
 import json
 import zipfile
@@ -37,6 +38,7 @@ from typing import Any
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from fixtures_clients import description_entry, seed_descriptions, stamped_descriptions
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -47,30 +49,11 @@ from hqptuner.presets.store.descriptions import DescriptionStore
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated": "2024-01-01T00:00:00+00:00"}}}
 
-#: A stamp left by an earlier write, far enough in the past that no write made
-#: during a test run can land on it.
-ANCIENT = "2000-01-01T00:00:00+00:00"
-
 #: The instant the app's clock reads, so a write's stamp is known in advance.
 STAMPED_AT = datetime(2025, 3, 4, 5, 6, 7, tzinfo=UTC)
 
 NAME = "Living Room"
 TEXT = "Wide stereo, gentle tilt below 200 Hz."
-
-
-def seed(tmp_path: Path, content: str) -> Path:
-    path = tmp_path / "descriptions.json"
-    path.write_text(content)
-    return path
-
-
-def stamped(profiles: dict[str, dict[str, str]]) -> bytes:
-    """A store file as another HQPTuner would have left it."""
-    return json.dumps({"schema": 1, "profiles": profiles}).encode()
-
-
-def entry(text: str, updated: str = ANCIENT) -> dict[str, str]:
-    return {"text": text, "updated": updated}
 
 
 def members(zip_bytes: bytes) -> dict[str, bytes]:
@@ -79,31 +62,14 @@ def members(zip_bytes: bytes) -> dict[str, bytes]:
 
 
 @pytest.fixture
-def descriptions_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
-    """The REST surface over a description file in ``tmp_path``, daemonless.
+def descriptions_api(tmp_path: Path, daemonless_api: Callable[..., TestClient]) -> Callable[[], TestClient]:
+    """The REST surface over a description file in ``tmp_path``, daemonless, on a clock reading ``STAMPED_AT``.
 
-    A factory rather than a plain client so a case can hand-write a file another
-    HQPTuner version stamped and then open the app over it. Nothing here can
-    reach hqplayerd — the control lane points at `closed_port`, which nothing
-    listens on — so a route that answers at all answered without the daemon."""
-    clients: list[TestClient] = []
-
-    def build() -> TestClient:
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            description_file=tmp_path / "descriptions.json",
-        )
-        client = TestClient(create_app(cfg, VirtualClock(now=STAMPED_AT)))
-        clients.append(client)
-        client.__enter__()
-        return client
-
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
+    A factory so a case can hand-write a file another HQPTuner version stamped and then open the app over it.
+    Nothing here can reach hqplayerd, so a route that answers at all answered without the daemon."""
+    return functools.partial(
+        daemonless_api, VirtualClock(now=STAMPED_AT), description_file=tmp_path / "descriptions.json"
+    )
 
 
 @pytest.fixture
@@ -187,14 +153,14 @@ def test_a_refused_put_answers_with_the_stores_own_code(desc_client: TestClient,
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     tmp_path: Path, descriptions_api: Callable[[], TestClient]
 ) -> None:
-    seed(tmp_path, json.dumps(TOO_NEW))
+    seed_descriptions(tmp_path, json.dumps(TOO_NEW))
     assert descriptions_api().get("/api/descriptions").status_code == 409
 
 
 def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     tmp_path: Path, descriptions_api: Callable[[], TestClient]
 ) -> None:
-    seed(tmp_path, json.dumps(TOO_NEW))
+    seed_descriptions(tmp_path, json.dumps(TOO_NEW))
     answer = descriptions_api().put("/api/descriptions", json={"name": NAME, "text": TEXT})
     assert answer.status_code == 409
 
@@ -204,13 +170,13 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
 
 def test_taking_the_payload_leaves_every_other_member_byte_identical() -> None:
     plain = members_zip()
-    archive = embed_descriptions(plain, stamped({NAME: entry("warm")}))
+    archive = embed_descriptions(plain, stamped_descriptions({NAME: description_entry("warm")}))
     assert members(take_descriptions(archive)[0]) == members(plain)
 
 
 @pytest.mark.parametrize("embedded", [False, True], ids=["no payload", "embedded"])
 def test_taking_the_payload_yields_the_one_embedded_and_none_otherwise(*, embedded: bool) -> None:
-    base = stamped({NAME: entry("warm")})
+    base = stamped_descriptions({NAME: description_entry("warm")})
     archive = embed_descriptions(members_zip(), base) if embedded else members_zip()
     assert take_descriptions(archive)[1] == (base if embedded else None)
 
@@ -282,7 +248,10 @@ def test_a_restore_merges_the_carried_descriptions(
     carriage_client: tuple[TestClient, DescriptionStore],
 ) -> None:
     client, store = carriage_client
-    upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
+    upload(
+        client,
+        embed_descriptions(client.get("/api/backup").content, stamped_descriptions({NAME: description_entry("warm")})),
+    )
     assert store.read()[NAME]["text"] == "warm"
 
 
@@ -291,7 +260,10 @@ def test_a_restore_keeps_a_description_the_archive_did_not_carry(
 ) -> None:
     client, store = carriage_client
     store.write("Study", "near field")
-    upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
+    upload(
+        client,
+        embed_descriptions(client.get("/api/backup").content, stamped_descriptions({NAME: description_entry("warm")})),
+    )
     assert store.read()["Study"]["text"] == "near field"
 
 
@@ -300,7 +272,7 @@ def test_a_restore_forwards_every_other_member_byte_identical(
 ) -> None:
     client, _store = carriage_client
     plain = client.get("/api/backup").content
-    upload(client, embed_descriptions(plain, stamped({NAME: entry("warm")})))
+    upload(client, embed_descriptions(plain, stamped_descriptions({NAME: description_entry("warm")})))
     assert members(http_daemon["_restore_bytes"]) == members(plain)
 
 
@@ -308,7 +280,9 @@ def test_a_restore_carrying_descriptions_still_succeeds(
     carriage_client: tuple[TestClient, DescriptionStore],
 ) -> None:
     client, _store = carriage_client
-    archive = embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")}))
+    archive = embed_descriptions(
+        client.get("/api/backup").content, stamped_descriptions({NAME: description_entry("warm")})
+    )
     assert upload(client, archive).is_success is True
 
 

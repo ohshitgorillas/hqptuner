@@ -14,12 +14,12 @@ so every store here lands under
 pytest's ``tmp_path`` and nothing is daemon-facing.
 """
 
-import json
 from pathlib import Path
 
 import pytest
+from narrow import edit_facets, set_to, store_at, stored
 
-from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError
 
 #: The state a store that was never written reports.
 DEFAULT_STATE = "pcm"
@@ -29,10 +29,6 @@ DEFAULT_STATE = "pcm"
 OUT_OF_DOMAIN = ["dsd", "sdm", "all", "", "PCM"]
 
 
-def store_at(tmp_path: Path) -> NarrowingStore:
-    return NarrowingStore(tmp_path / "narrowing.json")
-
-
 def store_src_format(tmp_path: Path, value: object) -> Path:
     """Put ``value`` under ``src_format`` in a file the store itself wrote.
 
@@ -40,13 +36,8 @@ def store_src_format(tmp_path: Path, value: object) -> Path:
     the facets beside the schema stamp — so these cases pin what a stored entry
     means rather than where it sits.
     """
-    path = tmp_path / "narrowing.json"
-    store_at(tmp_path).write({"phase": ["linear"]})
-    doc = json.loads(path.read_text())
-    inner = doc.get("facets")
-    facets = inner if isinstance(inner, dict) else doc
-    facets["src_format"] = value
-    path.write_text(json.dumps(doc))
+    path = stored(tmp_path, {"phase": ["linear"]})
+    edit_facets(path, set_to("src_format", value))
     return path
 
 

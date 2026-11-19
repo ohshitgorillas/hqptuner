@@ -11,15 +11,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from test_preset_names import STORES, save_outcome
 
-from hqptuner.presets.store.live import LivePresetError, LivePresetStore, LiveRecord
-from hqptuner.presets.store.presets import PresetError, PresetStore
-
-PAYLOAD = b"<hqplayerd/>"
-RECORD = LiveRecord(chain="pcm", fields={"filter": "40"}, names={"filter": "poly-sinc-gauss-long"})
-
-#: The default station a live snapshot is saved under when no preset is loaded.
-STATION = ""
+from hqptuner.presets.store.live import LivePresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 #: A name the shared rule refuses: a leading period would make ``<name>.xml`` a hidden file.
 REFUSED = ".hidden"
@@ -28,32 +23,6 @@ REFUSED = ".hidden"
 UNNAMED_LETTER = chr(0x17000) + " Den"
 
 NAME_INVALID = "name_invalid"
-
-
-def config_store(tmp_path: Path) -> PresetStore:
-    return PresetStore(tmp_path / "presets")
-
-
-def live_store(tmp_path: Path) -> LivePresetStore:
-    return LivePresetStore(tmp_path / "live-presets.json", stations=list)
-
-
-STORES = [
-    pytest.param(config_store, id="config-store"),
-    pytest.param(live_store, id="live-store"),
-]
-
-
-def save_outcome(store: PresetStore | LivePresetStore, name: str) -> list[str] | str:
-    """The store's listed names after saving ``name``, or the code the save was refused with."""
-    try:
-        if isinstance(store, PresetStore):
-            store.save(name, PAYLOAD)
-            return store.names()
-        store.save(name, RECORD, [STATION])
-        return list(store.all(STATION))
-    except (PresetError, LivePresetError) as exc:
-        return exc.code
 
 
 @pytest.mark.parametrize("build", STORES)

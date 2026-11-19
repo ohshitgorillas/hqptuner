@@ -17,12 +17,12 @@ so every store here lands under
 pytest's ``tmp_path`` and nothing is daemon-facing.
 """
 
-import json
 from pathlib import Path
 
 import pytest
+from narrow import drop, edit_facets, set_to, store_at, stored
 
-from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError
 
 #: The state a store that was never written reports.
 DEFAULT_STATE = "both"
@@ -35,10 +35,6 @@ RETIRED_HIRES: dict[str, object] = {"hires_1x": "hide", "hires_nx": "all"}
 OUT_OF_DOMAIN = ["hide", "show", "only", "", "hires"]
 
 
-def store_at(tmp_path: Path) -> NarrowingStore:
-    return NarrowingStore(tmp_path / "narrowing.json")
-
-
 def seeded_with(tmp_path: Path, legacy: str) -> Path:
     """The file an older HQPTuner left: the retired key present, no ``lossy_1x``.
 
@@ -47,14 +43,9 @@ def seeded_with(tmp_path: Path, legacy: str) -> Path:
     facets beside the schema stamp, so these cases pin what a stored entry means
     rather than where it sits.
     """
-    path = tmp_path / "narrowing.json"
-    store_at(tmp_path).write({"phase": ["linear"]})
-    doc = json.loads(path.read_text())
-    inner = doc.get("facets")
-    facets = inner if isinstance(inner, dict) else doc
-    facets.pop("lossy_1x", None)
-    facets[legacy] = RETIRED_HIRES[legacy]
-    path.write_text(json.dumps(doc))
+    path = stored(tmp_path, {"phase": ["linear"]})
+    edit_facets(path, drop("lossy_1x"))
+    edit_facets(path, set_to(legacy, RETIRED_HIRES[legacy]))
     return path
 
 

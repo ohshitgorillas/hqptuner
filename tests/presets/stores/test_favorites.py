@@ -14,16 +14,14 @@ another version created.
 """
 
 import contextlib
+import functools
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
 
 #: A stamp no released HQPTuner can claim to understand.
@@ -43,36 +41,13 @@ def seed(tmp_path: Path, content: str) -> Path:
 
 
 @pytest.fixture
-def favorites_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
+def favorites_api(tmp_path: Path, daemonless_api: Callable[..., TestClient]) -> Callable[[], TestClient]:
     """The REST surface over a favorites file in ``tmp_path``, daemonless.
 
-    `api_client` is the right shape but builds a bare `Config()`, whose
-    `favorites_file` points into the repo's own state dir; a test writing there
-    would outlive the run. A factory rather than a plain client so a case can
-    hand-write a file another HQPTuner version stamped and then open the app
-    over it.
-
-    Every client is built with no credentials and a control lane pointed at
-    `closed_port`, a port nothing listens on: nothing here can reach hqplayerd,
-    so a route that answers at all answered without it."""
-    clients: list[TestClient] = []
-
-    def build() -> TestClient:
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            favorites_file=tmp_path / "favorites.json",
-        )
-        client = TestClient(create_app(cfg, VirtualClock()))
-        clients.append(client)
-        client.__enter__()
-        return client
-
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
+    `api_client` is the right shape but builds a bare `Config()`, whose `favorites_file` points into the repo's
+    own state dir; a test writing there would outlive the run. A factory so a case can hand-write a file another
+    HQPTuner version stamped and then open the app over it."""
+    return functools.partial(daemonless_api, favorites_file=tmp_path / "favorites.json")
 
 
 @pytest.fixture

@@ -18,17 +18,13 @@ call cannot agree with itself.
 import io
 import json
 import zipfile
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
-from virtual_clock import VirtualClock
 
-from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.conf.presetzip import DESCRIPTIONS_MEMBER, embed_descriptions
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import archive
 from hqptuner.presets.store.descriptions import DescriptionStore
@@ -79,18 +75,6 @@ def daemon_backup(http_daemon: dict[str, Any]) -> bytes:
 @pytest.fixture
 def store(tmp_path: Path) -> DescriptionStore:
     return DescriptionStore(tmp_path / "descriptions.json")
-
-
-@pytest.fixture
-async def dead_lane_manager(closed_port: int, tmp_path: Path) -> AsyncIterator[ConnectionManager]:
-    """A manager whose 8088 lane points at a port nothing serves."""
-    http = HttpConfigClient("127.0.0.1", closed_port, "u", "p")
-    manager = ConnectionManager(
-        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"), http, VirtualClock()
-    )
-    yield manager
-    await manager.aclose()
-    await http.aclose()
 
 
 # --- backup ------------------------------------------------------------------------
