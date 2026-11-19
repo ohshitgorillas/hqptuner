@@ -22,22 +22,23 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { NumBox } from "../../../../hqptuner/static/components/faceplate/controls/NumBox.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attach, domEvent as event, fire, wheelAt } from "../../support/wheel.js";
-import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
+import { domEvent as event, fire, wheelAt } from "../../support/wheel.js";
+import {
+  FakeInput,
+  clampedRows,
+  documentAround,
+  grayed,
+  grayedRows,
+  numericProps,
+  STEP,
+} from "../../support/rendered/controls.js";
+import { attr, elements, hasAttr, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 
 /** The box's name, as the owner hands it in. */
 const NAME = "fixture number";
-
-/** The value the owner holds unless a case says otherwise. */
-const HELD = "20";
-
-/** The box's bounds and step. */
-const MIN = 0;
-const MAX = 50;
-const STEP = 1;
 
 /**
  * @typedef {{ value: string, aria: string, unit?: string, hint?: string, min?: number, max?: number, step?: number,
@@ -51,12 +52,7 @@ const STEP = 1;
  * @returns {Props}
  */
 const props = (over = {}) => ({
-  value: HELD,
-  aria: NAME,
-  min: MIN,
-  max: MAX,
-  step: STEP,
-  off: false,
+  ...numericProps(NAME),
   onCommit: () => {},
   ...over,
 });
@@ -85,40 +81,6 @@ const input = (over) => markup(over).find((e) => e.name === "input");
  *   | { type: "leave" } | { type: "wheel" }} Gesture
  */
 
-/** The input element as a browser holds it: its text, and whether it has focus. */
-class FakeInput {
-  /** @param {string} value */
-  constructor(value) {
-    this.value = value;
-    this.type = "number";
-    this.tagName = "INPUT";
-    this.disabled = false;
-    /** @type {(() => void) | null} */
-    this.onBlurred = null;
-    /** @type {unknown} the document the element lives in, through which the page code reaches its window */
-    this.ownerDocument = null;
-  }
-
-  /** The browser's numeric reading of the text: NaN for blank or non-numeric text. */
-  get valueAsNumber() {
-    return this.value.trim() === "" ? NaN : Number(this.value);
-  }
-
-  set valueAsNumber(n) {
-    this.value = String(n);
-  }
-
-  blur() {
-    if (this.onBlurred) this.onBlurred();
-  }
-
-  focus() {}
-
-  addEventListener() {}
-
-  removeEventListener() {}
-}
-
 /** One mounted box and the browser around it: the element, the document's focus, and the dispatch rules. */
 class Browser {
   /**
@@ -129,20 +91,11 @@ class Browser {
   constructor(seen, box, value) {
     this.seen = seen;
     this.box = box;
-    this.el = new FakeInput(value);
-    this.body = {};
-    this.doc = {
-      activeElement: /** @type {unknown} */ (this.body),
-      body: this.body,
-      defaultView: { scrollBy() {}, scroll() {} },
-    };
-    this.el.ownerDocument = this.doc;
+    this.el = new FakeInput("number", value);
+    const around = documentAround(box, this.el);
+    this.body = around.body;
+    this.doc = around.doc;
     this.atFocus = value;
-    this.el.onBlurred = () => {
-      this.doc.activeElement = this.body;
-      fire(box, "onBlur", event("blur", this.el));
-    };
-    attach(box, this.el);
   }
 
   /** A change event, fired only when the text moved since the last one. */
@@ -267,12 +220,7 @@ for (const row of RESTORED) {
 
 // --- bounds ------------------------------------------------------------------------------------------------------
 
-const CLAMPED = [
-  { name: "a_number_above_the_maximum_commits_as_the_maximum", chars: "80", want: MAX },
-  { name: "a_number_below_the_minimum_commits_as_the_minimum", chars: "-5", want: MIN },
-];
-
-for (const row of CLAMPED) {
+for (const row of clampedRows()) {
   test(`test_${row.name}`, () => {
     assert.deepEqual(drive([...typed(row.chars), { type: "leave" }])?.commits, [row.want]);
   });
@@ -300,15 +248,9 @@ test("test_the_wheel_over_the_focused_box_commits_nothing", () => {
 
 // --- Off ---------------------------------------------------------------------------------------------------------
 
-const OFF_GRAYS = [
-  { name: "an_off_box_is_grayed_whole", off: true, want: true },
-  { name: "an_on_box_is_not_grayed", off: false, want: false },
-];
-
-for (const row of OFF_GRAYS) {
+for (const row of grayedRows("box")) {
   test(`test_${row.name}`, () => {
-    const outer = markup({ off: row.off }).at(-1);
-    assert.equal(outer ? classes(outer).includes("grayed") : undefined, row.want);
+    assert.equal(grayed(markup({ off: row.off })), row.want);
   });
 }
 

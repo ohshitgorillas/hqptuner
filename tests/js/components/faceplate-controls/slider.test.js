@@ -25,6 +25,15 @@ import { fakeClock } from "../../support/clock.js";
 import { fakePage } from "../../support/page.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attach, domEvent as event, fire, wheelAt } from "../../support/wheel.js";
+import {
+  FakeInput,
+  HELD,
+  STEP,
+  clampedRows,
+  grayed,
+  grayedRows,
+  numericProps,
+} from "../../support/rendered/controls.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -32,14 +41,6 @@ import { attr, classes, elements, hasAttr, text } from "../../support/markup.js"
 
 /** The slider's name, as the owner hands it in. */
 const NAME = "fixture slider";
-
-/** The value the owner holds unless a case says otherwise. */
-const HELD = "20";
-
-/** The slider's bounds and step. */
-const MIN = 0;
-const MAX = 50;
-const STEP = 1;
 
 /**
  * @typedef {{ value: string, aria: string, min: number, max: number, step: number, dp?: number, unit?: string,
@@ -54,12 +55,7 @@ const STEP = 1;
  * @returns {Props}
  */
 const props = (over = {}) => ({
-  value: HELD,
-  aria: NAME,
-  min: MIN,
-  max: MAX,
-  step: STEP,
-  off: false,
+  ...numericProps(NAME),
   onMove: () => {},
   onCommit: () => {},
   ...over,
@@ -84,39 +80,6 @@ const inputs = (over) => {
 };
 
 // --- gestures ----------------------------------------------------------------------------------------------------
-
-/** An input element as a browser holds it: its text, and whether it has focus. */
-class FakeInput {
-  /**
-   * @param {string} type
-   * @param {string} value
-   */
-  constructor(type, value) {
-    this.type = type;
-    this.value = value;
-    this.tagName = "INPUT";
-    this.disabled = false;
-    /** @type {unknown} the document the element lives in, through which the page code reaches its window */
-    this.ownerDocument = null;
-  }
-
-  /** The browser's numeric reading of the text: NaN for blank or non-numeric text. */
-  get valueAsNumber() {
-    return this.value.trim() === "" ? NaN : Number(this.value);
-  }
-
-  set valueAsNumber(n) {
-    this.value = String(n);
-  }
-
-  blur() {}
-
-  focus() {}
-
-  addEventListener() {}
-
-  removeEventListener() {}
-}
 
 /**
  * One mounted slider: what it reported, and the two elements it handed to the browser.
@@ -245,12 +208,7 @@ test("test_typing_a_number_in_the_box_then_leaving_commits_it", () => {
   assert.deepEqual(m.commits, [12]);
 });
 
-const CLAMPED = [
-  { name: "a_number_above_the_maximum_commits_as_the_maximum", chars: "80", want: MAX },
-  { name: "a_number_below_the_minimum_commits_as_the_minimum", chars: "-5", want: MIN },
-];
-
-for (const row of CLAMPED) {
+for (const row of clampedRows()) {
   test(`test_${row.name}`, () => {
     const m = mount();
     typeIn(m, row.chars);
@@ -373,15 +331,9 @@ test("test_the_wheel_over_the_focused_box_commits_nothing", () => {
 
 // --- Off ---------------------------------------------------------------------------------------------------------
 
-const OFF_GRAYS = [
-  { name: "an_off_slider_is_grayed_whole", off: true, want: true },
-  { name: "an_on_slider_is_not_grayed", off: false, want: false },
-];
-
-for (const row of OFF_GRAYS) {
+for (const row of grayedRows("slider")) {
   test(`test_${row.name}`, () => {
-    const outer = markup({ off: row.off }).at(-1);
-    assert.equal(outer ? classes(outer).includes("grayed") : undefined, row.want);
+    assert.equal(grayed(markup({ off: row.off })), row.want);
   });
 }
 

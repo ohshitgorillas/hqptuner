@@ -21,8 +21,9 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Select } from "../../../../hqptuner/static/components/faceplate/controls/Select.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attach, domEvent as event, fire, wheelAt } from "../../support/wheel.js";
-import { attr, classes, elements, hasAttr } from "../../support/markup.js";
+import { domEvent as event, fire, wheelAt } from "../../support/wheel.js";
+import { documentAround, grayed, grayedRows } from "../../support/rendered/controls.js";
+import { attr, elements, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -134,18 +135,9 @@ class Browser {
     this.seen = seen;
     this.box = box;
     this.el = new FakeSelect(values, value);
-    this.body = {};
-    this.doc = {
-      activeElement: /** @type {unknown} */ (this.body),
-      body: this.body,
-      defaultView: { scrollBy() {}, scroll() {} },
-    };
-    this.el.ownerDocument = this.doc;
-    this.el.onBlurred = () => {
-      this.doc.activeElement = this.body;
-      fire(box, "onBlur", event("blur", this.el));
-    };
-    attach(box, this.el);
+    const around = documentAround(box, this.el);
+    this.body = around.body;
+    this.doc = around.doc;
   }
 
   /** The selection moved: input, then change. */
@@ -293,15 +285,9 @@ test("test_the_wheel_over_the_focused_select_reports_nothing", () => {
 
 // --- Off ---------------------------------------------------------------------------------------------------------
 
-const OFF_GRAYS = [
-  { name: "an_off_select_is_grayed_whole", off: true, want: true },
-  { name: "an_on_select_is_not_grayed", off: false, want: false },
-];
-
-for (const row of OFF_GRAYS) {
+for (const row of grayedRows("select")) {
   test(`test_${row.name}`, () => {
-    const outer = markup({ off: row.off }).at(-1);
-    assert.equal(outer ? classes(outer).includes("grayed") : undefined, row.want);
+    assert.equal(grayed(markup({ off: row.off })), row.want);
   });
 }
 
