@@ -33,185 +33,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { engineState, enums, config } from "../../../../hqptuner/static/store/signals.js";
-import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
+import { enums } from "../../../../hqptuner/static/store/signals.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
-import { ok, bad } from "../../support/wire/wire.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
-
-const FILTERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "2", value: "25", name: "sinc-M" },
-];
-const SHAPERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "31", name: "TPDF" },
-];
-// RatesItem carries no name and no value — `<RatesItem index rate/>`.
-const RATES = [
-  { index: "0", rate: "0" },
-  { index: "1", rate: "96000" },
-  { index: "2", rate: "192000" },
-];
-const JUNK = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "7", name: "20 kHz" },
-];
-
-const ENUMS = () => ({ filters: FILTERS, shapers: SHAPERS, rates: RATES, junk_filters: JUNK, mode: { name: "PCM" } });
+import { liveControl as control, liveEnums, liveState, resetLive as reset } from "../../support/wire/livepresetwire.js";
 
 // The lists a re-enumerating write pulls in: same shape, different names, so
 // adopting them is observable. The one filter left carries enum ID 3, which the
 // seeded list does not contain at all.
 const RE_FILTERS = [{ index: "0", value: "3", name: "poly-sinc-short" }];
-const RE_ENUMS = () => ({ ...ENUMS(), filters: RE_FILTERS });
-
-// filterNx sits at index 2, whose enum ID is 25; rate at index 1, which is 96 kHz.
-const STATE = () => ({
-  mode: "1",
-  filter1x: "1",
-  filterNx: "2",
-  shaper: "1",
-  rate: "1",
-  filter_junk: "1",
-  adaptive: "0",
-  active_chain: "pcm",
-});
+const RE_ENUMS = () => ({ ...liveEnums(), filters: RE_FILTERS });
 
 // The engine ends the write on filterNx index 0 — enum 0 against the old list,
 // enum 3 against the new one.
-const MOVED = () => ({ ...STATE(), filterNx: "0" });
+const MOVED = () => ({ ...liveState(), filterNx: "0" });
 
-/** @typedef {{ index: string, value: string, name: string }} EnumItem */
-/** @typedef {{ index: string, rate: string }} RateItem */
-/**
- * @typedef {{
- *   filters: EnumItem[],
- *   shapers: EnumItem[],
- *   rates: RateItem[],
- *   junk_filters: EnumItem[],
- *   mode: { name: string },
- * }} Enums
- */
-/**
- * @typedef {{
- *   mode: string,
- *   filter1x: string,
- *   filterNx: string,
- *   shaper: string,
- *   rate: string,
- *   filter_junk: string,
- *   adaptive: string,
- *   active_chain: string,
- * }} EngineState
- */
-/** @typedef {Record<string, string>} FileTruth */
-/**
- * @typedef {{ live: { setting: string, ok: boolean }[], stored?: Record<string, string>, reenumerated?: boolean }} LiveReport
- */
-/** @typedef {{ posts: unknown[], gets: string[], seen: string[] }} LiveWireHandle */
-
-/**
- * @typedef {{
- *   status?: number,
- *   detail?: string,
- *   report?: LiveReport,
- *   fresh?: Enums,
- *   mirrored?: EngineState,
- *   file?: FileTruth,
- *   refreshed?: FileTruth,
- *   gate?: (w: LiveWireHandle) => Promise<void> | void,
- * }} WireOpts
- */
-
-/**
- * The global fetch this suite fakes, viewed as an optional member: the DOM
- * lib declares it returning a real `Response`, which these fakes do not
- * build.
- *
- * @type {{ fetch?: unknown }}
- */
-const env = globalThis;
-
-const FILE = () => ({ mode: "pcm" });
-
-// The running configuration's overlay as the served readings carry it: each key one field reading showing its file value.
-/** @param {FileTruth} file */
-const fileFields = (file) =>
-  Object.fromEntries(Object.entries(file).map(([k, v]) => [k, fieldReading(v, { show: "file" })]));
-
-// A live-lane server: the write path, plus the endpoints a write re-mirrors
-// from. `report` is the report /api/config/live answers on 200; `status` + `detail`
-// make it refuse instead. `gate(w)` is awaited BEFORE /api/enumerations answers,
-// which is the window this suite is about — a reader running then sees whatever
-// the store has already committed. `refreshed` is the running configuration the
-// daemon answers AFTER the write, defaulting to what the test seeded. Every GET
-// is recorded on `w.gets`, so a lane that was never walked, or walked twice, is
-// observable without stubbing anything.
-/**
- * @param {WireOpts} [opts]
- * @returns {LiveWireHandle}
- */
-function liveWire({
-  status = 200,
-  detail,
-  report = { live: [] },
-  fresh,
-  mirrored,
-  file = FILE(),
-  refreshed,
-  gate,
-} = {}) {
-  /** @type {LiveWireHandle} */
-  const w = { posts: [], gets: [], seen: [] };
-  const state = mirrored || STATE();
-  const lists = fresh || ENUMS();
-  const overlay = refreshed || file;
-  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
-    if (path === "/api/config/live") {
-      w.posts.push(JSON.parse(String(opts.body)));
-      return status === 200 ? ok({ report }) : bad(status, detail);
-    }
-    w.gets.push(path);
-    if (path === "/api/state") return ok({ data: state });
-    if (path === "/api/enumerations") {
-      if (gate) await gate(w);
-      return ok({ data: lists });
-    }
-    if (path === "/api/config") return ok({ generation: readings.value?.generation, fields: fileFields(overlay) });
-    // Pending answers RAW — the store mirrors it with the raw unwrapper.
-    if (path === "/api/config/pending") return ok({ live: {}, http: {} });
-    return ok({});
-  };
-  return w;
-}
-
-// Total reset: module-level signals outlive a test, so a partial one makes cases
-// pass alone and fail in sequence.
-/**
- * @param {WireOpts & { state?: EngineState, lists?: Enums }} [opts]
- * @returns {Promise<LiveWireHandle>}
- */
-async function reset({ state, lists, file = FILE(), ...wire } = {}) {
-  engineState.value = state || STATE();
-  enums.value = lists || ENUMS();
-  config.value = { fields: [] };
-  await seedReadings(fileFields(file));
-  return liveWire({ mirrored: state, file, ...wire });
-}
-
-// Throws rather than returning undefined when a suite names a field the
-// current chain does not carry: every case below names one that is there, so
-// this only ever narrows the found control's type for the `.value` reads that
-// follow — it never fires along a passing path.
-/** @param {string} field */
-const control = (field) => {
-  const found = [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
-  if (found === undefined) throw new Error(`no control for field "${field}"`);
-  return found;
-};
 const filterName = () => enums.value.filters[0].name;
 
 // --- the two halves land together ---------------------------------------------

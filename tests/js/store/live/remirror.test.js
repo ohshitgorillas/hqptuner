@@ -17,23 +17,7 @@ import assert from "node:assert/strict";
 import { engineState, enums, config } from "../../../../hqptuner/static/store/signals.js";
 import { remirrorLive } from "../../../../hqptuner/static/store/live/write.js";
 import { ok } from "../../support/wire/wire.js";
-
-const FILTERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "2", value: "25", name: "sinc-M" },
-];
-const SHAPERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "31", name: "TPDF" },
-];
-const RATES = [
-  { index: "0", rate: "0" },
-  { index: "1", rate: "96000" },
-];
-const JUNK = [{ index: "0", value: "0", name: "none" }];
-
-const ENUMS = () => ({ filters: FILTERS, shapers: SHAPERS, rates: RATES, junk_filters: JUNK, mode: { name: "PCM" } });
+import { liveEnums } from "../../support/wire/livepresetwire.js";
 
 /** @param {string} filterNx */
 const stateWith = (filterNx) => ({
@@ -76,9 +60,9 @@ const settle = async () => {
  * of /api/enumerations answers `served`, the menus the engine holds. Every path
  * asked is recorded on `asked`, so a read that never reached the wire is observable.
  *
- * @param {{ served?: ReturnType<typeof ENUMS> }} [opts]
+ * @param {{ served?: ReturnType<typeof liveEnums> }} [opts]
  */
-function overlapWire({ served = ENUMS() } = {}) {
+function overlapWire({ served = liveEnums() } = {}) {
   /** @type {{ held: boolean, parked: (() => void)[], asked: string[] }} */
   const w = { held: true, parked: [], asked: [] };
   env.fetch = async (/** @type {string} */ path) => {
@@ -97,7 +81,7 @@ function overlapWire({ served = ENUMS() } = {}) {
 
 test("test_overlapping_remirrors_end_on_the_second_calls_state_when_the_first_answers_last", async () => {
   engineState.value = stateWith(SEEDED_FILTER);
-  enums.value = ENUMS();
+  enums.value = liveEnums();
   config.value = { fields: [] };
   const w = overlapWire();
 
@@ -120,7 +104,7 @@ const MODE_FILTERS = [
   { index: "0", value: "0", name: "none" },
   { index: "1", value: "64", name: "poly-sinc-ext2" },
 ];
-const MODE_ENUMS = () => ({ ...ENUMS(), filters: MODE_FILTERS, mode: { name: SWITCHED_MODE } });
+const MODE_ENUMS = () => ({ ...liveEnums(), filters: MODE_FILTERS, mode: { name: SWITCHED_MODE } });
 
 // A mode write rebuilds the engine's menus and moves its rate limits; a volume
 // write does neither.
@@ -136,7 +120,7 @@ const VOLUME_WRITTEN = () => ["volume"];
  */
 async function overlapModeByVolume() {
   engineState.value = stateWith(SEEDED_FILTER);
-  enums.value = ENUMS();
+  enums.value = liveEnums();
   config.value = { fields: [] };
   const w = overlapWire({ served: MODE_ENUMS() });
 

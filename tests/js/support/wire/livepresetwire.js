@@ -21,6 +21,10 @@
 // `?station=` query names (the loaded station when it names none). No store
 // function is ever stubbed.
 
+import { engineState, enums, config } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
+import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
+import { fieldReading, seedReadings } from "../readings.js";
 import { ok, bad } from "./wire.js";
 
 /** @typedef {import("./wire.js").FakeResponse} FakeResponse */
@@ -293,3 +297,208 @@ export function presetWire(cfg = {}) {
 export async function settle(ticks = 50) {
   for (let i = 0; i < ticks; i++) await Promise.resolve();
 }
+
+// --- the live controls' lane: the tables the engine serves and the wire a live write goes out on ---------------------
+
+/**
+ * One filter/shaper/junk-filter enum entry the engine reports.
+ *
+ * @typedef {{ index: string, value: string, name: string }} EnumItem
+ */
+
+/**
+ * One `<RatesItem index rate/>` — no name and no value.
+ *
+ * @typedef {{ index: string, rate: string }} RateItem
+ */
+
+/**
+ * The /api/enumerations payload the live suites drive.
+ *
+ * @typedef {{
+ *   filters: EnumItem[],
+ *   shapers: EnumItem[],
+ *   rates: RateItem[],
+ *   junk_filters: EnumItem[],
+ *   mode: { name: string },
+ * }} LiveEnums
+ */
+
+/**
+ * The /api/state payload the live suites drive.
+ *
+ * @typedef {{
+ *   mode: string,
+ *   filter1x: string,
+ *   filterNx: string,
+ *   shaper: string,
+ *   rate: string,
+ *   filter_junk: string,
+ *   adaptive: string,
+ *   active_chain: string,
+ * }} LiveState
+ */
+
+/**
+ * The config-file overlay keyed by form field: `mode` is always present, the rest only when a scenario needs them.
+ *
+ * @typedef {Record<string, string>} FileOverlay
+ */
+
+/**
+ * One /api/config/live report entry.
+ *
+ * @typedef {{ setting: string, ok: boolean, error?: string, code?: string }} LiveReportEntry
+ */
+
+/**
+ * The report a /api/config/live success body carries.
+ *
+ * @typedef {{ live: LiveReportEntry[], stored?: Record<string, string>, reenumerated?: boolean }} LiveReport
+ */
+
+/**
+ * What `liveWire` has been handed: the writes it took, every other path it was asked, and what a suite's `gate` recorded.
+ *
+ * @typedef {{ posts: unknown[], gets: string[], seen: string[] }} LiveWire
+ */
+
+/**
+ * The seams `liveWire` answers from. `detail` on a refusal is a plain string for a transport-level failure (a 503 the
+ * daemon never answered) and a per-field object for a 409 the daemon refused outright (FastAPI's own `detail` shape
+ * differs by status). `gate(w)` is awaited before /api/enumerations answers.
+ *
+ * @typedef {{
+ *   status?: number,
+ *   detail?: string | Record<string, string>,
+ *   report?: LiveReport,
+ *   fresh?: LiveEnums,
+ *   mirrored?: LiveState,
+ *   file?: FileOverlay,
+ *   refreshed?: FileOverlay,
+ *   gate?: (w: LiveWire) => Promise<void> | void,
+ * }} LiveSeams
+ */
+
+// The fake enumerations deliberately give each item an index that differs from its value. State reports the LIST INDEX
+// and the config-form domain the live controls speak is the enum ID, so a fixture where the two coincide could not tell
+// a correct join from no join at all.
+const LIVE_FILTERS = [
+  { index: "0", value: "0", name: "none" },
+  { index: "1", value: "40", name: "poly-sinc-gauss-long" },
+  { index: "2", value: "25", name: "sinc-M" },
+];
+const LIVE_SHAPERS = [
+  { index: "0", value: "0", name: "none" },
+  { index: "1", value: "31", name: "TPDF" },
+];
+// RatesItem carries no name and no value — `<RatesItem index rate/>`.
+const LIVE_RATES = [
+  { index: "0", rate: "0" },
+  { index: "1", rate: "96000" },
+  { index: "2", rate: "192000" },
+];
+const LIVE_JUNK = [
+  { index: "0", value: "0", name: "none" },
+  { index: "1", value: "7", name: "20 kHz" },
+];
+
+/** @returns {LiveEnums} */
+export const liveEnums = () => ({
+  filters: LIVE_FILTERS,
+  shapers: LIVE_SHAPERS,
+  rates: LIVE_RATES,
+  junk_filters: LIVE_JUNK,
+  mode: { name: "PCM" },
+});
+
+// filterNx sits at index 2, whose enum ID is 25; rate at index 1, which is 96 kHz.
+/** @returns {LiveState} */
+export const liveState = () => ({
+  mode: "1",
+  filter1x: "1",
+  filterNx: "2",
+  shaper: "1",
+  rate: "1",
+  filter_junk: "1",
+  adaptive: "0",
+  active_chain: "pcm",
+});
+
+// The overlay as field readings shown from file, keyed by FORM FIELD name (`fileFields` builds them): the PCM rate
+// limit is `defaults_samplerate`, the SDM one `defaults_bitrate` (store/schema/output.js pcm_rate / sdm_rate).
+const liveFile = () => ({ mode: "pcm" });
+
+// The overlay as the served readings carry it: each key one field reading showing its file value.
+/** @param {FileOverlay} file */
+const fileFields = (file) =>
+  Object.fromEntries(Object.entries(file).map(([k, v]) => [k, fieldReading(v, { show: "file" })]));
+
+// A live-lane server: the write path, plus the endpoints a write re-mirrors from. `report` is what /api/config/live
+// answers on 200; `status` + `detail` make it refuse instead. `fresh` / `mirrored` / `refreshed` are what the daemon
+// reports AFTER the write — enumerations, State, and the config overlay — each defaulting to what the test seeded, so a
+// fake that has not moved answers what the signals already hold. Every other path asked is recorded on `w.gets`, so a
+// lane that was never walked, or walked twice, is observable without stubbing anything.
+/**
+ * @param {LiveSeams} [seams]
+ * @returns {LiveWire}
+ */
+function liveWire({
+  status = 200,
+  detail,
+  report = { live: [] },
+  fresh,
+  mirrored,
+  file = liveFile(),
+  refreshed,
+  gate,
+} = {}) {
+  /** @type {LiveWire} */
+  const w = { posts: [], gets: [], seen: [] };
+  // The read-side routes, each answering what its endpoint really wraps — pending answers RAW, no {data}: the store
+  // mirrors it with the raw unwrapper.
+  /** @type {Record<string, () => unknown>} */
+  const reads = {
+    "/api/state": () => ok({ data: mirrored || liveState() }),
+    "/api/enumerations": async () => {
+      if (gate) await gate(w);
+      return ok({ data: fresh || liveEnums() });
+    },
+    "/api/config": () => ok({ generation: readings.value?.generation, fields: fileFields(refreshed || file) }),
+    "/api/config/pending": () => ok({ live: {}, http: {} }),
+  };
+  env.fetch = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
+    if (path === "/api/config/live") {
+      w.posts.push(JSON.parse(String(opts.body)));
+      return status === 200 ? ok({ report }) : bad(status, detail);
+    }
+    w.gets.push(path);
+    const answer = reads[path];
+    return answer ? answer() : ok({});
+  };
+  return w;
+}
+
+// Total reset: module-level signals outlive a test, so a partial one makes cases pass alone and fail in sequence.
+// `state` / `lists` / `file` seed the three source signals a rate control reads; the rest goes to the wire.
+/**
+ * @param {LiveSeams & { state?: LiveState, lists?: LiveEnums }} [seams]
+ * @returns {Promise<LiveWire>}
+ */
+export async function resetLive({ state, lists, file = liveFile(), ...wire } = {}) {
+  engineState.value = state || liveState();
+  enums.value = lists || liveEnums();
+  config.value = { fields: [] };
+  await seedReadings(fileFields(file));
+  return liveWire({ mirrored: state, file, ...wire });
+}
+
+// Throws rather than returning undefined when a suite names a field the current chain does not carry: every case names
+// one that is there, so this only ever narrows the found control's type for the `.value` reads that follow — it never
+// fires along a passing path.
+/** @param {string} field */
+export const liveControl = (field) => {
+  const found = [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
+  if (found === undefined) throw new Error(`no control for field "${field}"`);
+  return found;
+};
