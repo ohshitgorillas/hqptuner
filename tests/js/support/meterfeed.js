@@ -3,11 +3,11 @@
 // and bin counts; every `frame` event carries its channels and its stamp, `at` the sample it starts at counted from the
 // feed's reset and `n` the samples it covers, both whole numbers at that rate.
 //
-// Every table is written out by hand, row by row: no table works out a stamp. Each table's rows are named for what
-// the run of stamps is (contiguous, a gap, an overlap), and their lengths span 17.3 to 23.2 ms and change mid-table, the
-// measured range of a feed event. For the suites whose claim is not about the
-// stamps, `follow` sends each event contiguous with the one sent before it on the same stream, the one place here that
-// works out a stamp.
+// Every table but one is written out by hand, row by row: no table works out a stamp. The one is DROPPED_44K, built
+// from CONTIGUOUS_44K with one row left out. Each table's rows are named for what the run of stamps is (contiguous,
+// a gap, an overlap), and their lengths span 17.3 to 23.2 ms and change mid-table, the measured range of a feed event.
+// For the suites whose claim is not about the stamps, `follow` sends each event contiguous with the one sent before it
+// on the same stream, the one place here that works out a stamp.
 //
 // No test() and no assert lives here. Not a *.test.js file on purpose: the runner glob would execute it.
 
@@ -46,19 +46,12 @@ export const CONTIGUOUS_44K = [
 ];
 
 /**
- * CONTIGUOUS_44K with its fourth event, `{ at: 2765, n: 765 }`, never sent.
+ * CONTIGUOUS_44K with its fourth event, `{ at: 2765, n: 765 }`, never sent. Built from that table, not written out
+ * a second time, so the two cannot drift apart.
  *
  * @type {Stamp[]}
  */
-export const DROPPED_44K = [
-  { at: 0, n: 1000 },
-  { at: 1000, n: 1000 },
-  { at: 2000, n: 765 },
-  { at: 3530, n: 850 },
-  { at: 4380, n: 850 },
-  { at: 5230, n: 1020 },
-  { at: 6250, n: 1020 },
-];
+export const DROPPED_44K = CONTIGUOUS_44K.filter((row, i) => i !== 3);
 
 /**
  * Two events at 44.1 kHz whose starts are one second of samples apart.
