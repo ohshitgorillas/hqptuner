@@ -45,7 +45,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { narrowingWire } from "../../support/wire/narrowingwire.js";
+import { dropdownOptions, narrowingWire, seedOverlay } from "../../support/wire/narrowingwire.js";
 import {
   nHideLimited,
   nOddRateOnly,
@@ -54,7 +54,7 @@ import {
 } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, rateAutoHide, effHideLimited } from "../../../../hqptuner/static/store/narrow/match.js";
 import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
-import { enums, metadata, config } from "../../../../hqptuner/static/store/signals.js";
+import { enums, config } from "../../../../hqptuner/static/store/signals.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
 
 const STAGE = "nx";
@@ -127,11 +127,7 @@ async function reset(filters, overlay = {}, extras = [], engine = {}) {
     filters: filters.map(([name, desc], i) => item(name, desc, i)),
     rates: rateRows(...(engine.rates || DSD_RATES)),
   };
-  metadata.value = {
-    settings: {},
-    filters: { filters: overlay, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
+  seedOverlay(overlay);
   // These settings' /config form rows and readings carry the wire spellings —
   // `mode`, `backend`, `alsa_anydsd`, `net_anydsd` (the `output_mode` spelling
   // is the schema's field id, not the wire key).
@@ -145,8 +141,7 @@ async function reset(filters, overlay = {}, extras = [], engine = {}) {
     ),
   );
   resetNarrowing();
-  const live = filters.map(([name], i) => ({ label: name, value: String(i) }));
-  return live.concat(extras.map((name, i) => ({ label: name, value: String(filters.length + i) })));
+  return dropdownOptions(filters, extras);
 }
 
 /** @param {NarrowOption[]} options */

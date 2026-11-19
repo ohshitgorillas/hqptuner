@@ -26,10 +26,10 @@ import assert from "node:assert/strict";
 import { nQuality, nApod1x, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { narrowOptions, narrowCount } from "../../../../hqptuner/static/store/narrow/match.js";
-import { enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { enums } from "../../../../hqptuner/static/store/signals.js";
 import { hydrateNarrowing, flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { ok } from "../../support/wire/wire.js";
-import { narrowingWire } from "../../support/wire/narrowingwire.js";
+import { dropdownOptions, narrowingWire, seedOverlay } from "../../support/wire/narrowingwire.js";
 
 const STAGE = "nx";
 const FIELD = "pcm_filter_nx";
@@ -93,16 +93,11 @@ function seed(filters, overlay = {}, extras = []) {
       apodizing: false,
     })),
   };
-  metadata.value = {
-    settings: {},
-    filters: { filters: overlay, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
+  seedOverlay(overlay);
   resetNarrowing();
   favoriteFilters.value = new Set();
   nFavOnly.value = false;
-  const live = filters.map(([name], i) => ({ label: name, value: String(i) }));
-  return live.concat(extras.map((name, i) => ({ label: name, value: String(filters.length + i) })));
+  return dropdownOptions(filters, extras);
 }
 
 /** @param {{ value: string, label: string }[]} options */

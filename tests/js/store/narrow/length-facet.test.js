@@ -12,64 +12,29 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { filterFacets } from "../../../../hqptuner/static/store/narrow/facets.js";
-import { enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { filterItem, seedFilters } from "../../support/wire/narrowingwire.js";
+
+/** @typedef {import("../../support/wire/narrowingwire.js").OverlayRow} OverlayRow */
 
 /**
- * A static overlay row as filters.json ships it.
- *
- * @typedef {{ genre?: string[], quality?: number, focus?: string[], phase?: string, description?: string, length?: string, adaptive?: boolean }} OverlayRow
- */
-
-/**
- * One `<FiltersItem/>` as the backend serves it: the engine's enumeration
- * fields plus the backend-merged overlay row under `static` (undefined on an
- * overlay miss).
- *
- * @param {string} name
- * @param {number} index
- * @param {OverlayRow} [staticRow]
- */
-const item = (name, index, staticRow) => ({
-  index: String(index),
-  name,
-  value: String(index),
-  arg: 0,
-  description: "3/5 ⥮ Any",
-  apodizing: false,
-  static: staticRow,
-});
-
-/**
- * Reseed both source signals with live-enum filters — module-level signals
- * outlive a test, so every case reassigns the pair in full. Each entry's
- * overlay row (or undefined) rides the item's `static` key, the way the
- * backend merges it.
+ * Reseed both source signals with live-enum filters. Each entry's overlay row (or undefined) rides the item's `static`
+ * key, the way the backend merges it.
  *
  * @param {Record<string, OverlayRow | undefined>} rowsByName
  */
 function seed(rowsByName) {
   const names = Object.keys(rowsByName);
-  enums.value = { filters: names.map((name, i) => item(name, i, rowsByName[name])) };
-  metadata.value = {
-    settings: {},
-    filters: { filters: {}, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
+  seedFilters(names.map((name, i) => filterItem(name, i, rowsByName[name])));
 }
 
 /**
- * Reseed with an EMPTY live enum: the names exist only as keys of the static
- * metadata overlay, which fills facets for names the engine did not enumerate.
+ * Reseed with an EMPTY live enum: the names exist only as keys of the static metadata overlay, which fills facets for
+ * names the engine did not enumerate.
  *
  * @param {Record<string, OverlayRow>} overlay
  */
 function seedOverlayOnly(overlay) {
-  enums.value = { filters: [] };
-  metadata.value = {
-    settings: {},
-    filters: { filters: overlay, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
+  seedFilters([], overlay);
 }
 
 /** @param {string} name */

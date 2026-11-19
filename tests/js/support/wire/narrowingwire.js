@@ -3,7 +3,11 @@
 // store does.
 // Shared by tests/js/store/narrow/narrowing-persist.test.js and
 // tests/js/store/narrow/narrowing-rate.test.js.
+//
+// It also carries the facet suites' rig: the live filter items and the static overlay the facets are read from, and the
+// dropdown options the narrowing is applied to.
 
+import { enums, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { ok, bad } from "./wire.js";
 
 const PATH = "/api/narrowing";
@@ -107,4 +111,66 @@ export function narrowingWire(cfg = {}) {
     return ok({ facets: w.facets });
   };
   return w;
+}
+
+/**
+ * A static overlay row as filters.json ships it.
+ *
+ * @typedef {{ genre?: string[], quality?: number, focus?: string[], phase?: string, description?: string, length?: string, adaptive?: boolean }} OverlayRow
+ */
+
+/**
+ * One `<FiltersItem/>` as the backend serves it: the engine's enumeration fields plus the backend-merged overlay row
+ * under `static` (undefined on an overlay miss).
+ *
+ * @param {string} name
+ * @param {number} index
+ * @param {OverlayRow} [staticRow]
+ */
+export const filterItem = (name, index, staticRow) => ({
+  index: String(index),
+  name,
+  value: String(index),
+  arg: 0,
+  description: "3/5 ⥮ Any",
+  apodizing: false,
+  static: staticRow,
+});
+
+/**
+ * Reseed the static overlay the facets join by name — module-level signals outlive a test, so every case reassigns it in
+ * full.
+ *
+ * @param {Record<string, unknown>} [overlay]
+ */
+export function seedOverlay(overlay = {}) {
+  metadata.value = {
+    settings: {},
+    filters: { filters: overlay, aliases: {} },
+    shapers: { pcm_dithers: {}, sdm_modulators: {} },
+  };
+}
+
+/**
+ * Reseed both source signals: `items` are the live enum's filters, `overlay` the static rows for names the engine did
+ * not enumerate.
+ *
+ * @param {ReturnType<typeof filterItem>[]} items
+ * @param {Record<string, OverlayRow>} [overlay]
+ */
+export function seedFilters(items, overlay = {}) {
+  enums.value = { filters: items };
+  seedOverlay(overlay);
+}
+
+/**
+ * The options of a dropdown offering the live `filters` plus any `extras`: names the live enumeration does not carry,
+ * the way a dropdown offers the filters of the inactive mode.
+ *
+ * @param {[string, ...unknown[]][]} filters
+ * @param {string[]} [extras]
+ */
+export function dropdownOptions(filters, extras = []) {
+  const live = filters.map(([name], i) => ({ label: name, value: String(i) }));
+  return live.concat(extras.map((name, i) => ({ label: name, value: String(filters.length + i) })));
 }
