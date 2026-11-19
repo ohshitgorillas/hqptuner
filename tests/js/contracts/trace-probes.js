@@ -5,6 +5,8 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
+import { endOf, startOf } from "../../../hqptuner/static/lib/timebase.js";
+
 /** @typedef {import("./world.js").Paint} Paint */
 /** @typedef {import("./world.js").World} World */
 /** @typedef {import("./world.js").Frame} Frame */
@@ -15,8 +17,6 @@
  * @typedef {{ count: number, first: string }} Finding
  */
 
-//: The most a float sum may differ from the whole, ms, and the most an RMS may differ from its power mean, dB.
-const EPS = 1e-6;
 const DB_PER_DECADE = 10;
 
 /**
@@ -44,14 +44,15 @@ function note(found, paint, what) {
  * @param {number} from
  * @param {number} to
  */
-const covers = (f, from, to) => Math.max(0, Math.min(f.at + f.ms, to) - Math.max(f.at, from));
+const covers = (f, from, to) => Math.max(0, Math.min(endOf(f), to) - Math.max(startOf(f), from));
 
 /** Where `frames` end, playback ms: NaN while none has been delivered. @param {Frame[]} frames */
-const newestEnd = (frames) => (frames.length ? frames[frames.length - 1].at + frames[frames.length - 1].ms : NaN);
+const newestEnd = (frames) => (frames.length ? endOf(frames[frames.length - 1]) : NaN);
 
 /**
- * The playhead against wall time and the frames: each paint after the first that stood the playhead somewhere moved it
- * its wall time unless it stood at the newest frame's end, never past that end and never backward.
+ * The playhead against wall time and the frames: each paint after the first that stood the playhead somewhere left it
+ * where the paint before it left it plus its wall time unless it stood at the newest frame's end, never past that end and
+ * never backward.
  *
  * @returns {{ see: (paint: Paint, world: World) => void, done: () => { read: number, speed: Finding, past: Finding,
  *   backward: Finding } }}
@@ -66,11 +67,10 @@ export function wallProbe() {
       const newest = newestEnd(frames);
       if (head !== null && before !== null) {
         read++;
-        const moved = head - before;
-        const stood = Math.abs(head - newest) <= EPS;
-        if (Math.abs(moved - dt) > EPS && !stood) note(found.speed, i, `moved ${moved} in ${dt} ms`);
-        if (head > newest + EPS) note(found.past, i, `${head - newest} ms past the newest end`);
-        if (moved < -EPS) note(found.backward, i, `moved ${moved}`);
+        const stood = head === newest;
+        if (head !== before + dt && !stood) note(found.speed, i, `moved ${head - before} in ${dt} ms`);
+        if (head > newest) note(found.past, i, `${head - newest} ms past the newest end`);
+        if (head < before) note(found.backward, i, `moved ${head - before}`);
       }
       before = head;
     },
@@ -89,12 +89,12 @@ export function wallProbe() {
  * @returns {{ lead: Frame, peak: number, rms: number, count: number }}
  */
 function coveredBy(frames, cursor, from, to) {
-  while (cursor.first < frames.length - 1 && frames[cursor.first].at + frames[cursor.first].ms <= from) cursor.first++;
+  while (cursor.first < frames.length - 1 && endOf(frames[cursor.first]) <= from) cursor.first++;
   let lead = frames[cursor.first];
   let peak = -Infinity;
   let power = 0;
   let count = 0;
-  for (let j = cursor.first; j < frames.length && frames[j].at < to; j++) {
+  for (let j = cursor.first; j < frames.length && startOf(frames[j]) < to; j++) {
     const share = covers(frames[j], from, to);
     if (share <= 0) continue;
     if (share > covers(lead, from, to)) lead = frames[j];
@@ -106,10 +106,10 @@ function coveredBy(frames, cursor, from, to) {
 }
 
 /**
- * What each paint handed the meters and the spectrum against the interval the paint ran over: the trace is the one frame
- * covering most of the interval, two that cover it within a float's rounding of one another counting as equal (the exact tie
- * has a suite of its own); the peak is the loudest of the frames the interval covers and the RMS their power mean; an empty interval hands what the paint before it handed. Then the order the frames
- * show in, and the frames skipped.
+ * What each paint handed the meters and the spectrum against the interval the paint ran over: the trace covers as much of
+ * the interval as the one frame covering most of it does; the peak is the loudest of the frames the interval covers and
+ * the RMS their power mean; an empty interval hands what the paint before it handed. Then the order the frames show in, and
+ * the frames skipped.
  *
  * @returns {{ see: (paint: Paint, world: World) => void, done: (frames: Frame[]) => { read: number, lead: Finding,
  *   held: Finding, peak: Finding, rms: Finding, order: Finding, skipped: Finding, counted: { shown: number,
@@ -149,7 +149,7 @@ export function traceProbe() {
       const { intervals, found, shown, leads } = st;
       const start = intervals.length ? intervals[0][0] : NaN;
       const end = intervals.length ? intervals[intervals.length - 1][1] : NaN;
-      const passed = frames.filter((f) => f.at >= start && f.at + f.ms <= end);
+      const passed = frames.filter((f) => startOf(f) >= start && endOf(f) <= end);
       for (const f of passed) {
         const long = intervals.some(([from, to]) => covers(f, from, to) > 0 && to - from > f.ms);
         if (!shown.has(f.id) && !long)
@@ -208,13 +208,13 @@ function judgePaint(st, { i, head, heard }, frames) {
  */
 function judgeCovered(found, paint, { heard, cover, frames }, [from, to]) {
   const share = (/** @type {Frame | undefined} */ f) => (f ? covers(f, from, to) : -Infinity);
-  if (share(frames[heard.id]) < share(cover.lead) - EPS) {
+  if (share(frames[heard.id]) < share(cover.lead)) {
     note(found.lead, paint, `showed frame ${heard.id}, the covering one is ${cover.lead.id}`);
   }
   if (heard.peak !== cover.peak) {
     note(found.peak, paint, `peak ${heard.peak}, the loudest of ${cover.count} frames is ${cover.peak}`);
   }
-  if (Math.abs(heard.rms - cover.rms) > EPS) {
+  if (heard.rms !== cover.rms) {
     note(found.rms, paint, `rms ${heard.rms}, the mean of ${cover.count} is ${cover.rms}`);
   }
 }
