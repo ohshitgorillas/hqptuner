@@ -35,6 +35,7 @@ import pytest
 from narrow import FixtureError
 from playwright.sync_api import Page, Route, ViewportSize
 
+from e2e.support import fit
 from e2e.support import stack as stack_support
 
 #: The design size.
@@ -66,20 +67,9 @@ LINE = "button[data-sev]"
 #: The REST route the page writes the favorites to.
 FAVORITES_ROUTE = "**/api/favorites"
 
-#: Ceiling, in ms, on a control or a sheet showing, on the body moving, and on the page settling.
-SETTLE_TIMEOUT = 10_000
-
 #: Layout snaps edges to device pixels, so an edge can read up to half a pixel off one it sits on.
 SUBPIXEL = 0.5
 
-
-#: True once the real fonts are in and every animation that ends has ended.
-SETTLED_JS = """
-() => document.fonts.status === "loaded" &&
-  document.getAnimations().every(
-    (a) => a.effect === null || a.effect.getComputedTiming().iterations === Infinity || a.playState !== "running",
-  )
-"""
 
 #: The open sheet's top and bottom, the shown body's top and the plate's bottom; null when the sheet is shut or not
 #: shown, or there is not exactly one shown body or one plate.
@@ -169,13 +159,13 @@ def _measure(page: Page, sheet: Sheet) -> Measure | None:
 
 def _open(page: Page, sheet: Sheet) -> None:
     """Open `sheet` from its control and wait for it to show."""
-    page.locator(sheet.opener).first.click(timeout=SETTLE_TIMEOUT)
-    page.locator(f"{sheet.sheet}:not([data-closed])").first.wait_for(state="visible", timeout=SETTLE_TIMEOUT)
+    page.locator(sheet.opener).first.click(timeout=fit.SETTLE_TIMEOUT)
+    page.locator(f"{sheet.sheet}:not([data-closed])").first.wait_for(state="visible", timeout=fit.SETTLE_TIMEOUT)
 
 
 def _settled(page: Page, sheet: Sheet) -> Measure:
     """Let the page settle and measure the open `sheet`; raises when it is not open over a single body."""
-    page.wait_for_function(SETTLED_JS, timeout=SETTLE_TIMEOUT)
+    page.wait_for_function(fit.SETTLED_JS, timeout=fit.SETTLE_TIMEOUT)
     found = _measure(page, sheet)
     if found is None:
         raise FixtureError(reason=f"{sheet.sheet} is not open over a single body on a single plate")
@@ -184,18 +174,18 @@ def _settled(page: Page, sheet: Sheet) -> Measure:
 
 def _raise_line(page: Page) -> None:
     """Tap a row's favorite control in the open option list, whose write the network refuses, and wait for the line."""
-    page.locator(FAVORITE).first.click(timeout=SETTLE_TIMEOUT)
-    page.locator(LINE).first.wait_for(state="visible", timeout=SETTLE_TIMEOUT)
+    page.locator(FAVORITE).first.click(timeout=fit.SETTLE_TIMEOUT)
+    page.locator(LINE).first.wait_for(state="visible", timeout=fit.SETTLE_TIMEOUT)
 
 
 def _tap_line_away(page: Page, sheet: Sheet, before: Measure) -> Moved:
     """Tap the line and measure `sheet` in the first frame the body has moved off where it stood in `before`."""
-    page.locator(LINE).first.click(timeout=SETTLE_TIMEOUT)
+    page.locator(LINE).first.click(timeout=fit.SETTLE_TIMEOUT)
     moved = page.wait_for_function(
         MOVED_JS,
         arg={"before": before.body, "slack": SUBPIXEL, "sheet": sheet.sheet},
         polling="raf",
-        timeout=SETTLE_TIMEOUT,
+        timeout=fit.SETTLE_TIMEOUT,
     )
     return Moved(before, _measure_of(moved.json_value()["m"]))
 
@@ -213,7 +203,7 @@ def _panel_as_the_line_goes(page: Page, stack: stack_support.Stack) -> Moved:
     _load(page, stack)
     _open(page, FILTER_LIST)
     _raise_line(page)
-    page.locator(CLOSE_LIST).first.click(timeout=SETTLE_TIMEOUT)
+    page.locator(CLOSE_LIST).first.click(timeout=fit.SETTLE_TIMEOUT)
     _open(page, PANEL)
     return _tap_line_away(page, PANEL, _settled(page, PANEL))
 

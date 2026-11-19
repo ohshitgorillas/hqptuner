@@ -39,6 +39,7 @@ from typing import Any
 import pytest
 from playwright.sync_api import Page, ViewportSize
 
+from e2e.support import fit
 from e2e.support import stack as stack_support
 
 #: The Compact plate, the smallest, laid out at scale 1: CSS pixels in landscape.
@@ -64,20 +65,9 @@ BAND = "pcm"
 BASE_44 = 44100
 BASE_48 = 48000
 
-#: Ceiling on the drawer coming up and settling. A ceiling on a condition, never a duration.
-SETTLE_TIMEOUT = 10_000
-
 #: Turns the preference on before any app script reads it.
 ALLOW_PINNED_RATES_JS = f"""
 try {{ window.localStorage.setItem("{PINNED_RATES_KEY}", "{ON}"); }} catch (e) {{}}
-"""
-
-#: True once the real fonts are in and every animation that ends has ended.
-SETTLED_JS = """
-() => document.fonts.status === "loaded" &&
-  document.getAnimations().every(
-    (a) => a.effect === null || a.effect.getComputedTiming().iterations === Infinity || a.playState !== "running",
-  )
 """
 
 #: The rendered look of the value `hz` on tier `tier` of band `band`: the smallest
@@ -144,7 +134,7 @@ def members(tier: int, fam: str) -> tuple[int, int]:
 
 def settle(page: Page) -> None:
     """Wait until fonts are in and every finite animation has run out."""
-    page.wait_for_function(SETTLED_JS, timeout=SETTLE_TIMEOUT)
+    page.wait_for_function(fit.SETTLED_JS, timeout=fit.SETTLE_TIMEOUT)
 
 
 def open_format_tab(page: Page, stack: stack_support.Stack) -> None:
@@ -152,17 +142,17 @@ def open_format_tab(page: Page, stack: stack_support.Stack) -> None:
     page.set_viewport_size(VIEWPORT)
     page.add_init_script(ALLOW_PINNED_RATES_JS)
     page.goto(stack.base_url)
-    page.locator(f"button[data-stage='{OUTPUT_STAGE}']").click(timeout=SETTLE_TIMEOUT)
+    page.locator(f"button[data-stage='{OUTPUT_STAGE}']").click(timeout=fit.SETTLE_TIMEOUT)
     drawer = page.locator(f"#drawer-{OUTPUT_STAGE}")
-    drawer.locator(f"[role='tab'][data-tab='{FORMAT_TAB}']").click(timeout=SETTLE_TIMEOUT)
-    drawer.locator(f"[data-pin='{AUTO}'][aria-checked='true']").wait_for(state="visible", timeout=SETTLE_TIMEOUT)
+    drawer.locator(f"[role='tab'][data-tab='{FORMAT_TAB}']").click(timeout=fit.SETTLE_TIMEOUT)
+    drawer.locator(f"[data-pin='{AUTO}'][aria-checked='true']").wait_for(state="visible", timeout=fit.SETTLE_TIMEOUT)
     settle(page)
 
 
 def pick(page: Page, fam: str) -> None:
     """Tap the picker option `fam`, wait for it to read picked, and let the glass settle."""
-    page.locator(f"#drawer-{OUTPUT_STAGE} [data-pin='{fam}']").click(timeout=SETTLE_TIMEOUT)
-    page.locator(f"#drawer-{OUTPUT_STAGE} [data-pin='{fam}'][aria-checked='true']").wait_for(timeout=SETTLE_TIMEOUT)
+    page.locator(f"#drawer-{OUTPUT_STAGE} [data-pin='{fam}']").click(timeout=fit.SETTLE_TIMEOUT)
+    page.locator(f"#drawer-{OUTPUT_STAGE} [data-pin='{fam}'][aria-checked='true']").wait_for(timeout=fit.SETTLE_TIMEOUT)
     settle(page)
 
 

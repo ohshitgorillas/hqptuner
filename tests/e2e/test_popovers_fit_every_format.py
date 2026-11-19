@@ -73,27 +73,25 @@ MAX_DEPTH = 2
 #: The name the matrix profile view itself is reported under.
 PROFILE_VIEW = "profile view"
 
-#: Shared by the walk's steps: what is shown, the open drawer, the shown body.
+#: Shared by the walk's steps: what is shown, the shown body.
 PLACE_JS = """
 const shown = (el) => el.getClientRects().length > 0;
-const OPEN = "aside.drawer:not([data-closed])";
 const BODY = ".body[data-body]";
 const body = () => [...document.querySelectorAll(BODY)].find(shown) ?? null;
 """
 
+#: What every step of the walk starts from: the prelude, the drawer's helpers and the place's.
+STEPS_JS = fit.PRELUDE_JS + fit.DRAWER_JS + PLACE_JS
+
 #: Closes the open drawer, if any, and settles.
-CLOSE_JS = "async ({ ceiling }) => {" + fit.PRELUDE_JS + PLACE_JS + """
-  const open = document.querySelector(OPEN);
-  if (open !== null) {
-    open.querySelector('[data-testid="drawer-close"]').click();
-    await until(() => document.querySelector(OPEN) === null, ceiling, "the open drawer to close");
-  }
+CLOSE_JS = "async ({ ceiling }) => {" + fit.PRELUDE_JS + fit.DRAWER_JS + """
+  await closeDrawer(ceiling);
   await settle(ceiling);
 }
 """
 
 #: Shows `tab` on the open drawer, or on the shown body when no drawer is open, and settles.
-TAB_JS = "async ({ tab, ceiling }) => {" + fit.PRELUDE_JS + PLACE_JS + """
+TAB_JS = "async ({ tab, ceiling }) => {" + STEPS_JS + """
   const strip = document.querySelector(OPEN) ?? body();
   const tabs = [...strip.querySelectorAll('[role="tab"]')]
     .filter((t) => shown(t) && t.closest("[data-pop]") === null);
@@ -106,7 +104,7 @@ TAB_JS = "async ({ tab, ceiling }) => {" + fit.PRELUDE_JS + PLACE_JS + """
 """
 
 #: Whether the Top of page option `value` is on show; taps it and settles when it is.
-TOP_JS = "async ({ field, value, ceiling }) => {" + fit.PRELUDE_JS + PLACE_JS + """
+TOP_JS = "async ({ field, value, ceiling }) => {" + STEPS_JS + """
   const option = [...document.querySelectorAll(`[data-field="${field}"] [data-v="${value}"]`)].find(shown);
   if (option === undefined) return false;
   option.click();
@@ -123,7 +121,7 @@ PROFILE_SHOWN_JS = "() => {" + PLACE_JS + """
 """
 
 #: Measures the shown body whole, leaving out `skip`.
-BODY_JS = "async ({ skip, rounding, ceiling }) => {" + fit.PRELUDE_JS + PLACE_JS + """
+BODY_JS = "async ({ skip, rounding, ceiling }) => {" + STEPS_JS + """
   await settle(ceiling);
   return hiddenPast(body(), skip, "the view", rounding);
 }
@@ -136,7 +134,7 @@ BODY_JS = "async ({ skip, rounding, ceiling }) => {" + fit.PRELUDE_JS + PLACE_JS
 #: path, with the boxes it runs past as "<box> <axis> <px>", worst first; the number of
 #: triggers the place offered; the number of surfaces measured; the triggers gone before
 #: their turn; the surfaces that would not close.
-WALK_JS = "async ({ root, walked, skip, rounding, ceiling, depth }) => {" + fit.PRELUDE_JS + PLACE_JS + """
+WALK_JS = "async ({ root, walked, skip, rounding, ceiling, depth }) => {" + STEPS_JS + fit.IDENT_JS + """
   const SURFACE = '[data-pop]:not(button), [role="dialog"], [role="listbox"], [role="menu"]';
   const TRIGGER = '[aria-haspopup]:not([aria-haspopup="false"]), [aria-expanded], [data-testid="see-more"]';
   const NOT_TRIGGER = 'button[data-stage], [role="tab"], [data-testid="drawer-close"], '
@@ -144,11 +142,7 @@ WALK_JS = "async ({ root, walked, skip, rounding, ceiling, depth }) => {" + fit.
   const IDENTITY = ["data-pop", "data-testid", "data-k", "data-field", "data-v", "data-step", "data-station",
     "data-mode"];
   const CONTEXT = '[data-k], [data-field], [data-pop]:not(button), [data-step], [data-station]';
-  const ident = (el) => {
-    const k = IDENTITY.find((a) => el.hasAttribute(a));
-    if (k !== undefined) return `[${k}="${el.getAttribute(k)}"]`;
-    return el.classList.length > 0 ? "." + [...el.classList].join(".") : el.tagName.toLowerCase();
-  };
+  const ident = identOf(IDENTITY);
   const keyOf = (el) => {
     const around = el.parentElement === null ? null : el.parentElement.closest(CONTEXT);
     return around === null ? ident(el) : `${ident(around)} ${ident(el)}`;

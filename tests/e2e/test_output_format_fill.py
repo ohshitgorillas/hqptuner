@@ -33,6 +33,7 @@ from dataclasses import dataclass
 import pytest
 from playwright.sync_api import Page, ViewportSize
 
+from e2e.support import fit
 from e2e.support import stack as stack_support
 
 #: The Compact plate, the smallest, laid out at scale 1.
@@ -44,25 +45,8 @@ LARGER = {
     "expanded": ViewportSize(width=1366, height=1024),
 }
 
-#: The Output drawer's rail stage.
-OUTPUT_STAGE = "output"
-
-#: The Format tab's id.
-FORMAT_TAB = "format"
-
 #: Rounding allowed on any one measured edge or size, in CSS px.
 ROUNDING = 1.0
-
-#: Ceiling on the page settling: fonts loaded, the drawer's wipe done.
-SETTLE_TIMEOUT = 10_000
-
-#: True once the real fonts are in and every animation that ends has ended.
-SETTLED_JS = """
-() => document.fonts.status === "loaded" &&
-  document.getAnimations().every(
-    (a) => a.effect === null || a.effect.getComputedTiming().iterations === Infinity || a.playState !== "running",
-  )
-"""
 
 #: Reads the Format panel's geometry. A row's ink is the union of the boxes of
 #: its drawn leaves; rows a backend hides draw nothing and drop out.
@@ -125,13 +109,7 @@ class Format:
 
 def _format(page: Page, stack: stack_support.Stack, size: ViewportSize) -> Format:
     """Lay the plate out for a window of `size`, open the Output drawer's Format tab and measure it."""
-    page.set_viewport_size(size)
-    page.goto(f"{stack.base_url}/")
-    page.locator(f'button[data-stage="{OUTPUT_STAGE}"]').click()
-    drawer = page.locator(f"#drawer-{OUTPUT_STAGE}")
-    drawer.locator(f'[role="tab"][data-tab="{FORMAT_TAB}"]').click()
-    drawer.locator(f'.dpanel[data-tab="{FORMAT_TAB}"] .dial[role="group"]').wait_for(state="visible")
-    page.wait_for_function(SETTLED_JS, timeout=SETTLE_TIMEOUT)
+    fit.open_format_tab(page, stack, size)
     found = page.evaluate(MEASURE_JS)
     return Format(**{key: float(value) for key, value in found.items()})
 

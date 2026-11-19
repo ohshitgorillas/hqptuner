@@ -93,12 +93,7 @@ ACROSS = "x"
 DOWN = "y"
 
 #: Shows the plate, settles, then measures it with the page scrolled to its start and to its end.
-MEASURE_JS = "async ({ plate, far, ceiling }) => {" + fit.PRELUDE_JS + """
-  await until(() => {
-    const el = document.querySelector(plate);
-    return el !== null && el.getClientRects().length > 0;
-  }, ceiling, "the plate to show");
-  await settle(ceiling);
+MEASURE_JS = "async ({ plate, far, ceiling }) => {" + fit.PRELUDE_JS + fit.PLATE_SETTLED_JS + """
   const el = document.querySelector(plate);
   const page = document.documentElement;
   window.scrollTo(0, 0);

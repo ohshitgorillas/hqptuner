@@ -26,6 +26,7 @@ from typing import NamedTuple
 
 from playwright.sync_api import Page
 
+from e2e.support import fit
 from e2e.support import stack as stack_support
 
 #: The rail stage whose drawer holds the DAC bits rows.
@@ -41,21 +42,12 @@ SUBPIXEL = 0.5
 #: The Compact plate, the smallest, laid out at scale 1: CSS pixels in landscape.
 COMPACT = (1133, 744)
 
-#: Ceiling on the open drawer and popover settling. A ceiling on a condition,
-#: never a duration anything is expected to take.
-SETTLE_TIMEOUT = 10_000
-
 #: Waits out every finite animation and transition on the open drawer and
 #: everything inside it, then answers the open popover's box and that same box
 #: clipped to the drawer's box widened by `slack` on every side, each as
 #: [left, top, right, bottom] in CSS pixels; null when there is no open drawer or
 #: no single visible popover in it.
-BOXES_JS = """
-async ({ slack }) => {
-  const drawer = document.querySelector("aside:not([data-closed])");
-  if (!drawer) return null;
-  const finite = (a) => a.effect && a.effect.getTiming().iterations !== Infinity;
-  await Promise.all(drawer.getAnimations({ subtree: true }).filter(finite).map((a) => a.finished));
+BOXES_JS = "async ({ slack }) => {" + fit.DRAWER_ANIMATIONS_JS + """
   const pops = [...drawer.querySelectorAll('[role="dialog"]')].filter((el) => el.getClientRects().length > 0);
   if (pops.length !== 1) return null;
   const d = drawer.getBoundingClientRect();
@@ -79,14 +71,8 @@ class Boxes(NamedTuple):
 
 def _popover_boxes(page: Page, base_url: str, viewport: tuple[int, int]) -> Boxes | None:
     """Open the Output drawer's see-more popover at `viewport`; return its box and that box clipped to the drawer."""
-    width, height = viewport
-    page.set_viewport_size({"width": width, "height": height})
-    page.goto(base_url)
-    page.locator(f'button[data-stage="{OUTPUT_STAGE}"]').click(timeout=SETTLE_TIMEOUT)
-    drawer = page.locator("aside:not([data-closed])")
-    drawer.locator(f'[role="tab"][data-tab="{FORMAT_TAB}"]').click(timeout=SETTLE_TIMEOUT)
-    drawer.locator('[data-testid="see-more"]:visible').first.click(timeout=SETTLE_TIMEOUT)
-    drawer.locator('[role="dialog"]:visible').first.wait_for(timeout=SETTLE_TIMEOUT)
+    trigger = '[data-testid="see-more"]:visible'
+    fit.open_see_more(page, base_url, viewport, stage=OUTPUT_STAGE, tab=FORMAT_TAB, trigger=trigger)
     result = page.evaluate(BOXES_JS, {"slack": SUBPIXEL})
     if result is None:
         return None

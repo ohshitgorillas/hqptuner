@@ -30,34 +30,11 @@ Policy notes:
 import pytest
 from playwright.sync_api import Page, ViewportSize
 
+from e2e.support import fit
 from e2e.support import stack as stack_support
-
-#: The three plate formats, tablet landscape in CSS px.
-FORMATS = {
-    "expanded": ViewportSize(width=1366, height=1024),
-    "normal": ViewportSize(width=1180, height=820),
-    "compact": ViewportSize(width=1133, height=744),
-}
-
-#: The Output drawer's rail stage.
-OUTPUT_STAGE = "output"
-
-#: The Format tab's id.
-FORMAT_TAB = "format"
 
 #: Content height, in CSS px, a box that shows all of its content holds beyond its own visible height.
 NONE_HIDDEN = 0
-
-#: Ceiling on the page settling: fonts loaded, the drawer's wipe done.
-SETTLE_TIMEOUT = 10_000
-
-#: True once the real fonts are in and every animation that ends has ended.
-SETTLED_JS = """
-() => document.fonts.status === "loaded" &&
-  document.getAnimations().every(
-    (a) => a.effect === null || a.effect.getComputedTiming().iterations === Infinity || a.playState !== "running",
-  )
-"""
 
 #: The most content height, in CSS px, any box the Format panel is seen through
 #: holds beyond its own visible height: the panel, each ancestor that clips or
@@ -76,17 +53,11 @@ HIDDEN_JS = """
 
 def _hidden(page: Page, stack: stack_support.Stack, size: ViewportSize) -> int:
     """Lay the plate out for a window of `size`, open the Output drawer's Format tab, return its hidden height."""
-    page.set_viewport_size(size)
-    page.goto(f"{stack.base_url}/")
-    page.locator(f'button[data-stage="{OUTPUT_STAGE}"]').click()
-    drawer = page.locator(f"#drawer-{OUTPUT_STAGE}")
-    drawer.locator(f'[role="tab"][data-tab="{FORMAT_TAB}"]').click()
-    drawer.locator(f'.dpanel[data-tab="{FORMAT_TAB}"] .dial[role="group"]').wait_for(state="visible")
-    page.wait_for_function(SETTLED_JS, timeout=SETTLE_TIMEOUT)
+    fit.open_format_tab(page, stack, size)
     return int(page.evaluate(HIDDEN_JS))
 
 
-@pytest.mark.parametrize("plate", sorted(FORMATS))
+@pytest.mark.parametrize("plate", sorted(fit.FORMATS))
 def test_the_format_tab_shows_every_row_without_scrolling(page: Page, stack: stack_support.Stack, plate: str) -> None:
     """No box the Format tab is seen through holds content beyond its visible height, so nothing scrolls or is cut."""
-    assert _hidden(page, stack, FORMATS[plate]) == NONE_HIDDEN
+    assert _hidden(page, stack, fit.FORMATS[plate]) == NONE_HIDDEN

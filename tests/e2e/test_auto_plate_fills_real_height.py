@@ -66,12 +66,7 @@ SHORT_REPORT_JS = """
 """
 
 #: Shows the plate, settles, then returns the page-colored gap below the plate, in CSS px.
-GAP_BELOW_JS = "async ({ plate, ceiling }) => {" + fit.PRELUDE_JS + """
-  await until(() => {
-    const el = document.querySelector(plate);
-    return el !== null && el.getClientRects().length > 0;
-  }, ceiling, "the plate to show");
-  await settle(ceiling);
+GAP_BELOW_JS = "async ({ plate, ceiling }) => {" + fit.PRELUDE_JS + fit.PLATE_SETTLED_JS + """
   window.scrollTo(0, 0);
   await frame();
   return document.documentElement.clientHeight - document.querySelector(plate).getBoundingClientRect().bottom;

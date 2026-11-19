@@ -57,17 +57,12 @@ OFFSTAGE = '[data-closed], [data-pop], [role="tooltip"]'
 MAX_ENTRIES = 80
 
 #: Shared by the walk's steps: the shown body, the open drawer, the rail's entries and the tabs on show.
-VIEW_JS = """
+VIEW_JS = fit.IDENT_JS + """
 const BODY = ".body[data-body]";
-const OPEN = "aside.drawer:not([data-closed])";
 const shown = (el) => el.getClientRects().length > 0;
 const body = () => [...document.querySelectorAll(BODY)].find(shown) ?? null;
 const IDENTITY = ["data-stage", "data-step", "data-station", "data-testid", "data-k", "data-v", "data-tab"];
-const ident = (el) => {
-  const k = IDENTITY.find((a) => el.hasAttribute(a));
-  if (k !== undefined) return `[${k}="${el.getAttribute(k)}"]`;
-  return el.classList.length > 0 ? "." + [...el.classList].join(".") : el.tagName.toLowerCase();
-};
+const ident = identOf(IDENTITY);
 const entries = (root) => {
   const els = [...root.querySelectorAll('nav button, button[data-stage]')].filter(
     (b) => shown(b) && !b.disabled && b.getAttribute("role") !== "tab"
@@ -90,7 +85,7 @@ const tabs = (root) => {
 """
 
 #: Taps the header button `view`, waits for its body, settles, and returns the `data-body` it shows.
-SWAP_JS = "async ({ view, ceiling }) => {" + fit.PRELUDE_JS + VIEW_JS + """
+SWAP_JS = "async ({ view, ceiling }) => {" + fit.PRELUDE_JS + fit.DRAWER_JS + VIEW_JS + """
   document.querySelector(`[data-testid="${view}"]`).click();
   await until(() => body() !== null && body().dataset.body !== "chain", ceiling, `the ${view} body to show`);
   await settle(ceiling);
@@ -108,12 +103,8 @@ HAS_RAIL_JS = "() => {" + VIEW_JS + """
 #: Closes any open drawer in the view, taps the first entry the rail shows that is not in
 #: `walked`, adds it there, settles, and returns its name and the `data-tab` of each tab it
 #: opens (an empty list for none), or null when every entry on show is walked.
-NEXT_JS = "async ({ walked, ceiling }) => {" + fit.PRELUDE_JS + VIEW_JS + """
-  const open = body().querySelector(OPEN);
-  if (open !== null) {
-    open.querySelector('[data-testid="drawer-close"]').click();
-    await until(() => body().querySelector(OPEN) === null, ceiling, "the open drawer to close");
-  }
+NEXT_JS = "async ({ walked, ceiling }) => {" + fit.PRELUDE_JS + fit.DRAWER_JS + VIEW_JS + """
+  await closeDrawer(ceiling, body);
   const next = entries(body()).find(([, el]) => !walked.has(el));
   if (next === undefined) return null;
   walked.add(next[1]);
@@ -126,7 +117,7 @@ NEXT_JS = "async ({ walked, ceiling }) => {" + fit.PRELUDE_JS + VIEW_JS + """
 #: Shows `tab` (none for the entry as it opens), settles, and returns each box
 #: the view's content runs more than `rounding` px past, worst first, as
 #: "<box> <axis> <px>".
-MEASURE_JS = "async ({ tab, skip, rounding, ceiling }) => {" + fit.PRELUDE_JS + VIEW_JS + """
+MEASURE_JS = "async ({ tab, skip, rounding, ceiling }) => {" + fit.PRELUDE_JS + fit.DRAWER_JS + VIEW_JS + """
   if (tab !== null) {
     const pick = tabs(body()).find(([id]) => id === tab);
     if (pick !== undefined) {

@@ -61,21 +61,10 @@ STAGES_JS = """
   .map((b) => b.dataset.stage)
 """
 
-#: The open drawer.
-OPEN = 'const OPEN = "aside.drawer:not([data-closed])";'
-
 #: Closes any open drawer, opens `stage`'s, settles it, and returns the `data-tab`
 #: of each tab its strip shows (an empty list for a drawer with one part).
-OPEN_JS = "async ({ stage, ceiling }) => {" + fit.PRELUDE_JS + OPEN + """
-  const open = document.querySelector(OPEN);
-  if (open !== null) {
-    open.querySelector('[data-testid="drawer-close"]').click();
-    await until(() => document.querySelector(OPEN) === null, ceiling, "the open drawer to close");
-  }
-  document.querySelector(`button[data-stage="${stage}"]`).click();
-  await until(() => document.querySelector(OPEN) !== null, ceiling, `the ${stage} drawer to open`);
-  await settle(ceiling);
-  const drawer = document.querySelector(OPEN);
+OPEN_JS = "async ({ stage, ceiling }) => {" + fit.PRELUDE_JS + fit.DRAWER_JS + """
+  const drawer = await openDrawer(stage, ceiling);
   return [...drawer.querySelectorAll('[role="tab"]')]
     .filter((t) => t.getClientRects().length > 0)
     .map((t, i) => t.dataset.tab ?? String(i));
@@ -100,7 +89,7 @@ COUNT_REQUESTS_JS = """
 #: show as `{ key, el, value }`, `state(drawer)` maps each pick's key to what it reads now,
 #: `take(pick)` applies one, `putBack(stage, tab, before, ceiling)` restores what it moved, and
 #: `quiet(ceiling)` waits out the page's requests and settles.
-PICKS_PRELUDE_JS = fit.PRELUDE_JS + OPEN + """
+PICKS_PRELUDE_JS = fit.PRELUDE_JS + fit.DRAWER_JS + """
 const shown = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
 const quiet = async (ceiling) => {
   await until(() => window.__fitInflight === undefined || window.__fitInflight.n === 0, ceiling,
@@ -110,15 +99,7 @@ const quiet = async (ceiling) => {
 const ensure = async (stage, ceiling) => {
   const mine = document.getElementById(`drawer-${stage}`);
   if (mine !== null && !mine.hasAttribute("data-closed")) return mine;
-  const open = document.querySelector(OPEN);
-  if (open !== null) {
-    open.querySelector('[data-testid="drawer-close"]').click();
-    await until(() => document.querySelector(OPEN) === null, ceiling, "the open drawer to close");
-  }
-  document.querySelector(`button[data-stage="${stage}"]`).click();
-  await until(() => document.querySelector(OPEN) !== null, ceiling, `the ${stage} drawer to open`);
-  await settle(ceiling);
-  return document.querySelector(OPEN);
+  return openDrawer(stage, ceiling);
 };
 const showTab = async (tab, ceiling) => {
   if (tab === null) return;

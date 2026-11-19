@@ -28,6 +28,7 @@ Policy notes:
 
 from playwright.sync_api import Page
 
+from e2e.support import fit
 from e2e.support import stack as stack_support
 
 #: The rail stage whose drawer holds the gain rows.
@@ -46,21 +47,12 @@ COMPACT = (1133, 744)
 #: of a rounded corner's cut and of the border's antialiased edge.
 CORNER_INSET = 4.0
 
-#: Ceiling on the open drawer and popover settling. A ceiling on a condition,
-#: never a duration anything is expected to take.
-SETTLE_TIMEOUT = 10_000
-
 #: Waits out every finite animation and transition on the open drawer and
 #: everything inside it, then answers, for each corner of the single visible
 #: popover in the drawer stepped in by `inset`, whether the element painted
 #: there is the popover or inside it. Null when the drawer, the row's see-more
 #: trigger or the popover is missing.
-CORNERS_JS = """
-async ({ row, inset }) => {
-  const drawer = document.querySelector("aside:not([data-closed])");
-  if (!drawer) return null;
-  const finite = (a) => a.effect && a.effect.getTiming().iterations !== Infinity;
-  await Promise.all(drawer.getAnimations({ subtree: true }).filter(finite).map((a) => a.finished));
+CORNERS_JS = "async ({ row, inset }) => {" + fit.DRAWER_ANIMATIONS_JS + """
   const shown = (el) => el.getClientRects().length > 0;
   const triggers = [...drawer.querySelectorAll(`[data-k="${row}"] [data-testid="see-more"]`)].filter(shown);
   const pops = [...drawer.querySelectorAll('[role="dialog"]')].filter(shown);
@@ -83,14 +75,8 @@ async ({ row, inset }) => {
 
 def _gain_comp_note_corners(page: Page, base_url: str) -> tuple[bool, ...] | None:
     """Open the PCM gain compensation row's see-more note on the Compact plate; return whether each corner shows it."""
-    width, height = COMPACT
-    page.set_viewport_size({"width": width, "height": height})
-    page.goto(base_url)
-    page.locator(f'button[data-stage="{VOLUME_STAGE}"]').click(timeout=SETTLE_TIMEOUT)
-    drawer = page.locator("aside:not([data-closed])")
-    drawer.locator(f'[role="tab"][data-tab="{GAIN_TAB}"]').click(timeout=SETTLE_TIMEOUT)
-    drawer.locator(f'[data-k="{GAIN_COMP_ROW}"] [data-testid="see-more"]:visible').first.click(timeout=SETTLE_TIMEOUT)
-    drawer.locator('[role="dialog"]:visible').first.wait_for(timeout=SETTLE_TIMEOUT)
+    trigger = f'[data-k="{GAIN_COMP_ROW}"] [data-testid="see-more"]:visible'
+    fit.open_see_more(page, base_url, COMPACT, stage=VOLUME_STAGE, tab=GAIN_TAB, trigger=trigger)
     result = page.evaluate(CORNERS_JS, {"row": GAIN_COMP_ROW, "inset": CORNER_INSET})
     if result is None:
         return None

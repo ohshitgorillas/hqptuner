@@ -272,14 +272,96 @@ const hiddenPast = (root, skip, around, rounding) => {
 """
 
 
+#: True once the real fonts are in and every animation that ends has ended.
+SETTLED_JS = """
+() => document.fonts.status === "loaded" &&
+  document.getAnimations().every(
+    (a) => a.effect === null || a.effect.getComputedTiming().iterations === Infinity || a.playState !== "running",
+  )
+"""
+
+#: Function-body step after `PRELUDE_JS`, for a script given `plate` (the plate's selector) and `ceiling`:
+#: waits for the plate to show, then settles.
+PLATE_SETTLED_JS = """
+  await until(() => {
+    const el = document.querySelector(plate);
+    return el !== null && el.getClientRects().length > 0;
+  }, ceiling, "the plate to show");
+  await settle(ceiling);
+"""
+
+#: Function-body step: returns null when no drawer is open, else waits out every finite animation on the open drawer
+#: and what is inside it, leaving `drawer` bound.
+DRAWER_ANIMATIONS_JS = """
+  const drawer = document.querySelector("aside:not([data-closed])");
+  if (!drawer) return null;
+  const finite = (a) => a.effect && a.effect.getTiming().iterations !== Infinity;
+  await Promise.all(drawer.getAnimations({ subtree: true }).filter(finite).map((a) => a.finished));
+"""
+
+#: Function-body prelude after `PRELUDE_JS`: `OPEN`, the open drawer's selector, `closeDrawer(ceiling, within)`, which
+#: closes the open drawer found under `within()` (the document by default) and waits for it to go, and
+#: `openDrawer(stage, ceiling)`, which closes any open drawer, opens `stage`'s, settles and returns it.
+DRAWER_JS = """
+const OPEN = "aside.drawer:not([data-closed])";
+const closeDrawer = async (ceiling, within = () => document) => {
+  const open = within().querySelector(OPEN);
+  if (open !== null) {
+    open.querySelector('[data-testid="drawer-close"]').click();
+    await until(() => within().querySelector(OPEN) === null, ceiling, "the open drawer to close");
+  }
+};
+const openDrawer = async (stage, ceiling) => {
+  await closeDrawer(ceiling);
+  document.querySelector(`button[data-stage="${stage}"]`).click();
+  await until(() => document.querySelector(OPEN) !== null, ceiling, `the ${stage} drawer to open`);
+  await settle(ceiling);
+  return document.querySelector(OPEN);
+};
+"""
+
+#: Function-body prelude: `identOf(identity)`, which names an element by the first of the `identity` attributes it
+#: carries, else by its classes, else by its tag.
+IDENT_JS = """
+const identOf = (identity) => (el) => {
+  const k = identity.find((a) => el.hasAttribute(a));
+  if (k !== undefined) return `[${k}="${el.getAttribute(k)}"]`;
+  return el.classList.length > 0 ? "." + [...el.classList].join(".") : el.tagName.toLowerCase();
+};
+"""
+
+
+def show_format_dial(page: Page, timeout: float | None = None) -> None:
+    """Open the Output drawer's Format tab and wait for its rate dial; `timeout` bounds each step (default if none)."""
+    page.locator(f'button[data-stage="{OUTPUT_STAGE}"]').click(timeout=timeout)
+    drawer = page.locator(f"#drawer-{OUTPUT_STAGE}")
+    drawer.locator(f'[role="tab"][data-tab="{FORMAT_TAB}"]').click(timeout=timeout)
+    drawer.locator(f'.dpanel[data-tab="{FORMAT_TAB}"] .dial[role="group"]').wait_for(state="visible", timeout=timeout)
+
+
+def open_see_more(page: Page, base_url: str, size: tuple[int, int], *, stage: str, tab: str, trigger: str) -> None:
+    """Open `stage`'s drawer on `tab` at a window of `size`, tap the see-more `trigger` selects, await its popover."""
+    width, height = size
+    page.set_viewport_size({"width": width, "height": height})
+    page.goto(base_url)
+    page.locator(f'button[data-stage="{stage}"]').click(timeout=SETTLE_TIMEOUT)
+    drawer = page.locator("aside:not([data-closed])")
+    drawer.locator(f'[role="tab"][data-tab="{tab}"]').click(timeout=SETTLE_TIMEOUT)
+    drawer.locator(trigger).first.click(timeout=SETTLE_TIMEOUT)
+    drawer.locator('[role="dialog"]:visible').first.wait_for(timeout=SETTLE_TIMEOUT)
+
+
 def load_plate(page: Page, stack: stack_support.Stack, size: ViewportSize) -> None:
     """Lay the plate out under Auto for a window of `size` and wait until the engine's data is in."""
     page.set_viewport_size(size)
     page.add_init_script(f'try {{ window.localStorage.setItem("{DISPLAY_KEY}", "{AUTO}"); }} catch (e) {{}}')
     page.goto(f"{stack.base_url}/")
-    page.locator(f'button[data-stage="{OUTPUT_STAGE}"]').click(timeout=SETTLE_TIMEOUT)
-    drawer = page.locator(f"#drawer-{OUTPUT_STAGE}")
-    drawer.locator(f'[role="tab"][data-tab="{FORMAT_TAB}"]').click(timeout=SETTLE_TIMEOUT)
-    drawer.locator(f'.dpanel[data-tab="{FORMAT_TAB}"] .dial[role="group"]').wait_for(
-        state="visible", timeout=SETTLE_TIMEOUT
-    )
+    show_format_dial(page, SETTLE_TIMEOUT)
+
+
+def open_format_tab(page: Page, stack: stack_support.Stack, size: ViewportSize) -> None:
+    """Lay the plate out for a window of `size`, open the Output drawer's Format tab and wait until it settles."""
+    page.set_viewport_size(size)
+    page.goto(f"{stack.base_url}/")
+    show_format_dial(page)
+    page.wait_for_function(SETTLED_JS, timeout=SETTLE_TIMEOUT)
