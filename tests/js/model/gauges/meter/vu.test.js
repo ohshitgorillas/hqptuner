@@ -6,7 +6,7 @@
 // standard states the needle's travel as a percentage of reference deflection on a scale linear in voltage, 100% at
 // 0 VU, so a deflection of p% reads 20·log10(p / 100) VU.
 //
-// Time is a table: every step a test runs is a frame of a stated length in seconds. Nothing here reads a clock or
+// Time is a table: every step a test runs is a frame of a stated length in ms. Nothing here reads a clock or
 // waits on one.
 //
 // Run: node --test tests/js/model/gauges/meter/vu.test.js
@@ -63,10 +63,10 @@ const REF_HIGH = -14;
 const REF_LOW = -20;
 const REF_SPAN_DB = REF_HIGH - REF_LOW;
 
-//: A fine frame for timing the response, a frame as the meter feed hands them, and a stalled frame three times as long.
-const FINE_S = 0.001;
-const FRAME_S = 0.01;
-const LONG_FRAME_S = 0.03;
+//: A fine frame for timing the response, a frame as the meter feed hands them, and a stalled frame three times as long, ms.
+const FINE_MS = 1;
+const FRAME_MS = 10;
+const LONG_FRAME_MS = 30;
 //: Long enough for any needle within the standard to settle to its steady reading.
 const SETTLE_MS = 3000;
 //: Part-way up the needle's rise, where its reading still moves fast.
@@ -83,7 +83,7 @@ const FRAMING_EPS = 0.1;
 const END_EPS = 1e-9;
 
 /**
- * The readings after each of `frames` steps of `dt` seconds, every step holding the same per-channel levels, from
+ * The readings after each of `frames` steps of `dt` ms, every step holding the same per-channel levels, from
  * `start`. Each step's readings are copied out, so a step that moves the state it is handed leaves the record intact.
  *
  * @param {ReturnType<typeof restVu>} start
@@ -104,7 +104,7 @@ function trajectoryFrom(start, rms, reference, { dt, frames }) {
 }
 
 /**
- * The readings after each of `frames` steps of `dt` seconds, every step holding the same per-channel levels, from rest.
+ * The readings after each of `frames` steps of `dt` ms, every step holding the same per-channel levels, from rest.
  *
  * @param {number[]} rms
  * @param {number} reference
@@ -115,15 +115,15 @@ function trajectoryFrom(start, rms, reference, { dt, frames }) {
 const trajectory = (rms, reference, dt, frames) => trajectoryFrom(restVu(rms.length), rms, reference, { dt, frames });
 
 /**
- * Channel 0's reading after one level is held from rest for `ms`, in frames of `dt` seconds.
+ * Channel 0's reading after one level is held from rest for `ms`, in frames of `dt` ms.
  *
  * @param {number} rms
  * @param {number} reference
  * @param {number} ms
  * @param {number} dt
  */
-const readingAfter = (rms, reference, ms, dt = FINE_S) =>
-  trajectory([rms], reference, dt, Math.round(ms / 1000 / dt)).at(-1)?.vu[0] ?? NaN;
+const readingAfter = (rms, reference, ms, dt = FINE_MS) =>
+  trajectory([rms], reference, dt, Math.round(ms / dt)).at(-1)?.vu[0] ?? NaN;
 
 /**
  * The highest reading channel 0 shows while one level is held from rest for `SETTLE_MS`.
@@ -132,10 +132,10 @@ const readingAfter = (rms, reference, ms, dt = FINE_S) =>
  * @param {number} reference
  */
 const peakReading = (rms, reference) =>
-  Math.max(...trajectory([rms], reference, FINE_S, SETTLE_MS).map((s) => s.vu[0] ?? NaN));
+  Math.max(...trajectory([rms], reference, FINE_MS, SETTLE_MS).map((s) => s.vu[0] ?? NaN));
 
 //: The fine frames in a settle.
-const SETTLE_FRAMES = Math.round(SETTLE_MS / 1000 / FINE_S);
+const SETTLE_FRAMES = Math.round(SETTLE_MS / FINE_MS);
 
 /**
  * Channel 0's reading after each fine step of a settle from rest, read off the needle array taken from the state
@@ -150,7 +150,7 @@ function readingsHeldInPlace(rms, reference) {
   /** @type {number[]} */
   const readings = [];
   for (let k = 0; k < SETTLE_FRAMES; k++) {
-    stepVu(state, [rms], FINE_S, reference);
+    stepVu(state, [rms], FINE_MS, reference);
     readings.push(needles[0] ?? NaN);
   }
   return readings;
@@ -164,7 +164,7 @@ function readingsHeldInPlace(rms, reference) {
  */
 function settledAt(rms, reference) {
   let state = restVu(1);
-  for (let k = 0; k < SETTLE_FRAMES; k++) state = stepVu(state, [rms], FINE_S, reference);
+  for (let k = 0; k < SETTLE_FRAMES; k++) state = stepVu(state, [rms], FINE_MS, reference);
   return state;
 }
 
@@ -193,7 +193,7 @@ function readingsAfterReaching(readings, stop) {
  */
 const readingsAfterTheStop = (start, rms, reference, stop) =>
   readingsAfterReaching(
-    trajectoryFrom(start, [rms], reference, { dt: FINE_S, frames: SETTLE_FRAMES }).map((s) => s.vu[0] ?? NaN),
+    trajectoryFrom(start, [rms], reference, { dt: FINE_MS, frames: SETTLE_FRAMES }).map((s) => s.vu[0] ?? NaN),
     stop,
   );
 
@@ -225,7 +225,7 @@ test("test_moving_the_reference_moves_the_steady_reading_by_the_same_number_of_d
 });
 
 test("test_each_channel_needle_reads_its_own_channel_level", () => {
-  const settled = trajectory([REF, REF - UNDER_DB], REF, FRAME_S, Math.round(SETTLE_MS / 1000 / FRAME_S)).at(-1);
+  const settled = trajectory([REF, REF - UNDER_DB], REF, FRAME_MS, Math.round(SETTLE_MS / FRAME_MS)).at(-1);
   assert.ok(...near(settled?.vu[1] ?? NaN, -UNDER_DB, STEADY_EPS));
 });
 
@@ -250,7 +250,7 @@ test("test_a_step_handed_no_elapsed_time_leaves_the_needle_where_it_was", () => 
 });
 
 test("test_the_same_elapsed_time_moves_the_needle_as_far_in_long_frames_as_in_short_ones", () => {
-  const gap = readingAfter(REF, REF, MID_RISE_MS, LONG_FRAME_S) - readingAfter(REF, REF, MID_RISE_MS, FRAME_S);
+  const gap = readingAfter(REF, REF, MID_RISE_MS, LONG_FRAME_MS) - readingAfter(REF, REF, MID_RISE_MS, FRAME_MS);
   assert.ok(...near(gap, 0, FRAMING_EPS));
 });
 

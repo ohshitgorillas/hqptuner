@@ -13,7 +13,7 @@ import { clamp } from "../../../lib/coerce.js";
  * @typedef {object} VuState
  * @property {number[]} vu  per channel, the reading, VU
  * @property {number[]} deflection  per channel, the needle's deflection, voltage relative to 0 VU
- * @property {number[]} speed  per channel, the needle's speed, voltage relative to 0 VU per second
+ * @property {number[]} speed  per channel, the needle's speed, voltage relative to 0 VU per ms
  */
 
 //: The ends of the Source VU scale, VU.
@@ -22,11 +22,11 @@ export const SCALE_MAX_VU = 3;
 
 //: The needle's damping ratio: an overshoot of 1.25% of reference deflection, inside IEC 60268-17's 1% to 1.5%.
 const DAMPING = 0.8127;
-//: The needle's natural angular frequency, rad/s: 99% of reference deflection 300 ms after a step to it.
-const NATURAL = 13.512;
+//: The needle's natural angular frequency, rad/ms: 99% of reference deflection 300 ms after a step to it.
+const NATURAL = 0.013512;
 const DECAY = DAMPING * NATURAL;
 const RINGING = NATURAL * Math.sqrt(1 - DAMPING * DAMPING);
-//: The time from one turn of the needle to the next, s.
+//: The time from one turn of the needle to the next, ms.
 const HALF_RING = Math.PI / RINGING;
 
 /**
@@ -89,12 +89,12 @@ export function restVu(channels) {
 }
 
 /**
- * The deflection of a needle `t` seconds on, free of its stops, from `away` off its drive and moving at the speed
+ * The deflection of a needle `t` ms on, free of its stops, from `away` off its drive and moving at the speed
  * `lag` encodes.
  * @param {number} drive  voltage relative to 0 VU
  * @param {number} away  voltage relative to 0 VU
  * @param {number} lag  voltage relative to 0 VU
- * @param {number} t  s
+ * @param {number} t  ms
  * @returns {number}  voltage relative to 0 VU
  */
 function deflectionAt(drive, away, lag, t) {
@@ -102,11 +102,11 @@ function deflectionAt(drive, away, lag, t) {
 }
 
 /**
- * The speed of that needle `t` seconds on, free of its stops.
+ * The speed of that needle `t` ms on, free of its stops.
  * @param {number} away  voltage relative to 0 VU
  * @param {number} lag  voltage relative to 0 VU
- * @param {number} t  s
- * @returns {number}  voltage relative to 0 VU per second
+ * @param {number} t  ms
+ * @returns {number}  voltage relative to 0 VU per ms
  */
 function speedAt(away, lag, t) {
   const start = RINGING * lag - DECAY * away;
@@ -119,7 +119,7 @@ function speedAt(away, lag, t) {
  * later and swings less far from the drive than the turn before it on the same side.
  * @param {number} away  voltage relative to 0 VU
  * @param {number} lag  voltage relative to 0 VU
- * @returns {number}  s
+ * @returns {number}  ms
  */
 function firstTurn(away, lag) {
   const angle = Math.atan2(RINGING * lag - DECAY * away, DECAY * lag + RINGING * away);
@@ -141,8 +141,8 @@ function pastAStop(deflection) {
  * @param {number} drive  voltage relative to 0 VU
  * @param {number} away  voltage relative to 0 VU
  * @param {number} lag  voltage relative to 0 VU
- * @param {number} dt  s
- * @returns {number}  s
+ * @param {number} dt  ms
+ * @returns {number}  ms
  */
 function passedBy(drive, away, lag, dt) {
   const first = firstTurn(away, lag);
@@ -157,8 +157,8 @@ function passedBy(drive, away, lag, dt) {
  * @param {number} drive  voltage relative to 0 VU
  * @param {number} away  voltage relative to 0 VU
  * @param {number} lag  voltage relative to 0 VU
- * @param {number} by  s
- * @returns {number}  s
+ * @param {number} by  ms
+ * @returns {number}  ms
  */
 function impact(drive, away, lag, by) {
   let before = 0;
@@ -184,7 +184,7 @@ function betweenStops(deflection) {
  * @param {VuState} state
  * @param {number} i
  * @param {number} deflection  voltage relative to 0 VU
- * @param {number} speed  voltage relative to 0 VU per second
+ * @param {number} speed  voltage relative to 0 VU per ms
  */
 function place(state, i, deflection, speed) {
   const at = betweenStops(deflection);
@@ -195,7 +195,7 @@ function place(state, i, deflection, speed) {
 
 /**
  * @param {number} deflection  voltage relative to 0 VU
- * @param {number} speed  voltage relative to 0 VU per second
+ * @param {number} speed  voltage relative to 0 VU per ms
  * @param {number} drive  voltage relative to 0 VU
  * @returns {boolean}  whether the needle lies on a stop its drive holds it against, not moving off it
  */
@@ -206,12 +206,12 @@ function pinned(deflection, speed, drive) {
 }
 
 /**
- * Moves channel `i` of `state` `dt` seconds on under `drive`, one strike on a stop at a time, each rebounding off the
+ * Moves channel `i` of `state` `dt` ms on under `drive`, one strike on a stop at a time, each rebounding off the
  * stop with the speed it struck at, reflected, until the time runs out. A needle its drive holds on a stop rests there.
  * @param {VuState} state  moved in place
  * @param {number} i
  * @param {number} drive  voltage relative to 0 VU
- * @param {number} dt  s
+ * @param {number} dt  wall time, ms
  */
 function moveNeedle(state, i, drive, dt) {
   let deflection = state.deflection[i] ?? BOTTOM_STOP;
@@ -234,12 +234,12 @@ function moveNeedle(state, i, drive, dt) {
 }
 
 /**
- * Moves the needles in `state` `dt` seconds on, each driven by its channel's level held over that time. A needle that
+ * Moves the needles in `state` `dt` ms on, each driven by its channel's level held over that time. A needle that
  * reaches a stop rebounds off it at the speed it struck at and moves on for the rest of the step, so the stops cost a
  * step none of its time.
  * @param {VuState} state  moved in place
  * @param {number[]} rms  per channel, dBFS
- * @param {number} dt  wall, s, since the last step
+ * @param {number} dt  wall time, ms, since the last step
  * @param {number} reference  the level that reads 0 VU, dBFS
  * @returns {VuState}  `state`
  */

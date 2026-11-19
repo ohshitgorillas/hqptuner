@@ -4,6 +4,7 @@
 // part steps through the model on the `dt` the paint carries. Only the picked style's canvas painter is painted; one
 // the pick has just left, and every unpicked one at a restart, gets a single empty paint that clears it.
 
+import { secondsToMs } from "../../../lib/timebase.js";
 import { fraction, pickBins, spanShare, traceColumns } from "../../../model/gauges/meter/meter.js";
 import { hexAt, rampOf } from "../../../model/gauges/meter/spectrumfx.js";
 import { freshLevels, freshSpectrum, stepLevels, stepSpectrum } from "../../../model/gauges/meter/steps.js";
@@ -146,7 +147,7 @@ function stepAll(kept, scene, dt) {
   const chs = scene.channels;
   stepLevels(kept.levels, chs, dt);
   for (let i = 0; i < chs.length; i++) kept.rms[i] = chs[i].rms;
-  stepVu(kept.vu, kept.rms, dt, Number(vuReference.value));
+  stepVu(kept.vu, kept.rms, secondsToMs(dt), Number(vuReference.value));
   if (!chs.length) return;
   kept.pick = pickBins(scene, "sum", kept.pick);
   if (kept.spectrum.disp.length !== kept.pick.length) kept.spectrum = freshSpectrum(kept.pick.length);
