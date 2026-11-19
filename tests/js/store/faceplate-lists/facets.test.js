@@ -21,9 +21,8 @@ import {
   setFacet,
   shaperCount,
 } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
-import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { narrowingWire, puts } from "../../support/wire/narrowingwire.js";
-import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { loadLists, resetLists, capAt128, CAP_128, KEPT_UNDER_128 } from "../../support/listsfixture.js";
 
 /** @type {import("../../support/wire/narrowingwire.js").NarrowingWire} */
 let wire;
@@ -93,18 +92,7 @@ test("test_a_shaper_count_with_no_rate_floor_counts_every_modulator", () => {
 });
 
 test("test_a_shaper_count_counts_the_modulators_a_rate_cap_keeps", () => {
-  const MOD_128 = "ASDM5";
-  const RATE_128 = 5120000;
-  const CAP_128 = "128";
-  const KEPT_UNDER_128 = 1;
-  const meta = metadata.value;
-  metadata.value = {
-    ...meta,
-    shapers: {
-      ...meta.shapers,
-      sdm_modulators: { ...meta.shapers.sdm_modulators, [MOD_128]: { min_rate_hz: RATE_128, generation: 2 } },
-    },
-  };
+  capAt128();
   assert.equal(shaperCount("modulators", { modTier: [CAP_128] }), KEPT_UNDER_128);
 });
 

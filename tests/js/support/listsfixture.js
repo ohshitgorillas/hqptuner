@@ -102,6 +102,22 @@ function formReading(loaded, chain, value, items) {
   return fieldReading(item?.index, { name: item?.name, file: { value, generation: generation.value } });
 }
 
+/** The rate cap the 128 chip names, and how many modulators it keeps once `capAt128` has run. */
+export const CAP_128 = "128";
+export const KEPT_UNDER_128 = 1;
+
+/** Give the modulator ASDM5 a rate floor of 5120000 Hz, so the 128 rate cap keeps exactly one modulator. */
+export function capAt128() {
+  const meta = metadata.value;
+  metadata.value = {
+    ...meta,
+    shapers: {
+      ...meta.shapers,
+      sdm_modulators: { ...meta.shapers.sdm_modulators, ASDM5: { min_rate_hz: 5120000, generation: 2 } },
+    },
+  };
+}
+
 /** A fresh /api/metadata payload: writing the same object to a signal does not notify. */
 const overlays = () => ({
   settings: {},

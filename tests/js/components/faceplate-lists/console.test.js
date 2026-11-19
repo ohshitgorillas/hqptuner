@@ -17,18 +17,17 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
-import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { narrowState, setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
-import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { narrowingWire } from "../../support/wire/narrowingwire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
-import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { loadLists, resetLists, capAt128, CAP_128, KEPT_UNDER_128 } from "../../support/listsfixture.js";
+
+import { listMarkup as markup, openKey } from "../../support/rendered/pagefixtures.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -50,11 +49,8 @@ afterEach(async () => {
  * @param {"1x" | "nx"} [stage]
  */
 function open(key, stage = "1x") {
-  openList.value = { key, stage, value: "", pick: () => undefined };
+  openKey(key, "", undefined, stage);
 }
-
-/** Every element the list draws, in document order. @returns {MarkupElement[]} */
-const markup = () => elements(render(html`<${OptionList} />`)).sort((a, b) => a.start - b.start);
 
 /** The console's windows. */
 const windows = () => markup().filter((e) => attr(e, "data-window") !== undefined);
@@ -165,20 +161,9 @@ test("test_a_rate_rule_checkbox_writes_its_rule", () => {
 });
 
 test("test_a_modulator_rate_cap_chip_counts_the_modulators_it_keeps", () => {
-  const MOD_128 = "ASDM5";
-  const RATE_128 = 5120000;
-  const CAP_128 = "128";
-  const KEPT_UNDER_128 = "1";
-  const meta = metadata.value;
-  metadata.value = {
-    ...meta,
-    shapers: {
-      ...meta.shapers,
-      sdm_modulators: { ...meta.shapers.sdm_modulators, [MOD_128]: { min_rate_hz: RATE_128, generation: 2 } },
-    },
-  };
+  capAt128();
   open("sdm_modulator");
-  assert.equal(countOf("modTier", CAP_128), KEPT_UNDER_128);
+  assert.equal(countOf("modTier", CAP_128), String(KEPT_UNDER_128));
 });
 
 test("test_tapping_reset_returns_a_moved_facet_to_unmoved", () => {

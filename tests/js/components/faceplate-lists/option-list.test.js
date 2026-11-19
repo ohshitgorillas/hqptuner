@@ -18,7 +18,6 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
@@ -26,13 +25,13 @@ import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { config, enums } from "../../../../hqptuner/static/store/signals.js";
 import { seedReadings } from "../../support/readings.js";
 import { hydrateFavorites } from "../../../../hqptuner/static/store/narrow/favorites.js";
-import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
 import { favoritesWire, puts, settle } from "../../support/wire/favoriteswire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, elements, hasAttr, text } from "../../support/markup.js";
-import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { loadLists } from "../../support/listsfixture.js";
+import { listMarkup as markup, openKey, freshLists, settleLists } from "../../support/rendered/pagefixtures.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -43,15 +42,11 @@ const CLOSE_TESTID = "close-list";
 let picked = [];
 
 beforeEach(async () => {
-  favoritesWire();
-  resetLists();
-  await loadLists();
+  await freshLists();
   picked = [];
 });
 
-afterEach(async () => {
-  await flushNarrowing();
-});
+afterEach(settleLists);
 
 /**
  * Open a key's list over the body with `value` running in its field; picks land in `picked`.
@@ -59,12 +54,7 @@ afterEach(async () => {
  * @param {string} key
  * @param {string} value
  */
-function open(key, value) {
-  openList.value = { key, stage: key.endsWith("_nx") ? "nx" : "1x", value, pick: (v) => picked.push(v) };
-}
-
-/** Every element the list draws, in document order. @returns {MarkupElement[]} */
-const markup = () => elements(render(html`<${OptionList} />`)).sort((a, b) => a.start - b.start);
+const open = (key, value) => openKey(key, value, (v) => picked.push(v));
 
 /** The rows the list draws. */
 const rowEls = () => markup().filter((e) => attr(e, "role") === "option");

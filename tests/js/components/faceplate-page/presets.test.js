@@ -36,28 +36,15 @@ const { FilterPresets, FilterPresetsButton, FILTER_PRESETS } =
 const { OptionList } = await import("../../../../hqptuner/static/components/faceplate/lists/OptionList.js");
 const { flushNarrowing } = await import("../../../../hqptuner/static/store/narrow/persist.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
+const { presetTable } = await import("../../support/rendered/pagefixtures.js");
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/store/easy/easy.js").Preset} Preset */
-/** @typedef {import("../../../../hqptuner/static/store/easy/easy.js").Knob} Knob */
 
 /** @type {Preset[]} */
 const PRESETS = presetsFor();
-const IDS = new Set(PRESETS.map((p) => p.id));
-
-/** @param {Preset} preset */
-const versionKnob = (preset) => preset.knobs.find((k) => k.options.every((o) => IDS.has(o) && o !== preset.id));
-
-const SUBSETS = PRESETS.filter((p) => versionKnob(p) !== undefined);
-const FLAGSHIPS = [...new Set(SUBSETS.flatMap((p) => /** @type {Knob} */ (versionKnob(p)).options))];
-const TOP = PRESETS.filter((p) => versionKnob(p) === undefined);
-const NESTED = FLAGSHIPS.flatMap((under) =>
-  SUBSETS.map((sub) => ({ under, sub, vk: String(/** @type {Knob} */ (versionKnob(sub)).id) })),
-);
-
-/** @param {Preset} p */
-const resting = (p) => Object.fromEntries(p.knobs.map((k) => [k.id, k.default]));
+const { subsets: SUBSETS, flagships: FLAGSHIPS, top: TOP, nested: NESTED, resting } = presetTable(PRESETS);
 
 /** @param {Parameters<typeof resetLive>[0]} [seams] */
 async function live(seams = {}) {

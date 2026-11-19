@@ -19,19 +19,15 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
-import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
-import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { hydrateFavorites, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { favoritesWire } from "../../support/wire/favoriteswire.js";
-import { attr, elements } from "../../support/markup.js";
-import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { attr } from "../../support/markup.js";
+import { loadLists } from "../../support/listsfixture.js";
 import { seedReadings } from "../../support/readings.js";
+import { listMarkup as markup, openKey as open, freshLists, settleLists } from "../../support/rendered/pagefixtures.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -134,28 +130,11 @@ async function serve(defaults) {
 }
 
 beforeEach(async () => {
-  favoritesWire();
-  resetLists();
-  await loadLists();
+  await freshLists();
   await serve(DEFAULTS);
 });
 
-afterEach(async () => {
-  await flushNarrowing();
-});
-
-/**
- * Open a key's list over the body with `value` running in its field.
- *
- * @param {string} key
- * @param {string} value
- */
-function open(key, value) {
-  openList.value = { key, stage: key.endsWith("_nx") ? "nx" : "1x", value, pick: () => undefined };
-}
-
-/** Every element the list draws, in document order. @returns {MarkupElement[]} */
-const markup = () => elements(render(html`<${OptionList} />`)).sort((a, b) => a.start - b.start);
+afterEach(settleLists);
 
 /**
  * Whether `inner` sits inside `outer`.

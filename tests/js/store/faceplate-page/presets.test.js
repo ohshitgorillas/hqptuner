@@ -30,32 +30,14 @@ const { rememberKnobs } = await import("../../../../hqptuner/static/store/easy/e
 const { metadata, enums } = await import("../../../../hqptuner/static/store/signals.js");
 const { presetRows, showSubsets, foldSubsets } =
   await import("../../../../hqptuner/static/store/faceplate/page/presets.js");
+const { presetTable } = await import("../../support/rendered/pagefixtures.js");
 
 /** @typedef {import("../../../../hqptuner/static/store/easy/easy.js").Preset} Preset */
-/** @typedef {import("../../../../hqptuner/static/store/easy/easy.js").Knob} Knob */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/page/presets.js").PresetRow} PresetRow */
 
 /** @type {Preset[]} */
 const PRESETS = presetsFor();
-const IDS = new Set(PRESETS.map((p) => p.id));
-
-/**
- * The knob of a preset whose every position names another preset: its version, when it has one.
- *
- * @param {Preset} preset
- * @returns {Knob | undefined}
- */
-const versionKnob = (preset) => preset.knobs.find((k) => k.options.every((o) => IDS.has(o) && o !== preset.id));
-
-const SUBSETS = PRESETS.filter((p) => versionKnob(p) !== undefined);
-const FLAGSHIPS = [...new Set(SUBSETS.flatMap((p) => /** @type {Knob} */ (versionKnob(p)).options))];
-const TOP = PRESETS.filter((p) => versionKnob(p) === undefined);
-const NESTED = FLAGSHIPS.flatMap((under) =>
-  SUBSETS.map((sub) => ({ under, sub, vk: String(/** @type {Knob} */ (versionKnob(sub)).id) })),
-);
-
-/** The knob positions a preset rests at, each knob at its default. @param {Preset} p */
-const resting = (p) => Object.fromEntries(p.knobs.map((k) => [k.id, k.default]));
+const { subsets: SUBSETS, flagships: FLAGSHIPS, top: TOP, nested: NESTED, resting } = presetTable(PRESETS);
 
 /** Every row, the nested ones included, keyed by `under>id` (top-level rows by id alone). */
 function everyRow() {

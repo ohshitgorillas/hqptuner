@@ -13,15 +13,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  config,
-  engineState,
-  engineStatus,
-  enums,
-  liveOverride,
-  metadata,
-  staged,
-} from "../../../../hqptuner/static/store/signals.js";
+import { engineState, enums } from "../../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import {
@@ -31,7 +23,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/page/conversion.js";
 import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
-import { seedReadings } from "../../support/readings.js";
+import { writeEngine } from "../../support/rendered/pagefixtures.js";
 
 const CD = "44100";
 const HIRES = "96000";
@@ -106,19 +98,12 @@ async function wire({
   fnx = "2",
   shaper = "1",
 } = {}) {
-  engineState.value = { active_chain: chain, filter1x: f1x, filterNx: fnx, shaper };
-  enums.value = { filters: FILTERS.map(item), shapers: SHAPERS.map(item) };
-  engineStatus.value = {
-    status: { state: playing ? "2" : "0", active_rate: output },
-    metadata: { samplerate: source },
-  };
-  config.value = { fields: [{ name: "direct_sdm" }] };
-  await seedReadings({ direct_sdm: false });
-  staged.value = { live: {}, http: {} };
-  liveOverride.value = {};
-  metadata.value = META;
-  plainNames.value = false;
-  viewport.value = { w: 1080, h: 810 };
+  await writeEngine({
+    state: { active_chain: chain, filter1x: f1x, filterNx: fnx, shaper },
+    lists: { filters: FILTERS.map(item), shapers: SHAPERS.map(item) },
+    status: { status: { state: playing ? "2" : "0", active_rate: output }, metadata: { samplerate: source } },
+    overlays: META,
+  });
 }
 
 /** The same engine playing to an SDM rate, the SDM chain loaded. */

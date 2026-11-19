@@ -18,13 +18,11 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/page/SourceMeter.js";
-import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
-import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
-import { fakeClock } from "../../support/clock.js";
+import { stream } from "../../support/rendered/pagefixtures.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 const FULL = { w: 1366, h: 1024 };
@@ -49,15 +47,6 @@ const metersStore = uiPrefs;
  */
 const pickMeters = (v) => metersStore.setMeters?.(v);
 
-/** Open a fresh feed over one /api/status object at play, and send a stereo geometry event. */
-function stream() {
-  closeMeterFeed();
-  useEventSource();
-  engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
-  openMeterFeed(fakeClock().clock);
-  lastStream()?.emit("geometry", { nyquist: 22050, channels: CHANNELS, centers: [1000, 2000] });
-}
-
 const draw = () => elements(render(html`<${SourceMeter} />`));
 
 /** The number of level bars drawn. */
@@ -74,7 +63,7 @@ beforeEach(() => {
   useStorage();
   pickMeters(LEVELS);
   viewport.value = FULL;
-  stream();
+  stream(CHANNELS);
 });
 
 test("test_slim_under_the_vu_pick_draws_one_vu_meter_per_channel", () => {

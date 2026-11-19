@@ -20,22 +20,14 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Conversion } from "../../../../hqptuner/static/components/faceplate/page/Conversion.js";
-import {
-  config,
-  engineState,
-  engineStatus,
-  enums,
-  liveOverride,
-  metadata,
-  staged,
-} from "../../../../hqptuner/static/store/signals.js";
+import { engineState, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
-import { seedReadings } from "../../support/readings.js";
+import { writeEngine } from "../../support/rendered/pagefixtures.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -61,30 +53,23 @@ const item = (name, i) => ({ index: String(i), value: String(200 + i), name });
  * @param {{ rate?: string, playing?: boolean }} [r]
  */
 async function play({ rate = "48000", playing = true } = {}) {
-  engineState.value = { active_chain: "pcm", filter1x: "0", filterNx: "1", shaper: "0" };
-  enums.value = { filters: ["minphaseFIR", "sinc-L"].map(item), shapers: ["RPDF", "NS1"].map(item) };
-  engineStatus.value = {
-    status: { state: playing ? "2" : "0", active_rate: "384000" },
-    metadata: { samplerate: rate },
-  };
-  config.value = { fields: [{ name: "direct_sdm" }] };
-  await seedReadings({ direct_sdm: false });
-  staged.value = { live: {}, http: {} };
-  liveOverride.value = {};
-  metadata.value = {
-    filters: { filters: { minphaseFIR: { description: "fixture-copy" } }, aliases: {} },
-    shapers: {},
-    settings: {},
-    plain_names: {
-      filters: {
-        entries: { minphaseFIR: { family: "fixture-fam", variant: null, leaf: "fixture-leaf", short: "s" } },
-        families: {},
-        variants: {},
+  await writeEngine({
+    state: { active_chain: "pcm", filter1x: "0", filterNx: "1", shaper: "0" },
+    lists: { filters: ["minphaseFIR", "sinc-L"].map(item), shapers: ["RPDF", "NS1"].map(item) },
+    status: { status: { state: playing ? "2" : "0", active_rate: "384000" }, metadata: { samplerate: rate } },
+    overlays: {
+      filters: { filters: { minphaseFIR: { description: "fixture-copy" } }, aliases: {} },
+      shapers: {},
+      settings: {},
+      plain_names: {
+        filters: {
+          entries: { minphaseFIR: { family: "fixture-fam", variant: null, leaf: "fixture-leaf", short: "s" } },
+          families: {},
+          variants: {},
+        },
       },
     },
-  };
-  plainNames.value = false;
-  viewport.value = { w: 1080, h: 810 };
+  });
   openList.value = null;
 }
 
