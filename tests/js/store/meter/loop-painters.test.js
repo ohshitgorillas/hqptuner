@@ -1,6 +1,6 @@
 // Store suite for the painters' side of hqptuner/static/store/meter/loop.js: every paint while the meter feed is open,
 // the loop hands each painter subscribed through onMeterPaint the scene the paint shows and `dt`, the wall time since
-// the paint before it, in seconds.
+// the paint before it, in ms.
 //
 // `dt` is the loop's true interval: each paint's is the wall time since the paint before
 // it however long that was, and the first paint after the feed opens is handed none of the time it was closed. The
@@ -111,9 +111,6 @@ const clock = {
   },
 };
 
-/** Wall times in ms rounded to a millionth of a ms. */
-const same = (/** @type {number} */ ms) => Math.round(ms * 1e6) / 1e6;
-
 /** Run the clock on far enough for several paints. */
 const settle = () => fake.advance(SETTLE_MS);
 
@@ -139,7 +136,7 @@ function jump() {
  *
  * @typedef {object} Painted
  * @property {number} now  wall time, ms on the clock, when the painter was called
- * @property {number} dt  wall time, s, the loop handed it
+ * @property {number} dt  wall time, ms, the loop handed it
  * @property {number} peak  dBFS: the scene's first channel; NaN when it has none
  * @property {number} rms  dBFS: the scene's first channel; NaN when it has none
  * @property {boolean} restart
@@ -199,15 +196,15 @@ afterEach(() => {
   subscribed.length = 0;
 });
 
-test("test_each_paint_hands_its_painters_the_wall_time_since_the_paint_before_it_in_seconds", () => {
+test("test_each_paint_hands_its_painters_the_wall_time_since_the_paint_before_it_in_ms", () => {
   const paints = subscribe();
   for (const reading of [QUIET, LOUD, QUIET]) {
     run(reading, 1);
     settle();
   }
-  const gaps = framesRun.slice(1).map((t, i) => same(t - framesRun[i]));
+  const gaps = framesRun.slice(1).map((t, i) => t - framesRun[i]);
   assert.deepEqual(
-    paints.slice(1).map((p) => same(p.dt * SECOND_MS)),
+    paints.slice(1).map((p) => p.dt),
     gaps,
   );
 });
@@ -224,8 +221,8 @@ test("test_the_paints_after_the_feed_reopens_are_handed_none_of_the_time_it_was_
   run(LOUD, 1);
   settle();
   const after = paints.filter((p) => p.now >= reopened);
-  const handed = after.reduce((sum, p) => sum + p.dt, 0) * SECOND_MS;
-  assert.equal(same(handed), same((after.at(-1)?.now ?? NaN) - (after[0]?.now ?? NaN)));
+  const handed = after.reduce((sum, p) => sum + p.dt, 0);
+  assert.equal(handed, (after.at(-1)?.now ?? NaN) - (after[0]?.now ?? NaN));
 });
 
 test("test_while_the_feed_is_closed_no_painter_is_called", () => {
@@ -427,8 +424,8 @@ test("test_the_first_paint_after_the_engine_plays_again_is_handed_dt_0", () => {
 
 test("test_the_paints_after_the_engine_plays_again_are_handed_none_of_the_time_it_was_stopped", () => {
   const after = afterPlayingAgain();
-  const total = after.reduce((sum, p) => sum + p.dt, 0) * SECOND_MS;
-  assert.equal(same(total), same((after.at(-1)?.now ?? NaN) - (after[0]?.now ?? NaN)));
+  const total = after.reduce((sum, p) => sum + p.dt, 0);
+  assert.equal(total, (after.at(-1)?.now ?? NaN) - (after[0]?.now ?? NaN));
 });
 
 test("test_a_status_poll_that_leaves_the_engine_stopped_calls_no_painter", () => {
@@ -618,7 +615,7 @@ for (const { name, delay, gaps, feed } of FEEDS) {
     const { paints } = played();
     const moves = paints.flatMap((p, i) => {
       const before = i > 0 ? paints[i - 1].head : null;
-      return p.head !== null && before !== null ? [{ by: p.head - before, wall: p.dt * SECOND_MS }] : [];
+      return p.head !== null && before !== null ? [{ by: p.head - before, wall: p.dt }] : [];
     });
     const off = moves.filter((m) => Math.abs(m.by - m.wall) > 1e-6);
     assert.deepEqual({ some: moves.length > 0, off: off.length }, { some: true, off: 0 });
@@ -638,9 +635,7 @@ for (const { name, delay, gaps, feed } of FEEDS) {
   test(`test_${name}_never_hands_a_paint_more_music_than_its_wall_time_and_one_frame_cover`, () => {
     const { paints, starts, longest } = played();
     const shown = paints.filter((p) => Number.isFinite(p.peak));
-    const burst = shown.filter(
-      (p, i) => i > 0 && starts[frameOf(p)] - starts[frameOf(shown[i - 1])] >= p.dt * SECOND_MS + longest,
-    );
+    const burst = shown.filter((p, i) => i > 0 && starts[frameOf(p)] - starts[frameOf(shown[i - 1])] >= p.dt + longest);
     assert.deepEqual({ some: shown.length > 0, burst: burst.length }, { some: true, burst: 0 });
   });
 }

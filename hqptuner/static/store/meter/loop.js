@@ -20,7 +20,7 @@
 // The painters' side: before the consumed frames leave the queue, the paint folds the frames its
 // decision shows, `[first, last)`, into the one scene the loop fills in place (MeterScene), the meters' peak and RMS from
 // all of them and the spectrum's bins from the decision's lead frame alone, then hands every painter
-// subscribed through onMeterPaint that scene and `dt`, the wall time since the last paint in seconds, uncapped. A
+// subscribed through onMeterPaint that scene and `dt`, the wall time since the last paint in ms, uncapped. A
 // painter draws what it is handed and decides nothing about time.
 //
 // When the loop stops it holds no frames, the playhead is null, and every painter still subscribed is handed the scene
@@ -34,8 +34,6 @@ import { effectiveDelay } from "./delay.js";
 import { meterFeedOpen, takeMeterFrames, toSpectrogram } from "./feed.js";
 import { enginePlaying } from "../signals.js";
 import { playhead } from "./playhead.js";
-
-const MS_PER_S = 1000;
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 /** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
@@ -54,7 +52,7 @@ const MS_PER_S = 1000;
  * @typedef {FoldScene & { restart: boolean }} MeterScene
  */
 /**
- * A painter: handed each paint's scene and `dt`, wall time, s, since the paint before it, 0 on the first paint since
+ * A painter: handed each paint's scene and `dt`, wall time, ms, since the paint before it, 0 on the first paint since
  * the feed opened.
  *
  * @typedef {(scene: MeterScene, dt: number) => void} MeterPainter
@@ -149,7 +147,7 @@ function show(d) {
 /**
  * Hand the scene and `dt` to every painter subscribed when the paint began and still subscribed when its turn comes.
  *
- * @param {number} dt  wall time, s, since the last paint
+ * @param {number} dt  wall time, ms, since the last paint
  */
 function hand(dt) {
   const n = painters.length;
@@ -199,7 +197,7 @@ function paint(mine, now) {
   show(d);
   apply(d);
   request(mine);
-  hand(painted.dt / MS_PER_S);
+  hand(painted.dt);
 }
 
 /**

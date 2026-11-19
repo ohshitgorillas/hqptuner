@@ -72,9 +72,6 @@ const DELAY_S = 0.25;
 /** The row of DROPPED_44K that begins a break: the one after the row it leaves out. */
 const BREAK_ROW = 3;
 
-/** Playback times in ms rounded to a millionth of a ms, far under one sample at any rate. */
-const same = (/** @type {number} */ ms) => Math.round(ms * 1e6) / 1e6;
-
 /** Run the fake clock on far enough for several paints. */
 const settle = () => advance(SETTLE_MS);
 
@@ -103,8 +100,8 @@ function history() {
   /** @type {Array<{ at: number, ms: number }>} playback, ms */
   const slices = spectrogramRange.value.slices;
   const last = slices[slices.length - 1];
-  const joins = slices.filter((s, i) => i > 0 && same(s.at) !== same(slices[i - 1].at + slices[i - 1].ms)).length;
-  return { from: same(slices[0]?.at ?? NaN), to: same(last ? last.at + last.ms : NaN), joins };
+  const joins = slices.filter((s, i) => i > 0 && s.at !== slices[i - 1].at + slices[i - 1].ms).length;
+  return { from: slices[0]?.at ?? NaN, to: last ? last.at + last.ms : NaN, joins };
 }
 
 beforeEach(() => {
@@ -187,7 +184,7 @@ for (const [from, to] of CHANGES_S) {
     setSpectrumOffset(String(to));
     advance(PAINT_MS);
     const want = Math.min(before + PAINT_MS + (from - to) * SECOND_MS, feedEdge() ?? NaN);
-    assert.equal(same(playhead.value ?? NaN), same(want));
+    assert.equal(playhead.value, want);
   });
 }
 
@@ -216,7 +213,7 @@ test("test_every_frame_reaches_the_spectrogram_history_once_and_in_order", () =>
   settle();
   play(CONTIGUOUS_44K.slice(5));
   settle();
-  assert.deepEqual(history(), { from: 0, to: same(feedEdge() ?? NaN), joins: 0 });
+  assert.deepEqual(history(), { from: 0, to: feedEdge() ?? NaN, joins: 0 });
 });
 
 test("test_after_a_break_the_spectrogram_history_runs_from_the_break_frame_on", () => {
@@ -225,8 +222,8 @@ test("test_after_a_break_the_spectrogram_history_runs_from_the_break_frame_on", 
   settle();
   play(DROPPED_44K.slice(2));
   settle();
-  const from = same((DROPPED_44K[BREAK_ROW].at * SECOND_MS) / RATE_44K);
-  assert.deepEqual(history(), { from, to: same(feedEdge() ?? NaN), joins: 0 });
+  const from = (DROPPED_44K[BREAK_ROW].at * SECOND_MS) / RATE_44K;
+  assert.deepEqual(history(), { from, to: feedEdge() ?? NaN, joins: 0 });
 });
 
 test("test_while_the_engine_is_not_playing_the_loop_asks_for_no_animation_frame", () => {

@@ -38,7 +38,6 @@ import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
-import { secondsToMs } from "../../../../hqptuner/static/lib/timebase.js";
 import { RATE_44K, geometry } from "../../support/meterfeed.js";
 import { RANGE, TRACE, MONO, lineLevel, section } from "../../support/rendered/sourcesection.js";
 import { fxPainter } from "../../../../hqptuner/static/components/faceplate/page/spectrumfx.js";
@@ -224,10 +223,10 @@ function play(feed, view = TRACE) {
   const paints = [];
   let before = canvas.ink.slice();
   const unsubscribe = onMeterPaint((scene, dt) => {
-    root.painter.paint(scene, { dt: secondsToMs(dt) });
+    root.painter.paint(scene, { dt });
     const still = before.every((v, i) => v === canvas.ink[i]);
     before = canvas.ink.slice();
-    paints.push({ dt: dt * SECOND_MS, level: lineLevel(root), still, head: playhead.peek() ?? Number.NaN });
+    paints.push({ dt, level: lineLevel(root), still, head: playhead.peek() ?? Number.NaN });
   });
   const t0 = fake.clock.now();
   lastStream()?.emit("geometry", geometry(feed.rate, feed.channels, feed.bins));

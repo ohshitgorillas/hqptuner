@@ -9,7 +9,6 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import { classNames, html, makeCanvas, observeSize, pixelRatio, styleOf } from "../../../lib/dom.js";
-import { secondsToMs } from "../../../lib/timebase.js";
 import { traceStops } from "../../../model/gauges/meter/spectrumfx.js";
 import { minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
@@ -355,7 +354,7 @@ function useSourcePainter(root, canvases, mounted) {
     const els = sectionElements(section, held);
     if (!els) return undefined;
     const painter = sourcePainter(els);
-    return onMeterPaint((scene, dt) => painter.paint(scene, { dt: secondsToMs(dt) }));
+    return onMeterPaint((scene, dt) => painter.paint(scene, { dt }));
   }, [mounted]);
 }
 

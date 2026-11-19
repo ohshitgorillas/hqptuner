@@ -1,6 +1,6 @@
 // Boot suite for the meter loop (hqptuner/static/store/meter/loop.js): once the app has started in a browser, the loop
 // runs. While the meter feed is open, a painter subscribed through onMeterPaint is handed each paint's `dt`, the wall
-// time since the paint before it, in seconds.
+// time since the paint before it, in ms.
 //
 // The app boots through `boot(doc, clock)` of its entry module (hqptuner/static/app.js) on the page and clock
 // tests/js/support/bootpage.js builds, whose animation frames run only when the case hands them out, at the wall
@@ -28,17 +28,11 @@ import { CONTIGUOUS_44K, RATE_44K, geometry, play } from "../../support/meterfee
 /** Wall time, ms on the page, of each animation frame the case hands out, in turn: 16, 33, 250, 17 and 1000 ms apart. */
 const FRAME_TIMES_MS = [5000, 5016, 5049, 5299, 5316, 6316];
 
-/** One second, in ms. */
-const SECOND_MS = 1000;
-
-/** Wall times in ms rounded to a millionth of a ms. */
-const same = (/** @type {number} */ ms) => Math.round(ms * 1e6) / 1e6;
-
 test("test_once_the_app_has_started_each_paint_hands_its_painters_the_wall_time_since_the_paint_before_it", async (t) => {
   const { start, runFrame, cleanup } = bootPage();
   t.after(cleanup);
   start();
-  /** @type {number[]} wall time, s, each paint handed */
+  /** @type {number[]} wall time, ms, each paint handed */
   const handed = [];
   const unsubscribe = onMeterPaint((/** @type {unknown} */ _scene, /** @type {number} */ dt) => void handed.push(dt));
   t.after(unsubscribe);
@@ -48,11 +42,8 @@ test("test_once_the_app_has_started_each_paint_hands_its_painters_the_wall_time_
   lastStream()?.emit("geometry", geometry(RATE_44K));
   play(CONTIGUOUS_44K);
   for (const ms of FRAME_TIMES_MS) runFrame(ms);
-  const gaps = FRAME_TIMES_MS.slice(1).map((ms, i) => same(ms - FRAME_TIMES_MS[i]));
-  assert.deepEqual(
-    handed.slice(1).map((dt) => same(dt * SECOND_MS)),
-    gaps,
-  );
+  const gaps = FRAME_TIMES_MS.slice(1).map((ms, i) => ms - FRAME_TIMES_MS[i]);
+  assert.deepEqual(handed.slice(1), gaps);
 });
 
 /** Wall time, ms on the page, of the animation frames the case hands out before the engine stops. */
