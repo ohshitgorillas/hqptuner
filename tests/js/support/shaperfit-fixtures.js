@@ -64,7 +64,7 @@ const overlay = (floors) => Object.fromEntries(Object.entries(floors).map(([name
 // The /api/metadata payload: settings prose plus the filters.json / shapers.json
 // name-keyed overlays, the second of which carries the rate constraints.
 /** @param {Floors} floors */
-const META = ({ sdm = {}, pcm = {} }) => ({
+export const META = ({ sdm = {}, pcm = {} }) => ({
   settings: {
     output: { output_mode: { label: "Output mode", tooltip: "Selects default output mode." } },
     dsp: {

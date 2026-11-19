@@ -145,12 +145,33 @@ const live = () => effectivePipelines.value;
 /** @param {string} source */
 const bySource = (source) => live().find((/** @type {PipelineRow} */ r) => r.source === source);
 
+/**
+ * The page over `rows` (and the form `values`) with the structural block installed on them.
+ *
+ * @param {PipelineRow[]} rows
+ * @param {Record<string, string | boolean>} [values]
+ */
+async function install(rows, values) {
+  await reset(rows, values);
+  stageStructural(live(), DEFAULTS);
+  await settle();
+}
+
+/**
+ * The page over `rows` with the structural block installed and taken off again.
+ *
+ * @param {PipelineRow[]} rows
+ */
+async function roundTrip(rows) {
+  await install(rows);
+  removeStructural(live(), installedBlock(live()));
+  await settle();
+}
+
 // --- a parseable pair installs -------------------------------------------------
 
 test("test_install_over_a_straight_db_pair_stages_sixteen_rows", async () => {
-  await reset(straight());
-  stageStructural(live(), DEFAULTS);
-  await settle();
+  await install(straight());
   assert.equal(live().length, 16);
 });
 
@@ -172,65 +193,39 @@ test("test_a_reversed_straight_pair_installs_with_no_note", async () => {
 // playing no EQ at all.
 
 test("test_an_installed_block_carries_the_left_ears_chain", async () => {
-  await reset(straight());
-  stageStructural(live(), DEFAULTS);
-  await settle();
+  await install(straight());
   assert.equal(installedBlock(live()).eqProcess.left, EQ_L);
 });
 
 // --- what the block carries in comes back out ----------------------------------
 
 test("test_removal_recovers_the_left_ears_chain", async () => {
-  await reset(straight());
-  stageStructural(live(), DEFAULTS);
-  await settle();
-  removeStructural(live(), installedBlock(live()));
-  await settle();
+  await roundTrip(straight());
   assert.equal(bySource("0")?.process, EQ_L);
 });
 
 test("test_removal_recovers_the_right_ears_chain", async () => {
-  await reset(straight());
-  stageStructural(live(), DEFAULTS);
-  await settle();
-  removeStructural(live(), installedBlock(live()));
-  await settle();
+  await roundTrip(straight());
   assert.equal(bySource("1")?.process, EQ_R);
 });
 
 test("test_removal_recovers_the_right_ears_db_gain", async () => {
-  await reset(straight());
-  stageStructural(live(), DEFAULTS);
-  await settle();
-  removeStructural(live(), installedBlock(live()));
-  await settle();
+  await roundTrip(straight());
   assert.ok(Math.abs(parseFloat(String(bySource("1")?.gain)) - 2) < 1e-3);
 });
 
 test("test_a_lin_install_recovers_its_chain", async () => {
-  await reset(linPair());
-  stageStructural(live(), DEFAULTS);
-  await settle();
-  removeStructural(live(), installedBlock(live()));
-  await settle();
+  await roundTrip(linPair());
   assert.equal(bySource("0")?.process, EQ_L);
 });
 
 test("test_a_lin_install_hands_back_a_db_marked_pair", async () => {
-  await reset(linPair());
-  stageStructural(live(), DEFAULTS);
-  await settle();
-  removeStructural(live(), installedBlock(live()));
-  await settle();
+  await roundTrip(linPair());
   assert.equal(bySource("0")?.gainunit, "dB");
 });
 
 test("test_a_lin_install_hands_back_a_db_marked_right_row", async () => {
-  await reset(linPair());
-  stageStructural(live(), DEFAULTS);
-  await settle();
-  removeStructural(live(), installedBlock(live()));
-  await settle();
+  await roundTrip(linPair());
   assert.equal(bySource("1")?.gainunit, "dB");
 });
 
@@ -238,9 +233,7 @@ test("test_a_lin_install_hands_back_a_db_marked_right_row", async () => {
 
 test("test_extra_rows_outside_the_stereo_mixdowns_survive_install_in_order", async () => {
   const extras = [dbRow("2", "2", "0", EQ_X), dbRow("3", "3", "-1", "")];
-  await reset([...straight(), ...extras]);
-  stageStructural(live(), DEFAULTS);
-  await settle();
+  await install([...straight(), ...extras]);
   assert.deepEqual(live().slice(16), extras);
 });
 
@@ -296,25 +289,19 @@ for (const [name, rows] of REFUSALS) {
 const crossed = () => [dbRow("0", "1", "-3", EQ_L), dbRow("1", "0", "-3", EQ_R)];
 
 test("test_a_refused_install_leaves_crossfeed_enabled_alone", async () => {
-  await reset(crossed(), { crossfeed_enabled: "1" });
-  stageStructural(live(), DEFAULTS);
-  await settle();
+  await install(crossed(), { crossfeed_enabled: "1" });
   assert.equal(effective("crossfeed_enabled"), "1");
 });
 
 test("test_a_refused_install_leaves_the_matrix_iir2fir_mode_alone", async () => {
-  await reset(crossed(), { matrix_iir2fir: "2" });
-  stageStructural(live(), DEFAULTS);
-  await settle();
+  await install(crossed(), { matrix_iir2fir: "2" });
   assert.equal(effective("matrix_iir2fir"), "2");
 });
 
 // The block needs sixteen pipeline rows, so an install raises the DSP row count
 // field with them. A refusal installs no rows and so must not raise it either.
 test("test_a_refused_install_leaves_the_dsp_pipelines_row_count_unstaged", async () => {
-  await reset(crossed(), { pipelines: "2" });
-  stageStructural(live(), DEFAULTS);
-  await settle();
+  await install(crossed(), { pipelines: "2" });
   assert.equal(isDirty("pipelines"), false);
 });
 

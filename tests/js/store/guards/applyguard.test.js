@@ -47,8 +47,7 @@ import { applyAll, discardAll, edit } from "../../../../hqptuner/static/store/ac
 import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
+import { fieldReading, seedReadings, servedTrees } from "../../support/readings.js";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool, an
@@ -105,10 +104,7 @@ async function fixture({ volume = LIVE_VOLUME } = {}) {
         wire.posts.push(JSON.parse(String(opts.body || "{}")));
         return ok({ report: {} });
       }
-      if (path === "/api/config") return ok(readings.value);
-      if (path === "/api/matrix") return ok({ data: matrixConfig.value });
-      if (path === "/api/enumerations") return ok({ data: null });
-      return undefined;
+      return servedTrees(path);
     },
   });
   engineState.value = {};

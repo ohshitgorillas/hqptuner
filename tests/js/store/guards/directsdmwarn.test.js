@@ -34,9 +34,8 @@ import { config, matrixConfig, engineState, lastApply } from "../../../../hqptun
 import { applyAll, discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { atFixedMinusThree } from "../../../../hqptuner/static/store/schema/gray.js";
-import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
-import { fieldReading, seedReadings } from "../../support/readings.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
+import { stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings, servedTrees } from "../../support/readings.js";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool and
@@ -62,14 +61,7 @@ async function reset(volume) {
   // The read endpoints answer with the trees this suite set, the way the real
   // ones answer with the daemon's: an apply refreshes them, and a fake that
   // answered `{}` there would quietly erase the volume state under test.
-  const w = stagingWire({
-    routes: (path) => {
-      if (path === "/api/config") return ok(readings.value);
-      if (path === "/api/matrix") return ok({ data: matrixConfig.value });
-      if (path === "/api/enumerations") return ok({ data: null });
-      return undefined;
-    },
-  });
+  const w = stagingWire({ routes: servedTrees });
   engineState.value = {};
   config.value = { fields: volume.fields.map(({ name }) => ({ name })) };
   matrixConfig.value = { fields: [] };

@@ -83,6 +83,7 @@ import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { staticWire } from "../../support/wire/wire.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
 import { seedReadings } from "../../support/readings.js";
+import { META } from "../../support/shaperfit-fixtures.js";
 
 // --- the fixture --------------------------------------------------------------
 // The same list on both chains. Descriptions are the engine's own format,
@@ -307,20 +308,6 @@ const FORM = (nx) => ({
   modulator: "3",
 });
 
-const LIVE_METADATA = {
-  settings: {
-    output: { output_mode: { label: "Output mode", tooltip: "Selects default output mode." } },
-    dsp: {
-      filter_1x: { label: "1x filter", tooltip: "Oversampling filter for base-rate sources." },
-      filter_nx: { label: "Nx filter", tooltip: "Oversampling filter above the base rates." },
-      shaper: { label: "Dither", tooltip: "Noise shaping applied at the output word length." },
-    },
-    volume: { adaptive_volume: { label: "Adaptive volume", tooltip: "Applies the source's ReplayGain 2.0 offset." } },
-  },
-  filters: { filters: {}, aliases: {} },
-  shapers: { pcm_dithers: {}, sdm_modulators: {} },
-};
-
 /**
  * The live chain controls with one chain loaded and its Nx filter set to `nx`, named by
  * FILTER NAME. State reports LIST INDICES of the loaded chain's enumeration;
@@ -352,7 +339,7 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
     shapers: chain === "sdm" ? SDM_SHAPERS : PCM_SHAPERS,
     mode: { name: chain === "sdm" ? "SDM (DSD)" : "PCM" },
   };
-  metadata.value = LIVE_METADATA;
+  metadata.value = META({});
   volume.value = "-10.0";
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };
   config.value = {

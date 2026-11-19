@@ -1,6 +1,6 @@
 // Served field readings for tests, and the one place a test sets a field's value.
-import { refreshReadings } from "../../../hqptuner/static/store/core/readings.js";
-import { generation } from "../../../hqptuner/static/store/signals.js";
+import { readings, refreshReadings } from "../../../hqptuner/static/store/core/readings.js";
+import { generation, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { ok } from "./wire/wire.js";
 
 /** @typedef {import("../../../hqptuner/static/model/store/reading.js").FieldReading} FieldReading */
@@ -115,4 +115,17 @@ export function heldReply() {
     answer = resolve;
   });
   return { reply, answer };
+}
+
+/**
+ * The routes of a wire that serves the stores' own trees, the way the daemon answers with its own: an apply refreshes them, and a fake that answered `{}` there would quietly erase the state under test. `/api/config` answers the readings as they stand, `/api/matrix` the matrix config and `/api/enumerations` none; every other path is left to the caller.
+ *
+ * @param {string} path
+ * @returns {import("./wire/wire.js").FakeResponse | undefined}
+ */
+export function servedTrees(path) {
+  if (path === "/api/config") return ok(readings.value);
+  if (path === "/api/matrix") return ok({ data: matrixConfig.value });
+  if (path === "/api/enumerations") return ok({ data: null });
+  return undefined;
 }

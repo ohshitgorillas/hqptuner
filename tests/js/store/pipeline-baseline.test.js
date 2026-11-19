@@ -22,9 +22,8 @@ import assert from "node:assert/strict";
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { effectivePipelines, stagedCount, canonPipelines } from "../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll } from "../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../support/wire/wire.js";
-import { fieldReading, seedReadings } from "../support/readings.js";
-import { readings } from "../../../hqptuner/static/store/core/readings.js";
+import { stagingWire } from "../support/wire/wire.js";
+import { fieldReading, seedReadings, servedTrees } from "../support/readings.js";
 
 // The daemon's shape: `gain` is a NUMBER and every row carries an `index` the
 // file rows do not have.
@@ -73,14 +72,7 @@ async function trees({ rows = [], liveActive = "", file = {} } = {}) {
   // The served reading shows the daemon's rows once a profile is live and the daemon reports rows, else the file's.
   const live = liveActive !== "" && liveActive !== "[Default]" && rows.length > 0;
   await seedReadings({ matrix_pipelines: live ? rows : fieldReading(file.matrix_pipelines, { show: "file" }) });
-  stagingWire({
-    routes: (path) => {
-      if (path === "/api/config") return ok(readings.value);
-      if (path === "/api/matrix") return ok({ data: matrixConfig.value });
-      if (path === "/api/enumerations") return ok({ data: null });
-      return undefined;
-    },
-  });
+  stagingWire({ routes: servedTrees });
   await discardAll();
 }
 
