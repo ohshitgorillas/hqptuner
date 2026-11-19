@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 
-import { samplesToMs, secondsToMs } from "../../../../hqptuner/static/lib/timebase.js";
+import { samplesToMs } from "../../../../hqptuner/static/lib/timebase.js";
 import { closeMeterFeed, initMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { initMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
@@ -19,6 +19,7 @@ import { lastStream, useEventSource } from "../eventsource.js";
 import { useStorage } from "../storage.js";
 import { newTrack, poll, setPollStep } from "../apodpolls.js";
 import { RATE_44K, RATE_48K, geometry } from "../meterfeed.js";
+import { CAPTURE_FILE, PAINT_60HZ_MS } from "./capture.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 
@@ -121,12 +122,6 @@ export function generatedLandings(sizes, lead = 0) {
   return landings;
 }
 
-/** The committed capture of the dev container's feed, read, never written. */
-const CAPTURE_FILE = new URL("../../../support/fixtures/meter_feed_capture.json", import.meta.url);
-
-/** The capture's paint wait, wall ms: 60 Hz. */
-const CAPTURE_PAINT_MS = secondsToMs(1) / 60;
-
 /**
  * The delays a feed runs at, as the stores take them: the spectrum offset the user types, s, and the engine's output
  * delay as Status reports it, whole microseconds, where the engine reports one.
@@ -163,7 +158,7 @@ export function capturedFeed(limit = Infinity) {
       return { wall: ev.t_ms, frames: [{ at, n }] };
     });
   const delays = { offsetS: raw.owner_spectrum_offset_s, outputDelayUs: raw.engine_output_delay };
-  return { rate: geo.rate, channels: geo.channels, bins: geo.bins, landings, delays, gaps: [CAPTURE_PAINT_MS] };
+  return { rate: geo.rate, channels: geo.channels, bins: geo.bins, landings, delays, gaps: [PAINT_60HZ_MS] };
 }
 
 /**

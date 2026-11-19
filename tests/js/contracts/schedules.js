@@ -14,7 +14,8 @@
 
 import { readFileSync } from "node:fs";
 
-import { samplesToMs, secondsToMs } from "../../../hqptuner/static/lib/timebase.js";
+import { samplesToMs } from "../../../hqptuner/static/lib/timebase.js";
+import { PAINT_60HZ_MS as PAINT_MS } from "../support/meter/capture.js";
 import { seeded } from "../support/meter/seeded.js";
 
 /**
@@ -37,7 +38,6 @@ import { seeded } from "../support/meter/seeded.js";
 
 const RATE_44K = 44100;
 const RATE_48K = 48000;
-const PAINT_MS = secondsToMs(1) / 60;
 //: Frame lengths in the first and the second half of a generated feed, whole samples at 44.1 kHz, the rate every generated
 //: schedule runs at: 17.4, 19.3 and 21.5 ms, then 23.1, 22.2 and 20.4 ms, all inside 17.3 to 23.2.
 const SHORT_SAMPLES = [767, 851, 948];

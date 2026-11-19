@@ -9,6 +9,7 @@ import asyncio
 import io
 import os
 import subprocess
+import sys
 import tempfile
 import zipfile
 from collections.abc import Awaitable, Callable
@@ -33,7 +34,21 @@ PIN_TARGETS = ("352800", "176400")
 
 
 class CliError(Exception):
-    """A condition that stops a probe cold; its `main` prints it and owns the exit code."""
+    """A condition that stops a probe cold; `run_cli` prints it and owns the exit code."""
+
+
+async def run_cli(run: Callable[[], Awaitable[int]]) -> int:
+    """Run a probe, turning a `CliError` into a printed reason and exit code 1."""
+    errors: list[CliError] = []
+    result = 0
+    try:
+        result = await run()
+    except CliError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 def credentials() -> tuple[str, str]:

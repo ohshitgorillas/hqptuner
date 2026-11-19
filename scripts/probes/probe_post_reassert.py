@@ -42,6 +42,7 @@ from probekit import (
     push,
     restart_daemon,
     rpc,
+    run_cli,
     save_pristine,
     settle,
     working,
@@ -180,19 +181,5 @@ async def _run() -> int:
     return rc
 
 
-async def main() -> int:
-    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
-    errors: list[CliError] = []
-    result = 0
-    try:
-        result = await _run()
-    except CliError as exc:
-        errors.append(exc)
-    if errors:
-        print(errors[0], file=sys.stderr)
-        return 1
-    return result
-
-
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(asyncio.run(run_cli(_run)))

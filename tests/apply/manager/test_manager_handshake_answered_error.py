@@ -10,7 +10,7 @@ phase or the handshakes the daemon answered.
 
 from apps import advanced
 from conftest import LiveBuilt, LiveManager
-from fake_control import CommandLog
+from fixtures_daemons import handshakes
 from virtual_clock import VirtualClock
 
 from hqptuner.core.lifecycle import Phase
@@ -32,11 +32,6 @@ async def _handshake_refused(live_manager: LiveManager, clock: VirtualClock) -> 
     return built
 
 
-def _handshakes(commands: CommandLog) -> int:
-    """How many handshakes the daemon answered: one ``GetInfo`` opens each control connection."""
-    return sum(1 for name, _ in commands if name == "GetInfo")
-
-
 async def test_a_handshake_answered_with_an_error_stands_the_daemon_reachable(
     live_manager: LiveManager, clock: VirtualClock
 ) -> None:
@@ -48,4 +43,4 @@ async def test_a_handshake_answered_with_an_error_is_no_refused_dial_and_keeps_t
     live_manager: LiveManager, clock: VirtualClock
 ) -> None:
     _manager, commands, _engine = await _handshake_refused(live_manager, clock)
-    assert _handshakes(commands) == 1
+    assert handshakes(commands) == 1

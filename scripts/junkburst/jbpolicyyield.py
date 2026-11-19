@@ -16,6 +16,7 @@ from jbpolicy import (
     policy_bursts,
     policy_grade_context,
     policy_rule_row,
+    veto_forces_real,
 )
 
 if TYPE_CHECKING:
@@ -45,17 +46,12 @@ POLICY_YIELD_BLOCK_STAMPS = (
 POLICY_YIELD_BLOCK_S = 13.0
 
 
-def _yield_veto_forces_real(mask_row: MaskRow) -> bool:
-    """Report whether the block's ratio sits at or above ``MIRROR_VETO_LEVEL``, forcing it real."""
-    return bool(np.isfinite(mask_row[3]) and mask_row[3] >= MIRROR_VETO_LEVEL)
-
-
 def _fixed_yield_calls(blocks: PolicyBlocks, yield_at: float) -> dict[int, bool]:
     """Per kept block: G90 clears its cut, and the ratio veto either stands down or yields to ``yield_at``."""
     return {
         i: np.isfinite(blocks.g90_rows[i][1])
         and blocks.g90_rows[i][1] >= POLICY_G90_FIXED_CUT
-        and (not _yield_veto_forces_real(blocks.mask_rows[i]) or blocks.g90_rows[i][1] >= yield_at)
+        and (not veto_forces_real(blocks.mask_rows[i], MIRROR_VETO_LEVEL) or blocks.g90_rows[i][1] >= yield_at)
         for i in blocks.keep
     }
 
@@ -100,7 +96,7 @@ def policy_yield_block_rows(
                 is_kept
                 and np.isfinite(g90_value)
                 and g90_value >= POLICY_G90_FIXED_CUT
-                and (not _yield_veto_forces_real(mask_rows[i]) or g90_value >= POLICY_YIELD_BLOCK_S)
+                and (not veto_forces_real(mask_rows[i], MIRROR_VETO_LEVEL) or g90_value >= POLICY_YIELD_BLOCK_S)
             )
             out.append(
                 {

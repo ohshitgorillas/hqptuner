@@ -33,7 +33,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "kit"))
 
-from probekit import CliError, connect_state, credentials, open_http
+from probekit import CliError, connect_state, credentials, open_http, run_cli
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.conf.httpforms import FormField
@@ -113,19 +113,5 @@ async def _run() -> int:
     return rc
 
 
-async def main() -> int:
-    """Run the probe, turning a `CliError` into a printed reason and exit code 1."""
-    errors: list[CliError] = []
-    result = 0
-    try:
-        result = await _run()
-    except CliError as exc:
-        errors.append(exc)
-    if errors:
-        print(errors[0], file=sys.stderr)
-        return 1
-    return result
-
-
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(asyncio.run(run_cli(_run)))
