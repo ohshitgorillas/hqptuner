@@ -546,9 +546,9 @@ for (const { name, delays, gaps, feed } of FEEDS) {
     const { paints } = played();
     const moves = paints.flatMap((p, i) => {
       const before = i > 0 ? paints[i - 1].head : null;
-      return p.head !== null && before !== null ? [{ by: p.head - before, wall: p.dt }] : [];
+      return p.head !== null && before !== null ? [{ from: before, to: p.head, wall: p.dt }] : [];
     });
-    const off = moves.filter((m) => Math.abs(m.by - m.wall) > 1e-6);
+    const off = moves.filter((m) => m.to !== m.from + m.wall);
     assert.deepEqual({ some: moves.length > 0, off: off.length }, { some: true, off: 0 });
   });
 

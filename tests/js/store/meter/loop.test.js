@@ -151,7 +151,7 @@ for (const delay of DELAYS) {
   test(`test_after_a_burst_each_paint_moves_the_playhead_its_wall_time_at_a_${delay.s}_s_delay`, () => {
     const seen = afterABurst(delay);
     assert.deepEqual(
-      seen.filter((s, i) => i > 0 && Math.abs((s.at ?? NaN) - (seen[i - 1].at ?? NaN) - PAINT_MS) > 1e-6),
+      seen.filter((s, i) => i > 0 && s.at !== (seen[i - 1].at ?? NaN) + PAINT_MS),
       [],
     );
   });

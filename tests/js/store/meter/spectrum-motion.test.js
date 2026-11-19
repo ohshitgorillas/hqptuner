@@ -58,9 +58,6 @@ const STEP_DB = 0.5;
 /** How far from a whole frame the level a paint names may fall, in frames, and still be that frame: the line's rounding. */
 const WHOLE_FRAME = 0.05;
 
-/** How much more of a paint's interval, playback ms, another frame may cover than the one shown before it counts as more. */
-const COVER_EPS = 1e-6;
-
 const fake = fakeClock();
 let frameGaps = [16];
 let gapAt = 0;
@@ -253,7 +250,7 @@ function notTheFrameCoveringMost(played, paints) {
     const k = Math.round(p.named);
     if (Math.abs(p.named - k) > WHOLE_FRAME) return true;
     const mine = overlap(played, k, paints[i - 1].head, p.head);
-    return played.starts.some((_, j) => overlap(played, j, paints[i - 1].head, p.head) > mine + COVER_EPS);
+    return played.starts.some((_, j) => overlap(played, j, paints[i - 1].head, p.head) > mine);
   });
 }
 
