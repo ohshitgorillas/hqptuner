@@ -14,6 +14,8 @@
 
 import { readFileSync } from "node:fs";
 
+import { samplesToMs, secondsToMs } from "../../../hqptuner/static/lib/timebase.js";
+
 /**
  * A schedule to replay: the delay the owner's page runs at, the paints and the arrivals.
  *
@@ -32,13 +34,13 @@ import { readFileSync } from "node:fs";
  *   engine plays one track and reports no delay of its own
  */
 
-const MS_PER_S = 1000;
 const RATE_44K = 44100;
 const RATE_48K = 48000;
-const PAINT_MS = MS_PER_S / 60;
-//: Frame lengths in the first and the second half of a feed, playback ms, all inside 17.3 to 23.2.
-const SHORT_MS = [17.4, 19.3, 21.5];
-const LONG_MS = [23.1, 22.2, 20.4];
+const PAINT_MS = secondsToMs(1) / 60;
+//: Frame lengths in the first and the second half of a generated feed, whole samples at 44.1 kHz, the rate every generated
+//: schedule runs at: 17.4, 19.3 and 21.5 ms, then 23.1, 22.2 and 20.4 ms, all inside 17.3 to 23.2.
+const SHORT_SAMPLES = [767, 851, 948];
+const LONG_SAMPLES = [1019, 979, 900];
 //: The Safari capture's frame lengths in turn, samples at 48 kHz: 20, 21.3 and 22.7 ms.
 const SAFARI_SAMPLES = [960, 1024, 1088];
 const SAFARI_FILE = new URL("../../support/fixtures/safari_paint_schedule.json", import.meta.url);
@@ -60,22 +62,21 @@ function random(seed) {
 }
 
 /**
- * The frame lengths, samples at `rate`, of `spanMs` of music: short ones in the first half, long ones in the second.
+ * The frame lengths, samples at 44.1 kHz, of `spanMs` of music: short ones in the first half, long ones in the second.
  *
  * @param {() => number} rand
- * @param {number} rate
  * @param {number} spanMs
  * @returns {number[]}
  */
-function lengths(rand, rate, spanMs) {
+function lengths(rand, spanMs) {
   /** @type {number[]} */
   const out = [];
   let music = 0;
   while (music < spanMs) {
-    const pool = music < spanMs / 2 ? SHORT_MS : LONG_MS;
-    const n = Math.round((pool[Math.floor(rand() * pool.length)] * rate) / MS_PER_S);
+    const pool = music < spanMs / 2 ? SHORT_SAMPLES : LONG_SAMPLES;
+    const n = pool[Math.floor(rand() * pool.length)];
     out.push(n);
-    music += (n * MS_PER_S) / rate;
+    music += samplesToMs(n, RATE_44K);
   }
   return out;
 }
@@ -99,7 +100,8 @@ function bursts(ns, rate, rand, { burst: [lo, hi], jitter, stall }) {
   for (let i = 0; i < ns.length;) {
     const group = ns.slice(i, i + lo + Math.floor(rand() * (hi - lo + 1)));
     i += group.length;
-    music += (group.reduce((a, b) => a + b, 0) * MS_PER_S) / rate;
+    const samples = group.reduce((a, b) => a + b, 0);
+    music += samplesToMs(samples, rate);
     let t = Math.max(last, music + (rand() * 2 - 1) * jitter);
     if (stall && t >= stall.at && t < stall.at + stall.ms) t = stall.at + stall.ms;
     last = t;
@@ -141,7 +143,7 @@ function generated({ name, delay, spanMs, seed, feed, paints }) {
     rate: RATE_44K,
     delay,
     paints: paints(rand, spanMs),
-    feed: bursts(lengths(rand, RATE_44K, spanMs), RATE_44K, rand, feed),
+    feed: bursts(lengths(rand, spanMs), RATE_44K, rand, feed),
   };
 }
 

@@ -24,6 +24,8 @@ import { replay } from "./world.js";
 //: which stands the playhead `delay` s behind the newest end, 1000 ms.
 const SLICE_MS = 25;
 const SLICES = 40;
+//: Half a slice, s: the user's offset that stands the playhead half a column short of the newest end.
+const HALF_SLICE_S = 0.0125;
 const feed = Array.from({ length: SLICES }, () => ({ t: 0, n: SLICE_MS }));
 const paints = [10];
 const stoodBehind = (/** @type {number} */ delay) => ({ name: `behind_${delay}`, rate: 1000, delay, paints, feed });
@@ -47,7 +49,7 @@ function pictureBehind(delay) {
 
 test("test_a_column_covering_two_slices_equally_shows_the_earlier", () => {
   const aligned = pictureBehind(0);
-  const split = pictureBehind(SLICE_MS / 2 / 1000);
+  const split = pictureBehind(HALF_SLICE_S);
   assert.deepEqual(
     {
       music: INSIDE.every((x) => aligned[x - 1] !== GLASS_SIGNATURE),
