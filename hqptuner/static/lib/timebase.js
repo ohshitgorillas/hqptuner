@@ -2,7 +2,7 @@
 // rest of the app keeps time in. Every conversion between samples, seconds and ms lives here, and every caller,
 // production and test alike, takes it from here.
 
-const MS_PER_S = 1000;
+export const MS_PER_S = 1000;
 const US_PER_MS = 1000;
 
 /**

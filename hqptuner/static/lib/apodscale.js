@@ -1,6 +1,7 @@
 // The shared density scale for the apodizing readouts: the Engine health strip
 // and the header indicator. It lives here because both need the same reference,
 // or the two disagree about the same music.
+import { MS_PER_S, secondsToMs } from "./timebase.js";
 
 // Density is a RATE, not a count: events per second, taken over the interval the
 // bin actually observed. Bins differ in width, so scoring the raw count would
@@ -11,7 +12,7 @@
  * @param {{ ms: number, n: number }} bin  `ms` the playback ms it observed, `n` the events counted in it
  * @returns {number} events per second
  */
-export const rateOf = (bin) => (bin.ms > 0 ? (bin.n * 1000) / bin.ms : 0);
+export const rateOf = (bin) => (bin.ms > 0 ? (bin.n * MS_PER_S) / bin.ms : 0);
 
 /**
  * The time axis's width in playback ms, shared by the apodizing strip and the
@@ -20,7 +21,7 @@ export const rateOf = (bin) => (bin.ms > 0 ? (bin.n * 1000) / bin.ms : 0);
  * @param {string} window  playback, s
  * @returns {number}  playback, ms
  */
-export const windowSpan = (window) => Number(window) * 1000;
+export const windowSpan = (window) => secondsToMs(Number(window));
 
 /**
  * @typedef {{ x: number, rate: number }} GridColumn
@@ -40,7 +41,7 @@ export const windowSpan = (window) => Number(window) * 1000;
  */
 export function playedMs(prev, next) {
   if (prev === null || next === null) return 0;
-  return Math.max(0, (next - prev) * 1000);
+  return Math.max(0, secondsToMs(next - prev));
 }
 
 // Intensity is logarithmic and saturates at SAT, carried by color over a
