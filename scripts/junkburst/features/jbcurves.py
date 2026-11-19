@@ -242,13 +242,17 @@ def band_bins(grid: Grid, lo_hz: float, hi_hz: float) -> tuple[int, int] | None:
     return grid.at(lo_hz), grid.at(hi_hz)
 
 
-def band_level_db(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
-    """Per frame: the dB level of the linear power summed over one band, or ``None`` when the band is off the grid."""
-    span = band_bins(grid, lo_hz, hi_hz)
+def span_level_db(frames: np.ndarray, span: tuple[int, int] | None) -> np.ndarray | None:
+    """Per frame: the dB level of the linear power summed over one bin span, or ``None`` when there is no span."""
     if span is None:
         return None
     lo, hi = span
     return np.asarray(10.0 * np.log10(np.maximum(np.power(10.0, frames[:, lo : hi + 1] / 10.0).sum(axis=1), 1e-20)))
+
+
+def band_level_db(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
+    """Per frame: the dB level of the linear power summed over one band, or ``None`` when the band is off the grid."""
+    return span_level_db(frames, band_bins(grid, lo_hz, hi_hz))
 
 
 def frame_content(rows: np.ndarray, grid: Grid, above_hz: float, curves: ContentCurves | None = None) -> np.ndarray:

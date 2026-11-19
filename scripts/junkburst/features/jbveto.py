@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
-from jbmask import DECILES, MASK_SWEEP_ALBUM_LEVEL, MASK_SWEEP_CANDIDATE, SWEEP_LABELS, sweep_keep
-from jbthresholds import best_threshold, calls_fake
+from jbloao import album_groups, count_wrong, cut_over, held_out_folds, loao_total
+from jbmask import DECILES, MASK_SWEEP_ALBUM_LEVEL, MASK_SWEEP_CANDIDATE, sweep_keep
+from jbmirror import album_readings, label_deciles
+from jbthresholds import calls_fake
 
 if TYPE_CHECKING:
     from jbrun import LabeledRun, MaskRow
@@ -31,58 +33,26 @@ def veto_loao(
     The threshold is picked over the other albums' blocks unforced, as in ``jbloao.loao_candidate``; only the
     held-out block's own call is the veto-forced one.
     """
-    by_album: dict[str, list[int]] = {}
-    for i in range(len(mask_rows)):
-        by_album.setdefault(album_of[block_rows[i][0]], []).append(i)
-    total: dict[str, Any] = {
-        "wrong": 0,
-        "fake_called_real": 0,
-        "real_called_fake": 0,
-        "blocks": len(mask_rows),
-        "albums": dict.fromkeys(by_album, 0),
-    }
-    for album, held in by_album.items():
-        rest = [i for i in range(len(mask_rows)) if i not in set(held)]
-        if not rest:
-            continue
-        thr = best_threshold([block_rows[i][1] for i in rest], [block_rows[i][2] for i in rest])
+    everything = range(len(mask_rows))
+    by_album = album_groups(everything, lambda i: album_of[block_rows[i][0]])
+    total = loao_total(len(mask_rows), by_album)
+    for album, held, rest in held_out_folds(by_album, everything):
+        thr = cut_over(block_rows, rest)
         for i in held:
-            _, value, label = block_rows[i]
-            is_fake = label == "FAKE"
-            if _veto_call(mask_rows[i], value, thr, veto_level) == is_fake:
-                continue
-            total["wrong"] += 1
-            total["albums"][album] += 1
-            total["fake_called_real" if is_fake else "real_called_fake"] += 1
+            is_fake = block_rows[i][2] == "FAKE"
+            if _veto_call(mask_rows[i], block_rows[i][1], thr, veto_level) != is_fake:
+                count_wrong(total, album, is_fake=is_fake)
     return total
 
 
 def real_veto_deciles(rows: list[MaskRow]) -> dict[str, dict[str, Any]]:
     """Return the ratio reading's deciles, split FAKE from REAL, over the blocks the album line keeps."""
-    kept: dict[str, list[float]] = {label: [] for label in SWEEP_LABELS}
-    for row in rows:
-        if np.isfinite(row[3]):
-            kept[row[1]].append(float(row[3]))
-    return {
-        label: {
-            "blocks": len(values),
-            "deciles": [float(np.percentile(values, p)) for p in DECILES] if values else [],
-        }
-        for label, values in kept.items()
-    }
+    return label_deciles((row[1], row[3]) for row in rows)
 
 
 def real_veto_albums(rows: list[MaskRow], row_key_of: dict[str, str]) -> dict[str, dict[str, Any]]:
     """Per album row key over the blocks the album line keeps: its label, its kept blocks, and the median ratio."""
-    out: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        entry = out.setdefault(row_key_of[row[0]], {"label": row[1], "kept": 0, "ratios": []})
-        entry["kept"] += 1
-        if np.isfinite(row[3]):
-            entry["ratios"].append(float(row[3]))
-    for entry in out.values():
-        entry["median_ratio"] = float(np.median(entry["ratios"])) if entry["ratios"] else float("nan")
-    return out
+    return album_readings(((row[0], row[1], row[3]) for row in rows), row_key_of)
 
 
 def real_veto(
@@ -121,7 +91,7 @@ def real_veto_section(run: LabeledRun) -> list[str]:
         decile_rows.append(f"| {label} | {entry['blocks']} | " + " | ".join(cells) + " |")
     album_rows = []
     for name, entry in sorted(run.real_veto_albums.items()):
-        median = f"{entry['median_ratio']:.1f}" if np.isfinite(entry["median_ratio"]) else "none"
+        median = f"{entry['median']:.1f}" if np.isfinite(entry["median"]) else "none"
         album_rows.append(f"| {name} | {entry['label']} | {entry['kept']} | {median} |")
     veto_intro = (
         f"For each line, every kept block whose ratio sits at or above it is forced to read real regardless of "

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
+from jbmirror import append_finite, fill_medians
 from jbthresholds import best_threshold, calls_fake
 
 if TYPE_CHECKING:
@@ -56,10 +57,8 @@ def quiet_album_totals(
         entry = out.setdefault(row_key_of[stamp], {"label": lab, "blocks": 0, "wrong": 0, "values": []})
         entry["blocks"] += 1
         entry["wrong"] += int(calls_fake(value, thr) != (lab == "FAKE"))
-        if np.isfinite(value):
-            entry["values"].append(float(value))
-    for entry in out.values():
-        entry["median"] = float(np.median(entry["values"])) if entry["values"] else float("nan")
+        append_finite(entry["values"], value)
+    fill_medians(out)
     return out
 
 

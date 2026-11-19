@@ -8,16 +8,38 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
 from jbedge import edge_cell
+from jbloao import loao_calls
 from jbmask import MASK_SWEEP_ALBUM_LEVEL, MASK_SWEEP_CANDIDATE, sweep_keep
 from jbmirror import MIRROR_VETO_LEVEL
 from jbthresholds import best_threshold, calls_fake
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from jbrun import LabeledRun, MaskRow
 
 
 #: The fixed G90 cuts the loud-frame step sweep reads, in dB.
 LOUD_FRAME_CUTS = (8.0, 9.0, 10.0, 11.0, 12.0, 14.0)
+
+
+def wrong_side_row(
+    graded: Iterable[tuple[str, bool, bool]], row_key_of: dict[str, str], head: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Count the wrong-side blocks of ``(stamp, is_fake, called_fake)``, and the wrong count per row key.
+
+    ``head`` leads the returned row, ahead of the counts, for the cut the blocks were graded at.
+    """
+    rows: dict[str, int] = {}
+    total: dict[str, Any] = {**(head or {}), "wrong": 0, "fake_called_real": 0, "real_called_fake": 0}
+    for stamp, is_fake, called_fake in graded:
+        if called_fake == is_fake:
+            continue
+        total["wrong"] += 1
+        total["fake_called_real" if is_fake else "real_called_fake"] += 1
+        rows[row_key_of[stamp]] = rows.get(row_key_of[stamp], 0) + 1
+    total["rows"] = rows
+    return total
 
 
 def _loud_frame_call(mask_row: MaskRow, g90_value: float, cut: float) -> bool:
@@ -31,17 +53,11 @@ def loud_frame_cut_row(
     mask_rows: list[MaskRow], g90_rows: list[tuple[str, float, str]], row_key_of: dict[str, str], cut: float
 ) -> dict[str, Any]:
     """One G90 cut over the kept blocks: its wrong-side counts, and the wrong count per album or track row key."""
-    rows: dict[str, int] = {}
-    total: dict[str, Any] = {"cut": float(cut), "wrong": 0, "fake_called_real": 0, "real_called_fake": 0}
-    for mask_row, (stamp, value, label) in zip(mask_rows, g90_rows, strict=True):
-        is_fake = label == "FAKE"
-        if _loud_frame_call(mask_row, value, cut) == is_fake:
-            continue
-        total["wrong"] += 1
-        total["fake_called_real" if is_fake else "real_called_fake"] += 1
-        rows[row_key_of[stamp]] = rows.get(row_key_of[stamp], 0) + 1
-    total["rows"] = rows
-    return total
+    graded = (
+        (stamp, label == "FAKE", _loud_frame_call(mask_row, value, cut))
+        for mask_row, (stamp, value, label) in zip(mask_rows, g90_rows, strict=True)
+    )
+    return wrong_side_row(graded, row_key_of, {"cut": float(cut)})
 
 
 def loud_frame_sweep(run: LabeledRun) -> list[dict[str, Any]]:
@@ -64,19 +80,11 @@ def loud_frame_loao_row(run: LabeledRun) -> dict[str, Any]:
     g90_rows = run.edge["steady"]["G90"]
     keep = sweep_keep(mask_rows, MASK_SWEEP_ALBUM_LEVEL)
     calls = _loao_calls(g90_rows, run.album_of, keep)
-    rows: dict[str, int] = {}
-    total: dict[str, Any] = {"wrong": 0, "fake_called_real": 0, "real_called_fake": 0}
-    for i in keep:
-        stamp, _value, label = g90_rows[i]
-        is_fake = label == "FAKE"
-        veto_real = bool(np.isfinite(mask_rows[i][3]) and mask_rows[i][3] >= MIRROR_VETO_LEVEL)
-        if (calls[i] and not veto_real) == is_fake:
-            continue
-        total["wrong"] += 1
-        total["fake_called_real" if is_fake else "real_called_fake"] += 1
-        rows[run.row_key_of[stamp]] = rows.get(run.row_key_of[stamp], 0) + 1
-    total["rows"] = rows
-    return total
+    graded = (
+        (g90_rows[i][0], g90_rows[i][2] == "FAKE", calls[i] and not veto_forces_real(mask_rows[i], MIRROR_VETO_LEVEL))
+        for i in keep
+    )
+    return wrong_side_row(graded, run.row_key_of)
 
 
 def loud_frame_sweep_section(run: LabeledRun) -> list[str]:
@@ -122,7 +130,7 @@ POLICY_RULES = (
 POLICY_G90_VETO_LEVELS = (-8.0, -10.0, -12.0, -18.0, -21.0)
 
 
-def _veto_forces_real(mask_row: MaskRow, veto: float) -> bool:
+def veto_forces_real(mask_row: MaskRow, veto: float) -> bool:
     """Report whether the block's ratio sits at or above the veto line, forcing it real whatever a cut says."""
     return bool(np.isfinite(mask_row[3]) and mask_row[3] >= veto)
 
@@ -140,18 +148,7 @@ def _in_sample_calls(rows: list[tuple[str, float, str]], keep: list[int]) -> dic
 
 def _loao_calls(rows: list[tuple[str, float, str]], album_of: dict[str, str], keep: list[int]) -> dict[int, bool]:
     """Per kept block: the call of a cut picked over every other album's kept blocks."""
-    by_album: dict[str, list[int]] = {}
-    for i in keep:
-        by_album.setdefault(album_of[rows[i][0]], []).append(i)
-    out = dict.fromkeys(keep, False)
-    for held in by_album.values():
-        rest = [i for i in keep if i not in set(held)]
-        if not rest:
-            continue
-        thr = best_threshold([rows[i][1] for i in rest], [rows[i][2] for i in rest])
-        for i in held:
-            out[i] = calls_fake(rows[i][1], thr)
-    return out
+    return {**dict.fromkeys(keep, False), **loao_calls(rows, album_of, keep)}
 
 
 def _fixed_calls(rows: list[tuple[str, float, str]], keep: list[int], cut: float) -> dict[int, bool]:
@@ -187,7 +184,7 @@ def policy_junk(
     )
     return {
         rule: {
-            i: calls[rule][i] and not (veto is not None and _veto_forces_real(blocks.mask_rows[i], veto)) for i in keep
+            i: calls[rule][i] and not (veto is not None and veto_forces_real(blocks.mask_rows[i], veto)) for i in keep
         }
         for rule in rules
     }
@@ -258,7 +255,7 @@ def policy_block_rows(
                 "index": within[i],
                 "ratio": float(mask_rows[i][3]),
                 "g90": float(g90_rows[i][1]),
-                "veto": _veto_forces_real(mask_rows[i], MIRROR_VETO_LEVEL),
+                "veto": veto_forces_real(mask_rows[i], MIRROR_VETO_LEVEL),
             }
         )
     return out

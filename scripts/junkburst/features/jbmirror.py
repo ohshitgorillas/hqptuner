@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from jbconfig import HEADLINE_WINDOW
+from jbloao import album_groups, count_wrong, cut_over, held_out_folds, loao_total
 from jbmask import DECILES, MASK_SWEEP_ALBUM_LEVEL, MASK_SWEEP_CANDIDATE, SWEEP_LABELS, sweep_keep
-from jbthresholds import best_threshold, calls_fake
+from jbthresholds import calls_fake
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from jbrun import LabeledRun, MaskRow
 
 
@@ -18,12 +21,11 @@ MIRROR_CANDIDATE = "M"
 MIRROR_VETO_LEVEL = -15.0
 
 
-def mirror_deciles(rows: list[tuple[str, float, str]]) -> dict[str, dict[str, Any]]:
-    """Return M's deciles over the kept blocks, split FAKE from REAL; a block with no reading is counted nowhere."""
+def label_deciles(readings: Iterable[tuple[str, float]]) -> dict[str, dict[str, Any]]:
+    """Return the deciles of ``(label, value)`` readings split by label; a reading with no value is counted nowhere."""
     kept: dict[str, list[float]] = {label: [] for label in SWEEP_LABELS}
-    for _, value, label in rows:
-        if np.isfinite(value):
-            kept[label].append(float(value))
+    for label, value in readings:
+        append_finite(kept[label], value)
     return {
         label: {
             "blocks": len(values),
@@ -33,17 +35,37 @@ def mirror_deciles(rows: list[tuple[str, float, str]]) -> dict[str, dict[str, An
     }
 
 
-def mirror_albums(rows: list[tuple[str, float, str]], row_key_of: dict[str, str]) -> dict[str, dict[str, Any]]:
-    """Per album row key over the kept blocks: its label, its kept block count, and the median M over them."""
+def append_finite(values: list[float], value: float) -> None:
+    """Append one reading to ``values`` unless it is no reading."""
+    if np.isfinite(value):
+        values.append(float(value))
+
+
+def fill_medians(entries: dict[str, dict[str, Any]]) -> None:
+    """Set every entry's ``median`` to the median of its ``values``, NaN where it has none."""
+    for entry in entries.values():
+        entry["median"] = float(np.median(entry["values"])) if entry["values"] else float("nan")
+
+
+def album_readings(readings: Iterable[tuple[str, str, float]], row_key_of: dict[str, str]) -> dict[str, dict[str, Any]]:
+    """Per album row key over ``(stamp, label, value)`` readings: its label, its kept count, its values and median."""
     out: dict[str, dict[str, Any]] = {}
-    for stamp, value, label in rows:
+    for stamp, label, value in readings:
         entry = out.setdefault(row_key_of[stamp], {"label": label, "kept": 0, "values": []})
         entry["kept"] += 1
-        if np.isfinite(value):
-            entry["values"].append(float(value))
-    for entry in out.values():
-        entry["median"] = float(np.median(entry["values"])) if entry["values"] else float("nan")
+        append_finite(entry["values"], value)
+    fill_medians(out)
     return out
+
+
+def mirror_deciles(rows: list[tuple[str, float, str]]) -> dict[str, dict[str, Any]]:
+    """Return M's deciles over the kept blocks, split FAKE from REAL; a block with no reading is counted nowhere."""
+    return label_deciles((label, value) for _, value, label in rows)
+
+
+def mirror_albums(rows: list[tuple[str, float, str]], row_key_of: dict[str, str]) -> dict[str, dict[str, Any]]:
+    """Per album row key over the kept blocks: its label, its kept block count, and the median M over them."""
+    return album_readings(((stamp, label, value) for stamp, value, label in rows), row_key_of)
 
 
 def _any_call(
@@ -71,28 +93,15 @@ def veto_loao_any(
     veto-forced one. One candidate in ``candidates`` grades that candidate alone.
     """
     first = candidates[0]
-    by_album: dict[str, list[int]] = {}
-    for i in range(len(mask_rows)):
-        by_album.setdefault(album_of[first[i][0]], []).append(i)
-    total: dict[str, Any] = {
-        "wrong": 0,
-        "fake_called_real": 0,
-        "real_called_fake": 0,
-        "blocks": len(mask_rows),
-        "albums": dict.fromkeys(by_album, 0),
-    }
-    for album, held in by_album.items():
-        rest = [i for i in range(len(mask_rows)) if i not in set(held)]
-        if not rest:
-            continue
-        thrs = [best_threshold([rows[i][1] for i in rest], [rows[i][2] for i in rest]) for rows in candidates]
+    everything = range(len(mask_rows))
+    by_album = album_groups(everything, lambda i: album_of[first[i][0]])
+    total = loao_total(len(mask_rows), by_album)
+    for album, held, rest in held_out_folds(by_album, everything):
+        thrs = [cut_over(rows, rest) for rows in candidates]
         for i in held:
             is_fake = first[i][2] == "FAKE"
-            if _any_call(mask_rows[i], candidates, thrs, i, veto_level) == is_fake:
-                continue
-            total["wrong"] += 1
-            total["albums"][album] += 1
-            total["fake_called_real" if is_fake else "real_called_fake"] += 1
+            if _any_call(mask_rows[i], candidates, thrs, i, veto_level) != is_fake:
+                count_wrong(total, album, is_fake=is_fake)
     return total
 
 

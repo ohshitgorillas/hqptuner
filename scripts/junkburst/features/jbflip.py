@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from jbloao import loao_calls
 from jbmirror import MIRROR_VETO_LEVEL
-from jbpolicy import POLICY_G90_FIXED_CUT, policy_rule_row
-from jbthresholds import best_threshold, calls_fake
+from jbpolicy import POLICY_G90_FIXED_CUT, policy_rule_row, veto_forces_real, wrong_side_row
 
 if TYPE_CHECKING:
     from jbrun import LabeledRun, MaskRow
@@ -27,8 +27,9 @@ def flip_sweep_call(mask_row: MaskRow, g90_value: float, flip_value: float, cut:
     """One block's verdict under the flip sweep: flip clears the cut, the ratio veto standing down or yielding."""
     if not (np.isfinite(flip_value) and flip_value >= cut):
         return False
-    veto_real = bool(np.isfinite(mask_row[3]) and mask_row[3] >= MIRROR_VETO_LEVEL)
-    return not veto_real or (np.isfinite(g90_value) and g90_value >= QUALIFIER_YIELD)
+    if not veto_forces_real(mask_row, MIRROR_VETO_LEVEL):
+        return True
+    return bool(np.isfinite(g90_value) and g90_value >= QUALIFIER_YIELD)
 
 
 def flip_cut_row(
@@ -39,17 +40,11 @@ def flip_cut_row(
     cut: float,
 ) -> dict[str, Any]:
     """One flip cut over the kept blocks: its wrong-side counts, and the wrong count per album or track row key."""
-    rows: dict[str, int] = {}
-    total: dict[str, Any] = {"cut": float(cut), "wrong": 0, "fake_called_real": 0, "real_called_fake": 0}
-    for mask_row, (stamp, g90_value, label), (_, flip_value, _) in zip(mask_rows, g90_rows, flip_rows, strict=True):
-        is_fake = label == "FAKE"
-        if flip_sweep_call(mask_row, g90_value, flip_value, cut) == is_fake:
-            continue
-        total["wrong"] += 1
-        total["fake_called_real" if is_fake else "real_called_fake"] += 1
-        rows[row_key_of[stamp]] = rows.get(row_key_of[stamp], 0) + 1
-    total["rows"] = rows
-    return total
+    graded = (
+        (stamp, label == "FAKE", flip_sweep_call(mask_row, g90_value, flip_value, cut))
+        for mask_row, (stamp, g90_value, label), (_, flip_value, _) in zip(mask_rows, g90_rows, flip_rows, strict=True)
+    )
+    return wrong_side_row(graded, row_key_of, {"cut": float(cut)})
 
 
 def flip_sweep(
@@ -62,22 +57,6 @@ def flip_sweep(
     return [flip_cut_row(mask_rows, g90_rows, flip_rows, row_key_of, cut) for cut in FLIP_CUTS]
 
 
-def _flip_loao_calls(flip_rows: list[tuple[str, float, str]], album_of: dict[str, str]) -> dict[int, bool]:
-    """Per kept block: whether its flip reading clears a cut fitted over every other album's kept blocks."""
-    by_album: dict[str, list[int]] = {}
-    for i, (stamp, _value, _label) in enumerate(flip_rows):
-        by_album.setdefault(album_of[stamp], []).append(i)
-    out: dict[int, bool] = {}
-    for held in by_album.values():
-        rest = [i for i in range(len(flip_rows)) if i not in set(held)]
-        if not rest:
-            continue
-        thr = best_threshold([flip_rows[i][1] for i in rest], [flip_rows[i][2] for i in rest])
-        for i in held:
-            out[i] = calls_fake(flip_rows[i][1], thr)
-    return out
-
-
 def flip_loao_row(
     mask_rows: list[MaskRow],
     g90_rows: list[tuple[str, float, str]],
@@ -86,20 +65,20 @@ def flip_loao_row(
     row_key_of: dict[str, str],
 ) -> dict[str, Any]:
     """Flip's leave-one-album-out cut over the same kept blocks ``flip_sweep`` reads, wrong-side counts."""
-    calls = _flip_loao_calls(flip_rows, album_of)
-    rows: dict[str, int] = {}
-    total: dict[str, Any] = {"wrong": 0, "fake_called_real": 0, "real_called_fake": 0}
-    for i, (stamp, _value, label) in enumerate(flip_rows):
-        is_fake = label == "FAKE"
-        veto_real = bool(np.isfinite(mask_rows[i][3]) and mask_rows[i][3] >= MIRROR_VETO_LEVEL)
-        yields = bool(np.isfinite(g90_rows[i][1]) and g90_rows[i][1] >= QUALIFIER_YIELD)
-        if (calls.get(i, False) and (not veto_real or yields)) == is_fake:
-            continue
-        total["wrong"] += 1
-        total["fake_called_real" if is_fake else "real_called_fake"] += 1
-        rows[row_key_of[stamp]] = rows.get(row_key_of[stamp], 0) + 1
-    total["rows"] = rows
-    return total
+    calls = loao_calls(flip_rows, album_of, range(len(flip_rows)))
+    graded = (
+        (
+            stamp,
+            label == "FAKE",
+            calls.get(i, False)
+            and (
+                not veto_forces_real(mask_rows[i], MIRROR_VETO_LEVEL)
+                or bool(np.isfinite(g90_rows[i][1]) and g90_rows[i][1] >= QUALIFIER_YIELD)
+            ),
+        )
+        for i, (stamp, _value, label) in enumerate(flip_rows)
+    )
+    return wrong_side_row(graded, row_key_of)
 
 
 def flip_qualifier_call(g90: float, ratio: float, flip: float, floor: float, cut: float) -> bool:

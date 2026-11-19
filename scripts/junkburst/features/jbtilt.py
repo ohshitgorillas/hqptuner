@@ -16,7 +16,7 @@ from jbconfig import (
     EDGE_FOLDS_HZ,
     HEADLINE_WINDOW,
 )
-from jbcurves import band_bins
+from jbcurves import band_bins, span_level_db
 from jbedge import edge_cell, p90_curve
 from jbflip import QUALIFIER_CUT, QUALIFIER_YIELD, flip_loao_row, flip_qualifier_rows, flip_sweep, flip_sweep_section
 from jbmask import MASK_SWEEP_ALBUM_LEVEL
@@ -104,11 +104,7 @@ def _full_span(grid: Grid, lo_hz: float, hi_hz: float) -> tuple[int, int] | None
 
 def full_band_level_db(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
     """Per frame: the dB level of the linear power summed over one band of the burst's full bin range."""
-    span = _full_span(grid, lo_hz, hi_hz)
-    if span is None:
-        return None
-    lo, hi = span
-    return np.asarray(10.0 * np.log10(np.maximum(np.power(10.0, frames[:, lo : hi + 1] / 10.0).sum(axis=1), 1e-20)))
+    return span_level_db(frames, _full_span(grid, lo_hz, hi_hz))
 
 
 def _pearson(first: np.ndarray, second: np.ndarray) -> float:
