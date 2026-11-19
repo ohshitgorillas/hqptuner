@@ -35,10 +35,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import junkcal_eval
+
 from hqptuner.engine import junkadvisor
 from hqptuner.lanes import autopilot
 
 Row = dict[str, Any]
+
+#: The full-grid spectrum of one row, read where ``junkcal_eval.py`` defines it; ``junkcal_why.py`` reaches it here.
+full_curve = junkcal_eval.full_curve
 
 CAPTURES = Path("/srv/hqptuner/state/junkcal")
 
@@ -73,21 +78,6 @@ class Score:
     wrong: int
     first_correct_s: float | None
     runs: list[tuple[str, int]]
-
-
-def full_curve(row: Row) -> list[float]:
-    """Return one row's spectrum on the full bin grid the detector indexes.
-
-    A capture stores ``[hz, db]`` pairs from 13 kHz up (``hqptuner/core/junkcal.py``
-    ``SPECTRUM_FLOOR_HZ``), so the head of the grid is restored at the row's own maximum level: no
-    rule reads a band that low, and the only statistic the fill can reach is the 10th-percentile
-    floor, which must go on reading the HF tail rather than the fill.
-    """
-    spec = row["spectrum"]
-    if spec and isinstance(spec[0], list):
-        levels = [float(pair[1]) for pair in spec]
-        return [max(levels)] * (int(row["bins"]) - len(levels)) + levels
-    return [float(v) for v in spec]
 
 
 def sequences(captures: Path) -> list[tuple[str, Path, str | None]]:
