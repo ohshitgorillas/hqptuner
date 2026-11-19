@@ -22,10 +22,10 @@ from typing import Any
 import pytest
 from fake_config_xml import adopt_cfg, cfg_xml
 from fake_http import state
+from test_profile_post_process import running_profiles
 
 from hqptuner.conf import matrixprofiles, presetconf
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.presets import fileconfig
 
 #: The live matrix's own row, at a gain no profile below carries.
 LIVE_ROW = '<pipeline channel="0" gain="-2" mixdown="0" process="" source="0"/>'
@@ -93,13 +93,6 @@ def stored_element(xml: bytes, name: str) -> bytes:
     pattern = rb'<matrix_profile\b[^>]*name="' + re.escape(name).encode() + rb'"[^>]*>.*?</matrix_profile>'
     m = re.search(pattern, xml, re.DOTALL)
     return m.group(0) if m else b""
-
-
-async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
-    """The saved profiles of the running config, read back from the daemon."""
-    cfg_fields = await fileconfig.load_file_config(manager)
-    profiles: dict[str, dict[str, Any]] = json.loads(cfg_fields["matrix_profiles"])
-    return profiles
 
 
 # --- a chain-less profile gains a copy of the live chain -----------------------

@@ -23,13 +23,13 @@ from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
 from narrow import FixtureError
+from test_profile_post_process import running_profiles, without_profile
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.presets import fileconfig
 from hqptuner.presets.presetfields import restore_hooks
 from hqptuner.presets.store.presets import PresetNotFoundError, PresetStore
 
@@ -73,21 +73,6 @@ def stored_profiles(xml: bytes) -> dict[str, list[dict[str, str]]]:
         ]
         for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.DOTALL)
     }
-
-
-def without_profile(xml: bytes, name: str) -> bytes:
-    """The stored XML with that profile's element excised (readme §1.12 shape) —
-    what a fan-out must have left byte-identical to the pre-fan-out snapshot."""
-    pattern = rb'<matrix_profile\b[^>]*name="' + re.escape(name).encode() + rb'"[^>]*>.*?</matrix_profile>'
-    return re.sub(pattern, b"", xml, flags=re.DOTALL)
-
-
-async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
-    """The profiles the running config carries, read back from the daemon: each
-    one its rows and its own post-process settings."""
-    cfg = await fileconfig.load_file_config(manager)
-    profiles: dict[str, dict[str, Any]] = json.loads(cfg["matrix_profiles"])
-    return profiles
 
 
 # --- save without targets: the old shape, byte for byte ----------------------
@@ -240,10 +225,19 @@ PRESETS_OUTCOMES = [
 ]
 
 
+async def profiles_in(http_manager: ConnectionManager, place: str) -> Mapping[str, object]:
+    """The profiles the stored preset ``Office`` carries, or the running config does."""
+    if place == "stored-preset":
+        return stored_profiles(http_manager.presetops.store.read("Office"))
+    return await running_profiles(http_manager)
+
+
+@pytest.mark.parametrize("place", ["stored-preset", "running-config"])
 @pytest.mark.parametrize(("field", "code", "landed"), PRESETS_OUTCOMES)
-def test_only_an_accepted_presets_value_lands_the_profile_in_the_stored_preset(
+async def test_only_an_accepted_presets_value_lands_the_profile_where_it_is_read_back(
     http_manager: ConnectionManager,
     http_client: TestClient,
+    place: str,
     field: dict[str, str],
     code: str | None,
     *,
@@ -251,21 +245,7 @@ def test_only_an_accepted_presets_value_lands_the_profile_in_the_stored_preset(
 ) -> None:
     http_manager.presetops.store.save("Office", preset_xml())
     arrange_apply(http_client, field, code)
-    assert ("Crossfeed EQ" in stored_profiles(http_manager.presetops.store.read("Office"))) is landed
-
-
-@pytest.mark.parametrize(("field", "code", "landed"), PRESETS_OUTCOMES)
-async def test_only_an_accepted_presets_value_lands_the_profile_in_the_running_config(
-    http_manager: ConnectionManager,
-    http_client: TestClient,
-    field: dict[str, str],
-    code: str | None,
-    *,
-    landed: bool,
-) -> None:
-    http_manager.presetops.store.save("Office", preset_xml())
-    arrange_apply(http_client, field, code)
-    assert ("Crossfeed EQ" in await running_profiles(http_manager)) is landed
+    assert ("Crossfeed EQ" in await profiles_in(http_manager, place)) is landed
 
 
 # --- GET /api/matrix: the preset_profiles read model ---------------------------
