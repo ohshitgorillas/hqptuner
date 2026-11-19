@@ -193,7 +193,7 @@ function paint(mine, now) {
   painted.dt = painted.at === null ? 0 : now - painted.at;
   painted.at = now;
   takeArrivals();
-  const delay = effectiveDelay.peek() * MS_PER_S;
+  const delay = effectiveDelay.peek();
   const d = pacePaint({ end, playhead: playhead.peek(), delayed, started, frames: queue, delay, dt: painted.dt });
   delayed = delay;
   show(d);

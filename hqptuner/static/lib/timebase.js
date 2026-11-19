@@ -3,6 +3,7 @@
 // production and test alike, takes it from here.
 
 const MS_PER_S = 1000;
+const US_PER_MS = 1000;
 
 /**
  * A whole number of samples at a rate, in ms: the samples times 1000, divided once by the rate, so one correctly
@@ -15,6 +16,22 @@ const MS_PER_S = 1000;
  * @returns {number}  ms; NaN where the rate is
  */
 export const samplesToMs = (samples, rate) => (samples * MS_PER_S) / rate;
+
+/**
+ * Whole microseconds, as the engine reports a delay, in ms: one division by the factor.
+ *
+ * @param {number} us
+ * @returns {number}  ms
+ */
+export const usToMs = (us) => us / US_PER_MS;
+
+/**
+ * Seconds, as the user types a delay, in ms: one multiplication by the factor.
+ *
+ * @param {number} s
+ * @returns {number}  ms
+ */
+export const secondsToMs = (s) => s * MS_PER_S;
 
 /**
  * A frame as the time base reads it.

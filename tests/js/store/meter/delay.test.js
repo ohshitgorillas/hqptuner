@@ -1,6 +1,7 @@
 // Behavioral suite for store/meter/delay.js: the spectrum offset as the user types it, clamped to -5 to 5 s, text that
 // is no number ignored, and the value persisted in localStorage; the engine's reported output delay, microseconds on
-// the wire, read as seconds; and the effective delay the meters run behind, the two summed and floored at zero.
+// the wire, read as ms; and the effective delay the meters run behind, in ms, the engine's delay and the offset (typed
+// in seconds) summed and floored at zero.
 //
 // The engine delay is driven by assigning engineStatus as a poll would. A fake localStorage is installed where a case
 // needs working storage and removed after every case. What the offset comes up with is read from second instances of
@@ -55,7 +56,7 @@ afterEach(dropStorage);
 
 test("test_with_no_offset_stored_the_effective_delay_is_the_engines_output_delay", () => {
   engineStatus.value = reporting("250000");
-  assert.equal(unset.effectiveDelay.value, 0.25);
+  assert.equal(unset.effectiveDelay.value, 250);
 });
 
 test("test_a_stored_offset_is_what_the_offset_comes_up_with", () => {
@@ -76,9 +77,9 @@ test("test_an_offset_that_is_not_a_number_leaves_the_offset_standing", () => {
 
 // --- the engine's output delay ----------------------------------------------------------
 
-test("test_the_engines_output_delay_reads_in_seconds_from_its_microseconds", () => {
+test("test_the_engines_output_delay_reads_in_ms_from_its_microseconds", () => {
   engineStatus.value = reporting("250000");
-  assert.equal(engineDelay.value, 0.25);
+  assert.equal(engineDelay.value, 250);
 });
 
 test("test_a_status_without_an_output_delay_reads_as_no_engine_delay", () => {
@@ -101,7 +102,7 @@ test("test_an_output_delay_of_zero_reads_as_no_engine_delay", () => {
 test("test_the_effective_delay_is_the_engines_output_delay_plus_the_offset", () => {
   engineStatus.value = reporting("250000");
   spectrumOffset.value = 0.5;
-  assert.equal(effectiveDelay.value, 0.75);
+  assert.equal(effectiveDelay.value, 750);
 });
 
 test("test_an_offset_further_back_than_the_engines_output_delay_floors_the_effective_delay_at_zero", () => {
@@ -112,5 +113,5 @@ test("test_an_offset_further_back_than_the_engines_output_delay_floors_the_effec
 
 test("test_with_no_engine_delay_the_effective_delay_is_the_offset", () => {
   spectrumOffset.value = 0.5;
-  assert.equal(effectiveDelay.value, 0.5);
+  assert.equal(effectiveDelay.value, 500);
 });
