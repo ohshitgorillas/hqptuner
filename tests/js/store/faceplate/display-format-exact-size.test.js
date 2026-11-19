@@ -13,15 +13,7 @@ import assert from "node:assert/strict";
 
 import { viewport, plate } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
-import { useStorage } from "../../support/storage.js";
-
-/** @type {{ [k: string]: unknown, setDisplayFormat?(v: string): void }} */
-const prefs = uiPrefs;
-
-const AUTO = "auto";
-const EXPANDED = "expanded";
-const NORMAL = "normal";
-const COMPACT = "compact";
+import { COMPACT, EXPANDED, LARGE, NORMAL, displayFormatRig } from "../../support/storage.js";
 
 const EXPANDED_W = 1366;
 const EXPANDED_H = 1024;
@@ -30,25 +22,14 @@ const NORMAL_H = 820;
 const COMPACT_W = 1133;
 const COMPACT_H = 744;
 
-// A window smaller than Normal and Expanded, a little bigger than Compact in height only.
-const SMALL = { w: 1080, h: 810 };
 // A window far smaller than every format.
 const TINY = { w: 540, h: 405 };
 // A window between Normal and Expanded in both directions.
 const BETWEEN = { w: 1250, h: 900 };
-// A window larger than every format.
-const LARGE = { w: 1500, h: 1100 };
 
-/** @param {string} format */
-function choose(format) {
-  prefs.setDisplayFormat?.(format);
-}
+const { choose, reset } = displayFormatRig({ prefs: uiPrefs, viewport });
 
-beforeEach(() => {
-  useStorage();
-  choose(AUTO);
-  viewport.value = SMALL;
-});
+beforeEach(reset);
 
 test("test_a_chosen_compact_in_a_far_smaller_window_keeps_its_own_size", () => {
   choose(COMPACT);

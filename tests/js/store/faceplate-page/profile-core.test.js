@@ -84,6 +84,24 @@ afterEach(async () => {
   globalThis.fetch = REAL_FETCH;
 });
 
+/**
+ * The live failure line after `refuse` ran while the route refused, then after a switch to the first profile that the
+ * route accepted.
+ *
+ * @param {() => Promise<unknown>} refuse
+ * @returns {Promise<string[][]>}
+ */
+async function refusedThenRetried(refuse) {
+  const liveLine = () => failures.value.filter((entry) => entry.area === "live").map((entry) => entry.area);
+  answer = Promise.resolve(bad(502, REFUSAL));
+  await refuse();
+  const seen = [liveLine()];
+  answer = null;
+  await switchProfile(FIRST);
+  seen.push(liveLine());
+  return seen;
+}
+
 // Break: the active profile still reads the matrix form's stale name.
 test("test_active_profile_follows_replacement_served_readings", async () => {
   const seen = [matrixActiveProfile.value];
@@ -116,13 +134,7 @@ test("test_page_switch_marks_engine_in_flight_until_it_settles", async () => {
 
 // Break: a profile refusal stays local or survives a successful retry on the live line.
 test("test_page_switch_refusal_reaches_live_line_and_retry_clears_it", async () => {
-  answer = Promise.resolve(bad(502, REFUSAL));
-  await switchProfile(SECOND);
-  const seen = [failures.value.filter((entry) => entry.area === "live").map((entry) => entry.area)];
-  answer = null;
-  await switchProfile(FIRST);
-  seen.push(failures.value.filter((entry) => entry.area === "live").map((entry) => entry.area));
-  assert.deepEqual(seen, [["live"], []]);
+  assert.deepEqual(await refusedThenRetried(() => switchProfile(SECOND)), [["live"], []]);
 });
 
 // Break: the builder's live switch does not share the page picker's busy state.
@@ -141,11 +153,5 @@ test("test_builder_live_switch_marks_the_page_picker_busy", async () => {
 
 // Break: a builder switch refusal bypasses the shared live failure area.
 test("test_builder_switch_refusal_reaches_live_line_and_page_retry_clears_it", async () => {
-  answer = Promise.resolve(bad(502, REFUSAL));
-  await Promise.allSettled([saveProfile()]);
-  const seen = [failures.value.filter((entry) => entry.area === "live").map((entry) => entry.area)];
-  answer = null;
-  await switchProfile(FIRST);
-  seen.push(failures.value.filter((entry) => entry.area === "live").map((entry) => entry.area));
-  assert.deepEqual(seen, [["live"], []]);
+  assert.deepEqual(await refusedThenRetried(() => Promise.allSettled([saveProfile()])), [["live"], []]);
 });

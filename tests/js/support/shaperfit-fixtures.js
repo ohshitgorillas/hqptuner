@@ -222,3 +222,24 @@ function chainReading(name, id, loadedChain, state) {
   const item = list.find((i) => i.index === index);
   return fieldReading(index, { name: item ? item.name : index, lane: "live", file });
 }
+
+/**
+ * Replace the loaded SDM chain's modulators with `tiered`, overlays and all: each is listed under its name with the rate
+ * floor its overlay records, none where it names none.
+ *
+ * @param {{ name: string, min_rate_hz?: number }[]} tiered
+ */
+export function serveTieredModulators(tiered) {
+  enums.value = {
+    ...enums.value,
+    shapers: tiered.map((m, i) => ({ index: String(i), value: String(10 + i), name: m.name })),
+  };
+  const meta = metadata.value;
+  metadata.value = {
+    ...meta,
+    shapers: {
+      ...meta.shapers,
+      sdm_modulators: Object.fromEntries(tiered.map((m) => [m.name, { min_rate_hz: m.min_rate_hz, generation: 4 }])),
+    },
+  };
+}

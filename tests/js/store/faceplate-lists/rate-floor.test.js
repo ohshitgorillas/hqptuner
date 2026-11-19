@@ -14,9 +14,10 @@ import assert from "node:assert/strict";
 
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { narrowedOptions } from "../../../../hqptuner/static/store/faceplate/lists/options.js";
-import { engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { favoritesWire } from "../../support/wire/favoriteswire.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { serveTieredModulators } from "../../support/shaperfit-fixtures.js";
 import { fieldReading } from "../../support/readings.js";
 
 const MOD_256 = "DSD7 256+fs";
@@ -36,22 +37,6 @@ const TIERED = [
   { name: MOD_NO_FLOOR },
 ];
 
-/** Replace the loaded SDM chain's modulators with the tiered ones, overlays and all. */
-function serveTieredModulators() {
-  enums.value = {
-    ...enums.value,
-    shapers: TIERED.map((m, i) => ({ index: String(i), value: String(10 + i), name: m.name })),
-  };
-  const meta = metadata.value;
-  metadata.value = {
-    ...meta,
-    shapers: {
-      ...meta.shapers,
-      sdm_modulators: Object.fromEntries(TIERED.map((m) => [m.name, { min_rate_hz: m.min_rate_hz, generation: 4 }])),
-    },
-  };
-}
-
 /**
  * The chain engine with the tiered modulators served.
  *
@@ -59,7 +44,7 @@ function serveTieredModulators() {
  */
 async function serve(o) {
   await loadLists(o);
-  serveTieredModulators();
+  serveTieredModulators(TIERED);
 }
 
 /** The option of the modulator list under an engine name. @param {string} name */

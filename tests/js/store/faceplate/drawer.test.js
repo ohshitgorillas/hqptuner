@@ -15,16 +15,9 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  config,
-  engineState,
-  enums,
-  matrixConfig,
-  metadata,
-  pendingPreset,
-} from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { askWarn, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { edit } from "../../../../hqptuner/static/store/actions.js";
+import { askWarn } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import {
   applyMode,
@@ -36,7 +29,7 @@ import {
   showTab,
   shownTab,
 } from "../../../../hqptuner/static/store/faceplate/drawer.js";
-import { ok, stagingWire } from "../../support/wire/wire.js";
+import { recordApplies, resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { useStorage } from "../../support/storage.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
 
@@ -74,26 +67,12 @@ const FAMILY_KEY = "crossfeed_enabled";
 /** @type {string[]} */
 let applies = [];
 
-/** @param {string} path @param {{ body?: string }} opts */
-function routes(path, opts) {
-  if (path !== "/api/config/apply") return undefined;
-  applies.push(String(opts.body ?? "{}"));
-  return ok({ report: {} });
-}
-
 beforeEach(async () => {
-  applies = [];
-  stagingWire({ routes });
+  applies = recordApplies();
   config.value = { fields: FIELDS };
   matrixConfig.value = { fields: MATRIX_FIELDS };
   await seedReadings(served(STATION));
-  engineState.value = { adaptive: 0 };
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openPopover.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore();
   pickApplyMode("apply");
 });
 

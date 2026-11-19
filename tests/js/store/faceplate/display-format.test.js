@@ -14,33 +14,14 @@ import assert from "node:assert/strict";
 
 import { viewport, plate } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
-import { useStorage } from "../../support/storage.js";
+import { AUTO, COMPACT, EXPANDED, LARGE, NORMAL, displayFormatRig } from "../../support/storage.js";
 
-/** @type {{ [k: string]: unknown, setDisplayFormat?(v: string): void }} */
-const prefs = uiPrefs;
-
-const AUTO = "auto";
-const EXPANDED = "expanded";
-const NORMAL = "normal";
-const COMPACT = "compact";
-
-// A window Auto lays out at Compact.
-const SMALL = { w: 1080, h: 810 };
 // A window Auto lays out at Expanded.
 const NEAR_EXPANDED = { w: 1366, h: 1004 };
-// A window larger than every format.
-const LARGE = { w: 1500, h: 1100 };
 
-/** @param {string} format */
-function choose(format) {
-  prefs.setDisplayFormat?.(format);
-}
+const { choose, reset } = displayFormatRig({ prefs: uiPrefs, viewport });
 
-beforeEach(() => {
-  useStorage();
-  choose(AUTO);
-  viewport.value = SMALL;
-});
+beforeEach(reset);
 
 test("test_a_chosen_compact_lays_a_large_window_out_at_compact", () => {
   choose(COMPACT);

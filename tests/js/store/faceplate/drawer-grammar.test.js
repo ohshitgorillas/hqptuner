@@ -13,10 +13,9 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { edit } from "../../../../hqptuner/static/store/actions.js";
+import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import {
   applyDrawer,
   drawerHead,
@@ -25,7 +24,7 @@ import {
   showTab,
   shownTab,
 } from "../../../../hqptuner/static/store/faceplate/drawer.js";
-import { ok, stagingWire } from "../../support/wire/wire.js";
+import { recordApplies, resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
@@ -47,30 +46,15 @@ const FIELDS = [
 /** The staged set's apply POSTs the wire has seen. @type {string[]} */
 let applies = [];
 
-/** @param {string} path @param {{ body?: string }} opts */
-function routes(path, opts) {
-  if (path !== "/api/config/apply") return undefined;
-  applies.push(String(opts.body ?? "{}"));
-  return ok({ report: {} });
-}
-
 beforeEach(async () => {
-  applies = [];
-  stagingWire({ routes });
+  applies = recordApplies();
   config.value = { fields: FIELDS };
   await seedReadings({
     volume_max: fieldReading(-3, { show: "file", restarts: true }),
     mode: "pcm",
     idle_time: "30",
   });
-  engineState.value = { adaptive: 0 };
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openPopover.value = null;
-  openStage.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore();
 });
 
 /**

@@ -61,3 +61,33 @@ export function useThrowingStorage() {
   env.localStorage = storage;
   return storage;
 }
+
+// The display-format ids the plate suites choose between.
+export const AUTO = "auto";
+export const EXPANDED = "expanded";
+export const NORMAL = "normal";
+export const COMPACT = "compact";
+
+// A window smaller than Normal and Expanded, a little bigger than Compact in height only, which Auto lays out at Compact.
+const SMALL = { w: 1080, h: 810 };
+// A window larger than every format.
+export const LARGE = { w: 1500, h: 1100 };
+
+/**
+ * The plate suites' rig over the fake storage: `choose` makes a display-format choice through the prefs module's
+ * setter, read with optional access so a prefs module without one fails the cases on their assertions, and `reset`
+ * installs a fresh storage, chooses Auto and puts the window at SMALL. The modules are handed in, so this one loads
+ * neither before a suite has installed its storage.
+ *
+ * @param {{ prefs: { setDisplayFormat?(v: string): void }, viewport: { value: { w: number, h: number } } }} modules
+ */
+export function displayFormatRig({ prefs, viewport }) {
+  /** @param {string} format */
+  const choose = (format) => prefs.setDisplayFormat?.(format);
+  const reset = () => {
+    useStorage();
+    choose(AUTO);
+    viewport.value = SMALL;
+  };
+  return { choose, reset };
+}
