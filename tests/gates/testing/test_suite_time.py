@@ -34,29 +34,18 @@ bar files beside the main checkout by branch, a ``/`` in a branch name written
 the bar of every branch not alive and names those branches, sorted.
 """
 
-import importlib.util
 import json
 from pathlib import Path
-from types import ModuleType
 
 import pytest
-from narrow import FixtureError
+from gate_scripts import load_gate
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "gates" / "testing" / "check_suite_time.py"
 
 
-def _load_gate_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_suite_time_under_test", GATE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GATE = _load_gate_module()
+GATE = load_gate(GATE_PATH, "check_suite_time_under_test")
 CHECK = GATE.check
 
 #: The wall time of the last green run every baseline-carrying case starts from.

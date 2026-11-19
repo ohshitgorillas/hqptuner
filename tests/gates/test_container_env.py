@@ -18,13 +18,11 @@ Seams are ``path_fields(config_source)``, ``pinned(dockerfile_source)``,
 ``failures(fields, pins, exempt)`` and ``main(argv)``.
 """
 
-import importlib.util
 from collections.abc import Callable
 from pathlib import Path
-from types import ModuleType
 
 import pytest
-from narrow import FixtureError
+from gate_scripts import load_gate
 
 #: The checkout this test file sits in.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -34,16 +32,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_container_env.py"
 
 
-def _load_gate_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_container_env_under_test", GATE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GATE = _load_gate_module()
+GATE = load_gate(GATE_PATH, "check_container_env_under_test")
 PATH_FIELDS = GATE.path_fields
 PINNED = GATE.pinned
 FAILURES = GATE.failures
@@ -53,11 +42,8 @@ MAIN = GATE.main
 #: passes none. Read from the module so no case restates its entries.
 SHIPPED_EXEMPT: dict[str, str] = GATE.EXEMPT
 
-#: A ``Config`` carrying one plain ``Path`` field, one ``Path | None`` field and
-#: one field of every scalar type the gate is meant to walk past.
-CONFIG_SOURCE = '''
-"""A miniature stand-in for hqptuner.config."""
-
+#: The imports and the head of the ``Config`` every fixture source below opens with, with its two writable paths.
+CONFIG_HEAD = '''
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -68,31 +54,32 @@ class Config:
 
     backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", "./backups")))
     preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", "./presets")))
-    debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
+'''
+
+#: A ``Config`` carrying one plain ``Path`` field, one ``Path | None`` field and
+#: one field of every scalar type the gate is meant to walk past.
+CONFIG_SOURCE = (
+    '''
+"""A miniature stand-in for hqptuner.config."""
+'''
+    + CONFIG_HEAD
+    + """    debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
     host: str = field(default_factory=lambda: _env("HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: int(_env("PORT", "8090")))
     timeout: float = field(default_factory=lambda: float(_env("TIMEOUT", "2.5")))
     verbose: bool = field(default_factory=lambda: _env("VERBOSE", "") == "1")
-'''
+"""
+)
 
 #: A ``Config`` a real image could be clean against: two writable path fields to
 #: pin, plus a field for every suffix the shipped ``EXEMPT`` table names, so no
 #: shipped exemption reads as stale.
-SHIPPED_EXEMPT_CONFIG_SOURCE = '''
-from dataclasses import dataclass, field
-from pathlib import Path
-
-
-@dataclass
-class Config:
-    """Runtime knobs."""
-
-    backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", "./backups")))
-    preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", "./presets")))
-    data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", "./data")))
+SHIPPED_EXEMPT_CONFIG_SOURCE = (
+    CONFIG_HEAD + """    data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", "./data")))
     debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
     host: str = field(default_factory=lambda: _env("HOST", "127.0.0.1"))
-'''
+"""
+)
 
 #: A Dockerfile pinning both writable fields of ``CONFIG_SOURCE`` under ``/state``.
 CLEAN_DOCKERFILE = """

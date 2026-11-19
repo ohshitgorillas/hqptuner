@@ -19,28 +19,17 @@ positionally is how a case gets its own excuses in front of the checker, and
 ``None`` falls back to the module's shipped ``PRECOMMIT_EXEMPT``.
 """
 
-import importlib.util
 from pathlib import Path
-from types import ModuleType
 
 import pytest
-from narrow import FixtureError
+from gate_scripts import load_gate
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_gates_wired.py"
 
 
-def _load_gate_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_gates_wired_under_test", GATE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GATE = _load_gate_module()
+GATE = load_gate(GATE_PATH, "check_gates_wired_under_test")
 CHECK = GATE.check
 
 

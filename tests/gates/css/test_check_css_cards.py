@@ -9,36 +9,17 @@ list of complaint lines it hands back. Every selector below is invented here
 except the class names the gate exists to refuse.
 """
 
-import importlib.util
 from pathlib import Path
-from types import ModuleType
 
 import pytest
-from narrow import FixtureError
+from gate_scripts import load_gate, write_sheet
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/css/``, outside any package.
 GATE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "gates" / "css" / "check_css_cards.py"
 
 
-def _load_gate_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_css_cards_under_test", GATE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GATE = _load_gate_module()
-
-
-def sheet(tmp_path: Path, directory: str, css: str) -> Path:
-    """Write ``css`` to ``region.css`` under ``directory``, relative to the test's root."""
-    path = tmp_path / directory / "region.css"
-    path.parent.mkdir(parents=True)
-    path.write_text(css, encoding="utf-8")
-    return path
+GATE = load_gate(GATE_PATH, "check_css_cards_under_test")
 
 
 @pytest.mark.parametrize(
@@ -59,7 +40,7 @@ def sheet(tmp_path: Path, directory: str, css: str) -> Path:
 )
 def test_a_faceplate_stylesheet_has_no_card_no_pack_and_one_plate(tmp_path: Path, css: str, complaints: int) -> None:
     """A card or pack selector is one complaint, and so is the plate's fill rounded under another name."""
-    assert len(GATE.check_file(sheet(tmp_path, "styles", css))) == complaints
+    assert len(GATE.check_file(write_sheet(tmp_path, "styles", css))) == complaints
 
 
 #: The refused class names, one declaration to a line.
@@ -68,4 +49,4 @@ SPREAD_CLASSES = ".card {\n  padding: 0;\n}\n.pack {\n  display: grid;\n}\n"
 
 def test_refused_class_names_spread_over_lines_are_each_a_complaint(tmp_path: Path) -> None:
     """A rule laid out over several lines is read the same as one written on one line."""
-    assert len(GATE.check_file(sheet(tmp_path, "styles", SPREAD_CLASSES))) == 2
+    assert len(GATE.check_file(write_sheet(tmp_path, "styles", SPREAD_CLASSES))) == 2

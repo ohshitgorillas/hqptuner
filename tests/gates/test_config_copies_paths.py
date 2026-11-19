@@ -14,14 +14,13 @@ observable contract is the exit status ``check(root)`` returns for that root.
 The seam is ``check(root) -> int``.
 """
 
-import importlib.util
 import json
 import re
 import tomllib
 from pathlib import Path
-from types import ModuleType
 
 import pytest
+from gate_scripts import load_gate
 from narrow import FixtureError
 
 #: The checkout this test file sits in.
@@ -41,16 +40,7 @@ PYTHONPATH_LINE = re.compile(r"^pythonpath = \[[^\]]*\]", re.MULTILINE)
 EXTRA_ROOT = "tests/fixture_only_root"
 
 
-def _load_gate_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_config_copies_paths_under_test", GATE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GATE = _load_gate_module()
+GATE = load_gate(GATE_PATH, "check_config_copies_paths_under_test")
 CHECK = GATE.check
 
 #: The shipped ``pyproject.toml``, the base every fixture rewrites.

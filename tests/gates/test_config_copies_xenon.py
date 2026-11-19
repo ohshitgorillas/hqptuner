@@ -16,28 +16,17 @@ thing a case varies. Observable contract is the int exit status ``check(root)``
 returns; nothing here reads the gate's internals.
 """
 
-import importlib.util
 from pathlib import Path
-from types import ModuleType
 
 import pytest
-from narrow import FixtureError
+from gate_scripts import load_gate
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
 GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_config_copies.py"
 
 
-def _load_gate_module() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_config_copies_xenon_under_test", GATE_PATH)
-    if spec is None or spec.loader is None:
-        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-GATE = _load_gate_module()
+GATE = load_gate(GATE_PATH, "check_config_copies_xenon_under_test")
 CHECK = GATE.check
 
 #: Ruff limits that sit on a radon band's ceiling: B tops out at 10, C at 20.
