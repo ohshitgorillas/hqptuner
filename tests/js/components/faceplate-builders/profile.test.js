@@ -43,7 +43,7 @@ import { elements, attr, classes, hasAttr, text } from "../../support/markup.js"
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
 import { every, inside, kids, first, vcls, isV, descend, fire as fireNow } from "../../support/rendered/treewalk.js";
-import { ROW, PROF, profileReading } from "../../support/profile-fixtures.js";
+import { ROW, PROF, configTree, profileReading } from "../../support/profile-fixtures.js";
 import { seedReadings } from "../../support/readings.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
 
@@ -120,11 +120,6 @@ const matrixTree = () => ({
     Warm: PROF(STEREO("0"), post("0", "cmoy", "fx-dac-a")),
   },
   preset_profiles: { Day: ["Flat", "Warm"], Night: ["Warm"], Spare: ["Flat"] },
-});
-
-/** A fresh /config form: Fixed volume. */
-const configTree = () => ({
-  fields: [{ name: "fixed_volume_enabled", options: [] }],
 });
 
 /** The values the daemon serves for both forms: Warm's post-process chain and live, Day loaded, Fixed volume off. */

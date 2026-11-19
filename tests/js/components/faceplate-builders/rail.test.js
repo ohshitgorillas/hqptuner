@@ -22,13 +22,11 @@ import { SnapshotRail } from "../../../../hqptuner/static/components/faceplate/b
 import { StationsMenu } from "../../../../hqptuner/static/components/faceplate/builders/StationsMenu.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { cur, staged } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
-import { config, engineState, engineStatus, enums } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
-import { formField } from "../../support/chainenums.js";
-import { seedReadings } from "../../support/readings.js";
+import { headphonesBook, wireEngine } from "../../support/rendered/builderwire.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -39,19 +37,6 @@ import { seedReadings } from "../../support/readings.js";
 const TALL = 318;
 const SHORT = 262;
 
-/** @typedef {{ index: string, value: string, name: string }} EnumItem */
-
-/** @type {EnumItem[]} */
-const PCM_FILTERS = [
-  { index: "0", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "41", name: "sinc-M" },
-];
-/** @type {EnumItem[]} */
-const PCM_SHAPERS = [
-  { index: "0", value: "5", name: "NS9" },
-  { index: "1", value: "6", name: "TPDF" },
-];
-
 //: Speakers' ten snapshot names, in list order: past one page at either height, its last page short.
 const SPEAKER_NAMES = Array.from({ length: 10 }, (_, i) => `S${String(i + 1).padStart(2, "0")}`);
 
@@ -60,36 +45,8 @@ const book = () => ({
   Speakers: Object.fromEntries(
     SPEAKER_NAMES.map((n) => [n, { chain: "pcm", fields: { mode: "pcm", filter1x: "40" }, names: {} }]),
   ),
-  Headphones: {
-    Desk: { chain: "pcm", fields: { mode: "pcm", filter1x: "40", dither: "6" }, names: {} },
-    Bed: { chain: "pcm", fields: { filter1x: "41" }, names: {} },
-  },
+  Headphones: headphonesBook(),
 });
-
-/**
- * Write one idle PCM engine onto the wire-side signals, with `active` the loaded station.
- *
- * @param {string} active
- */
-async function wire(active) {
-  engineState.value = { state: "0", active_chain: "pcm", filter1x: "1", filterNx: "0", shaper: "0", adaptive: "1" };
-  engineStatus.value = {};
-  enums.value = { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
-  const chain = [
-    formField("filter1x", "40", PCM_FILTERS),
-    formField("filter", "41", PCM_FILTERS),
-    formField("dither", "6", PCM_SHAPERS),
-  ];
-  config.value = {
-    fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
-  };
-  await seedReadings({
-    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
-    mode: "pcm",
-    ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
-    active_preset: { value: active, readonly: true },
-  });
-}
 
 /**
  * An edit named `name` that Save writes to `stations`.
@@ -104,7 +61,7 @@ const DESK = { st: "Headphones", name: "Desk" };
 const BED = { st: "Headphones", name: "Bed" };
 
 beforeEach(async () => {
-  await wire("Headphones");
+  await wireEngine();
   liveBook.value = book();
   staged.value = new Map();
   cur.value = DESK;
@@ -310,7 +267,7 @@ test("test_new_snapshot_lights_open_while_new_is_edited", () => {
 });
 
 test("test_tapping_new_snapshot_goes_to_new_in_the_loaded_station", async () => {
-  await wire("Speakers");
+  await wireEngine({ active: "Speakers" });
   tap((v) => isTagged(v, "button", "bnew"));
   assert.deepEqual(cur.value, { st: "Speakers", name: NEW });
 });

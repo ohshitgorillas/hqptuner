@@ -19,16 +19,13 @@ import { elements, attr, classes, hasAttr, text } from "../../support/markup.js"
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
 import { every, inside, first, vcls, fire } from "../../support/rendered/treewalk.js";
-import { formField } from "../../support/chainenums.js";
-import { seedReadings } from "../../support/readings.js";
+import { fullForm, headphonesBook, overlays, wireEngine } from "../../support/rendered/builderwire.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
-/** @typedef {{ index: string, value: string, name: string }} EnumItem */
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
-const { config, engineState, engineStatus, enums, matrixConfig, metadata } =
-  await import("../../../../hqptuner/static/store/signals.js");
+const { metadata } = await import("../../../../hqptuner/static/store/signals.js");
 const { plainNames } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { liveBook } = await import("../../../../hqptuner/static/store/live/presets.js");
 const { openList, openPopover } = await import("../../../../hqptuner/static/store/faceplate/view.js");
@@ -38,53 +35,12 @@ const { editNow } = await import("../../../../hqptuner/static/store/faceplate/bu
 const { SnapshotRows } = await import("../../../../hqptuner/static/components/faceplate/builders/SnapshotRows.js");
 const { StationsMenu } = await import("../../../../hqptuner/static/components/faceplate/builders/StationsMenu.js");
 
-/** @type {EnumItem[]} */
-const PCM_FILTERS = [
-  { index: "0", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "41", name: "sinc-M" },
-  { index: "2", value: "42", name: "IIR" },
-];
-/** @type {EnumItem[]} */
-const PCM_SHAPERS = [
-  { index: "0", value: "5", name: "NS9" },
-  { index: "1", value: "6", name: "TPDF" },
-];
-/** @type {EnumItem[]} */
-const SDM_FILTERS = [
-  { index: "0", value: "38", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "39", name: "sinc-M" },
-];
-/** @type {EnumItem[]} */
-const SDM_SHAPERS = [
-  { index: "0", value: "3", name: "ASDM7EC 512+fs" },
-  { index: "1", value: "4", name: "ASDM5" },
-];
-
-/** A fresh /api/metadata payload: writing the same object to a signal does not notify. */
-const overlays = () => ({
-  settings: {},
-  filters: { filters: {}, aliases: {} },
-  shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  plain_names: {
-    filters: { entries: {}, families: {}, variants: {} },
-    dithers: { entries: {}, families: {}, variants: {} },
-    modulators: { entries: {}, families: {}, variants: {} },
-  },
-});
-
 /** A fresh book: Speakers holds one SDM snapshot (S01), Headphones a full PCM one (Desk) and one without Mode (Bed). */
 const book = () => ({
   Speakers: {
     S01: { chain: "sdm", fields: { mode: "sdm", oversampling1x: "38", oversampling: "39", modulator: "3" }, names: {} },
   },
-  Headphones: {
-    Desk: {
-      chain: "pcm",
-      fields: { mode: "pcm", filter1x: "40", filter: "42", dither: "6", adaptive_volume: "0" },
-      names: {},
-    },
-    Bed: { chain: "pcm", fields: { filter1x: "41", adaptive_volume: "1" }, names: {} },
-  },
+  Headphones: headphonesBook({ filter: "42", adaptive_volume: "0" }, { adaptive_volume: "1" }),
 });
 
 /**
@@ -94,28 +50,7 @@ const book = () => ({
  * @param {{ f1x?: string, adaptive?: string }} [r]
  */
 async function wire({ f1x = "1", adaptive = "1" } = {}) {
-  engineState.value = { state: "0", active_chain: "pcm", filter1x: f1x, filterNx: "2", shaper: "0", adaptive };
-  engineStatus.value = {};
-  enums.value = { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
-  const chain = [
-    formField("filter1x", "40", PCM_FILTERS),
-    formField("filter", "41", PCM_FILTERS),
-    formField("dither", "6", PCM_SHAPERS),
-    formField("oversampling1x", "38", SDM_FILTERS),
-    formField("oversampling", "39", SDM_FILTERS),
-    formField("modulator", "4", SDM_SHAPERS),
-  ];
-  config.value = {
-    fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
-  };
-  matrixConfig.value = { fields: [] };
-  await seedReadings({
-    mode: "pcm",
-    ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
-    active_preset: { value: "Headphones", readonly: true },
-    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
-    matrix_profile: "Room EQ",
-  });
+  await wireEngine({ state: { filter1x: f1x, filterNx: "2", adaptive }, form: fullForm(), profile: "Room EQ" });
   metadata.value = overlays();
   plainNames.value = false;
 }
@@ -328,24 +263,22 @@ test("test_tapping_the_take_button_writes_the_live_value_into_the_edit", async (
 
 // --- the live cell -----------------------------------------------------------------------------------------------
 
-test("test_the_live_cell_marks_a_difference_on_a_held_row_the_engine_differs_from", async () => {
+/** Each row's live cell marked as a difference, with the engine on Bed's opposites and Bed open. */
+async function liveDiffs() {
   await wire({ f1x: "0", adaptive: "0" });
   editing("Headphones", "Bed");
-  const diff = byId((r) => {
+  return byId((r) => {
     const live = first(r, "div", "vfd", "blive");
     return live && classes(live).includes("diff");
   });
-  assert.equal(diff.adaptive, true);
+}
+
+test("test_the_live_cell_marks_a_difference_on_a_held_row_the_engine_differs_from", async () => {
+  assert.equal((await liveDiffs()).adaptive, true);
 });
 
 test("test_the_live_cell_marks_no_difference_on_a_row_that_is_off", async () => {
-  await wire({ f1x: "0", adaptive: "0" });
-  editing("Headphones", "Bed");
-  const diff = byId((r) => {
-    const live = first(r, "div", "vfd", "blive");
-    return live && classes(live).includes("diff");
-  });
-  assert.equal(diff["1x"], false);
+  assert.equal((await liveDiffs())["1x"], false);
 });
 
 /** @param {MarkupElement} r */

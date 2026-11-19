@@ -34,6 +34,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, META } from "../../support/field-harness.js";
+import { plainNamesOf } from "../../support/rendered/builderwire.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 
 const MOD = new URL("../../../../hqptuner/static/store/plainnames.js", import.meta.url).href;
@@ -54,12 +55,7 @@ const ENTRIES = {
 
 const META_FLAT = {
   ...META,
-  plain_names: {
-    filters: { entries: {}, families: {}, variants: {} },
-    dithers: { entries: {}, families: {}, variants: {} },
-    modulators: { entries: {}, families: {}, variants: {} },
-    sdm_conversion: { entries: ENTRIES },
-  },
+  plain_names: plainNamesOf({ sdm_conversion: { entries: ENTRIES } }),
 };
 
 // Input order interleaves the known names with two the overlay does not know,

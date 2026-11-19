@@ -15,14 +15,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  config,
-  engineState,
-  engineStatus,
-  enums,
-  matrixConfig,
-  metadata,
-} from "../../../../hqptuner/static/store/signals.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
@@ -42,78 +35,35 @@ import {
 import { snapshotRows } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { railView } from "../../../../hqptuner/static/store/faceplate/builders/rail.js";
 import { profileChoices } from "../../../../hqptuner/static/store/faceplate/page/profile.js";
-import { seedReadings } from "../../support/readings.js";
+import {
+  LISTS,
+  fullForm,
+  headphonesBook,
+  overlays,
+  plainSection,
+  wireEngine,
+} from "../../support/rendered/builderwire.js";
 
 const SHELL = "../../../../hqptuner/static/store/faceplate/builders/shell.js";
-
-/** @typedef {{ index: string, value: string, name: string }} EnumItem */
-
-/** @type {EnumItem[]} */
-const PCM_FILTERS = [
-  { index: "0", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "41", name: "sinc-M" },
-  { index: "2", value: "42", name: "IIR" },
-];
-/** @type {EnumItem[]} */
-const PCM_SHAPERS = [
-  { index: "0", value: "5", name: "NS9" },
-  { index: "1", value: "6", name: "TPDF" },
-];
-/** @type {EnumItem[]} */
-const SDM_FILTERS = [
-  { index: "0", value: "38", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "39", name: "sinc-M" },
-];
-/** @type {EnumItem[]} */
-const SDM_SHAPERS = [
-  { index: "0", value: "3", name: "ASDM7EC 512+fs" },
-  { index: "1", value: "4", name: "ASDM5" },
-];
-
-/**
- * One /config form field quoting a list in the enum-ID domain.
- *
- * @param {string} name
- * @param {string} value
- * @param {EnumItem[]} items
- */
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
 
 /** The invented Simplified leaf the overlay carries for sinc-MGa, and its short, kept distinct. */
 const MGA_LEAF = "Leaf MGa";
 const MGA_SHORT = "Short MGa";
 
-/** A fresh /api/metadata payload: writing the same object to a signal does not notify. */
-const overlays = () => ({
-  settings: {},
-  filters: { filters: {}, aliases: {} },
-  shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  plain_names: {
-    filters: {
-      entries: {
-        "poly-sinc-gauss-long": { family: "Fam A", variant: "Var A", leaf: "Leaf gauss", short: "gauss" },
-        "sinc-M": { family: "Fam A", variant: "Var B", leaf: "Leaf sinc", short: "sinc" },
-        IIR: { family: "Fam B", variant: null, leaf: "Leaf iir", short: "iir" },
-        "sinc-MGa": { family: "Fam MGa", variant: null, leaf: MGA_LEAF, short: MGA_SHORT },
-      },
-      families: {},
-      variants: {},
-    },
-    dithers: {
-      entries: {
-        NS9: { family: "Noise shaping", variant: null, leaf: "Leaf ns9", short: "NS9" },
-        TPDF: { family: "Additive", variant: null, leaf: "Leaf tpdf", short: "TPDF" },
-      },
-      families: {},
-      variants: {},
-    },
-    modulators: { entries: {}, families: {}, variants: {} },
-  },
-});
+/** A fresh /api/metadata payload carrying the invented Simplified names. */
+const overlaysNow = () =>
+  overlays({
+    filters: plainSection({
+      "poly-sinc-gauss-long": { family: "Fam A", variant: "Var A", leaf: "Leaf gauss", short: "gauss" },
+      "sinc-M": { family: "Fam A", variant: "Var B", leaf: "Leaf sinc", short: "sinc" },
+      IIR: { family: "Fam B", variant: null, leaf: "Leaf iir", short: "iir" },
+      "sinc-MGa": { family: "Fam MGa", variant: null, leaf: MGA_LEAF, short: MGA_SHORT },
+    }),
+    dithers: plainSection({
+      NS9: { family: "Noise shaping", variant: null, leaf: "Leaf ns9", short: "NS9" },
+      TPDF: { family: "Additive", variant: null, leaf: "Leaf tpdf", short: "TPDF" },
+    }),
+  });
 
 /** Speakers' twelve snapshot names, in list order. */
 const SPEAKER_NAMES = Array.from({ length: 12 }, (_, i) => `S${String(i + 1).padStart(2, "0")}`);
@@ -137,14 +87,7 @@ const book = () => ({
       return [n, { chain: "sdm", fields, names }];
     }),
   ),
-  Headphones: {
-    Desk: {
-      chain: "pcm",
-      fields: { mode: "pcm", filter1x: "40", filter: "42", dither: "6", adaptive_volume: "0" },
-      names: {},
-    },
-    Bed: { chain: "pcm", fields: { filter1x: "41", adaptive_volume: "1" }, names: {} },
-  },
+  Headphones: headphonesBook({ filter: "42", adaptive_volume: "0" }, { adaptive_volume: "1" }),
 });
 
 /**
@@ -160,36 +103,6 @@ const book = () => ({
  */
 
 /**
- * Serve the /config form and the readings the engine reports: the Output mode, the chain fields at their running
- * values, the loaded station and the running matrix profile.
- *
- * @param {string} mode
- * @param {string} active
- * @param {string} [profile]
- */
-async function serve(mode, active, profile = "") {
-  const formFields = [
-    formField("filter1x", "40", PCM_FILTERS),
-    formField("filter", "41", PCM_FILTERS),
-    formField("dither", "6", PCM_SHAPERS),
-    formField("oversampling1x", "38", SDM_FILTERS),
-    formField("oversampling", "39", SDM_FILTERS),
-    formField("modulator", "4", SDM_SHAPERS),
-  ];
-  config.value = {
-    fields: [{ name: "mode", options: [] }, ...formFields.map(({ name, options }) => ({ name, options }))],
-  };
-  matrixConfig.value = { fields: [] };
-  await seedReadings({
-    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
-    mode,
-    ...Object.fromEntries(formFields.map(({ name, value }) => [name, value])),
-    active_preset: { value: active, readonly: true },
-    matrix_profile: profile,
-  });
-}
-
-/**
  * Write one idle engine onto the wire-side signals: by default the PCM chain loaded, the SDM chain dormant on the
  * /config form, Headphones loaded.
  *
@@ -203,14 +116,17 @@ async function wire({
   adaptive = "1",
   mode = "pcm",
   active = "Headphones",
-  profile,
+  profile = "",
 } = {}) {
-  const sdm = chain === "sdm";
-  engineState.value = { state: "0", active_chain: chain, filter1x: f1x, filterNx: fnx, shaper, adaptive };
-  engineStatus.value = {};
-  enums.value = sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
-  await serve(mode, active, profile);
-  metadata.value = overlays();
+  await wireEngine({
+    state: { active_chain: chain, filter1x: f1x, filterNx: fnx, shaper, adaptive },
+    lists: LISTS[chain],
+    form: fullForm(),
+    mode,
+    active,
+    profile,
+  });
+  metadata.value = overlaysNow();
   plainNames.value = false;
 }
 
