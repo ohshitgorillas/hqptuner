@@ -417,7 +417,7 @@ function fire(f) {
  */
 function timed(dt) {
   if (typeof dt !== "number" || !Number.isFinite(dt)) {
-    throw new TypeError("fxPainter: a paint is told the seconds since the last paint");
+    throw new TypeError("fxPainter: a paint is told the ms since the last paint");
   }
 }
 

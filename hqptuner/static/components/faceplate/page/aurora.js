@@ -168,8 +168,7 @@ export function auroraPainter(canvas) {
   /** @type {AuroraPainter["paint"]} */
   const paint = (columns, range, suite = ACCENT, opts) => {
     const { dt, restart } = opts;
-    if (typeof dt !== "number")
-      throw new TypeError("aurora paint: dt, the wall seconds since the last paint, is required");
+    if (typeof dt !== "number") throw new TypeError("aurora paint: dt, the wall ms since the last paint, is required");
     const fresh = restart || !columns?.length;
     if (fresh) {
       if (!rested) gravity = freshGravity(BANDS);
