@@ -6,31 +6,21 @@ dropped (a dropped field would leave its control showing a value the engine neve
 took). Refused here: a field no live setter reaches, a flag value outside 0/1, an output
 mode batched with anything else, and a `SetFilter` half State cannot complete.
 
-The manager's readings put the Engine on the PCM chain with the tables below, which
-mirror `tests/support/fake_control.py`. Each refusal must give a reason for the field
-it names.
+The manager's readings put the Engine on the PCM chain with the tables of
+`tests/live/test_live_apply_split.py`, which mirror `tests/support/fake_control.py`.
+Each refusal must give a reason for the field it names.
 """
 
 import pytest
+from test_live_apply_split import MODES, PCM_FILTERS, PCM_SHAPERS
+from test_live_unloaded_chain_routing import JUNK_FILTERS
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.live.routing import LiveRouteError, resolve_live
 
-MODES = [
-    {"index": "0", "name": "[source]", "value": "-1"},
-    {"index": "1", "name": "PCM", "value": "0"},
-    {"index": "2", "name": "SDM (DSD)", "value": "1"},
-]
-PCM_FILTERS = [
-    {"index": "0", "name": "none", "value": "0"},
-    {"index": "1", "name": "poly-sinc-gauss-long", "value": "40"},
-    {"index": "2", "name": "sinc-M", "value": "25"},
-]
-PCM_SHAPERS = [{"index": "0", "name": "none", "value": "0"}, {"index": "1", "name": "NS9", "value": "5"}]
-JUNK_FILTERS = [{"index": "0", "name": "none"}, {"index": "1", "name": "20k"}, {"index": "2", "name": "30k"}]
-ENUMS = {"modes": MODES, "filters": PCM_FILTERS, "shapers": PCM_SHAPERS, "junk_filters": JUNK_FILTERS}
+ENUMS = {"modes": MODES, "filters": PCM_FILTERS[:3], "shapers": PCM_SHAPERS, "junk_filters": JUNK_FILTERS}
 
 #: State on a running PCM engine: both filter halves reported.
 RUNNING_STATE = {"state": "0", "mode": "1", "filter1x": "0", "filterNx": "0", "shaper": "0", "filter_junk": "0"}

@@ -1,21 +1,26 @@
 """Fixture plugin (registered from conftest.py): `TestClient`s over the REST
 app under test — daemonless, control-lane-only on the threaded fake, and http-
-lane on the fake 8088 daemon."""
+lane on the fake 8088 daemon — and a manager on an in-loop fake control daemon
+whose command hooks a case arms."""
 
+import asyncio
 import contextlib
-from collections.abc import Callable, Iterator
+import functools
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 from apps import closed_port as build_closed_port
-from apps import connection_stands, live_app, wait_for_api
+from apps import connection_stands, live_app, settled, wait_for_api
 from conftest import spawn_threaded_daemon
+from fake_control import DEFAULTS, CommandHooks, serve_shared
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
+from hqptuner.core.manager import ConnectionManager
 
 #: The daemon credential ``app`` builds with — distinctive enough that finding it
 #: anywhere in a log is unambiguous.
@@ -65,6 +70,36 @@ def app_on_daemon(
     stack.callback(next, clients, None)
     wait_for_api(client, connection_stands)
     return client
+
+
+#: A manager connected to a fake daemon whose command hooks the case arms, that daemon's State, and its hooks.
+HookedBuilt = tuple[ConnectionManager, dict[str, str], CommandHooks]
+
+
+@pytest.fixture
+async def hooked_manager(clock: VirtualClock) -> AsyncIterator[Callable[..., Awaitable[HookedBuilt]]]:
+    """Build managers on in-loop fake daemons with command hooks, each connected and idle on the clock.
+
+    Keyword arguments are the daemon's State overrides: ``state="2"`` starts the engine playing."""
+    started: list[tuple[ConnectionManager, asyncio.Task[None], asyncio.Server]] = []
+
+    async def build(**overrides: str) -> HookedBuilt:
+        state = {**DEFAULTS, **overrides}
+        hooks: CommandHooks = {}
+        server = await asyncio.start_server(functools.partial(serve_shared, state=state, hooks=hooks), "127.0.0.1", 0)
+        port = int(server.sockets[0].getsockname()[1])
+        manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
+        started.append((manager, clock.spawn(manager.run()), server))
+        await settled(clock)
+        return manager, state, hooks
+
+    yield build
+    for manager, task, server in started:
+        manager.stop()
+        await task
+        await manager.aclose()
+        server.close()
+        await server.wait_closed()
 
 
 @pytest.fixture

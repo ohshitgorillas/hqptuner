@@ -9,17 +9,11 @@ moment the batch writes it, so the batch's own re-read sees the move.
 Everything runs against the stateful fake daemon over a real socket, on the virtual clock.
 """
 
-import asyncio
-import functools
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 import pytest
-from apps import settled
-from fake_control import DEFAULTS, CommandHooks, serve_shared
-from virtual_clock import VirtualClock
+from fixtures_clients import HookedBuilt
 
-from hqptuner.config import Config
-from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.live.lane import apply_now, apply_preset
 
 STOPPED = "0"
@@ -28,33 +22,6 @@ PLAYING = "2"
 STOP_REQUESTED = "3"
 SDM_MODULATOR_ID = "3"
 PCM_FILTER_ID = "40"
-
-#: A manager connected to a fake daemon already in the given State, that State, and the daemon's command hooks.
-Built = tuple[ConnectionManager, dict[str, str], CommandHooks]
-
-
-@pytest.fixture
-async def daemon_playing(clock: VirtualClock) -> AsyncIterator[Callable[[str], Awaitable[Built]]]:
-    """Build a manager on an in-loop fake daemon whose `State.state` starts as asked."""
-    started: list[tuple[ConnectionManager, asyncio.Task[None], asyncio.Server]] = []
-
-    async def build(playback: str) -> Built:
-        state = {**DEFAULTS, "state": playback}
-        hooks: CommandHooks = {}
-        server = await asyncio.start_server(functools.partial(serve_shared, state=state, hooks=hooks), "127.0.0.1", 0)
-        port = int(server.sockets[0].getsockname()[1])
-        manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
-        started.append((manager, clock.spawn(manager.run()), server))
-        await settled(clock)
-        return manager, state, hooks
-
-    yield build
-    for manager, task, server in started:
-        manager.stop()
-        await task
-        await manager.aclose()
-        server.close()
-        await server.wait_closed()
 
 
 @pytest.mark.parametrize(
@@ -70,9 +37,9 @@ async def daemon_playing(clock: VirtualClock) -> AsyncIterator[Callable[[str], A
     ],
 )
 async def test_a_live_batch_reports_a_stop_only_when_it_took_playback_from_playing_to_stopped(
-    daemon_playing: Callable[[str], Awaitable[Built]], before: str, after: str, *, stopped: bool
+    hooked_manager: Callable[..., Awaitable[HookedBuilt]], before: str, after: str, *, stopped: bool
 ) -> None:
-    manager, state, hooks = await daemon_playing(before)
+    manager, state, hooks = await hooked_manager(state=before)
     hooks["SetFilter"] = lambda: state.update(state=after)
     report = await apply_now(manager, {"filter": PCM_FILTER_ID})
     assert report.playback_stopped == stopped
@@ -80,9 +47,9 @@ async def test_a_live_batch_reports_a_stop_only_when_it_took_playback_from_playi
 
 @pytest.mark.parametrize("batch", ["SetMode", "SetShaping"])
 async def test_a_preset_reports_a_stop_that_either_of_its_batches_caused(
-    daemon_playing: Callable[[str], Awaitable[Built]], batch: str
+    hooked_manager: Callable[..., Awaitable[HookedBuilt]], batch: str
 ) -> None:
-    manager, state, hooks = await daemon_playing(PLAYING)
+    manager, state, hooks = await hooked_manager(state=PLAYING)
     hooks[batch] = lambda: state.update(state=STOPPED)
     report = await apply_preset(manager, {"mode": "sdm", "modulator": SDM_MODULATOR_ID})
     assert report.playback_stopped is True

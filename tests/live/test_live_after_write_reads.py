@@ -13,18 +13,14 @@ Everything runs against the stateful fake daemon over a real socket. Enum ID 57 
 filter index 3 and SDM filter index 2.
 """
 
-import asyncio
-import functools
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
-import pytest
-from apps import advanced, settled
+from apps import advanced
 from conftest import LiveManager
-from fake_control import DEFAULTS, CommandHooks, OnNextArrival, serve_shared
+from fake_control import OnNextArrival
+from fixtures_clients import HookedBuilt
 from virtual_clock import VirtualClock
 
-from hqptuner.config import Config
-from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.live.lane import apply_now, refresh_after_live
 from hqptuner.lanes.live.routing import resolve_live
 
@@ -35,33 +31,6 @@ SDM_INDEX_OF_SHARED = "2"
 GAUSS_LONG_ID = "40"
 #: The Nx filter index the engine runs before anything is written, off the fake's resting 0.
 RUNNING_NX = "2"
-
-#: A manager connected to a fake daemon whose command hooks the test arms, and that daemon's State.
-HookedBuilt = tuple[ConnectionManager, dict[str, str], CommandHooks]
-
-
-@pytest.fixture
-async def hooked_manager(clock: VirtualClock) -> AsyncIterator[Callable[[], Awaitable[HookedBuilt]]]:
-    """Build a manager on an in-loop fake daemon with command hooks, connected and idle on the clock."""
-    started: list[tuple[ConnectionManager, asyncio.Task[None], asyncio.Server]] = []
-
-    async def build() -> HookedBuilt:
-        state = dict(DEFAULTS)
-        hooks: CommandHooks = {}
-        server = await asyncio.start_server(functools.partial(serve_shared, state=state, hooks=hooks), "127.0.0.1", 0)
-        port = int(server.sockets[0].getsockname()[1])
-        manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
-        started.append((manager, clock.spawn(manager.run()), server))
-        await settled(clock)
-        return manager, state, hooks
-
-    yield build
-    for manager, task, server in started:
-        manager.stop()
-        await task
-        await manager.aclose()
-        server.close()
-        await server.wait_closed()
 
 
 async def test_a_refused_state_read_after_a_live_write_keeps_the_last_good_reading(
@@ -85,7 +54,7 @@ async def test_a_failed_list_refresh_after_a_verified_write_leaves_it_reported_a
 
 
 async def test_a_failed_state_read_after_a_verified_mode_write_leaves_it_reported_applied(
-    hooked_manager: Callable[[], Awaitable[HookedBuilt]],
+    hooked_manager: Callable[..., Awaitable[HookedBuilt]],
 ) -> None:
     manager, state, hooks = await hooked_manager()
     # The lists are read after the mode's own readback has verified it, so every State

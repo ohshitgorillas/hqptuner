@@ -6,38 +6,21 @@ Such an edit is not held for later: a LIVE batch
 carrying one has no fallback lane, so the batch is refused before any setter runs.
 
 The manager's readings put the Engine on one chain, with the enumerations of
-`tests/support/fake_control.py`. Values are config-form enum IDs: PCM `filter` 40 is
-`poly-sinc-gauss-long`, PCM `dither` 5 is `NS9`, SDM `oversampling` 23 is `sinc-M`, SDM
-`modulator` 3 is `ASDM7EC`.
+`tests/live/test_live_apply_split.py`, which mirror `tests/support/fake_control.py`.
+Values are config-form enum IDs: PCM `filter` 40 is `poly-sinc-gauss-long`, PCM
+`dither` 5 is `NS9`, SDM `oversampling` 23 is `sinc-M`, SDM `modulator` 3 is `ASDM7EC`.
 """
 
 from typing import NamedTuple
 
 import pytest
+from test_live_apply_split import MODES, PCM_FILTERS, PCM_SHAPERS, SDM_FILTERS, SDM_SHAPERS
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.live.routing import LiveRouteError, resolve_live
 
-MODES = [
-    {"index": "0", "name": "[source]", "value": "-1"},
-    {"index": "1", "name": "PCM", "value": "0"},
-    {"index": "2", "name": "SDM (DSD)", "value": "1"},
-]
-PCM_FILTERS = [
-    {"index": "0", "name": "none", "value": "0"},
-    {"index": "1", "name": "poly-sinc-gauss-long", "value": "40"},
-    {"index": "2", "name": "sinc-M", "value": "25"},
-    {"index": "3", "name": "poly-sinc-short-mp", "value": "57"},
-]
-SDM_FILTERS = [
-    {"index": "0", "name": "poly-sinc-gauss-long", "value": "38"},
-    {"index": "1", "name": "sinc-M", "value": "23"},
-    {"index": "2", "name": "poly-sinc-short-lp", "value": "57"},
-]
-PCM_SHAPERS = [{"index": "0", "name": "none", "value": "0"}, {"index": "1", "name": "NS9", "value": "5"}]
-SDM_SHAPERS = [{"index": "0", "name": "ASDM5", "value": "0"}, {"index": "1", "name": "ASDM7EC", "value": "3"}]
 JUNK_FILTERS = [{"index": "0", "name": "none"}, {"index": "1", "name": "20k"}, {"index": "2", "name": "30k"}]
 PCM_RATES = [{"index": "0", "rate": "0"}, {"index": "1", "rate": "44100"}, {"index": "2", "rate": "352800"}]
 SDM_RATES = [{"index": "0", "rate": "0"}, {"index": "1", "rate": "2822400"}]
