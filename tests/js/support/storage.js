@@ -12,10 +12,11 @@
  */
 const env = globalThis;
 
-// The three members our code reads, over a map a case can inspect directly.
-function fakeStorage() {
+// The three members our code reads, over a map a case can inspect directly, holding `seed` to begin with.
+/** @param {Record<string, string>} [seed] */
+export function fakeStorage(seed = {}) {
   /** @type {Map<string, string>} */
-  const map = new Map();
+  const map = new Map(Object.entries(seed));
   return {
     map,
     /** @param {string} k */
@@ -28,8 +29,9 @@ function fakeStorage() {
 }
 
 // Install a fresh fake, and hand it back so a case can read what was written.
-export function useStorage() {
-  const storage = fakeStorage();
+/** @param {Record<string, string>} [seed] */
+export function useStorage(seed) {
+  const storage = fakeStorage(seed);
   env.localStorage = storage;
   return storage;
 }
@@ -43,8 +45,8 @@ export function dropStorage() {
 // storage blocked by policy, or a full quota, hands over: the member exists and
 // throws on use. Distinct from having no localStorage at all, which `dropStorage`
 // leaves behind.
-export function useThrowingStorage() {
-  const storage = {
+export function throwingStorage() {
+  return {
     /** @param {string} k */
     getItem(k) {
       throw new Error(`storage is unavailable (getItem ${k})`);
@@ -58,6 +60,10 @@ export function useThrowingStorage() {
       throw new Error(`storage is unavailable (removeItem ${k})`);
     },
   };
+}
+
+export function useThrowingStorage() {
+  const storage = throwingStorage();
   env.localStorage = storage;
   return storage;
 }

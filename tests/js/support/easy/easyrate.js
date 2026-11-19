@@ -11,6 +11,7 @@
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 import { formFields } from "../tabform.js";
+import { servedEnums } from "../wire/wire.js";
 
 /**
  * The engine knobs a case may seed beside the filter fields: which output
@@ -88,6 +89,7 @@ const describedAs = (/** @type {string} */ cls) => `4/5 ⥣ ${TAIL[/** @type {ke
  * @param {Record<string, string>} [ratios] ratio class by filter NAME
  */
 export const enumerations = (vocab, modeName, ratios = {}) => ({
+  ...servedEnums(),
   filters: [
     { index: "0", value: vocab.none.value, name: vocab.none.label },
     ...vocab.names.map((name, i) => ({
@@ -97,12 +99,6 @@ export const enumerations = (vocab, modeName, ratios = {}) => ({
       ...(ratios[name] === undefined ? {} : { description: describedAs(ratios[name]) }),
     })),
   ],
-  shapers: [{ index: "0", value: "0", name: "none" }],
-  rates: [
-    { index: "0", rate: "0" },
-    { index: "1", rate: "96000" },
-  ],
-  junk_filters: [{ index: "0", value: "0", name: "none" }],
   mode: { name: modeName },
 });
 

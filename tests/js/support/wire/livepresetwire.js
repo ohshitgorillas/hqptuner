@@ -25,7 +25,7 @@ import { engineState, enums, config } from "../../../../hqptuner/static/store/si
 import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { fieldReading, seedReadings } from "../readings.js";
-import { ok, bad } from "./wire.js";
+import { ok, bad, servedEnums, trackedFetch } from "./wire.js";
 
 /** @typedef {import("./wire.js").FakeResponse} FakeResponse */
 /** @typedef {import("./wire.js").FakeRequest} FakeRequest */
@@ -120,20 +120,6 @@ export const STATE = (chain, rate = "1") => ({
   active_chain: chain,
 });
 
-const ENUMS = {
-  filters: [
-    { index: "0", value: "0", name: "none" },
-    { index: "1", value: "40", name: "poly-sinc-gauss-long" },
-  ],
-  shapers: [{ index: "0", value: "0", name: "none" }],
-  rates: [
-    { index: "0", rate: "0" },
-    { index: "1", rate: "96000" },
-  ],
-  junk_filters: [{ index: "0", value: "0", name: "none" }],
-  mode: { name: "PCM" },
-};
-
 // PUT and DELETE move the lists the fake HOLDS, the way the backend's store does:
 // a PUT writes only the stations its body names, a DELETE removes only the
 // station its query names, and every other station's list stays as it was. A
@@ -216,7 +202,7 @@ function ambient(path, c) {
   // the whole frame the daemon lane serves, not just its payload: a lane reading
   // `stale` must see the real field rather than undefined
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: c.mirrored || STATE(c.chain) });
-  if (path === "/api/enumerations") return ok({ data: ENUMS });
+  if (path === "/api/enumerations") return ok({ data: servedEnums() });
   if (path === "/api/config") return ok({ generation: 0, fields: {} });
   if (path === "/api/matrix") return ok({ data: { fields: [] } });
   if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
@@ -274,15 +260,7 @@ export function presetWire(cfg = {}) {
       ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method, query, body: opts.body })
       : ambient(bare, c);
   };
-  env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
-    const req = answer(path, opts);
-    w.inflight.add(req);
-    req.then(
-      () => w.inflight.delete(req),
-      () => w.inflight.delete(req),
-    );
-    return req;
-  };
+  trackedFetch(w, answer);
   return w;
 }
 

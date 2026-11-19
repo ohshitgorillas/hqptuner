@@ -22,6 +22,7 @@ import { h, options, render } from "preact";
 import { useSyncWhenIdle, userEdit, watchGestures, wheelGuard } from "../../../hqptuner/static/lib/dom.js";
 import { fakeClock } from "../support/clock.js";
 import { fakePage } from "../support/page.js";
+import { withRenderGlobal } from "../support/wheel.js";
 
 /** The value the slider is rendering, which a refused edit snaps back to. */
 const CANONICAL = "50";
@@ -213,38 +214,6 @@ test("test_a_wheel_over_a_control_of_a_page_is_canceled", () => {
 });
 
 // --- useSyncWhenIdle: compares against its input's own document's active element -------------------------------------
-
-/**
- * The global preact's `render` compares its host with, viewed as an optional member: under `node --test` there is
- * none, and the DOM lib declares it as always present and fully shaped.
- *
- * @type {{ document?: unknown }}
- */
-const env = globalThis;
-
-/** A global document no code may read: every member read throws, naming the member. */
-const UNREADABLE = new Proxy(
-  {},
-  {
-    get(_target, key) {
-      throw new Error(`the global document was read: ${String(key)}`);
-    },
-  },
-);
-
-/**
- * Run preact's `render` with the unreadable stand-in on the global, then take it away again.
- *
- * @param {() => void} run
- */
-function withRenderGlobal(run) {
-  env.document = UNREADABLE;
-  try {
-    run();
-  } finally {
-    delete env.document;
-  }
-}
 
 /**
  * The hook's host: binds the returned ref to `box`, as preact binds an element's `ref`.

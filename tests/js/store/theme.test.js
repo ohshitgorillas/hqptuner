@@ -20,6 +20,7 @@ import {
   applyDyslexic,
   dyslexic,
 } from "../../../hqptuner/static/store/ui/theme.js";
+import { fakeStorage, throwingStorage } from "../support/storage.js";
 
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
@@ -53,30 +54,6 @@ function fakeDocument() {
     },
   };
 }
-
-/** @param {Record<string, string>} [seed] */
-function fakeStorage(seed = {}) {
-  const map = new Map(Object.entries(seed));
-  return {
-    map,
-    getItem: (/** @type {string} */ k) => (map.has(k) ? map.get(k) : null),
-    setItem: (/** @type {string} */ k, /** @type {string} */ v) => map.set(k, v),
-    removeItem: (/** @type {string} */ k) => map.delete(k),
-  };
-}
-
-// Private-mode storage: present, but every touch throws.
-const brokenStorage = {
-  getItem: () => {
-    throw new Error("storage disabled");
-  },
-  setItem: () => {
-    throw new Error("storage disabled");
-  },
-  removeItem: () => {
-    throw new Error("storage disabled");
-  },
-};
 
 /** @param {FakeStorage} [storage] */
 function setup(storage = fakeStorage()) {
@@ -144,7 +121,7 @@ test("test_a_custom_hex_is_persisted", () => {
 });
 
 test("test_a_custom_hex_still_applies_when_storage_is_disabled", () => {
-  setup(brokenStorage);
+  setup(throwingStorage());
   applyAccentHex("#4f9dde");
   assert.equal(accentHex.value, "#4f9dde");
 });

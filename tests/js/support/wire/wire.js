@@ -192,6 +192,44 @@ function reconcileHttp(http, fields) {
 }
 
 /**
+ * Install a `fetch` that answers each request with `answer(path, opts)` and keeps the ones not yet answered on
+ * `w.inflight`, so `quiesce` can wait the wire out.
+ *
+ * @param {{ inflight: Set<Promise<FakeResponse>> }} w
+ * @param {(path: string, opts: FakeRequest) => Promise<FakeResponse>} answer
+ * @returns {void}
+ */
+export function trackedFetch(w, answer) {
+  env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
+    const req = answer(path, opts);
+    w.inflight.add(req);
+    req.then(
+      () => w.inflight.delete(req),
+      () => w.inflight.delete(req),
+    );
+    return req;
+  };
+}
+
+/**
+ * The enumerations the daemon serves, each item's index differing from its value: two filters, one shaper, rates auto
+ * and 96 kHz, one junk filter, in PCM mode.
+ */
+export const servedEnums = () => ({
+  filters: [
+    { index: "0", value: "0", name: "none" },
+    { index: "1", value: "40", name: "poly-sinc-gauss-long" },
+  ],
+  shapers: [{ index: "0", value: "0", name: "none" }],
+  rates: [
+    { index: "0", rate: "0" },
+    { index: "1", rate: "96000" },
+  ],
+  junk_filters: [{ index: "0", value: "0", name: "none" }],
+  mode: { name: "PCM" },
+});
+
+/**
  * @typedef {{
  *   staged: StagedBuffer,
  *   posts: unknown[],
@@ -239,15 +277,7 @@ export function stagingWire({ routes, fallback } = {}) {
     if (fallback) return fallback(w);
     return path === "/api/config/apply" ? ok({ report: {} }) : unrouted(path, opts);
   };
-  env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
-    const req = answer(path, opts);
-    w.inflight.add(req);
-    req.then(
-      () => w.inflight.delete(req),
-      () => w.inflight.delete(req),
-    );
-    return req;
-  };
+  trackedFetch(w, answer);
   return w;
 }
 

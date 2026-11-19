@@ -33,39 +33,7 @@ import { h, options, render } from "preact";
 import { useSyncWhenIdle, wheelGuard } from "../../../hqptuner/static/lib/dom.js";
 import { fakeClock } from "../support/clock.js";
 import { fakePage } from "../support/page.js";
-
-/**
- * The global preact's render compares its host with, viewed as an optional
- * member: under `node --test` there is none, and the DOM lib declares it as
- * always present and fully shaped.
- *
- * @type {{ document?: unknown }}
- */
-const env = globalThis;
-
-/** A global document no code may read: every member read throws, naming the member. */
-const UNREADABLE = new Proxy(
-  {},
-  {
-    get(_target, key) {
-      throw new Error(`the global document was read: ${String(key)}`);
-    },
-  },
-);
-
-/**
- * Run preact's render with the unreadable stand-in on the global, then take it away again.
- *
- * @param {() => void} run
- */
-function withRenderGlobal(run) {
-  env.document = UNREADABLE;
-  try {
-    run();
-  } finally {
-    delete env.document;
-  }
-}
+import { withRenderGlobal } from "../support/wheel.js";
 
 /** @returns {ReturnType<typeof fakePage>} */
 const newPage = () => fakePage({ clock: fakeClock().clock });

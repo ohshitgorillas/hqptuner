@@ -45,34 +45,31 @@ const optionsWhileHosted = () =>
     ["requestAnimationFrame", options.requestAnimationFrame],
   ]);
 
-test("while a mounted tree is on the page, Preact's options are the hosted page's alone", () => {
-  const { host, other } = twoPages();
-  const release = hostPage(host);
-  const expected = optionsWhileHosted();
-  try {
-    mount(h("p", null, "hi"), other.doc.body);
-    host.settle();
-    assert.deepEqual(optionsNow(), expected);
-  } finally {
-    mount(null, other.doc.body);
-    release();
-  }
-});
+/** @type {[string, boolean][]} */
+const HOSTED_OPTIONS = [
+  ["while a mounted tree is on the page, Preact's options are the hosted page's alone", false],
+  ["once a mounted tree is unmounted, Preact's options are the hosted page's alone", true],
+];
 
-test("once a mounted tree is unmounted, Preact's options are the hosted page's alone", () => {
-  const { host, other } = twoPages();
-  const release = hostPage(host);
-  const expected = optionsWhileHosted();
-  try {
-    mount(h("p", null, "hi"), other.doc.body);
-    host.settle();
-    mount(null, other.doc.body);
-    host.settle();
-    assert.deepEqual(optionsNow(), expected);
-  } finally {
-    release();
-  }
-});
+for (const [name, unmounted] of HOSTED_OPTIONS) {
+  test(name, () => {
+    const { host, other } = twoPages();
+    const release = hostPage(host);
+    const expected = optionsWhileHosted();
+    try {
+      mount(h("p", null, "hi"), other.doc.body);
+      host.settle();
+      if (unmounted) {
+        mount(null, other.doc.body);
+        host.settle();
+      }
+      assert.deepEqual(optionsNow(), expected);
+    } finally {
+      if (!unmounted) mount(null, other.doc.body);
+      release();
+    }
+  });
+}
 
 test("with a page hosted, mounting a tree renders it into the root, its nodes built in the hosted page's document", () => {
   const { host, other } = twoPages();

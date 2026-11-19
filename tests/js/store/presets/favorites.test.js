@@ -202,23 +202,22 @@ test("test_the_favorites_set_holds_the_union_after_the_migration", async () => {
   assert.deepEqual([...favoriteFilters.value].sort(), ["gauss-a", "gauss-c", "gauss-d"]);
 });
 
-test("test_migration_removes_the_localstorage_key", async () => {
-  reset(PLAIN);
-  favoritesWire({ filters: [] });
-  const storage = useStorage();
-  storage.map.set(LEGACY_KEY, JSON.stringify(["gauss-a"]));
-  await hydrateFavorites();
-  assert.equal(storage.map.has(LEGACY_KEY), false);
-});
+/** @type {[string, string[]][]} */
+const MIGRATIONS = [
+  ["test_migration_removes_the_localstorage_key", []],
+  ["test_migration_removes_the_localstorage_key_when_the_server_already_has_names", ["gauss-d"]],
+];
 
-test("test_migration_removes_the_localstorage_key_when_the_server_already_has_names", async () => {
-  reset(PLAIN);
-  favoritesWire({ filters: ["gauss-d"] });
-  const storage = useStorage();
-  storage.map.set(LEGACY_KEY, JSON.stringify(["gauss-a"]));
-  await hydrateFavorites();
-  assert.equal(storage.map.has(LEGACY_KEY), false);
-});
+for (const [name, filters] of MIGRATIONS) {
+  test(name, async () => {
+    reset(PLAIN);
+    favoritesWire({ filters });
+    const storage = useStorage();
+    storage.map.set(LEGACY_KEY, JSON.stringify(["gauss-a"]));
+    await hydrateFavorites();
+    assert.equal(storage.map.has(LEGACY_KEY), false);
+  });
+}
 
 // "localStorage holds no names" covers both shapes a browser can be in: no key
 // at all, and a key left holding an empty list. Neither may provoke a write.

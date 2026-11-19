@@ -8,7 +8,7 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
-import { stagingWire, ok, bad } from "./wire.js";
+import { stagingWire, ok, bad, servedEnums } from "./wire.js";
 
 /** @typedef {import("./wire.js").StagingWire} StagingWire */
 /** @typedef {import("./wire.js").FakeResponse} FakeResponse */
@@ -65,16 +65,7 @@ export const STATE = () => ({
 });
 
 /** The enumerations, each item's index differing from its value. */
-export const ENUMS = () => ({
-  filters: [
-    { index: "0", value: "0", name: "none" },
-    { index: "1", value: "40", name: "poly-sinc-gauss-long" },
-  ],
-  shapers: [{ index: "0", value: "0", name: "none" }],
-  rates: [{ index: "0", rate: "0" }],
-  junk_filters: [{ index: "0", value: "0", name: "none" }],
-  mode: { name: "PCM" },
-});
+export const ENUMS = () => ({ ...servedEnums(), rates: [{ index: "0", rate: "0" }] });
 
 /** The served readings, as /api/config answers: the station metadata alone. */
 const READINGS = () => ({

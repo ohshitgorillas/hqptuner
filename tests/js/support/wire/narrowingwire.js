@@ -72,6 +72,30 @@ export const puts = (w) =>
   w.calls.filter((c) => c.path === PATH && c.method === "PUT").map((c) => JSON.parse(String(c.body)).facets);
 
 /**
+ * Install a fetch fake for a GET/PUT pair on `path`: every request is logged on `w.calls`, a request to any other path
+ * answers `{}`, `gate` is awaited before a request to `path` is answered, a PUT is answered with `write(body)` and any
+ * other method with `read()`.
+ *
+ * @param {{ calls: { path: string, method: string, body?: string }[] }} w
+ * @param {string} path
+ * @param {{
+ *   gate?: () => Promise<void>,
+ *   read: () => ReturnType<typeof ok>,
+ *   write: (body: string | undefined) => ReturnType<typeof ok>,
+ * }} answers
+ * @returns {void}
+ */
+export function servePair(w, path, { gate, read, write }) {
+  env.fetch = async (/** @type {string} */ asked, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
+    const method = opts.method || "GET";
+    w.calls.push({ path: asked, method, body: opts.body });
+    if (asked !== path) return ok({});
+    if (gate) await gate();
+    return method === "PUT" ? write(opts.body) : read();
+  };
+}
+
+/**
  * A fake of the server side of the pair: it holds the facet map, replaces the
  * whole map on a PUT, and answers `{facets}` either way — which is what the
  * real routes do. `hold` parks every answer until `release()`, which is how a
@@ -97,19 +121,17 @@ export function narrowingWire(cfg = {}) {
   };
   const getStatus = cfg.getStatus || 200;
   const putStatus = cfg.putStatus || 200;
-  env.fetch = async (/** @type {string} */ path, /** @type {{method?: string, body?: string}} */ opts = {}) => {
-    const method = opts.method || "GET";
-    w.calls.push({ path, method, body: opts.body });
-    if (path !== PATH) return ok({});
-    if (w.hold) await new Promise((resolve) => parked.push(() => resolve(undefined)));
-    if (method !== "PUT") {
-      if (getStatus !== 200) return bad(getStatus, cfg.getDetail);
+  servePair(w, PATH, {
+    gate: async () => {
+      if (w.hold) await new Promise((resolve) => parked.push(() => resolve(undefined)));
+    },
+    read: () => (getStatus !== 200 ? bad(getStatus, cfg.getDetail) : ok({ facets: w.facets })),
+    write: (body) => {
+      if (putStatus !== 200) return bad(putStatus, cfg.putDetail);
+      w.facets = { ...NARROWING_DEFAULTS, ...JSON.parse(String(body)).facets };
       return ok({ facets: w.facets });
-    }
-    if (putStatus !== 200) return bad(putStatus, cfg.putDetail);
-    w.facets = { ...NARROWING_DEFAULTS, ...JSON.parse(String(opts.body)).facets };
-    return ok({ facets: w.facets });
-  };
+    },
+  });
   return w;
 }
 

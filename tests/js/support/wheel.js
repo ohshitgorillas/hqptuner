@@ -156,6 +156,22 @@ const unreadable = (name) =>
   );
 
 /**
+ * Run preact's client render with a global `document` no code may read on the global, for the length of the call alone:
+ * preact compares its host with that global before it mounts. The stand-in is taken away again whatever happens.
+ *
+ * @param {() => void} run
+ */
+export function withRenderGlobal(run) {
+  const env = /** @type {{ document?: unknown }} */ (globalThis);
+  env.document = unreadable("document");
+  try {
+    run();
+  } finally {
+    delete env.document;
+  }
+}
+
+/**
  * The vnodes from `node` out to the outermost element of the same render: the chain a wheel bubbles along.
  *
  * @param {VNode[]} seen

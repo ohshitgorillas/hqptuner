@@ -24,6 +24,7 @@ import assert from "node:assert/strict";
 
 import { ok, bad } from "../support/wire/wire.js";
 import { settle } from "../support/wire/livepresetwire.js";
+import { servePair } from "../support/wire/narrowingwire.js";
 import { fakeClock } from "../support/clock.js";
 import {
   descriptions,
@@ -38,15 +39,6 @@ const NAME = "Living Room";
 const OTHER = "Study";
 const TEXT = "Wide stereo, gentle tilt below 200 Hz.";
 const STAMP = "2026-02-03T04:05:06+00:00";
-
-/**
- * The global the fetch fake is installed on, viewed as an optional member: the
- * DOM lib declares `fetch` returning a real `Response`, which this fake does
- * not build.
- *
- * @type {{ fetch?: unknown }}
- */
-const env = globalThis;
 
 /**
  * @typedef {Record<string, { text: string, updated: string }>} ProfileMap
@@ -80,17 +72,16 @@ function descriptionsWire(cfg = {}) {
   /** @type {DescriptionWire} */
   const w = { calls: [], profiles: { ...(cfg.profiles || {}) } };
   const putStatus = cfg.putStatus || 200;
-  env.fetch = async (/** @type {string} */ path, /** @type {{method?: string, body?: string}} */ opts = {}) => {
-    const method = opts.method || "GET";
-    w.calls.push({ path, method, body: opts.body });
-    if (path !== PATH) return ok({});
-    if (method !== "PUT") return ok({ profiles: w.profiles });
-    if (putStatus !== 200) return bad(putStatus, cfg.putDetail);
-    const { name, text } = JSON.parse(String(opts.body));
-    if (String(text).trim() === "") delete w.profiles[name];
-    else w.profiles[name] = { text, updated: STAMP };
-    return ok({ profiles: w.profiles });
-  };
+  servePair(w, PATH, {
+    read: () => ok({ profiles: w.profiles }),
+    write: (body) => {
+      if (putStatus !== 200) return bad(putStatus, cfg.putDetail);
+      const { name, text } = JSON.parse(String(body));
+      if (String(text).trim() === "") delete w.profiles[name];
+      else w.profiles[name] = { text, updated: STAMP };
+      return ok({ profiles: w.profiles });
+    },
+  });
   return w;
 }
 
