@@ -4,6 +4,9 @@ plan: 1
 requirements: []
 files:
   - hqptuner/static/lib/timebase.js
+  - hqptuner/static/lib/clipboard.js
+  - hqptuner/static/lib/browser/clipboard.js
+  - hqptuner/static/components/faceplate/settings/LogTail.js
   - tests/js/lib/timebase.test.js
   - hqptuner/static/store/meter/feed.js
   - hqptuner/static/model/gauges/meter/meter.js
