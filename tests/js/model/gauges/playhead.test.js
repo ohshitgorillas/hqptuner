@@ -449,6 +449,20 @@ test("test_the_playhead_at_a_0_ms_delay_stands_that_far_behind_the_newest_frames
   assert.equal(paints[paints.length - 1].d.playhead, EDGE);
 });
 
+test("test_a_paint_at_an_unchanged_delay_leaves_the_playhead_exactly_where_it_stood_plus_the_paints_wall_time", () => {
+  const dt = 1000 / 60;
+  const d = pacePaint({
+    end: 900,
+    playhead: 1000,
+    delayed: 250,
+    started: true,
+    frames: frames(0, 1, [8000], false),
+    delay: 250,
+    dt,
+  });
+  assert.equal(d.playhead, 1000 + dt);
+});
+
 for (const seek of [...SEEKS, REJOIN]) {
   for (const delay of [0, SPLIT, 250]) {
     test(`test_at_a_seek_to_${seek}_ms_and_a_${delay}_ms_delay_the_paints_restart_exactly_where_a_break_arrived`, () => {

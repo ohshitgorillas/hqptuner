@@ -106,7 +106,7 @@ export function pacePaint({ end, playhead, delayed, started, frames, delay, dt }
   const start = Math.max(re, 0);
   const from = end !== null && re < 0 ? end : startOf(frames[start]);
   const newest = frames.length ? endOf(frames[frames.length - 1]) : from;
-  const head = re >= 0 ? newest - delay : Math.min((playhead ?? from) + dt + (delayed ?? delay) - delay, newest);
+  const head = re >= 0 ? newest - delay : Math.min((playhead ?? from) + dt + ((delayed ?? delay) - delay), newest);
   const to = Math.max(from, head);
   return { from, to, playhead: head, ...walk(frames, start, { from, to }), restart: re >= 0 };
 }
