@@ -15,6 +15,7 @@
 import { readFileSync } from "node:fs";
 
 import { samplesToMs, secondsToMs } from "../../../hqptuner/static/lib/timebase.js";
+import { seeded } from "../support/meter/seeded.js";
 
 /**
  * A schedule to replay: the delay the owner's page runs at, the paints and the arrivals.
@@ -44,22 +45,6 @@ const LONG_SAMPLES = [1019, 979, 900];
 //: The Safari capture's frame lengths in turn, samples at 48 kHz: 20, 21.3 and 22.7 ms.
 const SAFARI_SAMPLES = [960, 1024, 1088];
 const SAFARI_FILE = new URL("../../support/fixtures/safari_paint_schedule.json", import.meta.url);
-
-/**
- * A deterministic stream of numbers in [0, 1) from `seed`.
- *
- * @param {number} seed
- * @returns {() => number}
- */
-function random(seed) {
-  let s = seed;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /**
  * The frame lengths, samples at 44.1 kHz, of `spanMs` of music: short ones in the first half, long ones in the second.
@@ -137,7 +122,7 @@ function paintsEvery(spanMs, gap) {
  * @returns {Schedule}
  */
 function generated({ name, delay, spanMs, seed, feed, paints }) {
-  const rand = random(seed);
+  const rand = seeded(seed);
   return {
     name,
     rate: RATE_44K,
@@ -248,3 +233,20 @@ export const SCHEDULES = [
   generated({ name: "a_long_jittered_run", delay: 0.5, spanMs: 45000, seed: 8, feed: STANDARD, paints: jittered }),
   safari(),
 ];
+
+/**
+ * A reader of what replaying a schedule showed: `look` replays the schedule and reads what its probes found, once, and
+ * every ask for that schedule gets that reading.
+ *
+ * @template T
+ * @param {(schedule: Schedule) => T} look
+ * @returns {(schedule: Schedule) => T}
+ */
+export function seenOnce(look) {
+  /** @type {Map<string, T>} */
+  const looked = new Map();
+  return (schedule) => {
+    if (!looked.has(schedule.name)) looked.set(schedule.name, look(schedule));
+    return /** @type {T} */ (looked.get(schedule.name));
+  };
+}

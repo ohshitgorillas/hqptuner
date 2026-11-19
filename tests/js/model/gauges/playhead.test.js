@@ -30,6 +30,7 @@ import { readFileSync } from "node:fs";
 
 import { endOf, samplesToMs, secondsToMs, startOf, usToMs } from "../../../../hqptuner/static/lib/timebase.js";
 import { pacePaint } from "../../../../hqptuner/static/model/gauges/playhead.js";
+import { seeded } from "../../support/meter/seeded.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/playhead.js").PaintDecision} PaintDecision */
@@ -193,22 +194,6 @@ function delayedAt(steps, burst, delay) {
 }
 
 /**
- * A deterministic stream of numbers in [0, 1) from `seed`.
- *
- * @param {number} seed
- * @returns {() => number}
- */
-function random(seed) {
-  let s = seed;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
  * A bursty feed: `count` bursts, each carrying between `lo` and `hi` playback ms of music in frames that change length
  * from one to the next, one burst landing where the music before it would have ended on the wall plus or minus
  * `jitter` wall ms, so later bursts land early and late against one another.
@@ -218,7 +203,7 @@ function random(seed) {
  * @returns {Feed}
  */
 function generated({ seed, count, burst: [lo, hi], jitter }) {
-  const rand = random(seed);
+  const rand = seeded(seed);
   /** @type {Arrival[]} */
   const arrivals = [];
   let at = START;

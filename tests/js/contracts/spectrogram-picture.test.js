@@ -22,11 +22,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { freshProbe, scrollProbe, sliceProbe } from "./picture-probes.js";
-import { SCHEDULES } from "./schedules.js";
+import { SCHEDULES, seenOnce } from "./schedules.js";
 import { replay } from "./world.js";
-
-/** @type {Map<string, ReturnType<typeof look>>} */
-const looked = new Map();
 
 /**
  * Replay `schedule` once and read everything the tests below ask of it.
@@ -45,15 +42,7 @@ function look(schedule) {
   return { scroll: scroll.done(span), fresh: fresh.done(), slices: slices.done() };
 }
 
-/**
- * What replaying `schedule` showed, replayed on the first ask.
- *
- * @param {import("./schedules.js").Schedule} schedule
- */
-function seen(schedule) {
-  if (!looked.has(schedule.name)) looked.set(schedule.name, look(schedule));
-  return /** @type {ReturnType<typeof look>} */ (looked.get(schedule.name));
-}
+const seen = seenOnce(look);
 
 const NONE = { count: 0, first: "" };
 
