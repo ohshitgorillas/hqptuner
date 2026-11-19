@@ -27,6 +27,8 @@
 // with `started` set when `consumed` left any of those frames queued. The decision walks the queue once and allocates
 // nothing in proportion to it.
 
+import { endOf, startOf } from "../../lib/timebase.js";
+
 /** @typedef {import("./meter/meter.js").MeterFrame} MeterFrame */
 /**
  * What one paint decides from.
@@ -64,20 +66,6 @@
  * @property {boolean} restart  whether the paint starts again at a break, or at the queue's first frame when no paint
  *   has run, so every view of playback starts again
  */
-
-/**
- * Where `f` starts, playback ms.
- *
- * @param {MeterFrame} f
- */
-const startOf = (f) => f.at ?? NaN;
-
-/**
- * Where `f` ends, playback ms.
- *
- * @param {MeterFrame} f
- */
-const endOf = (f) => startOf(f) + f.ms;
 
 /**
  * How much of the span `[from, to)` frame `f` covers, playback ms.
