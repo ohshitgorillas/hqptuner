@@ -16,8 +16,9 @@
 // opened feed. So does the first event after any `geometry` event, even when
 // its `at` follows on: the sample count runs on across a geometry change, so a
 // count at one rate is not a time at another.
-// It then converts both to ms at the rate, once, so every queued frame carries
-// `at` and `ms` in playback ms, and `arrivedAt`, the wall time in ms on the Clock openMeterFeed() is handed at which
+// It then converts to ms at the rate through lib/timebase.js, once, from whole samples: every queued frame carries `at`,
+// where it starts, `end`, where it ends (the end sample `at + n` converted, so a frame ends exactly where the next
+// contiguous one starts) and `ms`, how long it lasts, all in playback ms, and `arrivedAt`, the wall time in ms on the Clock openMeterFeed() is handed at which
 // the page received its event, read once per event. The end of the last frame queued since the feed
 // opened is the feed's edge (feedEdge), the playback stamp data arriving on
 // another time base takes at the moment it arrives.
@@ -29,6 +30,7 @@
 // when the feed goes quiet or a frame comes again.
 import { signal, effect, untracked } from "@preact/signals";
 import { PLATFORM, quietWindow } from "../../lib/clock.js";
+import { endOf, samplesToMs, startOf } from "../../lib/timebase.js";
 import { decodeBins } from "../../model/gauges/meter/meter.js";
 import { playback } from "../core/readings.js";
 import { metering } from "../actions.js";
@@ -40,7 +42,6 @@ const QUIET_MS = 2000;
 // Playback the queue holds for a loop that has not drained it, ms: a pacing
 // delay of up to 5 s, and a second past it.
 const MAX_PENDING_MS = 6000;
-const MS_PER_S = 1000;
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 /**
@@ -114,11 +115,12 @@ function decode(wire, arrivedAt) {
   const brk = regeometried || prev === null || wire.at !== prev.at + prev.n;
   regeometried = false;
   prev = { at: wire.at, n: wire.n };
-  const msPerSample = geo ? MS_PER_S / geo.rate : NaN;
+  const rate = geo ? geo.rate : NaN;
   return {
     channels: wire.channels.map((ch) => ({ peak: ch.peak, rms: ch.rms, bins: decodeBins(ch.bins) })),
-    at: wire.at * msPerSample,
-    ms: wire.n * msPerSample,
+    at: samplesToMs(wire.at, rate),
+    end: samplesToMs(wire.at + wire.n, rate),
+    ms: samplesToMs(wire.n, rate),
     arrivedAt,
     break: brk,
     geo,
@@ -141,9 +143,9 @@ export function toSpectrogram(frames) {
  */
 function trim() {
   const last = pending[pending.length - 1];
-  const end = (last.at ?? NaN) + last.ms; // playback, ms
+  const end = endOf(last); // playback, ms
   let n = 0;
-  while (n < pending.length - 1 && end - (pending[n].at ?? NaN) > MAX_PENDING_MS) n++;
+  while (n < pending.length - 1 && end - startOf(pending[n]) > MAX_PENDING_MS) n++;
   if (n) toSpectrogram(pending.splice(0, n));
 }
 
@@ -170,7 +172,7 @@ export function openMeterFeed(next = PLATFORM) {
   es.addEventListener("frame", (e) => {
     hush();
     const frame = decode(JSON.parse(e.data), feedClock.now());
-    edge = (frame.at ?? NaN) + frame.ms;
+    edge = endOf(frame);
     pending.push(frame);
     trim();
   });

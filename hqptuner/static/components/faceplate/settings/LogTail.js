@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { PLATFORM, revertAfter } from "../../../lib/clock.js";
-import { copyToClipboard } from "../../../lib/clipboard.js";
+import { copyToClipboard } from "../../../lib/browser/clipboard.js";
 import { logLines, logMessage, refreshLogTail } from "../../../store/logtail.js";
 import { openStage } from "../../../store/faceplate/view.js";
 

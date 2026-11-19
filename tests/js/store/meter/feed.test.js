@@ -2,8 +2,8 @@
 // and closed while it is off, meterFeedOpen saying which. A `geometry` event sets meterGeometry; each `frame` event's
 // base64 bins come back from takeMeterFrames() in dBFS, once, carrying the geometry they arrived under.
 //
-// Playback time: every queued frame carries `at`, where it starts in playback, and `ms`, how long
-// it lasts, both in ms, read from its event's `at` and `n` samples at the geometry's rate, and `break`, whether its
+// Playback time: every queued frame carries `at`, where it starts in playback, `end`, where it ends, and `ms`, how long
+// it lasts, all in ms, read from its event's `at` and `n` samples at the geometry's rate, and `break`, whether its
 // event begins a break: its `at` is not the previous event's `at + n`, tested in whole samples, or it is the first
 // frame after a `geometry` event or the first on a newly opened feed, since the server's `at` keeps counting across a
 // change of rate and counts nothing while no page is attached. The queue's depth, for its cap, is the playback between
@@ -37,6 +37,7 @@ import {
   meterGeometry,
   takeMeterFrames,
 } from "../../../../hqptuner/static/store/meter/feed.js";
+import { endOf } from "../../../../hqptuner/static/lib/timebase.js";
 import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
@@ -45,11 +46,11 @@ import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
-import { near } from "../../support/near.js";
 import {
   AN_HOUR_ON_44K,
   BEFORE_A_GEOMETRY_44K,
   CONTIGUOUS_44K,
+  CONTIGUOUS_AT_RATES,
   DROPPED_44K,
   FOLLOWING_ON_176K,
   FOLLOWING_ON_44K,
@@ -68,12 +69,6 @@ const { clock, advance } = fakeClock();
 const GEO = geometry(RATE_44K);
 const GEO_176K = geometry(RATE_176K);
 const RATE_48K = 48000;
-
-/** One second of playback, in ms. */
-const SECOND_MS = 1000;
-
-/** How far two playback times in ms may differ and still be the same time: far under one sample at any rate. */
-const SAME_MS = 1e-6;
 
 /**
  * One feed's arrivals: the wall ms the clock moves on before the events of `rows` arrive together.
@@ -247,29 +242,33 @@ test("test_a_frame_arriving_under_a_new_geometry_carries_the_new_geometry", () =
   assert.deepEqual(take()[1]?.geo, GEO_176K);
 });
 
-test("test_in_a_contiguous_feed_each_frame_starts_where_the_one_before_it_ends", () => {
-  const frames = feed(GEO, CONTIGUOUS_44K);
-  const worst = Math.max(...frames.slice(1).map((f, i) => Math.abs(f.at - (frames[i].at + frames[i].ms))));
-  assert.ok(...near(worst, 0, SAME_MS));
-});
+for (const { rate, rows } of CONTIGUOUS_AT_RATES) {
+  test(`test_in_a_contiguous_feed_at_${rate}_hz_each_frame_ends_exactly_where_the_next_one_starts`, () => {
+    const frames = feed(geometry(rate), rows);
+    assert.deepEqual(
+      frames.slice(0, -1).map(endOf),
+      frames.slice(1).map((f) => f.at),
+    );
+  });
+}
 
 test("test_events_one_second_of_samples_apart_start_one_second_of_playback_apart", () => {
   const [first, second] = feed(GEO, ONE_SECOND_APART_44K);
-  assert.ok(...near((second?.at ?? NaN) - (first?.at ?? NaN), SECOND_MS, SAME_MS));
+  assert.equal((second?.at ?? NaN) - (first?.at ?? NaN), 1000);
 });
 
 test("test_after_a_reconnect_at_another_rate_one_second_of_samples_is_one_second_of_playback", () => {
   feed(GEO, CONTIGUOUS_44K);
   reconnect();
   const [first, second] = feed(GEO_176K, ONE_SECOND_APART_176K);
-  assert.ok(...near((second?.at ?? NaN) - (first?.at ?? NaN), SECOND_MS, SAME_MS));
+  assert.equal((second?.at ?? NaN) - (first?.at ?? NaN), 1000);
 });
 
 test("test_a_frame_starts_at_the_same_playback_whether_or_not_an_event_before_it_was_dropped", () => {
   const whole = feed(GEO, CONTIGUOUS_44K);
   reconnect();
   const dropped = feed(GEO, DROPPED_44K);
-  assert.ok(...near(dropped.at(-1)?.at ?? NaN, whole.at(-1)?.at ?? NaN, SAME_MS));
+  assert.equal(dropped.at(-1)?.at, whole.at(-1)?.at);
 });
 
 test("test_no_frame_after_the_first_of_a_contiguous_feed_begins_a_break", () => {

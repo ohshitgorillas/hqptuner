@@ -76,8 +76,84 @@ export const ONE_SECOND_APART_44K = [
  * @type {Stamp[]}
  */
 export const ONE_SECOND_APART_176K = [
-  { at: 3072, n: 3072 },
-  { at: 179472, n: 4080 },
+  { at: 0, n: 3072 },
+  { at: 176400, n: 4080 },
+];
+
+/**
+ * Six events at each of six rates, each starting where the one before it ended, 17.3 to 23.2 ms long, written out row
+ * by row. At every rate the converted start of some row plus the converted length of the row before it is not the
+ * converted start of the next.
+ *
+ * @type {Array<{ rate: number, rows: Stamp[] }>}
+ */
+export const CONTIGUOUS_AT_RATES = [
+  {
+    rate: 44100,
+    rows: [
+      { at: 1526, n: 763 },
+      { at: 2289, n: 851 },
+      { at: 3140, n: 900 },
+      { at: 4040, n: 931 },
+      { at: 4971, n: 992 },
+      { at: 5963, n: 1023 },
+    ],
+  },
+  {
+    rate: 48000,
+    rows: [
+      { at: 830, n: 830 },
+      { at: 1660, n: 926 },
+      { at: 2586, n: 979 },
+      { at: 3565, n: 1013 },
+      { at: 4578, n: 1080 },
+      { at: 5658, n: 1114 },
+    ],
+  },
+  {
+    rate: 88200,
+    rows: [
+      { at: 0, n: 1526 },
+      { at: 1526, n: 1702 },
+      { at: 3228, n: 1799 },
+      { at: 5027, n: 1861 },
+      { at: 6888, n: 1985 },
+      { at: 8873, n: 2046 },
+    ],
+  },
+  {
+    rate: 96000,
+    rows: [
+      { at: 3322, n: 1661 },
+      { at: 4983, n: 1853 },
+      { at: 6836, n: 1958 },
+      { at: 8794, n: 2026 },
+      { at: 10820, n: 2160 },
+      { at: 12980, n: 2227 },
+    ],
+  },
+  {
+    rate: 176400,
+    rows: [
+      { at: 6104, n: 3052 },
+      { at: 9156, n: 3405 },
+      { at: 12561, n: 3599 },
+      { at: 16160, n: 3722 },
+      { at: 19882, n: 3969 },
+      { at: 23851, n: 4092 },
+    ],
+  },
+  {
+    rate: 192000,
+    rows: [
+      { at: 16610, n: 3322 },
+      { at: 19932, n: 3706 },
+      { at: 23638, n: 3917 },
+      { at: 27555, n: 4051 },
+      { at: 31606, n: 4320 },
+      { at: 35926, n: 4454 },
+    ],
+  },
 ];
 
 /**

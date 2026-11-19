@@ -27,7 +27,6 @@ import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { append, newTrack, setPollStep } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
-import { near } from "../../support/near.js";
 import {
   RATE_48K,
   STAMPED_48K,
@@ -44,9 +43,6 @@ const OFFSET_S = 0.25;
 
 /** An engine output delay as Status reports it: microseconds. */
 const ENGINE_DELAY_US = "500000";
-
-/** How far two playback times in ms may differ and still be the same time: far under one sample at any rate. */
-const SAME_MS = 1e-6;
 
 /** The lifecycle generation of the Ready connection every case starts on. */
 const GEN = 3;
@@ -91,7 +87,7 @@ for (const [name, offset, fields] of /** @type {Array<[string, number, Record<st
     spectrumOffset.value = offset;
     play(STAMPED_48K);
     append([1], fields);
-    assert.ok(...near(newestAt(), STAMPED_48K_END_MS, SAME_MS));
+    assert.equal(newestAt(), STAMPED_48K_END_MS);
   });
 }
 
@@ -101,14 +97,14 @@ test("test_a_bins_stamp_is_the_feeds_edge_and_not_the_playhead", () => {
   playhead.value = ELSEWHERE_MS;
   play(STAMPED_48K);
   append([1]);
-  assert.ok(...near(newestAt(), STAMPED_48K_END_MS, SAME_MS));
+  assert.equal(newestAt(), STAMPED_48K_END_MS);
 });
 
 test("test_frames_already_taken_off_the_queue_still_set_the_edge_a_bin_is_stamped_at", () => {
   play(STAMPED_48K);
   takeMeterFrames();
   append([1]);
-  assert.ok(...near(newestAt(), STAMPED_48K_END_MS, SAME_MS));
+  assert.equal(newestAt(), STAMPED_48K_END_MS);
 });
 
 test("test_a_bins_stamp_stays_at_the_edge_its_arrival_saw_as_the_feed_moves_on", () => {
@@ -116,5 +112,5 @@ test("test_a_bins_stamp_stays_at_the_edge_its_arrival_saw_as_the_feed_moves_on",
   append([1]);
   play(STAMPED_48K.slice(FIRST_TWO));
   append([1]);
-  assert.ok(...near(apodBins.value[0]?.at ?? NaN, STAMPED_48K_SECOND_END_MS, SAME_MS));
+  assert.equal(apodBins.value[0]?.at, STAMPED_48K_SECOND_END_MS);
 });
