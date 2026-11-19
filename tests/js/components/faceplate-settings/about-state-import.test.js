@@ -24,7 +24,7 @@ import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/pre
 import { stationTree, unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { text } from "../../support/markup.js";
 import { seedReadings } from "../../support/readings.js";
-import { renderTree } from "../../support/vnodeseam.js";
+import { stateUploadChange, stateZip, chosen } from "../../support/rendered/aboutstate.js";
 import { ok } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/wire/wire.js").FakeResponse} FakeResponse */
@@ -138,16 +138,11 @@ afterEach(() => {
   env.fetch = REAL_FETCH;
 });
 
-/** The state upload's change handler, or a no-op when the page draws no state upload. */
-function onChange() {
-  const { seen } = renderTree(html`<${About} />`);
-  const fn = seen.find((v) => v.props["data-testid"] === "state-import")?.props.onChange;
-  return typeof fn === "function" ? /** @type {(e: unknown) => unknown} */ (fn) : async () => undefined;
-}
+const onChange = () => stateUploadChange(About);
 
 /** Choose one file on the state upload and wait for the import, and whatever it fires, to settle. */
 async function upload(/** @type {File} */ file) {
-  await onChange()({ target: { files: [file], value: "" } });
+  await onChange()(chosen(file));
   await settle();
 }
 
@@ -167,7 +162,7 @@ async function pagesAcrossASuccessfulImport() {
   /** @type {(r: FakeResponse) => void} */
   let release = () => {};
   importAnswer = () => new Promise((resolve) => (release = resolve));
-  const done = onChange()({ target: { files: [stateZip()], value: "" } });
+  const done = onChange()(chosen(stateZip()));
   await new Promise((resolve) => setImmediate(resolve));
   const during = page();
   release(ok({ ok: true }));
@@ -175,8 +170,6 @@ async function pagesAcrossASuccessfulImport() {
   await settle();
   return { before, during, after: page() };
 }
-
-const stateZip = () => new File([new Uint8Array(8)], "hqptuner-state.zip");
 
 test("test_a_chosen_state_file_is_posted_to_the_state_import_route_as_statefile", async () => {
   const file = stateZip();

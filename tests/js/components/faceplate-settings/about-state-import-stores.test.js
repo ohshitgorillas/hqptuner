@@ -17,13 +17,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { health, config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
-import { renderTree } from "../../support/vnodeseam.js";
 import { seedReadings } from "../../support/readings.js";
+import { pageRead, stateUploadChange, stateZip, chosen } from "../../support/rendered/aboutstate.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
-import { rec, STATE } from "../../support/wire/livepresetwire.js";
+import { rec } from "../../support/wire/livepresetwire.js";
 import { NARROWING_DEFAULTS } from "../../support/wire/narrowingwire.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -141,9 +139,8 @@ const W = stagingWire({
       server = imported();
       return ok({ ok: true });
     }
-    if (bare === "/api/health") return ok({ ...PAYLOAD });
-    if (bare === "/api/state") return ok({ stale: false, loaded_at: 1, data: STATE("pcm") });
-    if (bare === "/api/config") return ok(readings.value);
+    const page = pageRead(bare, PAYLOAD);
+    if (page) return page;
     if (!STORE_ROUTES.has(bare)) return undefined;
     CALLS.push({ path: bare, method, body: typeof opts.body === "string" ? opts.body : undefined });
     if (method === "PUT") write(bare, opts);
@@ -166,12 +163,7 @@ const { descriptions, descriptionFor } = await import("../../../../hqptuner/stat
 const { livePresets } = await import("../../../../hqptuner/static/store/live/presets.js");
 const { matrixMode } = await import("../../../../hqptuner/static/store/matrix/mode.js");
 
-/** The state upload's change handler, or a no-op when the page draws no state upload. */
-function onChange() {
-  const { seen } = renderTree(html`<${About} />`);
-  const fn = seen.find((v) => v.props["data-testid"] === "state-import")?.props.onChange;
-  return typeof fn === "function" ? /** @type {(e: unknown) => unknown} */ (fn) : async () => undefined;
-}
+const onChange = () => stateUploadChange(About);
 
 // The page before the import: every store read from the pre-import table, a facet the user moved and saved, and the
 // matrix tab sitting on the side the pre-import map records for the station.
@@ -183,7 +175,7 @@ descriptions.value = { ...server.descriptions };
 matrixMode.value = "speakers";
 await quiesce(W);
 
-await onChange()({ target: { files: [new File([new Uint8Array(8)], "hqptuner-state.zip")], value: "" } });
+await onChange()(chosen(stateZip()));
 await quiesce(W);
 
 /** The PUT bodies a store route was handed after the import landed, newest last. */
