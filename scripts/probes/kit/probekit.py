@@ -29,6 +29,7 @@ ARCHIVE = OUT / "pristine-settings.zip"
 SETTLE_TRIES = 40
 SETTLE_WAIT = 1.0
 PROFILE_POLLS = 30
+PIN_TARGETS = ("352800", "176400")
 
 
 class CliError(Exception):
@@ -171,3 +172,48 @@ async def await_profile(control: ControlClient, profile: str) -> list[str]:
             break
         await asyncio.sleep(1.0)
     return names
+
+
+def index_of(items: list[dict[str, str]], hz: str) -> str | None:
+    """Return the `RatesItem` index carrying this rate in Hz, or None if absent."""
+    return next((str(item["index"]) for item in items if str(item.get("rate")) == hz), None)
+
+
+def mode_index(items: list[dict[str, str]], name: str) -> str | None:
+    """Return the index of the mode whose display name starts with this."""
+    return next((str(i["index"]) for i in items if str(i.get("name", "")).upper().startswith(name)), None)
+
+
+async def connect_playing(need: str) -> tuple[ControlClient, str, str] | None:
+    """Connect and return the client with the live mode and rate, or None once it has said why not.
+
+    ``need`` finishes the refusal that names a stopped transport.
+    """
+    client = ControlClient()
+    await client.connect()
+    state = await client.get_state()
+    mode, rate = state.get("mode"), state.get("rate")
+    if mode is None or rate is None:
+        print("State reports no mode/rate — aborting, nothing changed")
+        return None
+    if state.get("state") != "2":
+        print(f"engine not playing (state={state.get('state')!r}) — {need}")
+        return None
+    return client, mode, rate
+
+
+async def restore_live(client: ControlClient, mode: str, rate: str, settle_wait: float = 0.0) -> int:
+    """Put the live mode and rate back, verify by ``State`` readback, close the client, and return the exit code."""
+    await client.set_command("SetMode", value=mode)
+    await client.set_command("SetRate", value=rate)
+    if settle_wait:
+        await asyncio.sleep(settle_wait)
+    final = await client.get_state()
+    if (final.get("mode"), final.get("rate")) != (mode, rate):
+        got = (final.get("mode"), final.get("rate"))
+        print(f"  RESTORE MISMATCH: want {(mode, rate)!r}, got {got!r}")
+        return 1
+    status, _meta = await client.get_status()
+    print(f"  restored, verified by readback (active_rate now {status.get('active_rate')!r})")
+    await client.close()
+    return 0

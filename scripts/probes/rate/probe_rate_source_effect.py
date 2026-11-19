@@ -35,32 +35,24 @@ the listener's say-so (granted 2026-07-29, drive test).
 
 import asyncio
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "kit"))
+
+from probekit import PIN_TARGETS, SETTLE_WAIT, connect_playing, index_of, mode_index, restore_live
 
 from hqptuner.engine.control import ControlClient
-
-SETTLE = 1.0
-TARGETS = ("352800", "176400")
-
-
-def _index_of(items: list[dict[str, str]], hz: str) -> str | None:
-    """Return the `RatesItem` index carrying this rate in Hz, or None if absent."""
-    return next((str(item["index"]) for item in items if str(item.get("rate")) == hz), None)
-
-
-def _mode_index(items: list[dict[str, str]], name: str) -> str | None:
-    """Return the index of the mode whose display name starts with this."""
-    return next((str(i["index"]) for i in items if str(i.get("name", "")).upper().startswith(name)), None)
 
 
 async def _request(client: ControlClient, hz: str, rates: list[dict[str, str]]) -> None:
     """Request one rate, let the engine settle, and judge by what comes out."""
-    index = _index_of(rates, hz)
+    index = index_of(rates, hz)
     if index is None:
         print(f"\n  {hz} has no index in the running list — skipped")
         return
     print(f"\n--- request {hz} (index {index})")
     await client.set_command("SetRate", value=index)
-    await asyncio.sleep(SETTLE)
+    await asyncio.sleep(SETTLE_WAIT)
     state = await client.get_state()
     status, _meta = await client.get_status()
     active = status.get("active_rate")
@@ -71,49 +63,32 @@ async def _request(client: ControlClient, hz: str, rates: list[dict[str, str]]) 
 
 async def main() -> int:
     """Establish whether SetRate in [source] mode moves the output rate even while State.rate keeps reading auto."""
-    client = ControlClient()
-    await client.connect()
-    state = await client.get_state()
-    original_mode, original_rate = state.get("mode"), state.get("rate")
-    if original_mode is None or original_rate is None:
-        print("State reports no mode/rate — aborting, nothing changed")
+    started = await connect_playing("[source] picks its rate during playback")
+    if started is None:
         return 1
-    if state.get("state") != "2":
-        print(f"engine not playing (state={state.get('state')!r}) — [source] picks its rate during playback")
-        return 1
+    client, original_mode, original_rate = started
     status, meta = await client.get_status()
     meta = meta or {}
     print(f"mode {original_mode!r}, rate {original_rate!r}, active_rate {status.get('active_rate')!r}")
     print(f"source: samplerate {meta.get('samplerate')!r} bits {meta.get('bits')!r} sdm {meta.get('sdm')!r}")
 
-    source_mode = _mode_index(await client.get_enumeration("GetModes"), "[SOURCE]")
+    source_mode = mode_index(await client.get_enumeration("GetModes"), "[SOURCE]")
     if source_mode is None:
         print("no [source] mode in GetModes — aborting, nothing changed")
         return 1
     if original_mode != source_mode:
         print(f"\n--- SetMode [source] (index {source_mode}) — the condition under test")
         await client.set_command("SetMode", value=source_mode)
-        await asyncio.sleep(SETTLE)
+        await asyncio.sleep(SETTLE_WAIT)
     status, _meta = await client.get_status()
     print(f"  baseline in [source]: active_rate {status.get('active_rate')!r}")
 
     rates = await client.get_enumeration("GetRates")
-    for hz in TARGETS:
+    for hz in PIN_TARGETS:
         await _request(client, hz, rates)
 
     print(f"\n--- restore mode {original_mode!r}, rate {original_rate!r}")
-    await client.set_command("SetMode", value=original_mode)
-    await client.set_command("SetRate", value=original_rate)
-    await asyncio.sleep(SETTLE)
-    final = await client.get_state()
-    if (final.get("mode"), final.get("rate")) != (original_mode, original_rate):
-        got = (final.get("mode"), final.get("rate"))
-        print(f"  RESTORE MISMATCH: want {(original_mode, original_rate)!r}, got {got!r}")
-        return 1
-    status, _meta = await client.get_status()
-    print(f"  restored, verified by readback (active_rate now {status.get('active_rate')!r})")
-    await client.close()
-    return 0
+    return await restore_live(client, original_mode, original_rate, SETTLE_WAIT)
 
 
 if __name__ == "__main__":
