@@ -1,7 +1,8 @@
 // Served field readings for tests, and the one place a test sets a field's value.
-import { readings, refreshReadings } from "../../../hqptuner/static/store/core/readings.js";
-import { generation, matrixConfig } from "../../../hqptuner/static/store/signals.js";
-import { ok } from "./wire/wire.js";
+import { beforeEach, afterEach } from "node:test";
+import { dropDrag, readings, refreshReadings } from "../../../hqptuner/static/store/core/readings.js";
+import { generation, health, matrixConfig } from "../../../hqptuner/static/store/signals.js";
+import { ok, quiesce, stagingWire } from "./wire/wire.js";
 
 /** @typedef {import("../../../hqptuner/static/model/store/reading.js").FieldReading} FieldReading */
 /** @typedef {import("../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
@@ -128,4 +129,32 @@ export function servedTrees(path) {
   if (path === "/api/matrix") return ok({ data: matrixConfig.value });
   if (path === "/api/enumerations") return ok({ data: null });
   return undefined;
+}
+
+/**
+ * Hooks for a suite that reads served fields over a staging wire. Before each case the wire answers `/api/config` with the
+ * readings as they stand, the daemon reports Ready at `stamp` and the readings are empty; after it the wire is quiet and the
+ * report is cleared. `drag` names a field whose drag hold is dropped around each case. The wire is read through the
+ * returned function, since each case has its own.
+ *
+ * @param {number} stamp
+ * @param {string} [drag]
+ * @returns {() => ReturnType<typeof stagingWire>}
+ */
+export function servedPage(stamp, drag) {
+  /** @type {ReturnType<typeof stagingWire>} */
+  let wire;
+  beforeEach(async () => {
+    wire = stagingWire({ routes: (path) => (path === "/api/config" ? ok(readings.value) : undefined) });
+    health.value = { phase: "Ready", generation: stamp };
+    await seedReadings({});
+    if (drag) dropDrag(drag);
+  });
+  afterEach(async () => {
+    await quiesce(wire);
+    if (drag) dropDrag(drag);
+    health.value = null;
+    await quiesce(wire);
+  });
+  return () => wire;
 }

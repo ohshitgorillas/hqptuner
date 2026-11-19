@@ -54,7 +54,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { writeSet, matchPreset, presetsFor } from "../../../../hqptuner/static/store/easy/easy.js";
-import { combos } from "../../support/easy/easytable.js";
+import { combos, positionsOf } from "../../support/easy/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */
@@ -75,12 +75,6 @@ const ENDS = [
 ];
 
 const TWO_STAGE = "-2s";
-
-/** A combination as `knob=option` pairs joined with `_`, for a test name. */
-function positionsOf(/** @type {Record<string, string>} */ knobs) {
-  const pairs = Object.entries(knobs).map(([knobId, option]) => `${knobId}=${option}`);
-  return pairs.length === 0 ? "no_knobs" : pairs.join("_");
-}
 
 /** Every knob of a preset at its declared default. */
 function restingKnobs(/** @type {Preset} */ preset) {

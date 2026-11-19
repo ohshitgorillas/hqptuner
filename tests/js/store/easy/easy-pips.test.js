@@ -29,19 +29,13 @@ import assert from "node:assert/strict";
 
 import { pipsFor } from "../../../../hqptuner/static/store/easy/easycost.js";
 import { presetsFor } from "../../../../hqptuner/static/store/easy/easy.js";
-import { combos } from "../../support/easy/easytable.js";
+import { combos, positionsOf } from "../../support/easy/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */
 
 /** @type {Preset[]} */
 const PRESETS = presetsFor();
-
-/** A combination as `knob=option` pairs joined with `_`, for a test name. */
-function positionsOf(/** @type {Record<string, string>} */ knobs) {
-  const pairs = Object.entries(knobs).map(([knobId, option]) => `${knobId}=${option}`);
-  return pairs.length === 0 ? "no_knobs" : pairs.join("_");
-}
 
 // ============================================================================
 // the auto output mode

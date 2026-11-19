@@ -18,104 +18,28 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { health } from "../../../hqptuner/static/store/signals.js";
-import { createConnPanel } from "../../../hqptuner/static/store/connpanel.js";
 import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
-import { staticWire, ok } from "../support/wire/wire.js";
-import { fakeClock } from "../support/clock.js";
+import {
+  CONTROL_ONLY,
+  SILENT,
+  panel,
+  reading,
+  settle,
+  start as startPanel,
+  stop,
+  submitForm,
+} from "../support/rendered/connpanel.js";
 
-/** The globals a wire fake installs a `fetch` on. */
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
+/** @typedef {import("../support/rendered/connpanel.js").Reading} Reading */
 
-/** @typedef {Record<string, unknown>} Reading */
-
-// The health readings this suite drives with, in the shape /api/health serves.
-// `credentials_ok` is tri-state: null is the 8088 lane's silence.
-/** @type {Reading} */
-const SILENT = { phase: "Down", credentials_ok: null, address_found: null };
-/** @type {Reading} */
-const CONTROL_ONLY = { phase: "Reachable", credentials_ok: null, address_found: true };
-
-/** The fake clock the page reads, in milliseconds since the page loaded. */
-let fake = fakeClock();
-let panel = createConnPanel({ clock: fake.clock });
-/** @type {(() => void) | undefined} */
-let dispose;
-
-// Moves the fake clock on to `at` ms since the page loaded.
-/** @param {number} at */
-function moveTo(at) {
-  fake.advance(at - fake.clock.now());
-}
-
-afterEach(() => {
-  if (dispose) dispose();
-  dispose = undefined;
-  env.fetch = REAL_FETCH;
-});
-
-// A freshly loaded page: no reading seen, no verdict, panel closed, host field
-// holding the loopback address it opens with and not yet edited.
+/** A freshly loaded page with the panel closed. */
 /** @param {number} [at] */
 function start(at = 0) {
-  fake = fakeClock();
-  panel = createConnPanel({ clock: fake.clock });
-  moveTo(at);
-  health.value = null;
   panelOpen.value = false;
-  panel.hostTouched.value = false;
-  panel.verdict.value = null;
-  panel.form.value = { host: "127.0.0.1", username: "", password: "", remember: false, hasPassword: false };
-  dispose = panel.initPanel();
+  startPanel(at);
 }
 
-// Turns of the event loop, never a duration: enough for the fake's immediate
-// answers and the store's continuations off them to have run.
-/**
- * @param {number} [turns]
- * @returns {Promise<void>}
- */
-async function settle(turns = 8) {
-  for (let turn = 0; turn < turns; turn += 1) await new Promise((resolve) => setImmediate(resolve));
-}
-
-// One health poll landing at `at` ms.
-/**
- * @param {Reading} fields
- * @param {number} at
- * @returns {void}
- */
-function reading(fields, at) {
-  moveTo(at);
-  health.value = { ...fields };
-}
-
-// The REST fake: discovery answering nobody, the saved record GET
-// /api/connection serves — `has_password` says whether the install already
-// holds one — and a 200 on the POST carrying the lane the route reached, with
-// the body recorded for the case to read.
-/**
- * @param {{ hasPassword?: boolean, lane?: string }} [answers]
- * @returns {Record<string, unknown>[]}
- */
-function wire({ hasPassword = false, lane = "ok" } = {}) {
-  /** @type {Record<string, unknown>[]} */
-  const posts = [];
-  staticWire(undefined, (path, opts) => {
-    if (path === "/api/discover") return ok([]);
-    if (path === "/api/connection" && opts.method === "POST") {
-      posts.push(JSON.parse(String(opts.body)));
-      return ok({ host: "10.0.0.9", username: "tuner", remember: false, has_password: true, lane });
-    }
-    if (path === "/api/connection") {
-      return ok({ host: "10.0.0.9", username: "tuner", remember: false, has_password: hasPassword });
-    }
-    return undefined;
-  });
-  return posts;
-}
+afterEach(stop);
 
 // What the save asked the route to do with the password: the value it sent, or
 // `undefined` where it sent no `password` key at all and left the held one be.
@@ -146,11 +70,10 @@ const SAVES = [
 for (const kase of SAVES) {
   test(kase.name, async () => {
     start();
-    const posts = wire({ hasPassword: kase.held });
-    panel.openPanel();
-    await settle();
-    panel.form.value = { ...panel.form.value, host: "10.0.0.9", username: "tuner", password: kase.typed };
-    await panel.submitConnection();
+    const posts = await submitForm(
+      { hasPassword: kase.held },
+      { host: "10.0.0.9", username: "tuner", password: kase.typed },
+    );
     assert.equal(sentPassword(posts[0] ?? {}), kase.sent);
   });
 }
@@ -184,11 +107,7 @@ const SAID = [
 for (const kase of SAID) {
   test(kase.name, async () => {
     start();
-    wire({ lane: kase.lane });
-    panel.openPanel();
-    await settle();
-    panel.form.value = { ...panel.form.value, host: kase.host, username: "tuner", password: "s3cret" };
-    await panel.submitConnection();
+    await submitForm({ lane: kase.lane }, { host: kase.host, username: "tuner", password: "s3cret" });
     if (kase.reading) reading(kase.reading, kase.at);
     await settle();
     assert.equal(panel.verdict.value, kase.verdict);

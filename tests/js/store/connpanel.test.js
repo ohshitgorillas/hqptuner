@@ -17,64 +17,29 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { health } from "../../../hqptuner/static/store/signals.js";
-import { createConnPanel } from "../../../hqptuner/static/store/connpanel.js";
 import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../support/wire/wire.js";
-import { fakeClock } from "../support/clock.js";
+import { HEALTHY, SILENT, panel, reading as poll, start as startPanel, stop } from "../support/rendered/connpanel.js";
 
-/** The globals a wire fake installs a `fetch` on. */
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
+/** @typedef {import("../support/rendered/connpanel.js").Reading} Reading */
 
-/** @typedef {Record<string, unknown>} Reading */
-
-// The three health readings this suite drives with, in the shape
-// /api/health serves (phase, credentials_ok, address_found — the verdicts are
-// tri-state: null is no conclusive dial, false is rejection).
-/** @type {Reading} */
-const NEVER = { phase: "Down", credentials_ok: null, address_found: null };
+// The health reading this suite adds to the shared ones, in the shape /api/health serves (phase, credentials_ok,
+// address_found — the verdicts are tri-state: null is no conclusive dial, false is rejection).
 /** @type {Reading} */
 const REFUSED = { phase: "Reachable", credentials_ok: false, address_found: true };
-/** @type {Reading} */
-const HEALTHY = { phase: "Ready", credentials_ok: true, address_found: true };
 
 // One daemon, in the shape /api/discover serves: address, name, version,
 // product, platform.
 const FOUND = [{ address: "10.0.0.9", name: "hqplayerd", version: "5.10.0", product: "Embedded", platform: "linux" }];
 
-/** The fake clock the page reads, in milliseconds since the page loaded. */
-let fake = fakeClock();
-let panel = createConnPanel({ clock: fake.clock });
-/** @type {(() => void) | undefined} */
-let dispose;
-
-// Moves the fake clock on to `at` ms since the page loaded.
-/** @param {number} at */
-function moveTo(at) {
-  fake.advance(at - fake.clock.now());
-}
-
-afterEach(() => {
-  if (dispose) dispose();
-  dispose = undefined;
-  env.fetch = REAL_FETCH;
-});
-
-// A freshly loaded page: no reading seen, panel closed, host field holding the
-// loopback address it opens with and not yet edited.
+// A freshly loaded page with the panel closed.
 /** @param {number} [at] */
 function start(at = 0) {
-  fake = fakeClock();
-  panel = createConnPanel({ clock: fake.clock });
-  moveTo(at);
-  health.value = null;
   panelOpen.value = false;
-  panel.hostTouched.value = false;
-  panel.form.value = { host: "127.0.0.1", username: "", password: "", remember: false, hasPassword: false };
-  dispose = panel.initPanel();
+  startPanel(at);
 }
+
+afterEach(stop);
 
 // One health poll landing at `at` ms, answered with what the panel then shows.
 /**
@@ -83,8 +48,7 @@ function start(at = 0) {
  * @returns {boolean}
  */
 function reading(fields, at) {
-  moveTo(at);
-  health.value = { ...fields };
+  poll(fields, at);
   return panelOpen.value;
 }
 
@@ -118,7 +82,7 @@ function wire() {
 const AUTO = [
   {
     name: "test_a_first_unreachable_reading_on_a_fresh_page_leaves_the_panel_closed",
-    readings: [[NEVER, 0]],
+    readings: [[SILENT, 0]],
     open: false,
   },
   {
@@ -130,7 +94,7 @@ const AUTO = [
     name: "test_a_daemon_that_had_connected_going_unreachable_leaves_the_panel_closed",
     readings: [
       [HEALTHY, 0],
-      [NEVER, 10000],
+      [SILENT, 10000],
     ],
     open: false,
   },

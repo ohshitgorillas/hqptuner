@@ -32,6 +32,12 @@ export const combos = (knobs) =>
     [{}],
   );
 
+/** A combination as `knob=option` pairs joined with `_`, for a test name. */
+export function positionsOf(/** @type {Record<string, string>} */ knobs) {
+  const pairs = Object.entries(knobs).map(([knobId, option]) => `${knobId}=${option}`);
+  return pairs.length === 0 ? "no_knobs" : pairs.join("_");
+}
+
 /** Every write set the table can produce, every knob position included. */
 export const everyWrite = () =>
   presetsFor().flatMap((/** @type {Preset} */ preset) =>

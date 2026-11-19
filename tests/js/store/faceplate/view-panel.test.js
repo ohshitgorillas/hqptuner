@@ -18,35 +18,27 @@ import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../../hqptuner/static/store/signals.js";
-import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
 import * as view from "../../../../hqptuner/static/store/faceplate/view.js";
-import { staticWire, ok } from "../../support/wire/wire.js";
-import { fakeClock } from "../../support/clock.js";
+import {
+  CONTROL_ONLY,
+  HEALTHY,
+  connectionWire as wire,
+  fake,
+  panel,
+  settle,
+  start,
+  stop,
+  submitForm,
+} from "../../support/rendered/connpanel.js";
 
-/** The globals a wire fake installs a `fetch` on. */
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
+/** @typedef {import("../../support/rendered/connpanel.js").Reading} Reading */
 
-/** @typedef {Record<string, unknown>} Reading */
-
-// The health readings this suite drives with, in the shape /api/health serves. `credentials_ok` is tri-state: null
-// is the 8088 lane's silence.
+// The health reading this suite adds to the shared ones: no daemon found at all, with the 8088 lane silent too.
 /** @type {Reading} */
 const SILENT = { phase: "Down", credentials_ok: null, address_found: false };
-/** @type {Reading} */
-const CONTROL_ONLY = { phase: "Reachable", credentials_ok: null, address_found: true };
-/** @type {Reading} */
-const HEALTHY = { phase: "Ready", credentials_ok: true, address_found: true };
 
 /** Ten minutes after the save, in ms: past any window a watcher waits before calling a silent daemon unreachable. */
 const LONG_AFTER = 600000;
-
-/** The fake clock the page reads, in milliseconds since the page loaded. */
-let fake = fakeClock();
-let panel = createConnPanel({ clock: fake.clock });
-/** @type {(() => void) | undefined} */
-let dispose;
 
 /**
  * The faceplate's own flag for the connection panel, or `undefined` where view.js keeps none.
@@ -77,49 +69,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (dispose) dispose();
-  dispose = undefined;
-  env.fetch = REAL_FETCH;
+  stop();
   setOverlay(false);
 });
-
-// A freshly loaded page: no reading seen, no verdict, host field holding the loopback address it opens with and not
-// yet edited.
-function start() {
-  fake = fakeClock();
-  panel = createConnPanel({ clock: fake.clock });
-  health.value = null;
-  panel.hostTouched.value = false;
-  panel.verdict.value = null;
-  panel.form.value = { host: "127.0.0.1", username: "", password: "", remember: false, hasPassword: false };
-  dispose = panel.initPanel();
-}
-
-// Turns of the event loop, never a duration: enough for the fake's immediate answers and the store's continuations
-// off them to have run.
-/**
- * @param {number} [turns]
- * @returns {Promise<void>}
- */
-async function settle(turns = 8) {
-  for (let turn = 0; turn < turns; turn += 1) await new Promise((resolve) => setImmediate(resolve));
-}
-
-// The REST fake: discovery answering nobody, the saved record GET /api/connection serves, and a 200 on the POST
-// carrying the lane the route reached.
-/** @param {string} lane */
-function wire(lane) {
-  staticWire(undefined, (path, opts) => {
-    if (path === "/api/discover") return ok([]);
-    if (path === "/api/connection" && opts.method === "POST") {
-      return ok({ host: "10.0.0.9", username: "tuner", remember: false, has_password: true, lane });
-    }
-    if (path === "/api/connection") {
-      return ok({ host: "10.0.0.9", username: "tuner", remember: false, has_password: false });
-    }
-    return undefined;
-  });
-}
 
 // --- the panel's flag is the faceplate's ------------------------------------
 
@@ -131,7 +83,7 @@ test("test_escape_with_the_connection_panel_up_takes_it_down", () => {
 
 test("test_opening_the_connection_panel_raises_the_faceplates_panel_flag", async () => {
   start();
-  wire("ok");
+  wire({ lane: "ok" });
   panel.openPanel();
   await settle();
   assert.equal(overlay()?.value, true);
@@ -171,11 +123,7 @@ const FORGOTTEN = [
 for (const kase of FORGOTTEN) {
   test(kase.name, async () => {
     start();
-    wire(kase.lane);
-    panel.openPanel();
-    await settle();
-    panel.form.value = { ...panel.form.value, host: "10.0.0.9", username: "tuner", password: "s3cret" };
-    await panel.submitConnection();
+    await submitForm({ lane: kase.lane }, { host: "10.0.0.9", username: "tuner", password: "s3cret" });
     setOverlay(false);
     fake.advance(kase.at);
     health.value = { ...kase.reading };

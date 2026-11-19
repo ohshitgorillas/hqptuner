@@ -1,4 +1,4 @@
-import test, { beforeEach, afterEach } from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   effective,
@@ -7,10 +7,10 @@ import {
   stagedCount,
   effectivePipelines,
 } from "../../../hqptuner/static/store/resolve.js";
-import { readings, holdDrag, dropDrag } from "../../../hqptuner/static/store/core/readings.js";
+import { holdDrag, dropDrag } from "../../../hqptuner/static/store/core/readings.js";
 import { health } from "../../../hqptuner/static/store/signals.js";
-import { ok, stagingWire, quiesce } from "../support/wire/wire.js";
-import { fieldReading, seedReadings } from "../support/readings.js";
+import { quiesce } from "../support/wire/wire.js";
+import { fieldReading, seedReadings, servedPage } from "../support/readings.js";
 
 const GEN = 61;
 const KEY = "volume_max";
@@ -22,22 +22,7 @@ const DRAG = -29;
 const ENGINE_STORE = { value: ENGINE, name: "fixture", generation: GEN };
 const FILE_STORE = { value: FILE, generation: GEN };
 
-/** @type {ReturnType<typeof stagingWire>} */
-let wire;
-
-beforeEach(async () => {
-  wire = stagingWire({ routes: (path) => (path === "/api/config" ? ok(readings.value) : undefined) });
-  health.value = { phase: "Ready", generation: GEN };
-  await seedReadings({});
-  dropDrag(KEY);
-});
-
-afterEach(async () => {
-  await quiesce(wire);
-  dropDrag(KEY);
-  health.value = null;
-  await quiesce(wire);
-});
+const wire = servedPage(GEN, KEY);
 
 // Break: effective chooses a store from the lane instead of the served show key.
 test("test_effective_follows_the_servers_shown_store", async () => {
@@ -100,7 +85,7 @@ test("test_effective_keeps_the_last_known_value_across_a_generation_move", async
   await seedReadings({ [KEY]: ENGINE });
   const seen = [effective(KEY)];
   health.value = { phase: "Ready", generation: GEN + 1 };
-  await quiesce(wire);
+  await quiesce(wire());
   seen.push(effective(KEY));
   await seedReadings({ [KEY]: fieldReading(FILE, { name: "fresh", generation: GEN + 1 }) }, GEN);
   seen.push(effective(KEY));
