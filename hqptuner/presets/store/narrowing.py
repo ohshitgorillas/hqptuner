@@ -23,10 +23,9 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from hqptuner import __version__
 from hqptuner.config import NARROWING_STORE
 from hqptuner.errors import HQPTunerError
-from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.jsonfile import StoreTooNewError, read_stamped
 from hqptuner.presets.store.narrowingjson import FacetInput, facet_input
 from hqptuner.shape.guards import is_bool, is_int
 from hqptuner.unwritable import reading, saving
@@ -90,7 +89,7 @@ class NarrowingError(HQPTunerError, ValueError):
     code = "invalid_input"
 
 
-class NarrowingSchemaError(NarrowingError):
+class NarrowingSchemaError(StoreTooNewError, NarrowingError):
     """The stored file is stamped newer than this HQPTuner understands.
 
     A subclass of ``NarrowingError`` so a caller catching the general error catches this too, and separate from it so
@@ -98,14 +97,7 @@ class NarrowingSchemaError(NarrowingError):
     for the server's file.
     """
 
-    code = "store_too_new"
-
-    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
-        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
-        super().__init__(
-            f"narrowing store is schema {stamp}, this HQPTuner {__version__} understands "
-            f"{understood} — upgrade HQPTuner to read {what}"
-        )
+    store_name = "narrowing store"
 
 
 class UnknownFacetError(NarrowingError):

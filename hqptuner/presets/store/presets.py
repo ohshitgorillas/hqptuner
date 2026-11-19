@@ -20,13 +20,12 @@ import hashlib
 import json
 from typing import TYPE_CHECKING, TypedDict
 
-from hqptuner import __version__
 from hqptuner.audit import AuditLog
 from hqptuner.config import PRESET_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 from hqptuner.presets.store import signed
-from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.jsonfile import StoreTooNewError, read_stamped
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
@@ -71,7 +70,7 @@ class PresetError(HQPTunerError, ValueError):
     code = "invalid_input"
 
 
-class PresetSchemaError(PresetError):
+class PresetSchemaError(StoreTooNewError, PresetError):
     """The stored file is stamped newer than this HQPTuner understands.
 
     A subclass of ``PresetError`` so a caller catching the general error catches this too, and separate from it so a
@@ -79,14 +78,7 @@ class PresetSchemaError(PresetError):
     is there and full.
     """
 
-    code = "store_too_new"
-
-    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
-        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
-        super().__init__(
-            f"preset store is schema {stamp}, this HQPTuner {__version__} understands "
-            f"{understood} — upgrade HQPTuner to read {what}"
-        )
+    store_name = "preset store"
 
 
 class PresetNotFoundError(PresetError):

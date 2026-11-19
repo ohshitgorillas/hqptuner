@@ -52,12 +52,11 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
-from hqptuner import __version__
 from hqptuner.config import LIVE_PRESET_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.fields import query
 from hqptuner.presets import names
-from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.jsonfile import StoreTooNewError, read_stamped
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
@@ -189,21 +188,14 @@ class LivePresetError(HQPTunerError, ValueError):
     code = "invalid_input"
 
 
-class LivePresetSchemaError(LivePresetError):
+class LivePresetSchemaError(StoreTooNewError, LivePresetError):
     """The stored file is stamped newer than this HQPTuner understands.
 
     Separate from ``LivePresetError`` so a route can answer "this store is unreadable" rather than "no such preset",
     which would be a lie about a store that is there and full.
     """
 
-    code = "store_too_new"
-
-    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
-        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
-        super().__init__(
-            f"live snapshot store is schema {stamp}, this HQPTuner {__version__} understands "
-            f"{understood} — upgrade HQPTuner to read {what}"
-        )
+    store_name = "live snapshot store"
 
 
 class SnapshotNotFoundError(LivePresetError):

@@ -17,8 +17,9 @@ nothing has been saved into yet — and stays each store's own reading, past thi
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
+from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:
@@ -38,6 +39,24 @@ class StoreCorruptError(HQPTunerError):
     def __init__(self, store: str, path: Path) -> None:
         """Carry the approved copy naming ``store`` (what to call the file) and ``path`` (where it is)."""
         super().__init__(f"{store} file unreadable: {path}. Fix or remove the file, then reload.")
+
+
+class StoreTooNewError(HQPTunerError):
+    """The stored file is stamped newer than this HQPTuner understands.
+
+    The shared half of every store's too-new error: its code and its wording, over the store's own ``store_name``. Each
+    store mixes it in ahead of its own error base, so a caller catching that base catches this too.
+    """
+
+    code = "store_too_new"
+    store_name: ClassVar[str]
+
+    def __init__(self, *, stamp: int, understood: int, what: str) -> None:
+        """Render the too-new wording naming the store's stamp, what this build understands, and what it cannot read."""
+        super().__init__(
+            f"{self.store_name} is schema {stamp}, this HQPTuner {__version__} understands "
+            f"{understood} — upgrade HQPTuner to read {what}"
+        )
 
 
 def read_stamped(
