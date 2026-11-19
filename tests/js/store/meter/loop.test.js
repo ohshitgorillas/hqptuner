@@ -31,6 +31,7 @@ import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { spectrogramRange } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { endOf } from "../../../../hqptuner/static/lib/timebase.js";
 import { lastStream } from "../../support/eventsource.js";
 import { STOPPED, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
@@ -95,11 +96,11 @@ function reconnect() {
  * @returns {{ from: number, to: number, joins: number }}  from and to playback, ms; NaN when the history is empty
  */
 function history() {
-  /** @type {Array<{ at: number, ms: number }>} playback, ms */
+  /** @type {Array<{ at: number, ms: number, end?: number }>} playback, ms */
   const slices = spectrogramRange.value.slices;
   const last = slices[slices.length - 1];
-  const joins = slices.filter((s, i) => i > 0 && s.at !== slices[i - 1].at + slices[i - 1].ms).length;
-  return { from: slices[0]?.at ?? NaN, to: last ? last.at + last.ms : NaN, joins };
+  const joins = slices.filter((s, i) => i > 0 && s.at !== endOf(slices[i - 1])).length;
+  return { from: slices[0]?.at ?? NaN, to: last ? endOf(last) : NaN, joins };
 }
 
 beforeEach(() => {

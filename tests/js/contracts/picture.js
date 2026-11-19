@@ -10,6 +10,7 @@
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 import { SPEC_SIZE } from "../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
+import { endOf, startOf } from "../../../hqptuner/static/lib/timebase.js";
 import { closeMeterFeed, openMeterFeed } from "../../../hqptuner/static/store/meter/feed.js";
 import { engineStatus } from "../../../hqptuner/static/store/signals.js";
 import { METER_RANGES, setMeterRange } from "../../../hqptuner/static/store/ui/prefs.js";
@@ -35,7 +36,6 @@ const CLEAR_BY = 4;
 const FNV_BASIS = 2166136261;
 const FNV_PRIME = 16777619;
 const BYTES_PER_PIXEL = 4;
-const EPS = 1e-9;
 
 /**
  * Open the meter feed the Source drawer's painter draws from: the first range the page offers, a fresh event source
@@ -160,7 +160,8 @@ export function scrolledBy(before, after) {
 }
 
 /**
- * @typedef {{ at: number, ms: number }} Span  playback, ms: where a slice starts and how long it lasts
+ * @typedef {{ at: number, ms: number, end?: number }} Span  playback, ms: where a slice starts, how long it lasts and
+ *   where it ends
  */
 
 /**
@@ -181,17 +182,17 @@ export function columnSlices(slices, edge, span, out) {
   for (let x = 0; x < W; x++) {
     const from = left + x * width;
     const to = from + width;
-    while (first < slices.length && slices[first].at + slices[first].ms <= from) first++;
+    while (first < slices.length && endOf(slices[first]) <= from) first++;
     let covered = 0;
     let best = -1;
     let most = 0;
-    for (let j = first; j < slices.length && slices[j].at < to && slices[j].at + slices[j].ms <= edge; j++) {
-      const overlap = Math.min(slices[j].at + slices[j].ms, to) - Math.max(slices[j].at, from);
+    for (let j = first; j < slices.length && startOf(slices[j]) < to && endOf(slices[j]) <= edge; j++) {
+      const overlap = Math.min(endOf(slices[j]), to) - Math.max(startOf(slices[j]), from);
       if (overlap <= 0) continue;
       covered += overlap;
-      if (overlap > most + EPS) [best, most] = [j, overlap];
+      if (overlap > most) [best, most] = [j, overlap];
     }
-    out[x] = covered >= width - EPS ? best : -1;
+    out[x] = covered >= width ? best : -1;
   }
   return out;
 }
