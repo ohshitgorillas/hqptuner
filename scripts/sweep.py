@@ -61,6 +61,10 @@ from playwright.sync_api import Browser, Page, Response, sync_playwright
 from sweepplots import PLOTS_JS, derive_plots
 from sweepslide import SETTLE_MS, PlotPass, attach_console, slider_pass
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "probes" / "kit"))
+
+from probekit import CliError, run_cli
+
 DEFAULT_VIEWPORT = "1280x900"
 MODE_SEL = '[data-k="output_mode"] .segment button'
 # The endpoint a control's edit posts to; its response means the server's staged buffer holds the edit.
@@ -212,10 +216,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if not args.viewport:
         args.viewport = [DEFAULT_VIEWPORT]
     return args
-
-
-class CliError(Exception):
-    """A condition that stops the sweep cold; `main` prints it and owns the exit code."""
 
 
 def parse_viewport(value: str) -> tuple[int, int]:
@@ -373,24 +373,22 @@ def sweep(browser: Browser, args: argparse.Namespace) -> None:
     print("pending after sweep:", json.dumps(read_pending(page)))
 
 
+def _run(args: argparse.Namespace) -> int:
+    """Run one sweep in one browser session, and close the browser after."""
+    with sync_playwright() as pw:
+        browser = launch(pw)
+        try:
+            sweep(browser, args)
+        finally:
+            browser.close()
+    return 0
+
+
 def main(argv: list[str]) -> int:
-    """Parse arguments, run one sweep in one browser session, and close the browser after."""
+    """Parse arguments, run the sweep, and turn a `CliError` into a printed reason and exit code 1."""
     args = parse_args(argv)
     args.outdir.mkdir(parents=True, exist_ok=True)
-    errors: list[CliError] = []
-    try:
-        with sync_playwright() as pw:
-            browser = launch(pw)
-            try:
-                sweep(browser, args)
-            finally:
-                browser.close()
-    except CliError as exc:
-        errors.append(exc)
-    if errors:
-        print(errors[0], file=sys.stderr)
-        return 1
-    return 0
+    return run_cli(lambda: _run(args))
 
 
 if __name__ == "__main__":

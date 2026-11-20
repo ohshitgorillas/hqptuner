@@ -58,4 +58,4 @@ async def _run() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(run_cli(_run)))
+    sys.exit(run_cli(lambda: asyncio.run(_run())))

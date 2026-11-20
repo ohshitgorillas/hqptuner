@@ -34,15 +34,15 @@ PIN_TARGETS = ("352800", "176400")
 
 
 class CliError(Exception):
-    """A condition that stops a probe cold; `run_cli` prints it and owns the exit code."""
+    """A condition that stops a script cold; `run_cli` prints it and owns the exit code."""
 
 
-async def run_cli(run: Callable[[], Awaitable[int]]) -> int:
-    """Run a probe, turning a `CliError` into a printed reason and exit code 1."""
+def run_cli(run: Callable[[], int]) -> int:
+    """Run a script's body, turning a `CliError` into a printed reason and exit code 1."""
     errors: list[CliError] = []
     result = 0
     try:
-        result = await run()
+        result = run()
     except CliError as exc:
         errors.append(exc)
     if errors:
