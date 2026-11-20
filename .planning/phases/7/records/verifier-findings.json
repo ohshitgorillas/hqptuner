@@ -1,0 +1,175 @@
+{
+  "status": "gaps",
+  "score": "8/13",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "Clone count within bound and jscpd threshold at its floor",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "scripts/gate.sh npx jscpd: exit=0 log=/tmp/gate-npx-dstBEiMp.log, line 114 'Found 33 clones.' (bound 43). .jscpd.json \"threshold\": 0.33. Per-format runs in /tmp/gate-make-wQH1fweY.log: python 282 of 86999 lines (0.3241%, line 128), javascript 116 of 113626 (0.10%), css 0. 0.33 passes every format; 0.32 sits below python's 0.3241% and fails, so 0.33 is the lowest two-decimal value."
+    },
+    {
+      "n": 2,
+      "truth": "Time constants defined in one lib file",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "grep -rnE \"(MS|US)_PER_S\\s*=\" hqptuner/static tests/js prints only hqptuner/static/lib/timebase.js:5 and :7. A wider grep for * or / by 1000, 1e3, 1e6 or 0.001 in hqptuner/static (vendor excluded) and tests/js finds only kHz, MHz and dB rounding, no time conversion. lib/clock.js:26 is the only performance.now read."
+    },
+    {
+      "n": 3,
+      "truth": "Frame end equals next frame start at six rates",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "hqptuner/static/store/meter/feed.js:121-123 converts at and at+n separately through samplesToMs. tests/js/store/meter/feed.test.js:226-233 runs CONTIGUOUS_AT_RATES (tests/js/support/meterfeed.js:83, rows at 44100, 48000, 88200, 96000, 176400 and 192000 Hz) with node:assert/strict deepEqual. Log /tmp/gate-make-wQH1fweY.log: ok 5074 to ok 5079, 'test_in_a_contiguous_feed_at_<rate>_hz_each_frame_ends_exactly_where_the_next_one_starts' for all six rates."
+    },
+    {
+      "n": 4,
+      "truth": "No seconds conversion in components or meter model",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "grep -rn MS_PER_S hqptuner/static/components hqptuner/static/model/gauges/meter prints nothing. The constants in hqptuner/static/model/gauges/meter/steps.js:14-33 are all _MS, _PER_MS, _PER_MS2 or unitless; none ends in _S. stepPace, stepSpectrum and stepCaps (steps.js:61, 173, 214) use dt against the ms constants."
+    },
+    {
+      "n": 5,
+      "truth": "Float-drift tolerances gone from tests",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "grep -rn SAME_MS tests/js prints nothing. grep -n EPS tests/js/contracts/trace-probes.js prints nothing. trace-probes.js:8 imports endOf and startOf from lib/timebase.js."
+    },
+    {
+      "n": 6,
+      "truth": "Timing spec names the time base as conversion owner",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "docs/spec/timing.md:24 '... through `hqptuner/static/lib/timebase.js`, which owns the conversion of whole samples to ms ...'. Lines 42 and 64 name lib/timebase.js again and keep the feed store as the one call site that converts wire stamps."
+    },
+    {
+      "n": 7,
+      "truth": "No regression against 503ddec8 and playhead tables untouched",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": "git diff 503ddec8 over the three playhead table files prints nothing. Run scripts/gate.sh make check: exit=2 log=/tmp/gate-make-wQH1fweY.log. pytest '3676 passed' (line 457). JS '# tests 5647 / # pass 5635 / # fail 12' (lines 34811-34814). All 12 failures are AssertionErrors located in playhead-lag.test.js (8), playhead-motion.test.js (3) and playhead-scroll.test.js (1). .planning/phases/8/records/reports/plan-1.md:15 records the same 12 reds, with the same 8/3/1 split in the same files, as tests-first tables awaiting phase 8 plan 2. Limit: the baseline was not re-run name by name at 503ddec8, because that would need a second checkout."
+    },
+    {
+      "n": 8,
+      "truth": "The feed store, delay store, playhead, spectrogram history, slice range, meter loop and painters take their conversions and frame start and end from lib/timebase.js, and dt reaches the painters in ms",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "12 production importers of lib/timebase.js, among them store/meter/feed.js:33, store/meter/delay.js:8 (secondsToMs, usToMs at :62), model/gauges/playhead.js:30 (endOf and startOf at :77, :107-131), store/meter/spectrogram.js:25, model/gauges/slicerange.js:7 (endOf at :39) and lib/spectroraster.js. store/meter/loop.js:55-58 and :150 type dt as wall time in ms. Log: ok 1364 onward 'test_the_playhead_moves_its_wall_time_unless_it_stands_at_the_newest_end_in_*', ok 5160-5162 slice join and slice end tests pass."
+    },
+    {
+      "n": 9,
+      "truth": "Every test contract reads a frame's or a slice's end through the time base and judges times exactly, with no tolerance",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "tests/js/contracts/picture.js:184, :188 and :189 compute a slice's end as `slices[j].at + slices[j].ms` and keep `const EPS = 1e-9` (:38), applied to ms overlaps at :192 and :194. Production slices carry `end`, with `ms = p.end - p.at` (store/meter/spectrogram.js:98-106), and slicerange.js:39 reads `endOf(s)`. So the test oracle (columnSlices, used by picture-probes.js:165) derives the same instant differently from the code under test and needs a tolerance to agree with it. tests/js/store/meter/loop.test.js:101-102 also derives slice ends and joins as `at + ms` instead of endOf."
+    },
+    {
+      "n": 10,
+      "truth": "No logic is duplicated: wherever two places derive the same value, both use one shared structure",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "The 60 Hz paint interval `secondsToMs(1) / 60` is defined three times: tests/js/support/meter/meterrig.js:128, tests/js/contracts/schedules.js:40, tests/js/model/gauges/playhead.test.js:112. tests/apply/manager/test_manager_handshake_answered_error.py:35 `_handshakes` repeats the body of tests/support/fixtures_daemons.py:177 `handshakes`. scripts/junkburst/jbpolicyyield.py:48 `_yield_veto_forces_real` repeats scripts/junkburst/jbpolicy.py:133 `veto_forces_real` with the veto fixed. The same CliError-to-exit-1 `main()` body sits in 9 probe scripts, e.g. scripts/probes/absent_plugin/probe_absent_plugin.py:236-251 and scripts/probes/restore_pristine.py:53-68, although plan 9 puts error plumbing in scripts/probes/kit/probekit.py, which has no such runner."
+    },
+    {
+      "n": 11,
+      "truth": "Source page meters, spectrum styles and aurora look unchanged",
+      "status": "FAILED",
+      "uat_item": 8,
+      "evidence": "No automated check exercises the dev build. SUMMARY deviation: task-check.sh stops at the 12 baseline reds, so the hqptuner:dev container was never rebuilt for plan 3 and no hand-back URL exists. Unit suites (tests/js/model/gauges/meter/*.test.js) pass but cover only model output, not the painted picture."
+    },
+    {
+      "n": 12,
+      "truth": "Source drawer spectrogram looks unchanged",
+      "status": "FAILED",
+      "uat_item": 9,
+      "evidence": "No automated check exercises the dev build for plan 2. The join tests (ok 5160-5162) and the picture contracts (ok 1295-1359, 'no column over passed music is glass') pass, but they judge model slices and a fake canvas, and the picture oracle itself uses the at+ms derivation with EPS (truth 9)."
+    },
+    {
+      "n": 13,
+      "truth": "Popovers, Visual settings drawer and matrix plot look unchanged",
+      "status": "FAILED",
+      "uat_item": 10,
+      "evidence": "dd3541d0 moves nine placement sites onto place() and parkPanel() (hqptuner/static/components/faceplate/Popover.js). No test asserts the left and top a popover lands at, and no dev build ran for plan 6 (SUMMARY deviation). The full e2e suite was not run in this phase (SUMMARY open item)."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Clone count within bound and jscpd threshold at its floor",
+      "evidence": "scripts/gate.sh npx jscpd 'Found 33 clones.' (/tmp/gate-npx-dstBEiMp.log:114). threshold 0.33. Python per-format figure 282/86999 = 0.3241%, so 0.32 fails and 0.33 is the floor."
+    },
+    {
+      "k": 2,
+      "name": "Time constants defined in one lib file",
+      "evidence": "The grep prints only hqptuner/static/lib/timebase.js:5 and :7."
+    },
+    {
+      "k": 3,
+      "name": "Frame end equals next frame start at six rates",
+      "evidence": "tests/js/store/meter/feed.test.js:226-233 with strict deepEqual. ok 5074-5079 in /tmp/gate-make-wQH1fweY.log, one per rate."
+    },
+    {
+      "k": 4,
+      "name": "No seconds conversion in components or meter model",
+      "evidence": "The MS_PER_S grep prints nothing. No steps.js constant ends in _S (steps.js:14-33)."
+    },
+    {
+      "k": 5,
+      "name": "Float-drift tolerances gone from tests",
+      "evidence": "The SAME_MS grep prints nothing, and trace-probes.js contains no EPS."
+    },
+    {
+      "k": 6,
+      "name": "Timing spec names the time base as conversion owner",
+      "evidence": "docs/spec/timing.md:24 names hqptuner/static/lib/timebase.js as the owner of the conversion of whole samples to ms."
+    },
+    {
+      "k": 7,
+      "name": "No regression against 503ddec8 and playhead tables untouched",
+      "evidence": "The table diff is empty. make check: pytest 3676 passed; JS 12 fail, all in the three unchanged phase 8 table files (8/3/1), matching .planning/phases/8/records/reports/plan-1.md:15."
+    }
+  ],
+  "gaps": [
+    {
+      "name": "Every test contract reads a frame's or a slice's end through the time base and judges times exactly, with no tolerance",
+      "reason": "behavior wrong: a test oracle re-derives slice ends as start plus length instead of reading them through the time base, and needs a float tolerance to agree with the code under test. This breaks success criteria 2 and 4 (test contracts use the structure; exact tests hold without tolerance).",
+      "evidence": "tests/js/contracts/picture.js:38 `const EPS = 1e-9`; :184, :188 and :189 use `slices[j].at + slices[j].ms`; :192 and :194 apply EPS to ms overlaps. The production slice carries `end` (hqptuner/static/store/meter/spectrogram.js:104-106), and slicerange.js:39 reads endOf(s). tests/js/store/meter/loop.test.js:101-102 derives `to` and `joins` from `at + ms`.",
+      "severity": "major",
+      "missing": "Make columnSlices in picture.js read startOf and endOf from hqptuner/static/lib/timebase.js, with the Span type carrying `end`, and drop EPS. Make history() in loop.test.js use endOf for `to` and for the join comparison."
+    },
+    {
+      "name": "No logic is duplicated: wherever two places derive the same value, both use one shared structure",
+      "reason": "behavior wrong: the goal says duplicated code is not allowed anywhere, and these repeats sit under jscpd's 50-token floor or inside its entry-point exemption. The SUMMARY admits two of them.",
+      "evidence": "secondsToMs(1) / 60 in tests/js/support/meter/meterrig.js:128, tests/js/contracts/schedules.js:40 and tests/js/model/gauges/playhead.test.js:112. `_handshakes` in tests/apply/manager/test_manager_handshake_answered_error.py:35 repeats tests/support/fixtures_daemons.py:177. `_yield_veto_forces_real` in scripts/junkburst/jbpolicyyield.py:48 repeats veto_forces_real in scripts/junkburst/jbpolicy.py:133. The CliError-to-exit-1 main() is copied into 9 probes (e.g. scripts/probes/absent_plugin/probe_absent_plugin.py:236-251, scripts/probes/restore_pristine.py:53-68), with no shared runner in scripts/probes/kit/probekit.py.",
+      "severity": "minor",
+      "missing": "Give the 60 Hz capture paint interval one exported home and import it from all three places. Import handshakes from tests/support/fixtures_daemons.py. Call veto_forces_real(mask_row, MIRROR_VETO_LEVEL). Add a probekit runner that turns CliError into a printed reason and exit code 1, so each probe's entry point calls it. The scripts/junkcal/junkcal_burst.py `_read_frame` repeat that the SUMMARY names also belongs here once it is confirmed."
+    },
+    {
+      "k": 8,
+      "name": "Source page meters, spectrum styles and aurora look unchanged",
+      "reason": "no automated check exercises it: no test or probe renders the dev build's Source page meters, spectrum styles or aurora after plan 3's change of dt to ms. The dev container was never rebuilt, because task-check.sh stops at the 12 baseline reds.",
+      "evidence": "SUMMARY deviation for plans 1, 2, 3, 6, 7 and 11 (task-check never rebuilt hqptuner:dev). The tests/js/model/gauges/meter/*.test.js suites judge model state, not the painted picture.",
+      "severity": "minor",
+      "missing": "Smallest closing check: rebuild hqptuner:dev without the make check stop, then run one e2e capture of the Source page meters, each spectrum style and the aurora over a fixed fake-clock stretch, compared against the same capture at 503ddec8."
+    },
+    {
+      "k": 9,
+      "name": "Source drawer spectrogram looks unchanged",
+      "reason": "no automated check exercises it: no check paints the dev build's Source drawer spectrogram. The picture contracts run on a fake canvas, and their oracle uses the at+ms derivation with EPS.",
+      "evidence": "tests/js/contracts/picture.js:177-196. No dev build ran for plan 2 (SUMMARY deviation).",
+      "severity": "minor",
+      "missing": "Smallest closing check: one e2e capture of the Source drawer spectrogram scrolling over a fixed feed on the rebuilt dev build, asserting no seam or gap column between slices."
+    },
+    {
+      "k": 10,
+      "name": "Popovers, Visual settings drawer and matrix plot look unchanged",
+      "reason": "no automated check exercises it: no test asserts where any of the nine popover sites lands after dd3541d0 moved them onto place() and parkPanel(), and no dev build ran for plan 6.",
+      "evidence": "dd3541d0 touches Header.js, HfFilter.js, SeeMore.js, Volume.js, bottom/Switcher.js, drawers/pipelines/parts.js, lists/FacetPopover.js, page/DisplayOptions.js and page/FilterPresets.js. The full e2e suite was not run in this phase (SUMMARY open item).",
+      "severity": "minor",
+      "missing": "Smallest closing check: an e2e geometry test that opens each of the nine popovers on the rebuilt dev build and asserts its left and top against its trigger, plus one capture each of the Visual settings drawer and the matrix plot."
+    }
+  ],
+  "human_checks": []
+}
