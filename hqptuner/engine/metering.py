@@ -25,6 +25,7 @@ import math
 import struct
 from collections import deque
 from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -46,6 +47,7 @@ IDLE_RECHECK = 1.0
 # Ingest every Nth frame (~43/s at 44.1k). The block statistics are read off the frames a block kept, at the rate the
 # corpus they are graded against was captured at, so every hop is ingested.
 DECIMATE = 1
+LEVEL_BLOCK = 16  # bytes: the four f32 levels every channel carries ahead of its transform
 MAX_CHANNELS = 32
 MAX_BINS = 65_536
 # Frames quieter than this on every channel (RMS dBFS) carry no tone; the reduced frame carries the rms as power.
@@ -296,7 +298,7 @@ class MeteringReader:
                     self._ingest(header, body)
             return False
         finally:
-            await _discard(read)
+            await discard(read)
             writer.close()
             with contextlib.suppress(OSError):
                 await writer.wait_closed()
@@ -340,16 +342,32 @@ class MeteringReader:
         )
 
 
-async def read_frame(reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
-    """Read one frame: the fixed header, then ``channels * (16 + 8 * bins)`` bytes of payload."""
-    header = HEADER.unpack(await reader.readexactly(HEADER.size))
+def frame_payload_size(channels: int, bins: int) -> int:
+    """Bytes of payload after the header: per channel, ``LEVEL_BLOCK`` of levels, then ``8 * bins`` of transform."""
+    return channels * (LEVEL_BLOCK + 8 * bins)
+
+
+async def read_raw_frame(reader: asyncio.StreamReader) -> tuple[bytes, tuple[float, ...], bytes]:
+    """Read one frame, returning the header bytes as they arrived, the unpacked header and the body.
+
+    The header is unpacked only to learn the channel and bin counts and to hand back; the raw bytes are what was read,
+    never a repack, since a stored frame must be the bytes the daemon sent.
+    """
+    raw = await reader.readexactly(HEADER.size)
+    header = HEADER.unpack(raw)
     channels, bins = int(header[1]), int(header[2])
     if not (0 < channels <= MAX_CHANNELS and 1 < bins <= MAX_BINS):
         raise ImplausibleMeteringHeaderError(channels=channels, bins=bins)
-    return header, await reader.readexactly(channels * (16 + 8 * bins))
+    return raw, header, await reader.readexactly(frame_payload_size(channels, bins))
 
 
-async def _discard(read: "asyncio.Task[tuple[tuple[float, ...], bytes]] | None") -> None:
+async def read_frame(reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
+    """Read one frame: the fixed header, then ``frame_payload_size`` bytes of payload."""
+    _, header, body = await read_raw_frame(reader)
+    return header, body
+
+
+async def discard(read: "asyncio.Task[Any] | None") -> None:
     """Cancel a still-pending frame read and collect whatever it ended with, so nothing is left unretrieved."""
     if read is None:
         return

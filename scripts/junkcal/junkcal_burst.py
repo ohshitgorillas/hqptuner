@@ -6,8 +6,8 @@ window, decimated to every fourth frame. That corpus answers questions about the
 answer questions about the stream it folded, because the frames are gone by the time a row is written.
 
 This script keeps the frames. It polls ``ControlClient.get_status`` on a slow tick and, whenever the engine is playing
-a track above ``RATE_FLOOR``, connects to the metering port, reads ``BURST_SECONDS`` of frames with the header struct
-and the payload sizing ``MeteringReader._read_frame`` uses, and disconnects. Each frame's header and body are stored
+a track above ``RATE_FLOOR``, connects to the metering port, reads ``BURST_SECONDS`` of frames with the engine's own
+``read_raw_frame``, and disconnects. Each frame's header and body are stored
 exactly as they arrived, base64 over the raw bytes, with the arrival time beside them: nothing is unpacked into the
 file, nothing decimated, nothing thresholded, no minimum folded. The status samplerate and the engaged junk filter
 ride at the top of the file so a burst can be attributed without a second source.
@@ -37,7 +37,7 @@ from typing import Any
 from hqptuner.config import Config
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.engine.metering import HEADER, MAX_BINS, MAX_CHANNELS
+from hqptuner.engine.metering import HEADER, discard, read_raw_frame
 from hqptuner.engine.trackcontext import PLAYING
 
 #: Where bursts land, one file each.
@@ -76,14 +76,6 @@ def _junk_filter_name(state: dict[str, str], enum: list[dict[str, str]]) -> str 
     return None
 
 
-class ImplausibleMeteringHeaderError(OSError):
-    """A metering frame's header carried a channel or bin count outside the daemon's known range."""
-
-    def __init__(self, *, channels: int, bins: int) -> None:
-        """Name the implausible `channels` and `bins` counts."""
-        super().__init__(f"implausible metering header (channels={channels}, bins={bins})")
-
-
 class BurstReader:
     """One metering connection, opened for a burst and closed when it ends."""
 
@@ -104,22 +96,20 @@ class BurstReader:
         deadline = time.monotonic() + seconds
         try:
             while time.monotonic() < deadline and not stop.is_set():
-                read = asyncio.create_task(self._read_frame(reader))
+                read = asyncio.create_task(read_raw_frame(reader))
                 waiter = asyncio.ensure_future(_wait(stop, deadline - time.monotonic()))
                 try:
                     await asyncio.wait({read, waiter}, return_when=asyncio.FIRST_COMPLETED)
                 finally:
                     waiter.cancel()
                 if not read.done():
-                    read.cancel()
-                    with contextlib.suppress(asyncio.CancelledError, OSError, asyncio.IncompleteReadError):
-                        await read
+                    await discard(read)
                     break
-                header, body = read.result()
+                raw_header, _, body = read.result()
                 frames.append(
                     {
                         "arrived": time.time(),
-                        "header": base64.b64encode(header).decode("ascii"),
+                        "header": base64.b64encode(raw_header).decode("ascii"),
                         "body": base64.b64encode(body).decode("ascii"),
                     }
                 )
@@ -128,20 +118,6 @@ class BurstReader:
             writer.close()
             with contextlib.suppress(OSError):
                 await writer.wait_closed()
-
-    @staticmethod
-    async def _read_frame(reader: asyncio.StreamReader) -> tuple[bytes, bytes]:
-        """Read one frame, returning the header and body bytes exactly as the daemon sent them.
-
-        Sized as ``MeteringReader._read_frame`` sizes it: a fixed header, then ``channels * (16 + 8 * bins)`` of
-        payload. The header is unpacked only to learn those two counts; the bytes handed back are the raw ones.
-        """
-        raw = await reader.readexactly(HEADER.size)
-        header = HEADER.unpack(raw)
-        channels, bins = int(header[1]), int(header[2])
-        if not (0 < channels <= MAX_CHANNELS and 1 < bins <= MAX_BINS):
-            raise ImplausibleMeteringHeaderError(channels=channels, bins=bins)
-        return raw, await reader.readexactly(channels * (16 + 8 * bins))
 
 
 async def _wait(stop: asyncio.Event, seconds: float) -> None:
