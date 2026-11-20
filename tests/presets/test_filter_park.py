@@ -8,7 +8,7 @@ Every upload refusal the park raises is a `ValueError` the upload route answers
 as `invalid_input`; these cases pin which refusal, by type.
 """
 
-import struct
+import wave
 from collections.abc import Iterator
 from contextlib import suppress
 from pathlib import Path
@@ -74,11 +74,11 @@ def test_a_colliding_upload_is_parked_beside_the_first_only_while_the_park_stays
 WAV_NAME = "probe.wav"
 
 #: A 16-byte PCM `fmt ` payload: format 1, one channel, 44100 Hz, 88200 B/s, block 2, 16 bits.
-FMT_PCM = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
+FMT_PCM = wave.fmt_payload()
 
 #: The same payload declaring zero channels, then declaring a zero sample rate.
-FMT_NO_CHANNELS = struct.pack("<HHIIHH", 1, 0, 44100, 88200, 2, 16)
-FMT_NO_RATE = struct.pack("<HHIIHH", 1, 1, 0, 88200, 2, 16)
+FMT_NO_CHANNELS = wave.fmt_payload(channels=0)
+FMT_NO_RATE = wave.fmt_payload(rate=0)
 
 #: One 16-bit null sample, the `data` payload of every container below.
 SAMPLE = bytes(2)
@@ -95,38 +95,29 @@ PAD = b"\x00"
 FMT_CUT = 7
 
 
-def _chunk(tag: bytes, payload: bytes, declared: int | None = None) -> bytes:
-    """One RIFF chunk: ``tag``, its size field (``declared``, else the payload length) and ``payload``."""
-    size = len(payload) if declared is None else declared
-    return tag + struct.pack("<I", size) + payload
-
-
-def _riff(chunks: bytes, magic: bytes = b"RIFF", form: bytes = b"WAVE") -> bytes:
-    """A RIFF container of form ``form`` holding ``chunks``, its size field kept in step with them."""
-    return magic + struct.pack("<I", 4 + len(chunks)) + form + chunks
-
-
-FMT = _chunk(b"fmt ", FMT_PCM)
-DATA = _chunk(b"data", SAMPLE)
+FMT = wave.chunk(b"fmt ", FMT_PCM)
+DATA = wave.chunk(b"data", SAMPLE)
 
 NOT_WAVE = [
-    pytest.param(_riff(b"fmt "), id="chunks-run-out-inside-the-fmt-header"),
-    pytest.param(_riff(FMT + b"data\x02"), id="chunks-run-out-inside-the-data-header"),
-    pytest.param(_riff(_chunk(b"LIST", b"", TWO_GIB) + FMT + DATA), id="chunk-before-fmt-declares-2gib"),
-    pytest.param(_riff(_chunk(b"LIST", b"", MAX_SIZE) + FMT + DATA), id="chunk-before-fmt-declares-4gib-less-one"),
-    pytest.param(_riff(DATA + _chunk(b"fmt ", FMT_PCM[:FMT_CUT], len(FMT_PCM))), id="fmt-truncated-at-eof"),
-    pytest.param(_riff(_chunk(b"fmt ", FMT_NO_CHANNELS) + DATA), id="zero-channels"),
-    pytest.param(_riff(_chunk(b"fmt ", FMT_NO_RATE) + DATA), id="zero-sample-rate"),
-    pytest.param(_riff(FMT + DATA, form=b"AVI "), id="riff-but-not-wave"),
-    pytest.param(_riff(FMT + DATA, magic=b"RIFX"), id="wave-without-riff"),
-    pytest.param(_riff(DATA), id="fmt-missing"),
-    pytest.param(_riff(FMT), id="data-missing"),
+    pytest.param(wave.riff(b"fmt "), id="chunks-run-out-inside-the-fmt-header"),
+    pytest.param(wave.riff(FMT + b"data\x02"), id="chunks-run-out-inside-the-data-header"),
+    pytest.param(wave.riff(wave.chunk(b"LIST", b"", TWO_GIB) + FMT + DATA), id="chunk-before-fmt-declares-2gib"),
+    pytest.param(
+        wave.riff(wave.chunk(b"LIST", b"", MAX_SIZE) + FMT + DATA), id="chunk-before-fmt-declares-4gib-less-one"
+    ),
+    pytest.param(wave.riff(DATA + wave.chunk(b"fmt ", FMT_PCM[:FMT_CUT], len(FMT_PCM))), id="fmt-truncated-at-eof"),
+    pytest.param(wave.riff(wave.chunk(b"fmt ", FMT_NO_CHANNELS) + DATA), id="zero-channels"),
+    pytest.param(wave.riff(wave.chunk(b"fmt ", FMT_NO_RATE) + DATA), id="zero-sample-rate"),
+    pytest.param(wave.riff(FMT + DATA, form=b"AVI "), id="riff-but-not-wave"),
+    pytest.param(wave.riff(FMT + DATA, magic=b"RIFX"), id="wave-without-riff"),
+    pytest.param(wave.riff(DATA), id="fmt-missing"),
+    pytest.param(wave.riff(FMT), id="data-missing"),
 ]
 
 VALID_WAVE = [
-    pytest.param(_riff(_chunk(b"LIST", ODD_PAYLOAD) + PAD + FMT + DATA), id="odd-chunk-padded-before-fmt"),
-    pytest.param(_riff(FMT + _chunk(b"data", b"")), id="final-chunk-empty-data"),
-    pytest.param(_riff(DATA + FMT), id="fmt-payload-ends-at-eof"),
+    pytest.param(wave.riff(wave.chunk(b"LIST", ODD_PAYLOAD) + PAD + FMT + DATA), id="odd-chunk-padded-before-fmt"),
+    pytest.param(wave.riff(FMT + wave.chunk(b"data", b"")), id="final-chunk-empty-data"),
+    pytest.param(wave.riff(DATA + FMT), id="fmt-payload-ends-at-eof"),
 ]
 
 #: Names carrying a control byte (lowest, highest below space), DEL, or `..` away from either end.

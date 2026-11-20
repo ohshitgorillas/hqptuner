@@ -16,8 +16,8 @@ import importlib.util
 import os
 import shutil
 import socket
-import struct
 import sys
+import wave
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator, Mapping
 from pathlib import Path
 from types import MappingProxyType, ModuleType
@@ -155,20 +155,7 @@ def minimal_wave(size: int = WAVE_HEADER_BYTES + 2) -> bytes:
     data_len = size - WAVE_HEADER_BYTES
     if data_len < 2:
         raise FixtureError(reason="a WAVE container needs at least one sample")
-    fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
-    return b"".join(
-        [
-            b"RIFF",
-            struct.pack("<I", 4 + 8 + len(fmt) + 8 + data_len),
-            b"WAVE",
-            b"fmt ",
-            struct.pack("<I", len(fmt)),
-            fmt,
-            b"data",
-            struct.pack("<I", data_len),
-            bytes(data_len),
-        ]
-    )
+    return wave.pcm_wave(wave.fmt_payload(), bytes(data_len))
 
 
 DaemonFactory = Callable[..., Awaitable[tuple[int, CommandLog, dict[str, str]]]]

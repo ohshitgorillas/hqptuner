@@ -18,6 +18,7 @@ Policy notes:
 """
 
 import struct
+import wave
 
 from playwright.sync_api import FilePayload, Locator, Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -47,11 +48,10 @@ FRAMES = 64
 def _wav(frames: int) -> bytes:
     """A well-formed PCM RIFF/WAVE file of `frames` frames: one unit impulse, then silence."""
     block = CHANNELS * BITS // 8
-    fmt = struct.pack("<HHIIHH", PCM_FORMAT, CHANNELS, RATE, RATE * block, block, BITS)
+    fmt = wave.fmt_payload(tag=PCM_FORMAT, channels=CHANNELS, rate=RATE, byte_rate=RATE * block, block=block, bits=BITS)
     impulse = struct.pack("<" + "h" * CHANNELS, *([1] * CHANNELS))
     samples = impulse + bytes(block * (frames - 1))
-    body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(samples)) + samples
-    return b"RIFF" + struct.pack("<I", len(body)) + body
+    return wave.pcm_wave(fmt, samples)
 
 
 def _stored(name: str) -> FilePayload:
