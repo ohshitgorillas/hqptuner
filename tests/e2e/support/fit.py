@@ -331,6 +331,109 @@ const identOf = (identity) => (el) => {
 """
 
 
+#: Shared by the walk's steps: what is shown, the shown body.
+PLACE_JS = """
+const shown = (el) => el.getClientRects().length > 0;
+const BODY = ".body[data-body]";
+const body = () => [...document.querySelectorAll(BODY)].find(shown) ?? null;
+"""
+
+#: Tap-and-measure walk, as the body of an async function taking `{ root, walked, skip, rounding, ceiling, depth }`,
+#: with `measure` standing for the function that reads each surface a tap newly shows. Taps every trigger on show in
+#: the place `root` names ("plate": the page outside the drawers, "drawer": the open drawer, "view": the shown body)
+#: and not yet in `walked`, reads each surface a tap newly shows through
+#: `measure(surface, trigger, at, { skip, rounding })`, walks the triggers inside it down to `depth` levels, and closes
+#: it. Returns each surface `measure` answered a non-empty list for, keyed by its trigger path, with that list; the
+#: number of triggers the place offered; the number of surfaces measured; the triggers gone before their turn; the
+#: surfaces that would not close.
+_WALK_JS = """
+  const SURFACE = '[data-pop]:not(button), [role="dialog"], [role="listbox"], [role="menu"]';
+  const TRIGGER = '[aria-haspopup]:not([aria-haspopup="false"]), [aria-expanded], [data-testid="see-more"]';
+  const NOT_TRIGGER = 'button[data-stage], [role="tab"], [data-testid="drawer-close"], '
+    + '[data-testid="settings"], [data-testid="station-builder"], [data-testid="snapshot-builder"]';
+  const IDENTITY = ["data-pop", "data-testid", "data-k", "data-field", "data-v", "data-step", "data-station",
+    "data-mode"];
+  const CONTEXT = '[data-k], [data-field], [data-pop]:not(button), [data-step], [data-station]';
+  const ident = identOf(IDENTITY);
+  const keyOf = (el) => {
+    const around = el.parentElement === null ? null : el.parentElement.closest(CONTEXT);
+    return around === null ? ident(el) : `${ident(around)} ${ident(el)}`;
+  };
+  const surfaces = () => [...document.querySelectorAll(SURFACE)].filter(shown);
+  const outermost = (els) => els.filter((e) => !els.some((o) => o !== e && o.contains(e)));
+  const triggers = (box, outside) => {
+    const els = [...box.querySelectorAll(TRIGGER)].filter(
+      (t) => shown(t) && !t.disabled && !t.matches(NOT_TRIGGER) && (outside === null || t.closest(outside) === null),
+    );
+    const count = new Map();
+    return els.map((el) => {
+      const key = keyOf(el);
+      const n = (count.get(key) ?? 0) + 1;
+      count.set(key, n);
+      return [n === 1 ? key : `${key}#${n}`, el];
+    });
+  };
+  const gone = (opened) => opened.every((s) => !s.isConnected || !shown(s));
+  const close = async (el, opened) => {
+    if (el.isConnected && shown(el)) {
+      el.click();
+      await settle(ceiling);
+      if (gone(opened)) return true;
+    }
+    const target = document.activeElement ?? document.body;
+    target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await settle(ceiling);
+    return gone(opened);
+  };
+  const result = { found: {}, offered: 0, measured: 0, unreached: [], unclosed: [] };
+  const walk = async (box, outside, path, level) => {
+    for (const [key, el] of triggers(box, outside)) {
+      const at = path === "" ? key : `${path} > ${key}`;
+      if (walked.has(key)) continue;
+      walked.add(key);
+      if (!el.isConnected || !shown(el)) {
+        result.unreached.push(at);
+        continue;
+      }
+      const before = new Set(surfaces());
+      const expanded = el.getAttribute("aria-expanded");
+      el.click();
+      await settle(ceiling);
+      const opened = outermost(surfaces().filter((s) => !before.has(s)));
+      for (const surface of opened) {
+        result.measured += 1;
+        const lines = measure(surface, el, at, { skip, rounding });
+        if (lines.length > 0) result.found[at] = lines;
+        if (level < depth) await walk(surface, null, at, level + 1);
+      }
+      if (opened.length > 0) {
+        if (!(await close(el, opened))) result.unclosed.push(at);
+      } else if (el.isConnected && el.getAttribute("aria-expanded") !== expanded) {
+        el.click();
+        await settle(ceiling);
+      }
+    }
+  };
+  const places = {
+    plate: () => [document.body, "aside.drawer"],
+    drawer: () => [document.querySelector(OPEN), null],
+    view: () => [body(), null],
+  };
+  const [box, outside] = places[root]();
+  await settle(ceiling);
+  result.offered = triggers(box, outside).length;
+  await walk(box, outside, "", 1);
+  return result;
+}
+"""
+
+
+def walk_js(measure: str) -> str:
+    """The tap-and-measure walk as a function body, reading each surface it opens through `measure`, a JS function."""
+    head = "async ({ root, walked, skip, rounding, ceiling, depth }) => {"
+    return head + PRELUDE_JS + DRAWER_JS + PLACE_JS + IDENT_JS + f"const measure = {measure};" + _WALK_JS
+
+
 def show_format_dial(page: Page, timeout: float | None = None) -> None:
     """Open the Output drawer's Format tab and wait for its rate dial; `timeout` bounds each step (default if none)."""
     page.locator(f'button[data-stage="{OUTPUT_STAGE}"]').click(timeout=timeout)

@@ -73,15 +73,8 @@ MAX_DEPTH = 2
 #: The name the matrix profile view itself is reported under.
 PROFILE_VIEW = "profile view"
 
-#: Shared by the walk's steps: what is shown, the shown body.
-PLACE_JS = """
-const shown = (el) => el.getClientRects().length > 0;
-const BODY = ".body[data-body]";
-const body = () => [...document.querySelectorAll(BODY)].find(shown) ?? null;
-"""
-
 #: What every step of the walk starts from: the prelude, the drawer's helpers and the place's.
-STEPS_JS = fit.PRELUDE_JS + fit.DRAWER_JS + PLACE_JS
+STEPS_JS = fit.PRELUDE_JS + fit.DRAWER_JS + fit.PLACE_JS
 
 #: Closes the open drawer, if any, and settles.
 CLOSE_JS = "async ({ ceiling }) => {" + fit.PRELUDE_JS + fit.DRAWER_JS + """
@@ -114,7 +107,7 @@ TOP_JS = "async ({ field, value, ceiling }) => {" + STEPS_JS + """
 """
 
 #: Whether the shown body holds a matrix profile's description box.
-PROFILE_SHOWN_JS = "() => {" + PLACE_JS + """
+PROFILE_SHOWN_JS = "() => {" + fit.PLACE_JS + """
   const root = body();
   return root !== null && [...root.querySelectorAll('textarea[data-testid="profile-description"]')].some(shown);
 }
@@ -127,93 +120,11 @@ BODY_JS = "async ({ skip, rounding, ceiling }) => {" + STEPS_JS + """
 }
 """
 
-#: Taps every trigger on show in the place `root` names ("plate": the page outside the
-#: drawers, "drawer": the open drawer, "view": the shown body) and not yet in `walked`,
-#: measures each surface a tap newly shows, walks the triggers inside it down to `depth`
-#: levels, and closes it. Returns each surface that hides content, keyed by its trigger
-#: path, with the boxes it runs past as "<box> <axis> <px>", worst first; the number of
-#: triggers the place offered; the number of surfaces measured; the triggers gone before
-#: their turn; the surfaces that would not close.
-WALK_JS = "async ({ root, walked, skip, rounding, ceiling, depth }) => {" + STEPS_JS + fit.IDENT_JS + """
-  const SURFACE = '[data-pop]:not(button), [role="dialog"], [role="listbox"], [role="menu"]';
-  const TRIGGER = '[aria-haspopup]:not([aria-haspopup="false"]), [aria-expanded], [data-testid="see-more"]';
-  const NOT_TRIGGER = 'button[data-stage], [role="tab"], [data-testid="drawer-close"], '
-    + '[data-testid="settings"], [data-testid="station-builder"], [data-testid="snapshot-builder"]';
-  const IDENTITY = ["data-pop", "data-testid", "data-k", "data-field", "data-v", "data-step", "data-station",
-    "data-mode"];
-  const CONTEXT = '[data-k], [data-field], [data-pop]:not(button), [data-step], [data-station]';
-  const ident = identOf(IDENTITY);
-  const keyOf = (el) => {
-    const around = el.parentElement === null ? null : el.parentElement.closest(CONTEXT);
-    return around === null ? ident(el) : `${ident(around)} ${ident(el)}`;
-  };
-  const surfaces = () => [...document.querySelectorAll(SURFACE)].filter(shown);
-  const outermost = (els) => els.filter((e) => !els.some((o) => o !== e && o.contains(e)));
-  const triggers = (box, outside) => {
-    const els = [...box.querySelectorAll(TRIGGER)].filter(
-      (t) => shown(t) && !t.disabled && !t.matches(NOT_TRIGGER) && (outside === null || t.closest(outside) === null),
-    );
-    const count = new Map();
-    return els.map((el) => {
-      const key = keyOf(el);
-      const n = (count.get(key) ?? 0) + 1;
-      count.set(key, n);
-      return [n === 1 ? key : `${key}#${n}`, el];
-    });
-  };
-  const gone = (opened) => opened.every((s) => !s.isConnected || !shown(s));
-  const close = async (el, opened) => {
-    if (el.isConnected && shown(el)) {
-      el.click();
-      await settle(ceiling);
-      if (gone(opened)) return true;
-    }
-    const target = document.activeElement ?? document.body;
-    target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    await settle(ceiling);
-    return gone(opened);
-  };
-  const result = { found: {}, offered: 0, measured: 0, unreached: [], unclosed: [] };
-  const walk = async (box, outside, path, level) => {
-    for (const [key, el] of triggers(box, outside)) {
-      const at = path === "" ? key : `${path} > ${key}`;
-      if (walked.has(key)) continue;
-      walked.add(key);
-      if (!el.isConnected || !shown(el)) {
-        result.unreached.push(at);
-        continue;
-      }
-      const before = new Set(surfaces());
-      const expanded = el.getAttribute("aria-expanded");
-      el.click();
-      await settle(ceiling);
-      const opened = outermost(surfaces().filter((s) => !before.has(s)));
-      for (const surface of opened) {
-        result.measured += 1;
-        const lines = hiddenPast(surface, skip, at, rounding);
-        if (lines.length > 0) result.found[at] = lines;
-        if (level < depth) await walk(surface, null, at, level + 1);
-      }
-      if (opened.length > 0) {
-        if (!(await close(el, opened))) result.unclosed.push(at);
-      } else if (el.isConnected && el.getAttribute("aria-expanded") !== expanded) {
-        el.click();
-        await settle(ceiling);
-      }
-    }
-  };
-  const places = {
-    plate: () => [document.body, "aside.drawer"],
-    drawer: () => [document.querySelector(OPEN), null],
-    view: () => [body(), null],
-  };
-  const [box, outside] = places[root]();
-  await settle(ceiling);
-  result.offered = triggers(box, outside).length;
-  await walk(box, outside, "", 1);
-  return result;
-}
-"""
+#: What each tapped trigger's surface is measured by: the lines `hiddenPast` finds, as `fit.walk_js` takes it.
+MEASURE_JS = "(surface, trigger, at, { skip, rounding }) => hiddenPast(surface, skip, at, rounding)"
+
+#: The walk of the plate, a drawer or a view that measures each surface by what it hides.
+WALK_JS = fit.walk_js(MEASURE_JS)
 
 
 class _NothingWalkedError(RuntimeError):
@@ -225,14 +136,14 @@ class _NothingWalkedError(RuntimeError):
         )
 
 
-class _WalkBrokenError(RuntimeError):
+class WalkBrokenError(RuntimeError):
     """A trigger went missing before its turn or a surface would not close, so part of the walk went unmeasured."""
 
     def __init__(self, host: str, unreached: list[str], unclosed: list[str]) -> None:
         super().__init__(f"the {host} walk lost its place: unreached {unreached}, would not close {unclosed}")
 
 
-class _WalkCutShortError(RuntimeError):
+class WalkCutShortError(RuntimeError):
     """The view's rail offered more entries than the walk may tap, so entries past the ceiling went unwalked."""
 
     def __init__(self, view: str) -> None:
@@ -247,13 +158,14 @@ class _NoProfileViewError(RuntimeError):
         super().__init__("the page never showed the matrix profile view, so it was not measured")
 
 
-class _Walk:
+class Walk:
     """One case's walk: the page, the triggers already tapped, and what the walk has found."""
 
-    def __init__(self, page: Page, host: str) -> None:
-        """Start a walk on `page` for `host` with nothing tapped and nothing found."""
+    def __init__(self, page: Page, host: str, js: str = WALK_JS) -> None:
+        """Start a walk on `page` for `host`, by the walk script `js`, with nothing tapped and nothing found."""
         self.page = page
         self.host = host
+        self.js = js
         self.walked: JSHandle = page.evaluate_handle("() => new Set()")
         self.found: dict[str, list[str]] = {}
         self.offered = 0
@@ -271,7 +183,7 @@ class _Walk:
             "ceiling": fit.SETTLE_TIMEOUT,
             "depth": MAX_DEPTH,
         }
-        result = self.page.evaluate(WALK_JS, args)
+        result = self.page.evaluate(self.js, args)
         for where, lines in result["found"].items():
             self.found[f"{name} > {where}"] = [str(line) for line in lines]
         self.offered += int(result["offered"])
@@ -282,7 +194,7 @@ class _Walk:
     def done(self) -> dict[str, list[str]]:
         """What the walk found, once it is known the walk lost no part of itself and opened what was offered."""
         if self.unreached or self.unclosed:
-            raise _WalkBrokenError(self.host, self.unreached, self.unclosed)
+            raise WalkBrokenError(self.host, self.unreached, self.unclosed)
         if self.measured == 0 and self.offered > 0:
             raise _NothingWalkedError(self.host, self.offered)
         return self.found
@@ -294,7 +206,7 @@ def _show_tab(page: Page, tab: str | None) -> None:
         page.evaluate(TAB_JS, {"tab": tab, "ceiling": fit.SETTLE_TIMEOUT})
 
 
-def _walk_plate(page: Page, walk: _Walk) -> None:
+def walk_plate(page: Page, walk: Walk) -> None:
     """Walk the plate with no drawer open, then every tab of every drawer the rail opens."""
     page.evaluate(CLOSE_JS, {"ceiling": fit.SETTLE_TIMEOUT})
     walk.place("plate", "plate")
@@ -305,7 +217,7 @@ def _walk_plate(page: Page, walk: _Walk) -> None:
             walk.place("drawer", f"{stage}/{tab or '-'}")
 
 
-def _walk_view(page: Page, walk: _Walk, view: str) -> None:
+def _walk_view(page: Page, walk: Walk, view: str) -> None:
     """Open `view` and walk it as it opens, then every rail entry and tab it offers."""
     page.evaluate(views.SWAP_JS, {"view": view, "ceiling": fit.SETTLE_TIMEOUT})
     walk.place("view", f"{view} -/-")
@@ -315,7 +227,7 @@ def _walk_view(page: Page, walk: _Walk, view: str) -> None:
     tapped = 0
     while (step := page.evaluate(views.NEXT_JS, {"walked": walked, "ceiling": fit.SETTLE_TIMEOUT})) is not None:
         if tapped == views.MAX_ENTRIES:
-            raise _WalkCutShortError(view)
+            raise WalkCutShortError(view)
         tapped += 1
         entry, tabs = step
         for tab in tabs or [None]:
@@ -346,7 +258,7 @@ def _show_profile_view(page: Page, stack: stack_support.Stack, size: ViewportSiz
     page.evaluate(CLOSE_JS, {"ceiling": fit.SETTLE_TIMEOUT})
 
 
-def _walk_profile(page: Page, walk: _Walk) -> None:
+def _walk_profile(page: Page, walk: Walk) -> None:
     """Measure the matrix profile view whole, then walk every trigger on it."""
     if not page.evaluate(PROFILE_SHOWN_JS):
         raise _NoProfileViewError
@@ -362,9 +274,9 @@ def _hidden_by_surface(page: Page, stack: stack_support.Stack, size: ViewportSiz
     fit.load_plate(page, stack, size)
     if host == PROFILE:
         _show_profile_view(page, stack, size)
-    walk = _Walk(page, host)
+    walk = Walk(page, host)
     if host == PLATE:
-        _walk_plate(page, walk)
+        walk_plate(page, walk)
     elif host == PROFILE:
         _walk_profile(page, walk)
     else:
