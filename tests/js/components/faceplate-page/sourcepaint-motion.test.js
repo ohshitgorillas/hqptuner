@@ -7,7 +7,10 @@
 // of channels starts the held marks afresh.
 //
 // How the bars, held marks, needles, trace and shadow move over time, and how a restart starts each of them afresh, is
-// the meter models' to decide and their suites' to pin.
+// the meter models' to decide and their suites' to pin. What this suite pins of them is the hand-off: a paint carries
+// its wall time in ms, and the bars, the needles and the trace each move by that many ms of their own motion. Each
+// case's expected value is written by hand from a fact outside the painter (a fall of 20 dB a second, a time constant
+// of 150 ms, the IEC 60268-17 response time), so a painter that hands a model its `dt` a factor of 1000 off fails.
 //
 // Not reached here: the aurora painter's own canvas. It needs WebGL2, which node lacks, and the only fake of it is
 // private to the aurora suite; a WebGL2 fake in tests/js/support would close it.
@@ -19,8 +22,16 @@
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
-import { meterFloor, pageRange, spectrumColors, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { scaleShare } from "../../../../hqptuner/static/model/gauges/meter/vu.js";
+import {
+  meterFloor,
+  pageRange,
+  spectrumColors,
+  spectrumStyle,
+  vuReference,
+} from "../../../../hqptuner/static/store/ui/prefs.js";
 import { near } from "../../support/near.js";
 import {
   HOLD_MS,
@@ -29,6 +40,7 @@ import {
   QUIET_DB,
   STEP_MS,
   TRACE,
+  angleAt,
   apart,
   channel,
   fxCanvas,
@@ -36,7 +48,10 @@ import {
   holds,
   inkOf,
   level,
+  lineLevel,
+  needles,
   paint,
+  peaks,
   sceneOf,
   section,
 } from "../../support/rendered/sourcesection.js";
@@ -61,7 +76,29 @@ const NONE_TOL = 1e-6;
 //: The whole of the test's own ink, as a share of it.
 const ALL = 1;
 
+//: What the IEC 60268-17 fixture states of a VU needle's response, and the VU reference the needle cases run against.
+const IEC = JSON.parse(
+  readFileSync(new URL("../../../support/fixtures/iec60268-17/vu-dynamic-response.json", import.meta.url), "utf8"),
+);
+const REF_18 = "-18";
+const REF_DB = -18;
+//: Paints a needle's response is read through, ms apart.
+const NEEDLE_FRAME_MS = 10;
+//: The reading the standard's response-time clause names, as a share of the VU scale.
+const RESPONSE_SHARE = scaleShare(20 * Math.log10(IEC.responseDeflectionPercent / IEC.referenceDeflectionPercent));
+//: The earliest and latest the needle may reach it, ms.
+const EARLIEST_MS = IEC.responseTimeMs * (1 - IEC.responseTimeTolerancePercent / 100);
+const LATEST_MS = IEC.responseTimeMs * (1 + IEC.responseTimeTolerancePercent / 100);
+//: A peak bar falls 20 dB in a second; the trace's shown level closes the gap to a new level by 1/e in 150 ms.
+const ONE_SECOND_MS = 1000;
+const FALL_DB_PER_S = 20;
+const SHOWN_TAU_MS = 150;
+//: Tolerances: a bar's percentage, a trace line's dB.
+const PCT_TOL = 0.5;
+const LINE_TOL = 0.5;
+
 const START = {
+  vuReference: vuReference.value,
   floor: meterFloor.value,
   range: pageRange.value,
   style: spectrumStyle.value,
@@ -69,6 +106,7 @@ const START = {
 };
 
 afterEach(() => {
+  vuReference.value = START.vuReference;
   meterFloor.value = START.floor;
   pageRange.value = START.range;
   spectrumStyle.value = START.style;
@@ -187,4 +225,45 @@ test("test_a_restart_starts_the_effects_canvas_afresh", () => {
   const laid = fresh.reduce((a, b) => a + b, 0);
   const left = laid > 0 ? apart(restartedCanvas(true), fresh) / laid : Number.NaN;
   assert.ok(...near(left, 0, NONE_TOL));
+});
+
+// ── the wall time a paint carries ──────────────────────────────────────
+
+test("test_a_peak_bar_falls_twenty_db_in_the_second_a_paint_carries", () => {
+  meterFloor.value = FLOOR_60;
+  const root = section(2);
+  paint(root, level(LOUD_DB, true), STEP_MS);
+  paint(root, level(QUIET_DB), ONE_SECOND_MS);
+  const fallen = LOUD_DB - FALL_DB_PER_S;
+  assert.ok(...near(peaks(root)[0], ((fallen - Number(FLOOR_60)) / -Number(FLOOR_60)) * 100, PCT_TOL));
+});
+
+test("test_the_trace_closes_1_over_e_of_the_gap_to_a_new_level_in_150_ms", () => {
+  const root = section(2);
+  paint(root, level(LOUD_DB, true), STEP_MS);
+  paint(root, level(MID_DB), SHOWN_TAU_MS);
+  assert.ok(...near(lineLevel(root), MID_DB + (LOUD_DB - MID_DB) / Math.E, LINE_TOL));
+});
+
+/**
+ * The first needle's angle after a steady RMS at the VU reference has been heard for `ms`, in paints NEEDLE_FRAME_MS
+ * apart, the needle starting at rest.
+ *
+ * @param {number} ms
+ */
+function needleAfter(ms) {
+  vuReference.value = REF_18;
+  const root = section(1);
+  const scene = (/** @type {boolean} */ restart) => sceneOf([channel(0, REF_DB, REF_DB)], restart);
+  paint(root, scene(true), 0);
+  for (let t = 0; t < ms; t += NEEDLE_FRAME_MS) paint(root, scene(false), NEEDLE_FRAME_MS);
+  return needles(root)[0];
+}
+
+test("test_a_needle_is_short_of_99_percent_deflection_before_the_earliest_response_time", () => {
+  assert.ok(needleAfter(EARLIEST_MS) < angleAt(RESPONSE_SHARE));
+});
+
+test("test_a_needle_reaches_99_percent_deflection_by_the_latest_response_time", () => {
+  assert.ok(needleAfter(LATEST_MS) >= angleAt(RESPONSE_SHARE));
 });

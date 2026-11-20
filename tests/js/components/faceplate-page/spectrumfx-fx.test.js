@@ -57,6 +57,14 @@ const STEADY_PER_LATE = 4;
 const MOMENTS = 16;
 //: Paints laid down before the paint a test reads.
 const HISTORY = 3;
+//: A peak cap stays put 500 ms, then falls from rest at 4e-6 of the plot a ms squared: in a further 500 ms it falls
+//: half the plot (4e-6 / 2 * 500 * 500). A loud level on this plot stands 0.9 of the way up it.
+const CAP_HOLD_MS = 500;
+const CAP_FALL_MS = 500;
+const CAP_FALLEN = 0.5;
+const LOUD_SHARE = 0.9;
+//: How far a cap's top row may stand from where the plot puts it, rows.
+const ROW_TOL = 1.5;
 //: How far two runs over the same time may move apart, as a share of how far the steady run moves: rounding and
 //: one step's carry, not a paint rate's whole difference.
 const TRAVEL_TOL = 0.2;
@@ -328,6 +336,24 @@ function pictureOf(style) {
 
 test("test_each_drawn_style_paints_its_own_picture", () => {
   assert.equal(new Set(DRAWN.map(pictureOf)).size, DRAWN.length);
+});
+
+/**
+ * The topmost row of `pic` that holds ink; NaN where none does.
+ *
+ * @param {Float32Array} pic
+ */
+function topRow(pic) {
+  for (let y = 0; y < H; y++) if (pic.subarray(y * W, (y + 1) * W).some((ink) => ink > 0)) return y;
+  return Number.NaN;
+}
+
+test("test_a_bars_peak_cap_holds_500_ms_then_falls_half_the_plot_in_a_further_500", () => {
+  const { canvas, fx } = fresh();
+  paintOnce(fx, BARS, flat(LOUD_DB), { restart: true });
+  paintOnce(fx, BARS, flat(QUIET_DB), { dt: CAP_HOLD_MS + CAP_FALL_MS });
+  const stands = (LOUD_SHARE - CAP_FALLEN) * H;
+  assert.ok(...near(topRow(shot(canvas)), H - stands, ROW_TOL));
 });
 
 // ── color suites ────────────────────────────────────────────────────────

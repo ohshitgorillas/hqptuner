@@ -391,6 +391,18 @@ test("test_the_aurora_painted_on_for_longer_draws_otherwise_than_it_did_earlier"
   assert.ok(...differ(shows(paintsOf(STEADY)), shows(paintsOf(STEADY.slice(0, -6)))));
 });
 
+//: Two paints of 80 ticks (1250 ms) each after a restart: 2.5 s of wall time, the seconds the shader's clock counts.
+const SWAY_RUN = [
+  { cols: columns(LOUD_DB, QUIET_DB), ticks: STEP, restart: true },
+  ...repeat(2, 80, LOUD_DB).map(([ticks, db]) => ({ cols: columns(db, QUIET_DB), ticks })),
+];
+const SWAY_S = 2.5;
+
+test("test_the_shader_is_handed_the_wall_time_the_paints_summed_in_seconds", () => {
+  const shown = /** @type {any[]} */ (shows(SWAY_RUN));
+  assert.deepEqual(shown.at(-1)?.uniforms?.time, [SWAY_S]);
+});
+
 // ── what a paint is handed ──────────────────────────────────────────────
 
 test("test_louder_columns_draw_otherwise_than_quieter_ones", () => {
