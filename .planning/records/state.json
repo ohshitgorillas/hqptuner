@@ -3,9 +3,14 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 7,
-    "status": "executed",
-    "next": "/cad-verify 7",
-    "updated": "2026-11-19"
+    "status": "planned",
+    "next": "/cad-execute 7",
+    "updated": "2026-11-20",
+    "plan": {
+      "k": 17,
+      "j": 19,
+      "name": "The last repeats live once"
+    }
   },
   "phases": [
     {
@@ -220,6 +225,18 @@
         {
           "file": "PLAN-16.md",
           "finished": true
+        },
+        {
+          "file": "PLAN-17.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-18.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-19.md",
+          "finished": false
         }
       ]
     },
