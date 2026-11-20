@@ -29,10 +29,11 @@ import tempfile
 import time
 from pathlib import Path
 
+from hqptuner.engine.metering import HEADER, LEVEL_BLOCK, frame_payload_size
+
 HOST = "127.0.0.1"
 PORT = 4322
 CAP_SECONDS = 3.0
-HEADER = struct.Struct("<4I3fI")
 
 BANDS_HZ = (100, 500, 1000, 2000, 5000, 10000, 15000, 18000, 20000, 21000, 22050)
 
@@ -68,7 +69,7 @@ def capture_main(argv: list[str]) -> None:
         print("no data on bare accept — stream is not unconditional")
         return
     version, channels, bins, bits, bandwidth, xform_time, gain, _ = HEADER.unpack_from(buf, 0)
-    frame = 32 + channels * (16 + 8 * bins)
+    frame = HEADER.size + frame_payload_size(channels, bins)
     print(
         f"version={version} channels={channels} bins={bins} bits={bits} "
         f"bandwidth={bandwidth} xformTime={xform_time:.6g} gain={gain}"
@@ -99,7 +100,7 @@ def analyze_main(argv: list[str]) -> None:
     """Read a capture file and print band energies under both the interleaved-complex and split-halves readings."""
     buf = Path(argv[0]).read_bytes()
     version, channels, bins, _, bandwidth, _, _, _ = HEADER.unpack_from(buf, 0)
-    frame = 32 + channels * (16 + 8 * bins)
+    frame = HEADER.size + frame_payload_size(channels, bins)
     n_frames = len(buf) // frame
     headers_ok = all(buf[i * frame : i * frame + 4] == buf[:4] for i in range(n_frames))
     print(f"{n_frames} frames of {frame}B, version={version}, headers aligned: {headers_ok}")
@@ -108,7 +109,7 @@ def analyze_main(argv: list[str]) -> None:
     split = [0.0] * bins
     as_db_halves: list[float] = []
     for i in range(n_frames):
-        base = i * frame + 32 + 16  # frame i, channel 0, past level block
+        base = i * frame + HEADER.size + LEVEL_BLOCK  # frame i, channel 0, past level block
         vals = struct.unpack_from(f"<{2 * bins}f", buf, base)
         for k in range(bins):
             interleaved[k] += vals[2 * k] ** 2 + vals[2 * k + 1] ** 2

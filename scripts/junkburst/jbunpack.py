@@ -10,7 +10,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from jbconfig import DER, FLOOR_DB, HEADER, SRC
+from jbconfig import DER, FLOOR_DB, SRC
+
+from hqptuner.engine.metering import HEADER
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -7,7 +7,6 @@ its own. Every knob is an environment variable read once at import.
 from __future__ import annotations
 
 import os
-import struct
 import sys
 from pathlib import Path
 
@@ -20,7 +19,6 @@ DER = SRC / "derived"
 #: ``JB_REPORT`` is a bare name under the capture directory, or an absolute path taken as written.
 _JB_REPORT = os.environ.get("JB_REPORT") or "report.md"
 REPORT = Path(_JB_REPORT) if _JB_REPORT.startswith("/") else SRC / Path(_JB_REPORT).name
-HEADER = struct.Struct("<4I3fI")
 
 FLOOR_DB = -200.0
 CONTRAST_DB = junkcurve.CONTRAST_DB
