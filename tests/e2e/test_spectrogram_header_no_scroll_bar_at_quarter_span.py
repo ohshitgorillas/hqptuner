@@ -31,9 +31,9 @@ Policy notes:
   loaded and every finite animation settled.
 """
 
-import struct
 from collections.abc import Iterator
 
+import fake_metering
 import pytest
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
@@ -49,15 +49,12 @@ PLAYING = "2"
 METADATA = '<metadata samplerate="44100" bits="16" channels="2"/>'
 
 #: Metering frame layout, for a stereo 44.1 kHz source.
-HEADER = struct.Struct("<4I3fI")
-VERSION = 1
 METER_CHANNELS = 2
 BINS = 17
 TRANSFORM_BITS = 16
 BANDWIDTH = 22050.0
 TRANSFORM_TIME = 1024 / 44100
 GAIN = 2.0
-RESERVED = 0
 
 #: (peakMax, peak, rms, rmsMax) in dBFS, and one bin's (re, im): a moderate passage with energy in every bin.
 LEVELS = (-6.0, -6.0, -12.0, -12.0)
@@ -123,9 +120,15 @@ MEASURE_JS = "async ({ switches, span, lit, rounding, ceiling }) => {" + fit.PRE
 
 def _frame() -> bytes:
     """One metering frame with every channel at LEVELS over a transform with BIN in every bin."""
-    header = HEADER.pack(VERSION, METER_CHANNELS, BINS, TRANSFORM_BITS, BANDWIDTH, TRANSFORM_TIME, GAIN, RESERVED)
-    channel = struct.pack("<4f", *LEVELS) + struct.pack(f"<{2 * BINS}f", *(BIN * BINS))
-    return header + channel * METER_CHANNELS
+    channel = fake_metering.channel_block(LEVELS, [BIN[0]] * BINS, [BIN[1]] * BINS)
+    return fake_metering.packed_frame(
+        [channel] * METER_CHANNELS,
+        bins=BINS,
+        bandwidth=BANDWIDTH,
+        transform_time=TRANSFORM_TIME,
+        bits=TRANSFORM_BITS,
+        gain=GAIN,
+    )
 
 
 @pytest.fixture

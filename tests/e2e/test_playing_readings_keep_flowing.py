@@ -21,9 +21,9 @@ metering stream back as they found them. The meter test plays one short
 passage per reading, a clump of frames, and plays it again until the page shows it before moving to the next.
 """
 
-import struct
 from collections.abc import Iterator
 
+import fake_metering
 import pytest
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
@@ -52,8 +52,6 @@ FOLLOW_TIMEOUT_MS = 5000.0
 LOAD_TIMEOUT_MS = 15000.0
 
 #: Metering frame layout.
-HEADER = struct.Struct("<4I3fI")
-VERSION = 1
 METER_CHANNELS = 2
 #: A narrow transform keeps each frame small: the meters' level bars read the
 #: frame's own peak and rms fields, not its bins.
@@ -63,7 +61,6 @@ BANDWIDTH = 22050.0
 #: One frame's span of music, s: a 1024-sample hop at 44.1 kHz.
 TRANSFORM_TIME = 1024 / 44100
 GAIN = 2.0
-RESERVED = 0
 
 #: (peakMax, peak, rms, rmsMax) in dBFS: a loud passage near full scale, and a
 #: quiet one far below the deepest floor the level bars can be set to.
@@ -169,9 +166,15 @@ def test_the_source_stage_follows_every_change_the_status_frame_reports_while_pl
 
 def _frame(levels: tuple[float, float, float, float]) -> bytes:
     """One metering frame with every channel at `levels` over a silent transform."""
-    header = HEADER.pack(VERSION, METER_CHANNELS, BINS, TRANSFORM_BITS, BANDWIDTH, TRANSFORM_TIME, GAIN, RESERVED)
-    channel = struct.pack("<4f", *levels) + struct.pack(f"<{2 * BINS}f", *([0.0] * (2 * BINS)))
-    return header + channel * METER_CHANNELS
+    channel = fake_metering.channel_block(levels, [0.0] * BINS, [0.0] * BINS)
+    return fake_metering.packed_frame(
+        [channel] * METER_CHANNELS,
+        bins=BINS,
+        bandwidth=BANDWIDTH,
+        transform_time=TRANSFORM_TIME,
+        bits=TRANSFORM_BITS,
+        gain=GAIN,
+    )
 
 
 @pytest.fixture

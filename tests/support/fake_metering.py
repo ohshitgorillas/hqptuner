@@ -47,12 +47,43 @@ LEVELS = (-3.0, -6.0, -20.0, -18.0)
 BINS = 1025
 
 
+#: The wire layout's header, the tests' own: version, channels, bins, bits, bandwidth, transform time, gain, reserved.
+HEADER = struct.Struct("<4I3fI")
+
+#: The frame layout version the daemon sends.
+VERSION = 1
+
+
+def channel_block(levels: Sequence[float], reals: Sequence[float], imags: Sequence[float]) -> bytes:
+    """One channel's payload: its four ``f32`` levels, then the reals, then the imaginaries."""
+    return struct.pack(f"<4f{len(reals)}f{len(imags)}f", *levels, *reals, *imags)
+
+
+def packed_frame(
+    channel_blocks: Sequence[bytes], *, bins: int, bandwidth: float, transform_time: float, bits: int, gain: float
+) -> bytes:
+    """One frame: the header for ``len(channel_blocks)`` channels of ``bins`` bins, then the blocks."""
+    header = HEADER.pack(VERSION, len(channel_blocks), bins, bits, bandwidth, transform_time, gain, 0)
+    return header + b"".join(channel_blocks)
+
+
+def unpacked(frame: bytes) -> tuple[tuple[float, ...], bytes]:
+    """A packed frame as its header's eight values and its body."""
+    return HEADER.unpack_from(frame), frame[HEADER.size :]
+
+
 def mono_frame(
     *, bandwidth: float, transform_time: float, bits: int, gain: float, reals: Sequence[float], imags: Sequence[float]
 ) -> bytes:
-    """One single-channel frame: a ``<4I3fI`` header, ``LEVELS``, then the reals and the imaginaries."""
-    header = struct.pack("<4I3fI", 1, 1, len(reals), bits, bandwidth, transform_time, gain, 0)
-    return header + struct.pack(f"<4f{len(reals) + len(imags)}f", *LEVELS, *reals, *imags)
+    """One single-channel frame: a header, ``LEVELS``, then the reals and the imaginaries."""
+    return packed_frame(
+        [channel_block(LEVELS, reals, imags)],
+        bins=len(reals),
+        bandwidth=bandwidth,
+        transform_time=transform_time,
+        bits=bits,
+        gain=gain,
+    )
 
 
 #: A frame of a 44.1 kHz source with no tone in it: a -60 dB floor in every real and imaginary.

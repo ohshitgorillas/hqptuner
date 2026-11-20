@@ -7,8 +7,8 @@ Each case feeds bytes to a real ``asyncio.StreamReader``. The frames are packed 
 import asyncio
 import struct
 
+import fake_metering
 import pytest
-from fake_metering import mono_frame
 
 from hqptuner.engine.metering import MAX_BINS, MAX_CHANNELS, ImplausibleMeteringHeaderError, read_raw_frame
 
@@ -26,11 +26,13 @@ def _fed(data: bytes) -> asyncio.StreamReader:
 
 def _header(*, channels: int, bins: int) -> bytes:
     """A 32-byte header carrying the given counts."""
-    return struct.pack("<4I3fI", 1, channels, bins, 16, 22050.0, 0.01, 2.0, 0)
+    return fake_metering.HEADER.pack(1, channels, bins, 16, 22050.0, 0.01, 2.0, 0)
 
 
 async def test_a_frame_read_hands_back_the_header_bytes_it_was_sent_and_a_body_sized_from_that_header() -> None:
-    frame = mono_frame(bandwidth=22050.0, transform_time=0.01, bits=16, gain=2.0, reals=[0.5] * 4, imags=[0.25] * 4)
+    frame = fake_metering.mono_frame(
+        bandwidth=22050.0, transform_time=0.01, bits=16, gain=2.0, reals=[0.5] * 4, imags=[0.25] * 4
+    )
     sent_header = frame[:24] + SIGNALING_NAN + frame[28:32]
     sent = sent_header + frame[32:]
     raw, header, body = await read_raw_frame(_fed(sent + b"trailing bytes of the next frame"))

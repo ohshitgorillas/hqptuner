@@ -1,6 +1,6 @@
 """What a `MeterFeed` queues for its subscribers from the frames it is given.
 
-Every case packs its own frames in the 4322 layout:
+Every case builds its frames in the 4322 layout through ``fake_metering``:
 a header of the eight values ``struct.unpack("<4I3fI")`` reads from the
 32-byte header (version 1, channels, xformLength, transformBits, bandwidth,
 transformTime, gain, reserved 0), and a body of, per channel, four `f32`
@@ -27,10 +27,10 @@ import inspect
 import itertools
 import json
 import math
-import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import fake_metering
 import pytest
 
 from hqptuner.engine.meterfeed import MeterFeed, reduce_frame
@@ -38,12 +38,9 @@ from hqptuner.engine.meterfeed import MeterFeed, reduce_frame
 if TYPE_CHECKING:
     from collections.abc import Awaitable
 
-HEADER = "<4I3fI"
-VERSION = 1
 BINS = 1025
 TRANSFORM_BITS = 16
 GAIN = 2.0
-RESERVED = 0
 
 FLOOR_REAL = 1e-3
 TONE_REAL = 1.0
@@ -78,10 +75,18 @@ class Channel:
     floor_real: float = FLOOR_REAL
 
 
-def _header(channels: int, bins: int, bandwidth: float) -> tuple[Any, ...]:
-    transform_time = (bins - 1) / (2 * bandwidth)
-    packed = struct.pack(HEADER, VERSION, channels, bins, TRANSFORM_BITS, bandwidth, transform_time, GAIN, RESERVED)
-    return struct.unpack(HEADER, packed)
+def _wire(channels: list[bytes], bins: int, bandwidth: float, transform_time: float) -> Frame:
+    """A frame of the given channel blocks, as its header's values and its body."""
+    return fake_metering.unpacked(
+        fake_metering.packed_frame(
+            channels,
+            bins=bins,
+            bandwidth=bandwidth,
+            transform_time=transform_time,
+            bits=TRANSFORM_BITS,
+            gain=GAIN,
+        )
+    )
 
 
 def _tone_bin(tone_hz: float, bandwidth: float, bins: int = BINS) -> int:
@@ -92,13 +97,13 @@ def _channel(channel: Channel, bandwidth: float, bins: int) -> bytes:
     reals = [channel.floor_real] * bins
     reals[_tone_bin(channel.tone_hz, bandwidth, bins)] = channel.tone_real
     imaginaries = [0.0] * bins
-    return struct.pack(f"<4f{bins}f{bins}f", *channel.levels, *reals, *imaginaries)
+    return fake_metering.channel_block(channel.levels, reals, imaginaries)
 
 
 def _frame(channels: list[Channel], bandwidth: float, bins: int = BINS) -> Frame:
-    header = _header(len(channels), bins, bandwidth)
-    body = b"".join(_channel(channel, bandwidth, bins) for channel in channels)
-    return header, body
+    return _wire(
+        [_channel(channel, bandwidth, bins) for channel in channels], bins, bandwidth, (bins - 1) / (2 * bandwidth)
+    )
 
 
 def _mono(levels: tuple[float, float, float, float], bandwidth: float) -> Frame:
@@ -322,10 +327,7 @@ AFTER_PEAK = -20.0
 def _metered(rate: int, bins: int = BINS, levels: tuple[float, float, float, float] = LEVELS) -> Frame:
     """One mono frame at ``rate``: a hop of ``bins - 1`` samples, measured by its transform time."""
     transform_time = (bins - 1) / rate
-    packed = struct.pack(HEADER, VERSION, 1, bins, TRANSFORM_BITS, FIXED_NYQUIST, transform_time, GAIN, RESERVED)
-    header = struct.unpack(HEADER, packed)
-    body = _channel(Channel(levels=levels), FIXED_NYQUIST, bins)
-    return header, body
+    return _wire([_channel(Channel(levels=levels), FIXED_NYQUIST, bins)], bins, FIXED_NYQUIST, transform_time)
 
 
 @pytest.mark.parametrize("bins", [1025, 513], ids=["1025 bins", "513 bins"])

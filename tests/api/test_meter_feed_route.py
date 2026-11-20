@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import struct
 from typing import TYPE_CHECKING, Protocol
 
 import fake_metering
@@ -35,8 +34,6 @@ TRANSFORM_BITS = 16
 BANDWIDTH = 22050.0
 TRANSFORM_TIME = 1024 / 44100
 GAIN = 2.0
-VERSION = 1
-RESERVED = 0
 
 #: peakMax, peak, rms, rmsMax for one channel, in dBFS.
 CHANNEL_LEVELS = (-3.0, -6.0, -20.0, -18.0)
@@ -78,9 +75,15 @@ def _frame(channels: int) -> bytes:
     reals = [FLOOR_REAL] * BINS
     reals[round(TONE_HZ / (BANDWIDTH / (BINS - 1)))] = TONE_REAL
     imaginaries = [0.0] * BINS
-    header = struct.pack("<4I3fI", VERSION, channels, BINS, TRANSFORM_BITS, BANDWIDTH, TRANSFORM_TIME, GAIN, RESERVED)
-    channel = struct.pack(f"<4f{BINS}f{BINS}f", *CHANNEL_LEVELS, *reals, *imaginaries)
-    return header + channel * channels
+    channel = fake_metering.channel_block(CHANNEL_LEVELS, reals, imaginaries)
+    return fake_metering.packed_frame(
+        [channel] * channels,
+        bins=BINS,
+        bandwidth=BANDWIDTH,
+        transform_time=TRANSFORM_TIME,
+        bits=TRANSFORM_BITS,
+        gain=GAIN,
+    )
 
 
 def _first_event(client: TestClient) -> tuple[str, str]:
