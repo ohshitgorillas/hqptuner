@@ -2,14 +2,14 @@
   "layout": 1,
   "cycleOpen": true,
   "cursor": {
-    "phase": 7,
-    "status": "executed",
-    "next": "/cad-verify 7",
+    "phase": 8,
+    "status": "planned",
+    "next": "/cad-execute 8",
     "updated": "2026-11-24",
     "plan": {
-      "k": 19,
-      "j": 19,
-      "name": "The phase in front of the owner"
+      "k": 2,
+      "j": 2,
+      "name": "The owner hears the same lag at every rate"
     }
   },
   "phases": [
@@ -252,7 +252,7 @@
         },
         {
           "file": "PLAN-2.md",
-          "finished": true
+          "finished": false
         }
       ]
     },
