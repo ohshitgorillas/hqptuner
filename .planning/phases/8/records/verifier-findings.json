@@ -1,0 +1,125 @@
+{
+  "status": "delivered",
+  "score": "10/10",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "After a start the playhead stands exactly one delay behind the line the stamps set, the same place it stands later in the track (SC1, AC3 as D-14 states it)",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "hqptuner/static/model/gauges/playhead.js:118-126 standOnLine places a restart at aim = now + settled.ceiling - delay and otherwise follows that aim (followLine :229-234), capped at the newest end. tests/js/model/gauges/playhead-lag.test.js cases a_start_stands_one_delay_behind_the_line_* (lines 72-114), the_playhead_takes_a_rise_of_the_line_at_once_* (116-148) and the later-in-track cases the_playhead_moves_its_wall_time_on_a_line_that_holds / follows_a_rise_of_the_line_of_1_ms (166-247) assert exact playhead values with assert.equal. All pass in the verifier's one `scripts/gate.sh make check` run (exit=0 log=/tmp/gate-make-3uBIqmij.log, e.g. `ok 2208 - test_a_start_stands_one_delay_behind_the_line_when_the_paint_ran_at_the_arrival`, `ok 2217 - test_the_playhead_moves_its_wall_time_on_a_line_that_holds`)."
+    },
+    {
+      "n": 2,
+      "truth": "Inputs identical but for the source rate give identical playheads (SC2, AC4 as D-12 (1) and D-14 state it)",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "The rate enters only at the feed: hqptuner/static/store/meter/feed.js:113-128 decode converts at, end and ms through one samplesToMs (lib/timebase.js:19) and stamps arrivedAt from feedClock.now(). PaintInput (playhead.js:38-55) has no rate field; pacePaint reads only at/end/ms/arrivedAt/break of each frame plus rate-free inputs. tests/js/store/meter/feed.test.js:341-355 holds 44100 and 48000 feeds of the same music to one table SAME_MUSIC_READ (at, ms, arrivedAt, break), passing in the gate log (`ok 4969`, `ok 4970`, `ok 4971`, including after a reconnect at another rate). The table omits `end`, which endOf reads first; `end` comes from the same samplesToMs call as `at`, the per-rate contiguity cases (feed.test.js:226) pin it, and a spot-check of samplesToMs gives [20,30,60,80] at both 44100 and 48000. The loop's `now` and the feed's `arrivedAt` are on the same Clock (app.js:126-127 hands the one clock to initMeterFeed and initMeterLoop)."
+    },
+    {
+      "n": 3,
+      "truth": "The playhead after a start is the same wherever the reader began counting stamps and whenever the paint ran after the arrival (AC5 as D-14 states it)",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": "playhead-lag.test.js:87-97 a_start_stands_one_delay_behind_the_line_whether_the_reader_counted_from_200_s_before / 3000_s_before (playhead 204877 and 3004877, exactly the origin shift of the same 4877) and :215-230 the later-track case on stamps counted from 3000 s before; :77-86 the paint 9 ms and 17 ms after the arrival. Pass in /tmp/gate-make-3uBIqmij.log (`ok 2211`, `ok 2212`, `ok 2209`, `ok 2210`)."
+    },
+    {
+      "n": 4,
+      "truth": "A read-only live capture off port 4322 covering a start from stopped, same-rate changes and a rate change at two rates is saved with a report confirming or refuting the opening rush (SC3, AC1)",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "tests/support/fixtures/meter_start_capture.json (plus _2, _3): run keys include frames (t_ms, conn, fed, bins, xform_time), status samples (track_serial, position, output_delay), events {geometry, frame}. .planning/phases/8/CAPTURE.md (headed as the phase 7 AC1 report) states per kind of change whether the stream restarts (section at line 69: only rate changes emit a geometry event, no stamp break, connection held), the rush per rate (line 118-121: 559 ms at 96000 and 566 ms at 44100 at +300 ms, building over 256 and 231 ms) and the reading (line 278: rush confirmed at a rate change, absent at the start from stopped and same-rate changes). Rates covered are 44100 and 96000."
+    },
+    {
+      "n": 5,
+      "truth": "docs/spec/timing.md states the owner-approved rule for how the lag is set after a start (AC2, superseded in its decision step by D-08)",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "docs/spec/timing.md:27-31 (The two clocks) and :41 (Rule 1): the playhead stands one delay behind the line, the line is the greatest lead over a short span, it restarts at a break carried on from the newest frame's arrival and takes each rise of the line at once through the opening span; landed by 4cbb8b56 `docs(7-4): the playhead follows the stamps' line, spec text approved by the owner`. The code at playhead.js:5-13,118-126,199-234 implements that text. The commit-cites-report part of AC2 is superseded by D-08 (CONTEXT.md:21)."
+    },
+    {
+      "n": 6,
+      "truth": "The smoothness table tests were red against the code before the fix (AC8)",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "Spot-check: the four table files run with playhead.js served from a9e8374d (the fix parent; `git diff --stat a9e8374d 82453398 -- hqptuner/static/model/gauges/ hqptuner/static/lib/` shows only playhead.js changed) through an in-memory loader hook: `scripts/gate.sh node ... --test` the four files, exit=1 log=/tmp/gate-node-aMd8nyBe.log, `# tests 41 / # pass 29 / # fail 12`, all 12 AssertionError: 8 in playhead-lag.test.js, 3 in playhead-motion.test.js, 1 in playhead-scroll.test.js (`not ok 41 - test_after_a_stand_the_edge_moves_on_toward_the_line`). playhead-line.test.js is green against the pre-fix tree because settledLead and followLine already existed there and were simply not called by pacePaint, so the suite as a whole was red and the defect was the missing wiring."
+    },
+    {
+      "n": 7,
+      "truth": "After the fix the four table files pass and are unedited since 63af5055 (AC9)",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "`git diff --quiet 63af5055 HEAD -- tests/js/model/gauges/playhead-{lag,motion,scroll,line}.test.js` rc=0 and the working tree matches HEAD for tests/js/model/gauges/ and hqptuner/static/ (rc=0). In /tmp/gate-make-3uBIqmij.log the JS suite reports `# tests 5515 / # pass 5515 / # fail 0`, the 41 table cases among them."
+    },
+    {
+      "n": 8,
+      "truth": "The loop hands each paint its wall time, its arrival flag and the line the last decision handed back, and clears the line on reset, so a paint that takes no arrival follows the line earlier paints saw",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "hqptuner/static/store/meter/loop.js:205-220 passes now, arrived (takeArrivals returns whether any frame moved, :171-177) and line to pacePaint and stores d.line; reset() sets line = null (:128). tests/js/store/meter/loop.test.js:184-206 test_a_paint_that_takes_no_arrival_stands_one_delay_behind_the_line_the_earlier_paints_saw drives a 1 kHz feed through the real feed and loop on a fake clock and asserts the second paint's playhead; passes in the gate log (`ok 5011`). The Plan 1 report records it red against the pre-fix code (`at: 3620` against `at: 3634`); not re-run by the verifier. No debt markers in playhead.js, loop.js or loop.test.js; no test of the old rule remains (grep for exactly_its_wall_time, delay_behind_the_newest_end, landing_early_or_late, _largest_step over tests/ is empty)."
+    },
+    {
+      "n": 9,
+      "truth": "At the hand-back URL, with tracks at two sample rates, the visuals hold the same lag right after a start as later in the track (AC6)",
+      "status": "VERIFIED",
+      "uat_item": 8,
+      "evidence": "The owner's human-verify is recorded verbatim in .planning/phases/8/records/reports/plan-2.md:11: \"yes, 48k and 192k both work at the same delay, pass.\" The check the owner answered (plan-2.2.md hand-back paragraph) asked for a start from stopped, a same-rate change and a rate change, each compared right after the start and well into the track and across the two rates. The owner's words name the two rates and do not separately name each kind of start. Unrelated observation carried by the executor: first-paint console NaN/-Infinity attribute errors on a fresh load, not traced; by code reading pacePaint's NaN (empty queue, no paint yet) is mapped to null by loop.js:190-191, so the errors are not traced to the phase's playhead path either."
+    },
+    {
+      "n": 10,
+      "truth": "`scripts/gate.sh make check` prints exit=0 (AC7)",
+      "status": "VERIFIED",
+      "uat_item": 9,
+      "evidence": "Verifier's one run at HEAD 870a9a99: `exit=0 log=/tmp/gate-make-3uBIqmij.log`; pytest `3681 passed, 159 deselected`, ruff `All checks passed!`, JS `# pass 5515 / # fail 0`. The e2e suite was not run (dispatch forbids it); Plan 1's e2e claim rests on the executor's report, which ran it as two pytest commands and retired one case that failed 3 of 9 runs."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Live capture off port 4322 is saved with its report",
+      "evidence": "tests/support/fixtures/meter_start_capture.json holds frames with t_ms, status samples with track_serial, position and output_delay, and geometry/frame events; .planning/phases/8/CAPTURE.md:69-81 says per kind of change whether the stream restarts, :118-121 gives the rush size and length at 44100 and 96000, :278 confirms the rush at a rate change."
+    },
+    {
+      "k": 2,
+      "name": "Timing spec states the owner-approved rule for the lag after a start",
+      "evidence": "docs/spec/timing.md:27-31 and :41, landed by 4cbb8b56 (owner-approved spec text); implemented at hqptuner/static/model/gauges/playhead.js:118-126,199-234."
+    },
+    {
+      "k": 3,
+      "name": "Smoothness tests were red against the code before the fix",
+      "evidence": "Four table files against playhead.js from a9e8374d: exit=1 log=/tmp/gate-node-aMd8nyBe.log, 41 tests, 29 pass, 12 fail by AssertionError (8 lag, 3 motion, 1 scroll; playhead-line green since its functions predate the fix)."
+    },
+    {
+      "k": 4,
+      "name": "Smoothness tests pass unedited after the fix",
+      "evidence": "git diff --quiet 63af5055 HEAD over the four files rc=0; /tmp/gate-make-3uBIqmij.log `# pass 5515 / # fail 0`."
+    },
+    {
+      "k": 5,
+      "name": "Lag after a start equals the lag later in the track",
+      "evidence": "playhead-lag.test.js start, opening and later-track cases assert exact playheads with assert.equal; pass in /tmp/gate-make-3uBIqmij.log (ok 2208-2221)."
+    },
+    {
+      "k": 6,
+      "name": "Lag is the same at every sample rate",
+      "evidence": "feed.test.js:341-355 holds 44100 and 48000 feeds of the same music to one SAME_MUSIC_READ table (ok 4969-4971); pacePaint takes no rate input (playhead.js:38-55); samplesToMs gives identical ms at both rates."
+    },
+    {
+      "k": 7,
+      "name": "Lag does not depend on where the reader connected",
+      "evidence": "playhead-lag.test.js:87-97 and :215-230, reader origin 200 s and 3000 s before, exact playheads; pass (ok 2211, ok 2212)."
+    },
+    {
+      "k": 8,
+      "name": "On the dev build the visuals hold the same lag after a start at two rates",
+      "evidence": "Owner verbatim in .planning/phases/8/records/reports/plan-2.md:11: \"yes, 48k and 192k both work at the same delay, pass.\", answering the check posed in plan-2.2.md (start from stopped, same-rate change, rate change; right after start against later; across rates)."
+    },
+    {
+      "k": 9,
+      "name": "`scripts/gate.sh make check` is green",
+      "evidence": "exit=0 log=/tmp/gate-make-3uBIqmij.log at HEAD 870a9a99."
+    }
+  ],
+  "gaps": [],
+  "human_checks": []
+}

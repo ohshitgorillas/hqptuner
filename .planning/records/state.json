@@ -3,8 +3,8 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 8,
-    "status": "executed",
-    "next": "/cad-verify 8",
+    "status": "phase complete",
+    "next": "/cad-context 9",
     "updated": "2026-11-24"
   },
   "phases": [
@@ -239,7 +239,7 @@
       "n": 8,
       "name": "Visuals stay in sync after a track starts",
       "description": "the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate",
-      "status": "executed",
+      "status": "complete",
       "plans": [
         {
           "file": "PLAN-1.md",

@@ -13,7 +13,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 - [x] **Phase 5: Untested behaviors covered** - every behavior on `todo.txt`'s triaged untested list is covered by a test or struck
 - [x] **Phase 6: aclean filter entries** - each new "aclean" filter has an entry in the shipped filter data
 - [ ] **Phase 7: One time base** - every time and sample conversion has one home in a shared core structure, used everywhere, with no duplicated code
-- [ ] **Phase 8: Visuals stay in sync after a track starts** - the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate
+- [x] **Phase 8: Visuals stay in sync after a track starts** - the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate
 - [ ] **Phase 9: No trace on the other visualizer effects** - the trace shows on the spectrum only, not on Borealis or any other effect
 - [ ] **Phase 10: Packaged builds open in the browser** - "Open HQPTuner" in a packaged build opens the app in the browser
 
