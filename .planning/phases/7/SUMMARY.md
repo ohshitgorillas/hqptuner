@@ -22,6 +22,7 @@ Every conversion between samples, milliseconds, microseconds and seconds now liv
 - Probe plumbing lives once - `scripts/probes/kit/probekit.py`; one console recorder for page captures - `scripts/sweepslide.py`
 - Shared test rigs for server, browser, gate, lane, store, drawer, component and meter suites - `tests/support/`, `tests/js/support/`
 - The duplication budget: 33 clones, all of a justified kind, threshold 0.33 - `.jscpd.json`; `CODEC_HOLDS` has one home - `tests/support/field_codecs.py`
+- Gap plans 17 to 19 (UAT items 8, 9, 10, 12): the engine owns the metering frame layout and its raw read (`read_raw_frame`, `frame_payload_size`, `LEVEL_BLOCK`, `discard`), and the burst capture, the metering probe and the junk-burst tools take it from there - `hqptuner/engine/metering.py`, `scripts/`; one `CliError` and one synchronous `run_cli` - `scripts/probes/kit/probekit.py`; test metering frames and WAVE containers built once - `tests/support/fake_metering.py`, `tests/support/wave.py`; checks that the painters move by the ms each paint carries and that each popover opens beside what opens it - `tests/js/components/faceplate-page/`, `tests/e2e/test_popovers_park_beside_what_opens_them.py`
 
 ## Commits
 
@@ -94,6 +95,15 @@ Every conversion between samples, milliseconds, microseconds and seconds now liv
 | 15 | 4 | 90359e9b | The meter store suites and the Source paint suite convert no time themselves |
 | 15 | 5 | 153f78e1 | The meter store suites judge the playhead and the covering frame exactly |
 | 16 | 1 | 0b9df429 | The codec table has one home and the jscpd threshold is what the repository measures |
+| 17 | 1, 2 | b699b638 | The burst capture reads and lets go of frames through the engine |
+| 17 | 3 | 129445b4 | The metering probe and the junk-burst tools take the frame layout from the engine |
+| 17 | 4 | 781e9725 | The tests' metering frames are packed in one place |
+| 17 | 5 | 95cafbe3 | One CliError and one runner serve every script that stops cold |
+| 17 | 6 | d23e5b76 | The tests' WAVE containers are built in one place |
+| 18 | 1 | 5b10b258 | The painters move by the ms each paint carries |
+| 18 | 2 | 81efbfd7 | Each popover opens beside what opens it |
+| 19 | 1 | none | Gates re-measured; jscpd threshold unchanged at 0.18, nothing to commit |
+| 19 | 2 | none | Stopped at human-verify: the owner's verdict is fail |
 
 ## Deviations
 
@@ -104,6 +114,9 @@ Every conversion between samples, milliseconds, microseconds and seconds now liv
 - [deviation] Plan 3 task 5 was committed before task 4, on the owner's ruling of 18 Nov that the two error messages need no wording approval (bf71b9d1 before 32d40b97).
 - [deviation] Plan 16: the plan as written could not be met. Owner rulings of 2026-11-19 replaced two stop conditions: the `CODEC_HOLDS` table moved to a shared home (lease widened to three test files), and the gate stays per-format with the threshold at the lowest value every per-format run passes (0.33; Python measures 0.3241% of lines). AC1 in `CONTEXT.md` was reworded to match. jscpd compares the lines percentage, not tokens as the plan read it.
 - Plans 4, 5, 8, 9, 10, 12, 13, 14, 15: executed as written.
+- [deviation] Plan 17: tasks 1 and 2 share commit b699b638. The pre-commit jscpd hook counts the engine's new frame read against the burst script's old copy until both land, and the executor took one commit over a `SKIP=`.
+- [deviation] Plan 19 task 2: `hqptuner:dev` was rebuilt from 81efbfd7 past the red `make check`, on the owner's ruling of 2026-11-23: "okay, commit past them so I can see and tell me what I'm looking for." The executor replayed steps 2 and 3 of `.claude/task-check.sh` (trigger, result, health check) and edited nothing. The 12 playhead tables stayed red.
+- Plan 18: executed as written.
 
 ## Open items
 
@@ -122,9 +135,19 @@ Every conversion between samples, milliseconds, microseconds and seconds now liv
 - Only one e2e file was run in plan 10; plan 11 ran its 11 e2e files (109 passed). The full `make test-e2e` was not run in this phase.
 - Commits a6b0ee73 and both plan 6 commits used `SKIP=` under the owner's active red-commit override.
 - The config carries four keys retired in Cadence v4.4.0 (`planning.workflow_plans`, `workflow.use_workflows`, `workflow.multi_workflow`, `workflow.execute_workflows`); they are ignored and warn on every resolve.
+- OWNER VERDICT, plan 19 task 2, 2026-11-23, on the rebuilt dev build with music: "fail: different rates still run at different delays. it's closer, but it's not the same. this indicates that there's still some fudging going on somewhere that needs excised." Plan 19 stays at `PLAN CHECKPOINT: human-verify` with 1 of 2 tasks; per its own Verify a surface the owner says differs goes back to planning and is never a pass. The cause is not found. Phase 8's success criterion 2 names the same symptom (tracks at different sample rates show the same lag); whether the remaining difference is phase 8's unconfirmed opening-rush cause or something phase 7 left in is not established.
+- The owner's verdict did not speak to UAT item 10 (the popovers, the Visual settings drawer, the matrix plot) or to the spectrogram's seams (item 9); those are still unanswered.
+- Declined risk finding, plan 18 (low, `tests/e2e/test_popovers_park_beside_what_opens_them.py:124`): no site in the park test claims the Import EQ popover's `pimp` class, so a break in its parking leaves the test green. Recorded in `.planning/records/DECLINED.md`, record `records/ADJUDICATION-risk_surface-d23e5b76-81efbfd7.json`.
+- Plan 18: the volume panel and the alert note are not read by the park test (the stack pins the volume and raises no alert); the fit suite does not measure inside the option list sheet; no per-style hand-off case for ridges, halo and flames.
+- Plan 19's executor saw, on the rebuilt build and identically on the build at 5aa4aa41: console errors on every page load (`<circle> attribute cx: Expected length, "-Infinity"`, `NaN` in a path and a text `y`), which it traced to the Loudness drawer's plot; and the Import EQ popover panel is not opaque (`/tmp/plan19-snaps/pop2-pipelines-pl-import-now.png`). Neither was checked by the coordinator.
+- The e2e lane needs `hqpcreds` sourced for `HQPTUNER_CHROMIUM`; `make test-e2e` runs about 644 s. It passed in plan 19 (164 passed).
+- Gate-rule slips: plan 18's executor piped one `scripts/gate.sh` run into `tail` and sent two to `/dev/null`; plan 19's piped one `make check` into `tail -40`. The gate kept every log.
+- The run record's closes for the plan 17, 18 and 19 executors carry no token, turn or duration figures; the figures arrived after each close was written.
 
 ## Goal check
 
 The commits plausibly deliver the goal. One home for conversions: `grep -rnE "(MS|US)_PER_S\s*=" hqptuner/static tests/js` prints two lines, both in `hqptuner/static/lib/timebase.js` (lines 5 and 7), which is AC2. Callers use it: plans 1 to 4 and 15 report the feed store, playhead, meter loop, painters, `world.js`, `schedules.js` and the probes converted, and the AC4 and AC5 greps (`MS_PER_S` under `components` and `model/gauges/meter`, `_S` constants in `steps.js`, `SAME_MS` under `tests/js`, `EPS` in `trace-probes.js`) print nothing on the final tree. The spec names the owner: `grep -c "lib/timebase.js" docs/spec/timing.md` prints 3 (AC6). Duplication: the final gate log `/tmp/gate-make-bjYbR9g4.log` shows `Found 22 clones.` (python), `Found 11 clones.` (javascript) and `Found 0 clones.` (css), 33 against a bound of 43, with `.jscpd.json` at `"threshold": 0.33`; that each of the 33 is of a justified kind rests on the plan 16 executors' reading plus the owner's ruling on four borderline import-led clones, not on a reading of mine. No regression: the same log shows `3676 passed` for pytest and 12 `not ok` lines for JavaScript, and none of the 12 falls outside the four baseline name patterns; `git diff --stat 503ddec8` over the three playhead table files prints nothing (AC7). What is missing: the "bit for bit" criterion is proven by exact-equality tests, not by any run in a browser, and no visual change of this phase has been in front of the owner, because the 12 baseline reds stop `task-check.sh` before its rebuild. The duplication claim is bounded by jscpd's 50-token floor; the open items name three smaller repeats it does not see.
+
+Gap run of 2026-11-19 to 2026-11-23 (plans 17 to 19, `git log --oneline 65ebc080..HEAD`, 7 commits b699b638..81efbfd7): the repeats UAT item 12 named are gone by the commits' own subjects (one frame read, one frame layout, one `CliError`, one WAVE builder), and plan 19 measured 26 clones at threshold 0.18 with `make test-e2e` at 164 passed. The duplication half of the goal is plausibly delivered. The time half is not accepted: the owner, on the rebuilt build, reports that different sample rates still show different delays, closer than before but not equal. One home for the conversions does not by itself make the lag equal across rates, and nothing in this run located where the remaining difference comes from. `make check` still exits non-zero on the 12 phase 8 playhead tables and on nothing else (plan 19 report, 5641 of 5653).
 
 complete locally, not CI-verified

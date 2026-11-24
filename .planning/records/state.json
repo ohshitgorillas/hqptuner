@@ -3,13 +3,13 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 7,
-    "status": "planned",
-    "next": "/cad-execute 7",
-    "updated": "2026-11-20",
+    "status": "executed",
+    "next": "/cad-verify 7",
+    "updated": "2026-11-24",
     "plan": {
-      "k": 17,
+      "k": 19,
       "j": 19,
-      "name": "The last repeats live once"
+      "name": "The phase in front of the owner"
     }
   },
   "phases": [
@@ -228,11 +228,11 @@
         },
         {
           "file": "PLAN-17.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-18.md",
-          "finished": false
+          "finished": true
         },
         {
           "file": "PLAN-19.md",
