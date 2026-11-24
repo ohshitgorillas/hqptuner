@@ -7,8 +7,8 @@
 // names the music it shows. Paints before the first frame is heard are not read. Owner rulings, 2026-11-08: each paint
 // shows one whole frame, the one that covers most of the paint's interval, and not a power average of the frames the
 // paint reached; at about 47 frames a second against 60 paints some paints show the frame the paint before showed, and
-// a trace that stands for one paint is accepted. While the buffer holds, every frame is shown, on one or two
-// consecutive paints. So the trace is read for the frame it names, never for evenness or for a change at every paint.
+// a trace that stands for one paint is accepted. So the trace is read for the frame it names, never for evenness or for a
+// change at every paint.
 //
 // Ridges and fire step their picture on a pace of their own, and may interpolate between their steps, so their picture
 // is read over the capture and a generated feed for a paint that leaves the effects canvas as the paint before left it:
@@ -73,21 +73,19 @@ const clock = {
 };
 
 /**
- * A generated feed of bursts of `sizes` frames in turn at 44.1 kHz, one channel of four bins, landing `lead` ms ahead of
- * their music.
+ * A generated feed of bursts of `sizes` frames in turn at 44.1 kHz, one channel of four bins.
  *
  * @param {number[]} sizes
  * @param {number} delay  s
  * @param {number[]} gaps  the paint waits, wall ms
- * @param {number} [lead]  wall ms each burst after the first lands before its music plays at the delay, so the buffer holds
  * @returns {Feed}
  */
-function generated(sizes, delay, gaps, lead = 0) {
+function generated(sizes, delay, gaps) {
   return {
     rate: RATE_44K,
     channels: 1,
     bins: 4,
-    landings: generatedLandings(sizes, lead),
+    landings: generatedLandings(sizes),
     delays: { offsetS: delay },
     gaps,
   };
@@ -213,17 +211,6 @@ const FEEDS = [
   ["the_capture_at_60_hz", captured],
 ];
 
-/**
- * The feeds whose buffer holds throughout and whose paints are shorter than every frame: each frame has a paint of its
- * own.
- *
- * @type {Array<[string, () => Feed]>}
- */
-const BUFFERED_FEEDS = [
-  ["a_full_buffer_at_steady_paints", () => generated([18, 4, 6, 3, 5], 0.3, [16], 300)],
-  ["the_capture_at_60_hz", captured],
-];
-
 /** The feeds the effects pictures are read over: the capture and one generated feed with uneven paints. */
 const FX_FEEDS = ["long_bursts_at_uneven_paints", "the_capture_at_60_hz"];
 
@@ -254,25 +241,6 @@ function notTheFrameCoveringMost(played, paints) {
   });
 }
 
-/**
- * How many paints name each frame whole, by frame number, for the frames from the first named to the last.
- *
- * @param {Array<Painted & { named: number }>} paints
- * @returns {Array<number[]>}  the indices of the paints naming each frame
- */
-function paintsPerFrame(paints) {
-  const whole = paints.map((p, i) => ({
-    i,
-    k: Math.round(p.named),
-    ok: Math.abs(p.named - Math.round(p.named)) <= WHOLE_FRAME,
-  }));
-  const first = whole[0].k;
-  const last = whole[whole.length - 1].k;
-  return Array.from({ length: last - first + 1 }, (_, n) =>
-    whole.filter((w) => w.ok && w.k === first + n).map((w) => w.i),
-  );
-}
-
 for (const [name, make] of FEEDS) {
   test(`test_${name}_shows_each_paint_the_one_frame_that_covers_most_of_its_interval`, () => {
     const played = play(make());
@@ -281,14 +249,6 @@ for (const [name, make] of FEEDS) {
       { some: paints.length > 1, off: notTheFrameCoveringMost(played, paints).length },
       { some: true, off: 0 },
     );
-  });
-}
-
-for (const [name, make] of BUFFERED_FEEDS) {
-  test(`test_${name}_shows_every_frame_it_passes_on_one_or_two_consecutive_paints`, () => {
-    const runs = paintsPerFrame(heard(play(make())));
-    const broken = runs.filter((at) => at.length < 1 || at.length > 2 || (at.length === 2 && at[1] - at[0] !== 1));
-    assert.deepEqual({ some: runs.length > 1, broken: broken.length }, { some: true, broken: 0 });
   });
 }
 

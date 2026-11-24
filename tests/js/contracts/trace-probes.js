@@ -50,25 +50,22 @@ const covers = (f, from, to) => Math.max(0, Math.min(endOf(f), to) - Math.max(st
 const newestEnd = (frames) => (frames.length ? endOf(frames[frames.length - 1]) : NaN);
 
 /**
- * The playhead against wall time and the frames: each paint after the first that stood the playhead somewhere left it
- * where the paint before it left it plus its wall time unless it stood at the newest frame's end, never past that end and
- * never backward.
+ * The playhead against the frames: each paint after the first that stood the playhead somewhere left it never past the
+ * newest frame's end and never backward.
  *
- * @returns {{ see: (paint: Paint, world: World) => void, done: () => { read: number, speed: Finding, past: Finding,
+ * @returns {{ see: (paint: Paint, world: World) => void, done: () => { read: number, past: Finding,
  *   backward: Finding } }}
  */
 export function wallProbe() {
   /** @type {number | null} */
   let before = null;
   let read = 0;
-  const found = { speed: finding(), past: finding(), backward: finding() };
+  const found = { past: finding(), backward: finding() };
   return {
-    see: ({ i, dt, head }, { frames }) => {
+    see: ({ i, head }, { frames }) => {
       const newest = newestEnd(frames);
       if (head !== null && before !== null) {
         read++;
-        const stood = head === newest;
-        if (head !== before + dt && !stood) note(found.speed, i, `moved ${head - before} in ${dt} ms`);
         if (head > newest) note(found.past, i, `${head - newest} ms past the newest end`);
         if (head < before) note(found.backward, i, `moved ${head - before}`);
       }

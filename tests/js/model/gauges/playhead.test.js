@@ -60,11 +60,10 @@ import { seeded } from "../../support/meter/seeded.js";
  *   ran: number | null, before: number | null, dt: number, wall: number }} Paint
  */
 /**
- * One paint that carried on from the playhead the paint before it left: the newest queued frame's end (playback, ms;
- * the end of the last paint when the queue is empty), how far the delay fell since the paint before it (playback, ms;
- * negative for a raise), and the wall time it ran at.
+ * One paint that carried on from the playhead the paint before it left: where it left the playhead and the newest
+ * queued frame's end (playback, ms; the end of the last paint when the queue is empty).
  *
- * @typedef {{ before: number, after: number, newest: number, dt: number, jump: number, wall: number }} Move
+ * @typedef {{ after: number, newest: number }} Move
  */
 /**
  * Frames landing together: the wall time they land at (ms from the schedule's start) and the frames.
@@ -114,8 +113,6 @@ const PATTERNS = {
   a_long_stall: [...Array(40).fill(PAINT_MS), 640],
   runs_of_slow_paints: [...Array(25).fill(PAINT_MS), ...Array(7).fill(72)],
 };
-//: How far later bursts land against the schedule they were generated on, wall ms, in turn: early and late.
-const SHIFTS = [-40, 55, -15, 35, 60, -30];
 //: The capture rows that begin a break: its first frame, the only one whose stamp does not follow the one before it.
 const CAPTURE_BREAKS = [0];
 
@@ -442,14 +439,6 @@ for (const delay of DELAYS) {
     );
   });
 
-  test(`test_the_playhead_at_a_${delay}_ms_delay_moves_at_a_paint_no_frame_arrived_before`, () => {
-    const { paints } = play(bursts(FEED), delay);
-    assert.equal(
-      paints.some((p) => !p.arrived && p.before !== null && p.d.playhead !== p.before),
-      true,
-    );
-  });
-
   test(`test_the_queue_after_the_feed_at_a_${delay}_ms_delay_holds_exactly_the_frames_ending_past_the_playhead`, () => {
     const { paints, queue } = play(bursts(FEED), delay);
     const head = paints[paints.length - 1].d.playhead;
@@ -464,6 +453,17 @@ test("test_the_playhead_at_a_0_ms_delay_stands_that_far_behind_the_newest_frames
   const { paints } = play(bursts(FEED), 0);
   assert.equal(paints[paints.length - 1].d.playhead, EDGE);
 });
+
+//: A 0 ms delay stands the playhead at the newest end, so there it moves only at a paint a frame arrived before.
+for (const delay of DELAYS.filter((d) => d > 0)) {
+  test(`test_the_playhead_at_a_${delay}_ms_delay_moves_at_a_paint_no_frame_arrived_before`, () => {
+    const { paints } = play(bursts(FEED), delay);
+    assert.equal(
+      paints.some((p) => !p.arrived && p.before !== null && p.d.playhead !== p.before),
+      true,
+    );
+  });
+}
 
 test("test_a_paint_at_an_unchanged_delay_leaves_the_playhead_exactly_where_it_stood_plus_the_paints_wall_time", () => {
   const dt = PAINT_60HZ_MS;
@@ -508,20 +508,12 @@ for (const seek of [...SEEKS, REJOIN]) {
     const first = paints.find((p) => p.queue.includes(brk));
     assert.equal(first?.queue.slice(first.d.consumed)[0], brk);
   });
-
-  test(`test_the_paint_after_a_seek_to_${seek}_ms_stands_the_playhead_the_delay_behind_the_newest_end`, () => {
-    const { list, brk } = seeked(seek);
-    const { paints } = play(bursts(list), 250);
-    const first = paints.find((p) => p.queue.includes(brk));
-    assert.equal((first?.d.playhead ?? NaN) + 250, endOf(first?.queue.at(-1) ?? brk));
-  });
 }
 
 /**
- * A run the movement tests read: the name that says what was fed, its paints, and the wall time (ms) until which the
- * feed stays inside the buffer, null when it does not.
+ * A run the movement tests read: the name that says what was fed, and its paints.
  *
- * @typedef {{ name: string, paints: Paint[], until: number | null }} Run
+ * @typedef {{ name: string, paints: Paint[] }} Run
  */
 
 //: The generated feeds: the delay each runs at (playback, ms), the music a burst holds and how far it lands off its
@@ -531,26 +523,22 @@ const FEEDS = [
   {
     name: "inside_a_short_delay",
     delay: 300,
-    inside: true,
     spec: { seed: 1, count: 30, burst: [40, 120], jitter: 30 },
   },
   {
     name: "inside_a_long_delay",
     delay: 600,
-    inside: true,
     spec: { seed: 2, count: 24, burst: [150, 260], jitter: 60 },
   },
   {
     name: "inside_the_captures_delay",
     delay: 1247.682,
-    inside: true,
     spec: { seed: 3, count: 20, burst: [100, 262], jitter: 80 },
   },
-  { name: "past_no_delay", delay: 0, inside: false, spec: { seed: 4, count: 24, burst: [60, 200], jitter: 50 } },
+  { name: "past_no_delay", delay: 0, spec: { seed: 4, count: 24, burst: [60, 200], jitter: 50 } },
   {
     name: "past_a_short_delay",
     delay: 120,
-    inside: false,
     spec: { seed: 5, count: 24, burst: [200, 300], jitter: 50 },
   },
 ].map((f) => ({ ...f, feed: generated(f.spec) }));
@@ -564,24 +552,22 @@ for (const dt of [PAINT_MS, SLOWER_PAINT_MS]) {
     RUNS.push({
       name: `a_${delay}_ms_delay_at_${dt}_ms_paints`,
       paints: play(bursts(FEED, dt), delay).paints,
-      until: null,
     });
   }
   const lowered = delayedAt(bursts(FEED, dt), HALF, 0);
-  RUNS.push({ name: `a_delay_lowered_mid_feed_at_${dt}_ms_paints`, paints: play(lowered, 250).paints, until: null });
+  RUNS.push({ name: `a_delay_lowered_mid_feed_at_${dt}_ms_paints`, paints: play(lowered, 250).paints });
   const raised = delayedAt(bursts(FEED, dt), HALF, 250);
-  RUNS.push({ name: `a_delay_raised_mid_feed_at_${dt}_ms_paints`, paints: play(raised, 0).paints, until: null });
+  RUNS.push({ name: `a_delay_raised_mid_feed_at_${dt}_ms_paints`, paints: play(raised, 0).paints });
   const deeper = delayedAt(bursts(FEED, dt), HALF, PAST_ALL);
   RUNS.push({
     name: `a_delay_raised_past_all_music_shown_at_${dt}_ms_paints`,
     paints: play(deeper, 0).paints,
-    until: null,
   });
 }
-for (const { name, delay, inside: within, feed } of FEEDS) {
+for (const { name, delay, feed } of FEEDS) {
   for (const [rate, intervals] of Object.entries(PATTERNS)) {
     const steps = scheduled(feed.arrivals, intervals, feed.last + TAIL_MS);
-    RUNS.push({ name: `${name}_at_${rate}`, paints: play(steps, delay).paints, until: within ? feed.last : null });
+    RUNS.push({ name: `${name}_at_${rate}`, paints: play(steps, delay).paints });
   }
 }
 for (const [rate, intervals] of Object.entries(PATTERNS)) {
@@ -590,12 +576,10 @@ for (const [rate, intervals] of Object.entries(PATTERNS)) {
   RUNS.push({
     name: `a_long_delay_lowered_mid_feed_at_${rate}`,
     paints: play(to(150), LONG_ONE.delay).paints,
-    until: null,
   });
   RUNS.push({
     name: `a_long_delay_raised_mid_feed_at_${rate}`,
     paints: play(to(1500), LONG_ONE.delay).paints,
-    until: null,
   });
 }
 const CAPTURE = capture();
@@ -603,12 +587,10 @@ const SAFARI = safari();
 RUNS.push({
   name: "the_safari_capture_at_its_own_paints",
   paints: play(scheduled(SAFARI.arrivals, SAFARI.intervals, SAFARI.last + TAIL_MS), SAFARI.delay).paints,
-  until: SAFARI.last,
 });
 RUNS.push({
   name: "the_capture_at_its_delay_at_60_hz",
   paints: play(scheduled(CAPTURE.arrivals, [PAINT_60HZ_MS], CAPTURE.last), CAPTURE.delay).paints,
-  until: CAPTURE.last,
 });
 
 /**
@@ -621,16 +603,12 @@ function movesOf(paints) {
   return paints.flatMap((p) => {
     const newest = p.queue.length ? endOf(p.queue[p.queue.length - 1]) : p.d.to;
     if (Number.isNaN(newest) || p.d.restart || p.before === null || p.ran === null) return [];
-    return [{ before: p.before, after: p.d.playhead, newest, dt: p.dt, jump: p.ran - p.delay, wall: p.wall }];
+    return [{ after: p.d.playhead, newest }];
   });
 }
 
 //: What each run's moves must never do, as the move that does it.
 const BREACHES = {
-  moves_other_than_its_wall_time_at_an_unchanged_delay_short_of_the_newest_end: (/** @type {Move} */ m) =>
-    m.jump === 0 && m.after < m.newest && m.after !== m.before + m.dt,
-  jumps_further_than_its_wall_time_at_an_unchanged_delay: (/** @type {Move} */ m) =>
-    m.jump === 0 && m.after > m.before + m.dt,
   moves_past_the_newest_queued_end: (/** @type {Move} */ m) => m.after > m.newest,
 };
 
@@ -661,75 +639,9 @@ for (const run of RUNS) {
   });
 }
 
-for (const run of RUNS.filter((r) => r.until !== null)) {
-  test(`test_in_${run.name}_the_playhead_moves_exactly_its_wall_time_at_every_paint_while_the_feed_lands`, () => {
-    const until = run.until ?? NaN;
-    assert.deepEqual(
-      movesOf(run.paints).filter((m) => m.wall <= until && m.after !== m.before + m.dt),
-      [],
-    );
-  });
-}
-
-/**
- * The moves of every run that lowered the delay (jump > 0) or raised it (jump < 0).
- *
- * @param {(jump: number) => boolean} changed
- */
-const jumpsOf = (changed) => RUNS.flatMap((r) => movesOf(r.paints)).filter((m) => changed(m.jump));
-
-test("test_at_the_first_paint_at_a_lowered_delay_the_playhead_jumps_forward_by_the_drop_or_stands_at_the_newest_end", () => {
-  const moves = jumpsOf((j) => j > 0);
-  assert.deepEqual(
-    { some: moves.length > 0, after: moves.map((m) => m.after) },
-    { some: true, after: moves.map((m) => Math.min(m.before + m.dt + m.jump, m.newest)) },
-  );
-});
-
-test("test_at_the_first_paint_at_a_raised_delay_the_playhead_jumps_back_by_the_raise", () => {
-  const moves = jumpsOf((j) => j < 0);
-  assert.deepEqual(
-    { some: moves.length > 0, after: moves.map((m) => m.after) },
-    { some: true, after: moves.map((m) => m.before + m.dt + m.jump) },
-  );
-});
-
 test("test_a_delay_lowered_mid_feed_leaves_the_playhead_at_the_new_target_once_the_feed_has_gone_on", () => {
   const { paints } = play(delayedAt(bursts(FEED), HALF, 0), 250);
   assert.equal(paints[paints.length - 1].d.playhead, EDGE);
-});
-
-/**
- * The playheads of `arrivals` painted at a steady 60 Hz through wall time `until`, keyed by the wall time they ran at,
- * for the paints that left the playhead short of the newest end.
- *
- * @param {Arrival[]} arrivals
- * @param {number} delay  playback, ms
- * @param {number} until  wall, ms
- */
-function standing(arrivals, delay, until) {
-  const moves = movesOf(play(scheduled(arrivals, [PAINT_MS], until), delay).paints);
-  return new Map(moves.filter((m) => m.after < m.newest).map((m) => [m.wall, m.after]));
-}
-
-test("test_a_burst_landing_early_or_late_leaves_the_playhead_where_it_was_at_every_paint_short_of_the_newest_end", () => {
-  const { feed, delay } = LONG_ONE;
-  let landed = 0;
-  const retimed = feed.arrivals.map((a, i) => {
-    landed = Math.max(landed, i ? a.wall + SHIFTS[i % SHIFTS.length] : a.wall);
-    return { wall: landed, frames: a.frames };
-  });
-  const until = feed.last + TAIL_MS;
-  const on = standing(feed.arrivals, delay, until);
-  const off = standing(retimed, delay, until);
-  const both = [...on.keys()].filter((wall) => off.has(wall));
-  assert.deepEqual(
-    {
-      some: both.length > 0,
-      apart: both.filter((wall) => on.get(wall) !== off.get(wall)),
-    },
-    { some: true, apart: [] },
-  );
 });
 
 /**

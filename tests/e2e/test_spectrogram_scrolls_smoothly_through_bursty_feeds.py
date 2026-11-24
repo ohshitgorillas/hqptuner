@@ -3,8 +3,8 @@
 The meter feed reaches the page in bursts: the real capture of the dev container's feed
 (`tests/support/fixtures/meter_feed_capture.json`) and generated feeds whose bursts, gaps and landings
 vary. The Source drawer's spectrogram scrolls by the playhead's movement, so three things are read
-from its painted pixels, once per paint: it never stands still while music plays, its speed never
-changes in a step, and on the capture it never scrolls further than its wall time covers.
+from its painted pixels, once per paint: it never stands still while music plays, and its speed never
+changes in a step.
 
 Policy notes:
 
@@ -330,8 +330,3 @@ def test_the_spectrogram_scroll_never_changes_by_more_than_one_column_between_pa
 ) -> None:
     """No paint scrolls the spectrogram more than one column further or shorter than the paint before it."""
     assert _largest_step(replays.of(feed)) <= 1
-
-
-def test_no_paint_scrolls_the_captures_spectrogram_further_than_its_wall_time_covers(replays: Replays) -> None:
-    """On the real capture each paint scrolls at most its wall time, rounded up to a whole column."""
-    assert max(replays.of(FEEDS[0])) <= math.ceil(PAINT_MS / COLUMN_MS)

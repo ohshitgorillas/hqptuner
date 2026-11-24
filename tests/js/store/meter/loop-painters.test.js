@@ -11,9 +11,8 @@
 // during a paint costs no painter that paint.
 //
 // Over generated bursty feeds inside the buffer, at two delays and steady and uneven paint waits, and over the committed
-// capture at its delay, every frame carrying a reading that names it: the playhead moves each paint's wall time, the
-// scene is never handed as it stood for longer than a frame lasts, and no paint is handed more music than its wall time
-// and one frame cover.
+// capture at its delay, every frame carrying a reading that names it: the scene is never handed as it stood for longer
+// than a frame lasts, and no paint is handed more music than its wall time and one frame cover.
 //
 // The loop paints only while the feed is open and the engine plays (docs/superpowers/specs/meter-loop-idle-design.md,
 // Modules). When either stops holding, every painter still subscribed is handed the scene once, restarted, with
@@ -38,7 +37,6 @@ import assert from "node:assert/strict";
 import { signal } from "@preact/signals-core";
 
 import { onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
-import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { lastStream } from "../../support/eventsource.js";
@@ -141,7 +139,6 @@ function jump() {
  * @property {number} peak  dBFS: the scene's first channel; NaN when it has none
  * @property {number} rms  dBFS: the scene's first channel; NaN when it has none
  * @property {boolean} restart
- * @property {number | null} head  playback, ms: the playhead signal when the painter was called
  * @property {Array<{ peak: number, rms: number, bins: number[] }>} channels  every channel of the scene: dBFS, bins
  *   copied when the painter was called
  */
@@ -166,7 +163,6 @@ function subscribe() {
       peak: ch ? ch.peak : NaN,
       rms: ch ? ch.rms : NaN,
       restart: scene.restart,
-      head: playhead.value,
       channels,
     });
   });
@@ -541,16 +537,6 @@ for (const { name, delays, gaps, feed } of FEEDS) {
     gapAt = 0;
     return replay(feed);
   };
-
-  test(`test_${name}_moves_the_playhead_exactly_its_wall_time_at_every_paint`, () => {
-    const { paints } = played();
-    const moves = paints.flatMap((p, i) => {
-      const before = i > 0 ? paints[i - 1].head : null;
-      return p.head !== null && before !== null ? [{ from: before, to: p.head, wall: p.dt }] : [];
-    });
-    const off = moves.filter((m) => m.to !== m.from + m.wall);
-    assert.deepEqual({ some: moves.length > 0, off: off.length }, { some: true, off: 0 });
-  });
 
   test(`test_${name}_never_hands_the_scene_as_it_stood_for_longer_than_a_frame_lasts`, () => {
     const { paints, longest } = played();

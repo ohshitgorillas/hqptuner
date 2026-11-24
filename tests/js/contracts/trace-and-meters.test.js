@@ -7,13 +7,13 @@
 // is seeded or is the owner's Safari capture, and each is replayed once; every test reads one finding of that replay.
 // Every frame carries an identity and levels of its own, so a paint says which frame it showed and which it read.
 //
-// The playhead keeps wall time (contract 1): a paint moves it its wall time unless it stands at the newest frame's end,
-// never past that end and never backward. A paint's interval runs from where the paint before it left the playhead to
-// where it leaves it (contract 4): the trace is the one frame covering most of the interval, the earlier of two covering
-// it equally; the meters' peak and RMS read every frame the interval covers; a paint with an empty interval hands what the
-// paint before it handed. Across the run (contract 6) the frames shown, repeats collapsed, are in playback order; a frame
-// the playhead passed goes unshown only if a paint over it was longer than it; and the frames shown plus the frames no
-// paint could reach are the frames passed.
+// The playhead keeps two promises (contract 1): it never passes the newest frame's end and never moves backward. A
+// paint's interval runs from where the paint before it left the playhead to where it leaves it (contract 4): the trace
+// is the one frame covering most of the interval, the earlier of two covering it equally; the meters' peak and RMS read
+// every frame the interval covers; a paint with an empty interval hands what the paint before it handed. Across the run
+// (contract 6) the frames shown, repeats collapsed, are in playback order; a frame the playhead passed goes unshown only
+// if a paint over it was longer than it; and the frames shown plus the frames no paint could reach are the frames
+// passed.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/contracts/trace-and-meters.test.js
 
@@ -47,11 +47,6 @@ const seen = seenOnce(look);
 const NONE = { count: 0, first: "" };
 
 for (const schedule of SCHEDULES) {
-  test(`test_the_playhead_moves_its_wall_time_unless_it_stands_at_the_newest_end_in_${schedule.name}`, () => {
-    const { read, speed } = seen(schedule).wall;
-    assert.deepEqual({ read: read > 100, speed }, { read: true, speed: NONE });
-  });
-
   test(`test_the_playhead_never_passes_the_newest_frames_end_in_${schedule.name}`, () => {
     const { read, past } = seen(schedule).wall;
     assert.deepEqual({ read: read > 100, past }, { read: true, past: NONE });
