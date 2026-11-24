@@ -3,7 +3,7 @@ status: testing
 phase: 7
 fields_version: 1
 started: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-24
 ---
 
 ## Items
@@ -70,17 +70,17 @@ status: fail
 first_pass: fail
 source: model
 evidence: SUMMARY deviation for plans 1, 2, 3, 6, 7 and 11 (task-check never rebuilt hqptuner:dev). The tests/js/model/gauges/meter/*.test.js suites judge model state, not the painted picture.
-reported: no automated check exercises it: no test or probe renders the dev build's Source page meters, spectrum styles or aurora after plan 3's change of dt to ms. The dev container was never rebuilt, because task-check.sh stops at the 12 baseline reds.
-severity: minor
-cause: No automated check exists: the meter suites judge model state, no test renders the Source page meters, spectrum styles or aurora, and hqptuner:dev was never rebuilt in this phase because task-check.sh stops at the 12 baseline-red playhead tests.
-fix: routed to /cad-plan
+reported: fail: different rates still run at different delays. it's closer, but it's not the same. this indicates that there's still some fudging going on somewhere that needs excised.
+severity: major
+cause: Owner verdict of 2026-11-23 on the rebuilt dev build, so not a pass (plan 19 Verify). The automated check plan 18 added passes at 21d07176: ok 894, 895, 938 and the other painter cases in /tmp/gate-make-o2Ve03XD.log. Diagnosis by code reading, not measured live: hqptuner/static/model/gauges/playhead.js:109 sets the playhead at a restart to `newest - delay` and from then on moves it by wall time only, so the lag is fixed by how far the stamps ran ahead of wall time when the track started. docs/spec/timing.md (The two clocks) says the playhead follows the line's lead; settledLead (:164) and followLine (:195) exist in the same file and no production code calls them. The size of the opening lead depends on the rate through the feed's stride (hqptuner/engine/meterfeed.py:116-123). No rate branch, tolerance or offset was found in the feed, delay, loop or playhead path. The 12 red tests (playhead-lag 8, playhead-motion 3, playhead-scroll 1) assert exactly the missing behavior, e.g. test_a_start_stands_one_delay_behind_the_line_when_the_paint_ran_9_ms_after_the_arrival. This is phase 8's stated bug and its success criterion 2.
+fix: left open by owner 2026-11-23: phase 8 makes the playhead follow the line
 
 ### 9. Source drawer spectrogram looks unchanged
 expected: On the dev build, the Source drawer's spectrogram scrolls and paints as before, with no seam or gap between slices (plan 2)
-status: fail
+status: pass
 first_pass: fail
 source: model
-evidence: tests/js/contracts/picture.js:177-196. No dev build ran for plan 2 (SUMMARY deviation).
+evidence: At 21d07176: `scripts/gate.sh make check` log /tmp/gate-make-o2Ve03XD.log: ok 590, 591, 592 (test_the_spectrogram_shows_no_blank_column_... in drawers-source-paint-blank.test.js). `scripts/gate.sh .venv/bin/pytest -m e2e --no-cov -q` over test_spectrogram_scrolls_smoothly_through_bursty_feeds.py, test_popovers_park_beside_what_opens_them.py and test_popovers_fit_every_format.py: exit=0, `46 passed, 1 warning in 307.93s`, log /tmp/gate-pytest-ehghk1Ut.log. The owner's verdict of 2026-11-23 did not speak to the spectrogram.
 reported: no automated check exercises it: no check paints the dev build's Source drawer spectrogram. The picture contracts run on a fake canvas, and their oracle uses the at+ms derivation with EPS.
 severity: minor
 cause: No automated check exists: the picture contracts paint a fake canvas, nothing paints the Source drawer spectrogram on a dev build, and no dev build ran in this phase.
@@ -88,10 +88,10 @@ fix: routed to /cad-plan
 
 ### 10. Popovers, Visual settings drawer and matrix plot look unchanged
 expected: On the dev build, each popover parks under its trigger as before, and the Visual settings drawer and the matrix plot look and behave as before (plan 6)
-status: fail
+status: pass
 first_pass: fail
 source: model
-evidence: dd3541d0 touches Header.js, HfFilter.js, SeeMore.js, Volume.js, bottom/Switcher.js, drawers/pipelines/parts.js, lists/FacetPopover.js, page/DisplayOptions.js and page/FilterPresets.js. The full e2e suite was not run in this phase (SUMMARY open item).
+evidence: At 21d07176: `scripts/gate.sh .venv/bin/pytest -m e2e --no-cov -q` over test_popovers_park_beside_what_opens_them.py, test_popovers_fit_every_format.py and test_spectrogram_scrolls_smoothly_through_bursty_feeds.py: exit=0, `46 passed, 1 warning in 307.93s`, log /tmp/gate-pytest-ehghk1Ut.log. The park test reads seven of the nine sites; the volume panel and the alert note are not read (plan 18 open item). The Visual settings drawer and the matrix plot are held by visual.test.js and profile.test.js inside the JS suite, whose only 12 failures are the phase 8 playhead tables (/tmp/gate-make-o2Ve03XD.log). The owner's verdict of 2026-11-23 did not speak to this item.
 reported: no automated check exercises it: no test asserts where any of the nine popover sites lands after dd3541d0 moved them onto place() and parkPanel(), and no dev build ran for plan 6.
 severity: minor
 cause: No automated check exists: no test asserts where the nine popover sites moved onto place() and parkPanel() by dd3541d0 land, the full e2e suite was not run in this phase, and no dev build ran.
@@ -112,10 +112,10 @@ fix: 4148b887, retest
 ### 12. No logic is duplicated: wherever two places derive the same value, both use one shared structure
 expected: behavior wrong: the goal says duplicated code is not allowed anywhere, and these repeats sit under jscpd's 50-token floor or inside its entry-point exemption. The SUMMARY admits two of them.
 origin: verifier
-status: fail
+status: pass
 first_pass: fail
 source: model
-evidence: secondsToMs(1) / 60 in tests/js/support/meter/meterrig.js:128, tests/js/contracts/schedules.js:40 and tests/js/model/gauges/playhead.test.js:112. `_handshakes` in tests/apply/manager/test_manager_handshake_answered_error.py:35 repeats tests/support/fixtures_daemons.py:177. `_yield_veto_forces_real` in scripts/junkburst/jbpolicyyield.py:48 repeats veto_forces_real in scripts/junkburst/jbpolicy.py:133. The CliError-to-exit-1 main() is copied into 9 probes (e.g. scripts/probes/absent_plugin/probe_absent_plugin.py:236-251, scripts/probes/restore_pristine.py:53-68), with no shared runner in scripts/probes/kit/probekit.py.
+evidence: At 21d07176: `grep -rn "class CliError" scripts hqptuner` prints one hit, scripts/probes/kit/probekit.py:36. scripts/junkcal/junkcal_burst.py has no _read_frame and imports read_raw_frame from hqptuner.engine.metering (:40, :99). `grep -rn "_yield_veto_forces_real\|def _handshakes" scripts tests` prints nothing; one handshakes at tests/support/fixtures_daemons.py:177. `secondsToMs(1) / 60` has one home, tests/js/support/meter/capture.js:10. `make check` log /tmp/gate-make-o2Ve03XD.log: Found 15 clones (python), 11 (javascript), 0 (css). This settles the repeats the item named; repeats under jscpd's 50-token floor that nobody has named are not searched for.
 reported: behavior wrong: the goal says duplicated code is not allowed anywhere, and these repeats sit under jscpd's 50-token floor or inside its entry-point exemption. The SUMMARY admits two of them.
 severity: minor
 cause: Retest after e87d056c: the four repeats the fix named are gone (one PAINT_60HZ_MS home in tests/js/support/meter/capture.js, shared handshakes fixture, veto_forces_real called with MIRROR_VETO_LEVEL, probekit.run_cli in 8 probes). One confirmed repeat remains outside the approved fix: scripts/junkcal/junkcal_burst.py:133 _read_frame repeats the header unpack, the plausibility check and the payload sizing of hqptuner/engine/metering.py:343 read_frame, differing only in handing back the raw header bytes; sharing it changes production engine code. Also left: scripts/probes/gen_kaiser_oracle.py keeps its own CliError class and a synchronous main(), and scripts/sweep.py has a third CliError class.
@@ -126,14 +126,14 @@ expected: `scripts/gate.sh make check` exits 0
 status: fail
 first_pass: fail
 source: model
-cause: `scripts/gate.sh make check` exit=2 (log /tmp/gate-make-rXYRLkxx.log): pytest 3676 passed; JS 5647 tests, 5635 pass, 12 fail. All 12 are the baseline-red playhead tables phase 8 owns (playhead-lag 8, playhead-motion 3, playhead-scroll 1), byte-identical to 503ddec8 per AC7. No other failure. The suite stays red until phase 8 makes those tables pass.
+cause: At 21d07176: `scripts/gate.sh make check` exit=2, log /tmp/gate-make-o2Ve03XD.log: pytest `3681 passed, 164 deselected`; JS `# tests 5653`, `# pass 5641`, `# fail 12`. The 12 `not ok` lines (2218-2224, 2230, 2249, 2252, 2253, 2257) are in playhead-lag.test.js (8), playhead-motion.test.js (3) and playhead-scroll.test.js (1), and `git diff --stat 503ddec8` over those three files prints nothing. No other failure. The suite stays red until phase 8 makes those tables pass.
 fix: left open by owner: phase 8 owns the 12 red tables
 
 ## Summary
 
 total: 13
-passed: 8
-failed: 5
+passed: 11
+failed: 2
 pending: 0
 skipped: 0
 blocked: 0
