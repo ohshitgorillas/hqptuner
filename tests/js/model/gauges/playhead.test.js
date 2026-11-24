@@ -1,23 +1,22 @@
 // Timing suite for hqptuner/static/model/gauges/playhead.js: the one pacing decision a paint makes. Each paint shows
-// the playback from where the last one ended up to the playhead, with no gap and no overlap. The playhead moves at wall
-// speed, the paint's `dt`: it never passes the newest queued frame's end, stands there until the next arrival, and no
-// arrival changes its speed. A delay change is the one exception: at the first paint at a changed delay the playhead
-// jumps by the change, forward for a lowered delay and back for a raised one. It never moves backward outside a break
-// or a raised delay. Every frame a paint passes is shown once, in full, across the paints that cross it, and leaves the
-// queue once passed; a break restarts the paint at the break frame's stamp, the playhead one delay behind the newest
-// end, and leaves the frames before it behind.
+// the playback from where the last one ended up to the playhead, with no gap and no overlap. Where the playhead stands
+// on the music's line is held by the tables (playhead-lag, playhead-motion, playhead-scroll and playhead-line); this
+// suite holds what the paints do with the queue over a feed. The playhead never passes the newest queued frame's end.
+// Every frame a paint passes is shown once, in full, across the paints that cross it, and leaves the queue once passed;
+// a break restarts the paint at the break frame's stamp and leaves the frames before it behind.
 //
 // The test plays the store's part on a wall-time schedule it writes. `bursts` sends BURST frames every GAP_MS, a feed
 // whose music arrives slower than wall time, so its queue runs down and the playhead stands at the newest end. The
 // generated feeds send bursts of varied music at varied gaps, later bursts landing early and late against one another,
-// at the delays in FEEDS: inside the buffer, a playhead at wall speed never reaches the newest end on them; past it, a
-// gap outlasts the delay's queued music. The capture is the committed real feed, every frame that arrived by a paint
-// taken at that paint. Paints run at steady and at uneven intervals, with a late and a dropped paint, one long stall and runs of slow paints. The owner's
-// Safari capture (tests/support/fixtures/safari_paint_schedule.json) is one more feed, its frames at their own arrival times and
-// its paints at their own times. After each paint
-// the test drops the frames the decision consumed and hands the paint's end, playhead and delay to the next one, with
-// whether the frame left at the front of the queue was queued when that paint decided. No clock is read: the schedule
-// is the order of arrivals and paints, and the `dt` each paint is handed is the only time there is.
+// at the delays in FEEDS: inside the buffer, the delay outlasts a burst's music, its landing off schedule and a late
+// paint; past it, a gap outlasts the delay's queued music. The capture is the committed real feed, every frame that
+// arrived by a paint taken at that paint. Paints run at steady and at uneven intervals, with a late and a dropped paint,
+// one long stall and runs of slow paints. The owner's Safari capture (tests/support/fixtures/safari_paint_schedule.json)
+// is one more feed, its frames at their own arrival times and its paints at their own times. After each paint the test
+// drops the frames the decision consumed and hands the paint's end, playhead and delay to the next one, with whether the
+// frame left at the front of the queue was queued when that paint decided. Each frame the decision is handed carries
+// the wall time its own arrival landed at, and each paint its own wall time, both from the schedule: no clock is read,
+// and the schedule is the order of arrivals and paints.
 //
 // Frame lengths are playback ms inside the measured feed event range, 17.3 to 23.2 ms, and change mid-feed. Every
 // length and delay of the hand-written feeds is a whole number of eighths of a ms, so every stamp and span is exact.
@@ -340,9 +339,8 @@ function play(steps, delay) {
   let broke = false;
   let wall = 0;
   let now = delay;
-  //: The decision hands back no line, so no paint is handed one.
   /** @type {LeadState | null} */
-  const line = null;
+  let line = null;
   /** @type {Paint[]} */
   const paints = [];
   for (const step of steps) {
@@ -369,6 +367,7 @@ function play(steps, delay) {
         line,
       };
       const d = pacePaint(input);
+      line = d.line;
       paints.push({ queue, d, arrived, broke, delay: now, ran, before, dt: step.paint, wall });
       queue = queue.slice(d.consumed);
       stamped = stamped.slice(d.consumed);
@@ -464,25 +463,6 @@ for (const delay of DELAYS.filter((d) => d > 0)) {
     );
   });
 }
-
-test("test_a_paint_at_an_unchanged_delay_leaves_the_playhead_exactly_where_it_stood_plus_the_paints_wall_time", () => {
-  const dt = PAINT_60HZ_MS;
-  /** @type {Input} */
-  const input = {
-    end: 900,
-    playhead: 1000,
-    delayed: 250,
-    started: true,
-    frames: frames(0, 1, [8000], false).map((f) => ({ ...f, arrivedAt: 0 })),
-    delay: 250,
-    dt,
-    now: 500,
-    arrived: false,
-    line: null,
-  };
-  const d = pacePaint(input);
-  assert.equal(d.playhead, 1000 + dt);
-});
 
 for (const seek of [...SEEKS, REJOIN]) {
   for (const delay of [0, SPLIT, 250]) {

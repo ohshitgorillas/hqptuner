@@ -273,6 +273,8 @@ test("test_a_paint_at_a_break_starts_its_scene_from_nothing_heard", () => {
   run(LOUD, 3);
   settle();
   const mark = paints.length;
+  // The delay covers the break frame and the wait before the paint that restarts at it, so the restart shows no frame.
+  setSpectrumOffset(String(HELD_BACK_S));
   jump();
   settle();
   assert.ok((paints[mark]?.peak ?? NaN) < QUIET.peak);

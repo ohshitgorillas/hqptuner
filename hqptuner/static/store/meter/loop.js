@@ -10,12 +10,15 @@
 // signal (store/meter/playhead.js) becomes the decision's playhead, the frames it consumed leave the queue, and its `to`
 // is where the next paint starts. A decision that restarts at a break carries `restart` out, so every view of playback
 // starts again there; nothing is smoothed across one. The decision is also handed where the playhead stood, the delay
-// the last paint ran at and the wall time since the last paint, in ms.
+// the last paint ran at, the wall time since the last paint, in ms, the paint's own wall time, whether the paint took
+// frames from the feed, and the line the last decision handed back, which the loop keeps beside `end`, `started` and
+// `delayed` and clears when it stops.
 //
-// The playhead moves at wall speed, on the loop's `dt`, and jumps by a changed delay; it never passes the newest queued
-// frame's end. The loop reads wall time for one thing, the time since the last paint, handed to the decision and kept
-// for the painters as `dt`. A paint takes one decision whatever its lateness,
-// and drops consumed frames in place, so its work and its allocations do not grow with how late it is.
+// The playhead stands one delay behind the music's line, the stamps' lead over wall time: it moves at wall speed, on the
+// loop's `dt`, follows the line by a bounded share of wall speed, and jumps by a changed delay; it never passes the newest
+// queued frame's end. The loop reads wall time for two things, the paint's `now` and the time since the last paint,
+// handed to the decision and the second kept for the painters as `dt`. A paint takes one decision whatever its
+// lateness, and drops consumed frames in place, so its work and its allocations do not grow with how late it is.
 //
 // The painters' side: before the consumed frames leave the queue, the paint folds the frames its
 // decision shows, `[first, last)`, into the one scene the loop fills in place (MeterScene), the meters' peak and RMS from
@@ -38,6 +41,7 @@ import { playhead } from "./playhead.js";
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 /** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /** @typedef {import("../../model/gauges/playhead.js").PaintDecision} PaintDecision */
+/** @typedef {import("../../model/gauges/playhead.js").LeadState} LeadState */
 /** @typedef {import("../../model/gauges/meter/meter.js").FoldScene} FoldScene */
 /**
  * What one paint shows, as every painter is handed it: the frames the paint's decision shows folded the way the feed
@@ -72,6 +76,8 @@ let end = /** @type {number | null} */ (null);
 let started = false;
 /** Playback, ms: the delay the last paint ran at; null when no paint has run since the feed opened. */
 let delayed = /** @type {number | null} */ (null);
+/** What the paints have seen of the line, the last decision's `line`; null when no paint has run since the feed opened. */
+let line = /** @type {LeadState | null} */ (null);
 /**
  * The last paint, as the painters read it: its decision, null when no paint has run since the feed opened, whose
  * `first` and `last` index `queue` as it stood before the decision's `consumed` frames left it; `at`, wall time, ms on
@@ -119,6 +125,7 @@ function reset() {
   end = null;
   started = false;
   delayed = null;
+  line = null;
   painted.decision = null;
   painted.at = null;
   painted.dt = 0;
@@ -156,12 +163,17 @@ function hand(dt) {
   for (let i = 0; i < n; i++) if (painters.includes(calling[i])) calling[i].fn(scene, dt);
 }
 
-/** Move the frames the feed queued since the last paint onto the queue, handing each to the spectrogram's history. */
+/**
+ * Move the frames the feed queued since the last paint onto the queue, handing each to the spectrogram's history.
+ *
+ * @returns {boolean}  whether any frame moved
+ */
 function takeArrivals() {
   const arrived = takeMeterFrames();
-  if (!arrived.length) return;
+  if (!arrived.length) return false;
   toSpectrogram(arrived);
   for (const f of arrived) queue.push(f);
+  return true;
 }
 
 /**
@@ -190,10 +202,22 @@ function paint(mine, now) {
   if (mine !== run) return;
   painted.dt = painted.at === null ? 0 : now - painted.at;
   painted.at = now;
-  takeArrivals();
+  const arrived = takeArrivals();
   const delay = effectiveDelay.peek();
-  const d = pacePaint({ end, playhead: playhead.peek(), delayed, started, frames: queue, delay, dt: painted.dt });
+  const d = pacePaint({
+    end,
+    playhead: playhead.peek(),
+    delayed,
+    started,
+    frames: queue,
+    delay,
+    dt: painted.dt,
+    now,
+    arrived,
+    line,
+  });
   delayed = delay;
+  line = d.line;
   show(d);
   apply(d);
   request(mine);

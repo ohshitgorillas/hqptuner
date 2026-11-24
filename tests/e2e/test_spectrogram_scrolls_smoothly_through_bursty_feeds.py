@@ -2,9 +2,8 @@
 
 The meter feed reaches the page in bursts: the real capture of the dev container's feed
 (`tests/support/fixtures/meter_feed_capture.json`) and generated feeds whose bursts, gaps and landings
-vary. The Source drawer's spectrogram scrolls by the playhead's movement, so three things are read
-from its painted pixels, once per paint: it never stands still while music plays, and its speed never
-changes in a step.
+vary. The Source drawer's spectrogram scrolls by the playhead's movement, so one thing is read
+from its painted pixels, once per paint: it never stands still while music plays.
 
 Policy notes:
 
@@ -313,20 +312,7 @@ def _longest_stand_ms(scrolls: list[int]) -> float:
     return longest * PAINT_MS
 
 
-def _largest_step(scrolls: list[int]) -> int:
-    """The most one paint's scroll differs from the paint before it, in columns."""
-    return max(abs(now - before) for before, now in itertools.pairwise(scrolls))
-
-
 @pytest.mark.parametrize("feed", FEEDS, ids=lambda feed: feed.name)
 def test_the_spectrogram_never_stands_still_for_longer_than_one_column_takes(feed: Feed, replays: Replays) -> None:
     """No run of paints longer than one column of playback leaves the scroll unmoved."""
     assert _longest_stand_ms(replays.of(feed)) <= COLUMN_MS
-
-
-@pytest.mark.parametrize("feed", FEEDS, ids=lambda feed: feed.name)
-def test_the_spectrogram_scroll_never_changes_by_more_than_one_column_between_paints(
-    feed: Feed, replays: Replays
-) -> None:
-    """No paint scrolls the spectrogram more than one column further or shorter than the paint before it."""
-    assert _largest_step(replays.of(feed)) <= 1

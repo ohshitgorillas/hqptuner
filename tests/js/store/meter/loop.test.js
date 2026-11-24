@@ -1,9 +1,10 @@
 // Store suite for hqptuner/static/store/meter/loop.js: the meter loop paces the frames the feed queues out to the
 // one playhead and the spectrogram's history, one paint per animation frame of the Clock it is handed.
 //
-// The playhead stands at the end of the newest frame the feed has queued, less the effective delay, when the feed opens
-// and at a break, moves on the paint's wall time at every paint after that, never passes the feed's edge, jumps by a
-// changed delay (a spectrum offset typed while frames are queued), and is null while the feed is closed. The loop runs, asking for animation frames, only while the feed is open
+// The playhead stands one delay behind the line the feed's arrivals set, the stamps' lead over wall time, when the feed
+// opens and at a break, moves on at wall speed and follows the line by a bounded share after that, a paint that takes no
+// arrival following the line the earlier paints saw, never passes the feed's edge, jumps by a changed delay (a spectrum
+// offset typed while frames are queued), and is null while the feed is closed. The loop runs, asking for animation frames, only while the feed is open
 // and the engine plays: while the engine is stopped it asks for none, and the playhead is null
 // (docs/superpowers/specs/meter-loop-idle-design.md, Modules). Every frame reaches the spectrogram's history once and in order, and the
 // frames a restart leaves behind go before the break frame, so the history runs from the break on.
@@ -176,6 +177,32 @@ for (const { from, to, jumpMs } of CHANGES) {
     assert.equal(playhead.value, want);
   });
 }
+
+/** The metering rate of the carry case, Hz: one sample is one ms, so every stamp and length is whole ms. */
+const RATE_1K = 1000;
+
+test("test_a_paint_that_takes_no_arrival_stands_one_delay_behind_the_line_the_earlier_paints_saw", () => {
+  setSpectrumOffset("1.5");
+  const landed = clock.now();
+  lastStream()?.emit("geometry", geometry(RATE_1K));
+  play([{ at: 0, n: 4000 }]);
+  advance(1100);
+  // 1102 ms of music after 1100 ms of wall time: the line's lead rises by 2 ms.
+  play([{ at: 4000, n: 1102 }]);
+  /** @type {Array<{ ran: number, at: number | null }>} wall ms on the clock, and the playhead the paint left */
+  const painted = [];
+  const off = onMeterPaint(() => painted.push({ ran: clock.now(), at: playhead.value }));
+  advance(PAINT_MS);
+  advance(PAINT_MS);
+  off();
+  // The second paint took no arrival: it stands the delay, 1500, behind the line the first saw. The newest end, 5102,
+  // is 1100 wall ms after the first arrival's landing, so its lead is 5102 - 1100 over the wall time since landing.
+  const last = painted[1];
+  assert.deepEqual(
+    { paints: painted.length, at: last?.at },
+    { paints: 2, at: (last?.ran ?? NaN) - landed + 5102 - 1100 - 1500 },
+  );
+});
 
 test("test_closing_the_feed_leaves_the_playhead_null", () => {
   feed(CONTIGUOUS_44K);
