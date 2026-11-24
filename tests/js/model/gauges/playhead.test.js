@@ -35,11 +35,20 @@ import { seeded } from "../../support/meter/seeded.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/playhead.js").PaintDecision} PaintDecision */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/playhead.js").PaintInput} PaintInput */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/playhead.js").LeadState} LeadState */
 /**
- * One step of a schedule: frames arrive, the delay becomes `delay` (playback, ms), or a paint runs `paint` wall ms
- * after the one before it.
+ * What a paint is handed beyond the queue and what the paint before it left: the paint's wall time, ms on the clock the
+ * frames' `arrivedAt` is read on; whether any frame was queued since the paint before it; and the line's carried state,
+ * null when no paint has run.
  *
- * @typedef {{ arrive: MeterFrame[] } | { delay: number } | { paint: number }} Step
+ * @typedef {PaintInput & { now: number, arrived: boolean, line: LeadState | null }} Input
+ */
+/**
+ * One step of a schedule: frames arrive at wall time `wall` (ms from the schedule's start), the delay becomes `delay`
+ * (playback, ms), or a paint runs `paint` wall ms after the one before it.
+ *
+ * @typedef {{ arrive: MeterFrame[], wall: number } | { delay: number } | { paint: number }} Step
  */
 /**
  * One paint as the test saw it: the queue handed in, the decision, whether any frame arrived since the paint before
@@ -148,7 +157,10 @@ function bursts(list, dt = PAINT_MS) {
   const out = [];
   let next = 0;
   for (let wall = dt; wall <= (groups.length + 1) * GAP_MS; wall += dt) {
-    while (next < groups.length && next * GAP_MS + ARRIVE_MS <= wall) out.push({ arrive: groups[next++] });
+    while (next < groups.length && next * GAP_MS + ARRIVE_MS <= wall) {
+      out.push({ arrive: groups[next], wall: next * GAP_MS + ARRIVE_MS });
+      next++;
+    }
     out.push({ paint: dt });
   }
   return out;
@@ -171,7 +183,10 @@ function scheduled(arrivals, intervals, until) {
   for (let i = 0; wall < until; i++) {
     const paint = intervals[i % intervals.length];
     wall += paint;
-    while (next < arrivals.length && arrivals[next].wall <= wall) out.push({ arrive: arrivals[next++].frames });
+    while (next < arrivals.length && arrivals[next].wall <= wall) {
+      out.push({ arrive: arrivals[next].frames, wall: arrivals[next].wall });
+      next++;
+    }
     out.push({ paint });
   }
   return out;
@@ -304,7 +319,9 @@ function seeked(seek) {
 /**
  * Run `steps` against the decision from `delay`, playing the store: queue arrivals, hand each paint the queue, the last
  * paint's end, playhead and delay, and whether the frame at the queue's front was queued when the last paint decided,
- * drop what it consumed.
+ * drop what it consumed. The decision is handed a copy of each queued frame with `arrivedAt` set to the wall time its
+ * own arrival landed at; the paints record the frames themselves, so the shared feeds are never changed and a case
+ * compares the frames it means.
  *
  * @param {Step[]} steps
  * @param {number} delay  playback, ms
@@ -313,6 +330,8 @@ function seeked(seek) {
 function play(steps, delay) {
   /** @type {MeterFrame[]} */
   let queue = [];
+  /** @type {MeterFrame[]} */
+  let stamped = [];
   /** @type {number | null} */
   let end = null;
   /** @type {number | null} */
@@ -324,6 +343,9 @@ function play(steps, delay) {
   let broke = false;
   let wall = 0;
   let now = delay;
+  //: The decision hands back no line, so no paint is handed one.
+  /** @type {LeadState | null} */
+  const line = null;
   /** @type {Paint[]} */
   const paints = [];
   for (const step of steps) {
@@ -331,13 +353,28 @@ function play(steps, delay) {
       now = step.delay;
     } else if ("arrive" in step) {
       queue = [...queue, ...step.arrive];
+      stamped = [...stamped, ...step.arrive.map((f) => ({ ...f, arrivedAt: step.wall }))];
       arrived = true;
       broke = broke || step.arrive.some((f) => f.break);
     } else {
       wall += step.paint;
-      const d = pacePaint({ end, playhead: before, delayed: ran, started, frames: queue, delay: now, dt: step.paint });
+      /** @type {Input} */
+      const input = {
+        end,
+        playhead: before,
+        delayed: ran,
+        started,
+        frames: stamped,
+        delay: now,
+        dt: step.paint,
+        now: wall,
+        arrived,
+        line,
+      };
+      const d = pacePaint(input);
       paints.push({ queue, d, arrived, broke, delay: now, ran, before, dt: step.paint, wall });
       queue = queue.slice(d.consumed);
+      stamped = stamped.slice(d.consumed);
       end = d.to;
       before = Number.isNaN(d.playhead) ? null : d.playhead;
       ran = now;
@@ -430,15 +467,20 @@ test("test_the_playhead_at_a_0_ms_delay_stands_that_far_behind_the_newest_frames
 
 test("test_a_paint_at_an_unchanged_delay_leaves_the_playhead_exactly_where_it_stood_plus_the_paints_wall_time", () => {
   const dt = PAINT_60HZ_MS;
-  const d = pacePaint({
+  /** @type {Input} */
+  const input = {
     end: 900,
     playhead: 1000,
     delayed: 250,
     started: true,
-    frames: frames(0, 1, [8000], false),
+    frames: frames(0, 1, [8000], false).map((f) => ({ ...f, arrivedAt: 0 })),
     delay: 250,
     dt,
-  });
+    now: 500,
+    arrived: false,
+    line: null,
+  };
+  const d = pacePaint(input);
   assert.equal(d.playhead, 1000 + dt);
 });
 
@@ -731,9 +773,9 @@ test("test_the_same_wall_time_moves_the_playhead_the_same_distance_whatever_the_
   const to = (/** @type {number[]} */ paints) =>
     play(
       [
-        { arrive: FEED.slice(0, BURST) },
+        { arrive: FEED.slice(0, BURST), wall: ARRIVE_MS },
         { paint: PAINT_MS },
-        { arrive: FEED.slice(BURST, 2 * BURST) },
+        { arrive: FEED.slice(BURST, 2 * BURST), wall: PAINT_MS + ARRIVE_MS },
         ...paints.map((paint) => ({ paint })),
       ],
       250,
