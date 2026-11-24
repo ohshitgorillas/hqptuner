@@ -3,14 +3,9 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 8,
-    "status": "planned",
-    "next": "/cad-execute 8",
-    "updated": "2026-11-24",
-    "plan": {
-      "k": 2,
-      "j": 2,
-      "name": "The owner hears the same lag at every rate"
-    }
+    "status": "executed",
+    "next": "/cad-verify 8",
+    "updated": "2026-11-24"
   },
   "phases": [
     {
@@ -244,7 +239,7 @@
       "n": 8,
       "name": "Visuals stay in sync after a track starts",
       "description": "the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate",
-      "status": "planned",
+      "status": "executed",
       "plans": [
         {
           "file": "PLAN-1.md",
@@ -252,7 +247,7 @@
         },
         {
           "file": "PLAN-2.md",
-          "finished": false
+          "finished": true
         }
       ]
     },
