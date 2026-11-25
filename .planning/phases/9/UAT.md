@@ -76,29 +76,32 @@ reason: Superseded by the reworded criterion after the owner's Fade ruling; repl
 ### 8. No trace under Bars, Ridges or Flames
 expected: With the spectrum style set to Bars, Ridges or Flames, a paint of a playing frame leaves the three trace paths (.strace, .sarea, .shold) in the page Source section with no drawing. (ci: check)
 criterion: AC1
-status: pending_ci
+status: skipped
 job: check
 commit: f78d9af01de81d70585b2f343224a902be98d7f2
 source: model
 evidence: tests/js/components/faceplate-page/sourcepaint-section.test.js:459-472, test_under_{bars,ridges,fire}_a_playing_paint_leaves_the_{trace,area,shadow}_empty, ok 948-953 and 956-958. Local run: scripts/gate.sh make check, exit=0, # pass 5552 # fail 0 (/tmp/gate-make-FH9TXJCm.log). CI job check has not run at this commit.
+reason: Owner decision 2026-11-25 at /cad-verify 9 ('Close phase 9 now'): CI does not run on v2 until it is ready to release, so this item is made optional and not held for the CI job check. Its tests passed in the local run: scripts/gate.sh make check, exit=0, 5552 pass, 0 fail (/tmp/gate-make-FH9TXJCm.log); the per-item test names are in the evidence field.
 
 ### 9. Style table test states which trace parts each style shows
 expected: A test states, style by style, which parts of the trace show: Trace the line, the filled area and the shadow; Fade the line alone (owner ruling 3a672f27); Bars, Ridges, Aurora and Flames none. (ci: check)
 criterion: AC2
-status: pending_ci
+status: skipped
 job: check
 commit: f78d9af01de81d70585b2f343224a902be98d7f2
 source: model
 evidence: sourcepaint-section.test.js:436-453, six-row table against tracePartsOf, fade row line only, ok 930-947. Local run: scripts/gate.sh make check, exit=0, # pass 5552 # fail 0 (/tmp/gate-make-FH9TXJCm.log). CI job check has not run at this commit.
+reason: Owner decision 2026-11-25 at /cad-verify 9 ('Close phase 9 now'): CI does not run on v2 until it is ready to release, so this item is made optional and not held for the CI job check. Its tests passed in the local run: scripts/gate.sh make check, exit=0, 5552 pass, 0 fail (/tmp/gate-make-FH9TXJCm.log); the per-item test names are in the evidence field.
 
 ### 10. Switching from Trace to a traceless style drops the trace, switching back restores it
 expected: After a switch from Trace to Bars, Ridges or Flames, the next paint leaves no trace; after a switch back, the next paint draws it. (ci: check)
 criterion: AC4
-status: pending_ci
+status: skipped
 job: check
 commit: f78d9af01de81d70585b2f343224a902be98d7f2
 source: model
 evidence: sourcepaint-section.test.js:487-498, test_a_switch_from_trace_to_bars_* and test_a_switch_back_to_trace_* for all three paths, ok 961-962, 964-965, 967-968; Ridges and Flames leave every path empty by the per-style cases ok 951-958. Local run: scripts/gate.sh make check, exit=0, # pass 5552 # fail 0 (/tmp/gate-make-FH9TXJCm.log). CI job check has not run at this commit.
+reason: Owner decision 2026-11-25 at /cad-verify 9 ('Close phase 9 now'): CI does not run on v2 until it is ready to release, so this item is made optional and not held for the CI job check. Its tests passed in the local run: scripts/gate.sh make check, exit=0, 5552 pass, 0 fail (/tmp/gate-make-FH9TXJCm.log); the per-item test names are in the evidence field.
 
 ### 11. Faceplate spec states which trace parts show under which style
 expected: docs/spec/faceplate.md states which parts of the trace show under which style: Trace whole, Fade the line alone, every other style none.
@@ -118,27 +121,30 @@ reason: Owner made this item optional at /cad-verify 2026-11-25: no automated ch
 ### 13. Fade draws the trace's line alone
 expected: With the spectrum style set to Fade, a paint of a playing frame draws the line and leaves the filled area (.sarea) and the shadow (.shold) with no drawing (owner ruling 3a672f27). (ci: check)
 criterion: AC8
-status: pending_ci
+status: skipped
 job: check
 commit: f78d9af01de81d70585b2f343224a902be98d7f2
 source: model
 evidence: sourcepaint-section.test.js:474 test_under_fade_a_playing_paint_draws_the_trace ok 959; test_under_fade_a_playing_paint_leaves_the_{area,shadow}_empty ok 954-955. Local run: scripts/gate.sh make check, exit=0, # pass 5552 # fail 0 (/tmp/gate-make-FH9TXJCm.log). CI job check has not run at this commit.
+reason: Owner decision 2026-11-25 at /cad-verify 9 ('Close phase 9 now'): CI does not run on v2 until it is ready to release, so this item is made optional and not held for the CI job check. Its tests passed in the local run: scripts/gate.sh make check, exit=0, 5552 pass, 0 fail (/tmp/gate-make-FH9TXJCm.log); the per-item test names are in the evidence field.
 
 ### 14. Fade's halo fades out at every paint rate
 expected: Under Fade, the halo dies away over the same time whatever the paint rate; a test pins it. (ci: check)
-status: pending_ci
+status: skipped
 job: check
 commit: f78d9af01de81d70585b2f343224a902be98d7f2
 source: model
 evidence: tests/js/model/gauges/meter/steps.test.js test_a_halo_on_an_8_bit_canvas_fades_as_far_at_fast_paints_as_at_slow_ones ok 2162; test_fade_halo_moves_as_far_over_a_stretch_whether_it_comes_as_one_paint_or_many ok 2157. Local run: scripts/gate.sh make check, exit=0, # pass 5552 # fail 0 (/tmp/gate-make-FH9TXJCm.log). CI job check has not run at this commit.
+reason: Owner decision 2026-11-25 at /cad-verify 9 ('Close phase 9 now'): CI does not run on v2 until it is ready to release, so this item is made optional and not held for the CI job check. Its tests passed in the local run: scripts/gate.sh make check, exit=0, 5552 pass, 0 fail (/tmp/gate-make-FH9TXJCm.log); the per-item test names are in the evidence field.
 
 ### 15. Fade's halo follows a change of color suite
 expected: Under Fade, after a change of color suite or accent the halo starts clear, so no halo in the old colors stays on the plot; a test pins it. (ci: check)
-status: pending_ci
+status: skipped
 job: check
 commit: f78d9af01de81d70585b2f343224a902be98d7f2
 source: model
 evidence: tests/js/components/faceplate-page/spectrumfx-fx.test.js test_a_change_of_suite_leaves_nothing_of_the_fade_halo_drawn_in_the_suite_before ok 999; test_under_accent_a_fade_paint_follows_a_change_of_accent ok 984. Local run: scripts/gate.sh make check, exit=0, # pass 5552 # fail 0 (/tmp/gate-make-FH9TXJCm.log). CI job check has not run at this commit.
+reason: Owner decision 2026-11-25 at /cad-verify 9 ('Close phase 9 now'): CI does not run on v2 until it is ready to release, so this item is made optional and not held for the CI job check. Its tests passed in the local run: scripts/gate.sh make check, exit=0, 5552 pass, 0 fail (/tmp/gate-make-FH9TXJCm.log); the per-item test names are in the evidence field.
 
 ## Summary
 
@@ -146,7 +152,6 @@ total: 15
 passed: 3
 failed: 0
 pending: 0
-pending_ci: 6
-skipped: 6
+skipped: 12
 blocked: 0
 reworked: 1

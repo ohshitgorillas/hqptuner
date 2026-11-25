@@ -3,8 +3,8 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 9,
-    "status": "executed",
-    "next": "/cad-verify 9",
+    "status": "phase complete",
+    "next": "/cad-context 10",
     "updated": "2026-11-25"
   },
   "phases": [
@@ -255,7 +255,7 @@
       "n": 9,
       "name": "No trace on the other visualizer effects",
       "description": "the trace shows on the spectrum only, not on Borealis or any other effect",
-      "status": "executed",
+      "status": "complete",
       "plans": [
         {
           "file": "PLAN-1.md",
@@ -313,7 +313,7 @@
     {
       "id": "SPEC-02",
       "phase": 9,
-      "status": "Pending"
+      "status": "Complete"
     }
   ]
 }
