@@ -3,9 +3,14 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 9,
-    "status": "context gathered",
-    "next": "/cad-plan 9",
-    "updated": "2026-11-25"
+    "status": "planned",
+    "next": "/cad-execute 9",
+    "updated": "2026-11-25",
+    "plan": {
+      "k": 1,
+      "j": 4,
+      "name": "Retire the stepped-view trace cases"
+    }
   },
   "phases": [
     {
@@ -255,8 +260,25 @@
       "n": 9,
       "name": "No trace on the other visualizer effects",
       "description": "the trace shows on the spectrum only, not on Borealis or any other effect",
-      "status": "unplanned",
-      "plans": []
+      "status": "planned",
+      "plans": [
+        {
+          "file": "PLAN-1.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-2.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-3.md",
+          "finished": false
+        },
+        {
+          "file": "PLAN-4.md",
+          "finished": false
+        }
+      ]
     },
     {
       "n": 10,
@@ -296,6 +318,11 @@
       "id": "TEST-01",
       "phase": 5,
       "status": "Complete"
+    },
+    {
+      "id": "SPEC-02",
+      "phase": 9,
+      "status": "Pending"
     }
   ]
 }
