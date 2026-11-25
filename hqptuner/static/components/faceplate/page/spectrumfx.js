@@ -108,7 +108,7 @@ const RIDGE_LINE = 1.5; // a ridge's stroke width, canvas pixels
 const TRACE_LINE = 1.5; // the fade trace's stroke width, CSS pixels, as the SVG trace's
 const HALO_LINE = 6; // the halo's stroke width before its blur, CSS pixels
 const HALO_BLUR = 2; // the halo's blur radius, CSS pixels
-const HALO_SHARE = 0.3; // the halo's strength on the plot, share of what its own canvas holds
+const HALO_SHARE = 0.5; // the halo's strength on the plot, share of what its own canvas holds
 const MASK = "#000"; // the opaque fill the halo is dimmed through
 
 /**

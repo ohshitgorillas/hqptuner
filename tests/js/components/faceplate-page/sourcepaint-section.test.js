@@ -438,7 +438,7 @@ for (const [style, line, area, shadow] of /** @type {const} */ ([
   ["bars", false, false, false],
   ["ridges", false, false, false],
   ["aurora", false, false, false],
-  ["fade", true, true, false],
+  ["fade", true, false, false],
   ["fire", false, false, false],
 ])) {
   for (const [part, shown] of /** @type {const} */ ([
@@ -459,7 +459,7 @@ const TRACE_PATHS = /** @type {const} */ (["trace", "area", "shadow"]);
 for (const [picked, empty] of /** @type {const} */ ([
   ["bars", TRACE_PATHS],
   ["ridges", TRACE_PATHS],
-  ["fade", ["shadow"]],
+  ["fade", ["area", "shadow"]],
   ["fire", TRACE_PATHS],
 ])) {
   for (const part of empty) {
@@ -471,13 +471,11 @@ for (const [picked, empty] of /** @type {const} */ ([
   }
 }
 
-for (const part of /** @type {const} */ (["trace", "area"])) {
-  test(`test_under_fade_a_playing_paint_draws_the_${part}`, () => {
-    const root = section(2);
-    paint(root, level(MID_DB, true), STEP_MS, { picked: "fade" });
-    assert.ok(pointsOf(root.els[part]).length > 0);
-  });
-}
+test("test_under_fade_a_playing_paint_draws_the_trace", () => {
+  const root = section(2);
+  paint(root, level(MID_DB, true), STEP_MS, { picked: "fade" });
+  assert.ok(pointsOf(root.els.trace).length > 0);
+});
 
 for (const part of TRACE_PATHS) {
   test(`test_under_trace_a_playing_paint_draws_the_${part}`, () => {

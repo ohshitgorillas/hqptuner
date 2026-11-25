@@ -1,6 +1,6 @@
 // The Source section's per-paint painter: the level bars, the VU needles, the trace and the effects canvases, painted
 // from each meter-loop scene. Each style shows its own parts of the trace: Trace the line, the area and the shadow,
-// Fade the line and the area; under every other style the three paths are left empty. Each section has one painter, on the section's elements and canvas painters; it holds the stepped
+// Fade the line alone; under every other style the three paths are left empty. Each section has one painter, on the section's elements and canvas painters; it holds the stepped
 // state between paints and resets it at a restart or when the number of channels changes. Every moving part steps
 // through the model on the `dt` the paint carries. Only the picked style's canvas painter is painted; one the pick has
 // just left, and every unpicked one at a restart, gets a single empty paint that clears it.
@@ -121,12 +121,12 @@ function selectedOf(picked) {
 }
 
 const WHOLE = { line: true, area: true, shadow: true };
-const TRACKING = { line: true, area: true, shadow: false };
+const TRACKING = { line: true, area: false, shadow: false };
 const BARE = { line: false, area: false, shadow: false };
 
 /**
- * Which parts of the trace the spectrum style `picked` shows: Trace the line, the area and the shadow, Fade the line and
- * the area, every other style none. The color suite plays no part.
+ * Which parts of the trace the spectrum style `picked` shows: Trace the line, the area and the shadow, Fade the line
+ * alone, every other style none. The color suite plays no part.
  *
  * @param {string} picked  a spectrum style as the prefs store holds it
  * @returns {{ line: boolean, area: boolean, shadow: boolean }}
