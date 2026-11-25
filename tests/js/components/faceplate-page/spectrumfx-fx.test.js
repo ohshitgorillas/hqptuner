@@ -533,6 +533,25 @@ function lateAgainstSteady(style) {
   return apart / moved;
 }
 
+/**
+ * How far a fade picture painted quiet under Inferno, after a loud run under Mono, stands from one a fresh painter
+ * paints quiet under Inferno: what the change of suite leaves of the halo drawn in the suite before it.
+ *
+ * @returns {number}
+ */
+function fadeLeftOfTheOldSuite() {
+  const changed = fresh();
+  paintRun(changed.fx, FADE, LOUD_DB);
+  paintOnce(changed.fx, FADE, flat(QUIET_DB), { suite: INFERNO });
+  const clean = fresh();
+  paintOnce(clean.fx, FADE, flat(QUIET_DB), { suite: INFERNO });
+  return difference(shot(changed.canvas), shot(clean.canvas));
+}
+
+test("test_a_change_of_suite_leaves_nothing_of_the_fade_halo_drawn_in_the_suite_before", () => {
+  assert.equal(fadeLeftOfTheOldSuite(), 0);
+});
+
 //: The part of each drawn style that moves with time, as the owner names it.
 /** @type {Record<string, string>} */
 const MOVERS = { [BARS]: "peak caps", [RIDGES]: "ridge rows", [FADE]: "halo", [FIRE]: "flames" };

@@ -269,7 +269,7 @@ function haloCanvas(held, w, h) {
 
 /**
  * The halo on its own canvas `g`: its content dimmed by the share stepHalo says is due, or cleared where it marks it
- * clear, with the trace laid over it, blurred and wide, in the halo's colors.
+ * clear or the palette is a new one, with the trace laid over it, blurred and wide, in the halo's colors.
  *
  * @param {Frame} f
  * @param {CanvasRenderingContext2D} g
@@ -279,13 +279,13 @@ function haloCanvas(held, w, h) {
 function glow(f, g, halo, px) {
   const { width: w, height: h } = g.canvas;
   const pal = f.held.palette;
-  pal.halo ??= vertical(f.ctx, h, 0, suiteHaloStops(pal.suite, pal.accent));
   g.save();
-  if (halo.clear) g.clearRect(0, 0, w, h);
+  if (halo.clear || !pal.halo) g.clearRect(0, 0, w, h);
   g.globalCompositeOperation = "destination-out";
   g.globalAlpha = halo.due;
   if (halo.due) g.fillRect(0, 0, w, h);
   g.restore();
+  pal.halo ??= vertical(f.ctx, h, 0, suiteHaloStops(pal.suite, pal.accent));
   g.save();
   g.strokeStyle = pal.halo;
   g.lineJoin = "round";
