@@ -1,0 +1,105 @@
+{
+  "status": "gaps",
+  "score": "7/8",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "No trace under Bars, Ridges, Fade or Flames",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "hqptuner/static/components/faceplate/page/sourcepaint.js:326-327 hands paintTrace NO_COLUMNS for line and shadow when showsTrace(look.picked) is false; look.picked is read from the spectrumStyle store at sourcepaint.js:141. The section's real paths are bound by class at SourceMeter.js:290-292 (.sarea, .shold, .strace) and handed to sourcePainter at SourceMeter.js:354-356. Tests ok 936-947 (test_under_{bars,ridges,fade,fire}_a_playing_paint_leaves_the_{trace,area,shadow}_empty) pass in the full JS run (/tmp/gate-make-9n6xoZ1N.log, 5538 pass, 0 fail). The tests use fake elements from tests/js/support/rendered/sourcesection.js; the class-to-element binding is confirmed by reading only, since no test queries .strace/.sarea/.shold on a mounted SourceMeter. That binding is unchanged in this phase."
+    },
+    {
+      "n": 2,
+      "truth": "Style table test states which styles show the trace",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "tests/js/components/faceplate-page/sourcepaint-section.test.js:434-446, a six-row table: trace true; bars, ridges, aurora, fade, fire false. It runs against showsTrace (sourcepaint.js:128-130, TRACE_STYLES = new Set([\"trace\"]) at :74). Style ids match SPECTRUM_STYLES in hqptuner/static/store/ui/prefs.js:176. Tests ok 930-935 pass."
+    },
+    {
+      "n": 3,
+      "truth": "Trace style draws line, area and shadow",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "sourcepaint-section.test.js test_under_trace_a_playing_paint_draws_the_{trace,area,shadow} (ok 948, 951, 954) pass. The helper's paint() sets spectrumStyle to TRACE by default (tests/js/support/rendered/sourcesection.js:246)."
+    },
+    {
+      "n": 4,
+      "truth": "Switching styles drops and restores the trace",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "test_a_switch_from_trace_to_bars_leaves_the_{part}_empty_on_the_next_paint (ok 949, 952, 955) and test_a_switch_back_to_trace_draws_the_{part}_on_the_next_paint (ok 950, 953, 956) pass. The painter re-reads the style on every paint (lookNow, sourcepaint.js:139-147)."
+    },
+    {
+      "n": 5,
+      "truth": "No stepped-view case reads the trace under a non-Trace style",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "Commit e1098576 removes STEPPED_VIEWS (ridges, fire), the view parameter of play() and the never_leaves_the_{view}_view cases. tests/js/store/meter/spectrum-motion.test.js now sets spectrumStyle.value = TRACE only (:110) and holds only the five per-feed Trace cases (:205-206). Those pass as ok 5080-5084."
+    },
+    {
+      "n": 6,
+      "truth": "Faceplate spec states the trace rule",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "docs/spec/faceplate.md:93 says: 'The trace (its line, the filled area under it and its slower-falling shadow) shows under the Trace style only; under every other style, whatever the color suite, the spectrum draws no trace ... (Ridges shows no dB grid lines or dB scale labels).'"
+    },
+    {
+      "n": 7,
+      "truth": "Owner's eyes: trace visible under Trace only",
+      "status": "FAILED",
+      "uat_item": 7,
+      "evidence": "The SUMMARY Deviations section quotes the owner's verdict at the hand-back URL: 'y'know what, that's my mistake... Fade does get a trace. the rest pass.' So AC7 as written ('under ... Fade ... no trace line, fill or shadow is visible') was not met. The owner ruled against the Fade half of the requirement. The code withholds the SVG trace under Fade (sourcepaint.js:74, :326-327; tests ok 942-944). The fx canvas still strokes its own Fade trace (spectrumfx.js:3, :126, :323). The reply does not name the second color suite AC7 requires besides Borealis."
+    },
+    {
+      "n": 8,
+      "truth": "Level bars, VU needles and the effects and aurora canvases still paint under every style",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "sourcepaint.js:324-328: paintBars and vu.paint are unconditional, and paintCanvases still receives the real line, not NO_COLUMNS. The full JS suite is green: scripts/gate.sh make test-js exit=0, tests 5538, pass 5538, fail 0."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "No trace under Bars, Ridges, Fade or Flames",
+      "evidence": "sourcepaint.js:326-327 gate on showsTrace; SourceMeter.js:290-292,354-356 bind .sarea/.shold/.strace to the painter; tests ok 936-947 pass (/tmp/gate-make-9n6xoZ1N.log)."
+    },
+    {
+      "k": 2,
+      "name": "Style table test states which styles show the trace",
+      "evidence": "sourcepaint-section.test.js:434-446 six-row table against showsTrace; ok 930-935 pass."
+    },
+    {
+      "k": 3,
+      "name": "Trace style draws line, area and shadow",
+      "evidence": "test_under_trace_a_playing_paint_draws_the_{trace,area,shadow}, ok 948/951/954 pass."
+    },
+    {
+      "k": 4,
+      "name": "Switching styles drops and restores the trace",
+      "evidence": "test_a_switch_from_trace_to_bars_* and test_a_switch_back_to_trace_* for all three paths, ok 949-956 pass."
+    },
+    {
+      "k": 5,
+      "name": "No stepped-view case reads the trace under a non-Trace style",
+      "evidence": "e1098576 removed STEPPED_VIEWS and the view parameter; spectrum-motion.test.js:110 pins TRACE; only the five Trace cases remain, ok 5080-5084."
+    },
+    {
+      "k": 6,
+      "name": "Faceplate spec states the trace rule",
+      "evidence": "docs/spec/faceplate.md:93 states the trace shows under the Trace style only, whatever the color suite, with the Ridges grid exception."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 7,
+      "name": "Owner's eyes: trace visible under Trace only",
+      "reason": "behavior wrong against the owner's ruling. The owner's check at the hand-back URL failed for Fade ('Fade does get a trace. the rest pass.'). The Fade half of SPEC-02, D-01, D-03 and D-04 is the owner's own mistake, so the delivered rule (no SVG trace under Fade) is not what the owner wants. The check also did not name the second color suite AC7 requires besides Borealis.",
+      "evidence": "hqptuner/static/components/faceplate/page/sourcepaint.js:74 (TRACE_STYLES holds only \"trace\") and :326-327 withhold the trace under Fade. tests/js/components/faceplate-page/sourcepaint-section.test.js:434-446 (fade row false) and :451 (fade in the leaves-empty loop) pin that. docs/spec/faceplate.md:93 states it. The SUMMARY Open items also list hqptuner/static/store/ui/prefs.js:176-178, docs/spec/design-system.md:34-35, todo.txt:18, CONTEXT D-01/D-03/D-04, SPEC-02 and the phase goal wording as carrying the Fade-shows-none rule.",
+      "severity": "major",
+      "missing": "Replan with the owner. First confirm what 'Fade does get a trace' means: the SVG trace (line, area, shadow) under Fade, or Fade's own canvas trace accepted as is. Then get owner-approved wording for SPEC-02, the goal, CONTEXT D-01/D-03/D-04 and docs/spec/faceplate.md:93. Change TRACE_STYLES, the style-table row and the painter cases to match, tests first. Repeat the owner's check with music playing, naming the second color suite beside Borealis."
+    }
+  ],
+  "human_checks": []
+}
