@@ -18,7 +18,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { SH, SW, showsTrace } from "../../../../hqptuner/static/components/faceplate/page/sourcepaint.js";
+import { SH, SW, showsTrace, tracePartsOf } from "../../../../hqptuner/static/components/faceplate/page/sourcepaint.js";
 import { scaleShare } from "../../../../hqptuner/static/model/gauges/meter/vu.js";
 import {
   meterFloor,
@@ -443,6 +443,27 @@ for (const [style, shown] of /** @type {const} */ ([
   test(`test_the_${style}_style_${shown ? "shows" : "does_not_show"}_the_trace`, () => {
     assert.equal(showsTrace(style), shown);
   });
+}
+
+//: Each spectrum style as the store holds it, and which of the trace's three parts it shows: the line, the filled area
+//: and the falling shadow.
+for (const [style, line, area, shadow] of /** @type {const} */ ([
+  ["trace", true, true, true],
+  ["bars", false, false, false],
+  ["ridges", false, false, false],
+  ["aurora", false, false, false],
+  ["fade", true, true, false],
+  ["fire", false, false, false],
+])) {
+  for (const [part, shown] of /** @type {const} */ ([
+    ["line", line],
+    ["area", area],
+    ["shadow", shadow],
+  ])) {
+    test(`test_the_${style}_style_${shown ? "shows" : "does_not_show"}_the_trace_${part}`, () => {
+      assert.equal(tracePartsOf(style)[part], shown);
+    });
+  }
 }
 
 //: The three paths that make up the trace, by their element's name in the section.

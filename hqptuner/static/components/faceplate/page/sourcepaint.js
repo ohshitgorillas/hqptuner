@@ -129,6 +129,22 @@ export function showsTrace(picked) {
   return TRACE_STYLES.has(picked);
 }
 
+const WHOLE = { line: true, area: true, shadow: true };
+const TRACKING = { line: true, area: true, shadow: false };
+const BARE = { line: false, area: false, shadow: false };
+
+/**
+ * Which parts of the trace the spectrum style `picked` shows: Trace the line, the area and the shadow, Fade the line and
+ * the area, every other style none. The color suite plays no part.
+ *
+ * @param {string} picked  a spectrum style as the prefs store holds it
+ * @returns {{ line: boolean, area: boolean, shadow: boolean }}
+ */
+export function tracePartsOf(picked) {
+  if (picked === "trace") return WHOLE;
+  return picked === "fade" ? TRACKING : BARE;
+}
+
 /**
  * Fill `look` from the stores for a paint `dt` ms after the last.
  *
