@@ -70,6 +70,7 @@ export const SH = 400;
 
 const COLS = 256; // trace columns across the viewBox
 const CANVAS_STYLES = new Set(["bars", "ridges", "fade", "fire"]);
+const TRACE_STYLES = new Set(["trace"]);
 const NO_COLUMNS = new Float32Array(0);
 const INK = "--lv-ink";
 const FX = "fx";
@@ -116,6 +117,15 @@ function restartAll(kept, channels) {
 function selectedOf(picked) {
   if (picked === AURORA) return AURORA;
   return CANVAS_STYLES.has(picked) ? FX : "";
+}
+
+/**
+ * Whether the spectrum style `picked` shows the trace: the Trace style does, no other does.
+ *
+ * @param {string} picked
+ */
+export function showsTrace(picked) {
+  return TRACE_STYLES.has(picked);
 }
 
 /**

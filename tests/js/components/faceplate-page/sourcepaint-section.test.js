@@ -18,7 +18,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { SH, SW } from "../../../../hqptuner/static/components/faceplate/page/sourcepaint.js";
+import { SH, SW, showsTrace } from "../../../../hqptuner/static/components/faceplate/page/sourcepaint.js";
 import { scaleShare } from "../../../../hqptuner/static/model/gauges/meter/vu.js";
 import {
   meterFloor,
@@ -428,6 +428,22 @@ test("test_the_area_reaches_the_plot_foot_across_its_full_width", () => {
     .map(([x]) => x);
   assert.deepEqual(foot.length ? [Math.round(Math.min(...foot)), Math.round(Math.max(...foot))] : [], [0, SW]);
 });
+
+// ── which styles show the trace ────────────────────────────────────────
+
+//: Each spectrum style as the store holds it, and whether it shows the trace.
+for (const [style, shown] of /** @type {const} */ ([
+  ["trace", true],
+  ["bars", false],
+  ["ridges", false],
+  ["aurora", false],
+  ["fade", false],
+  ["fire", false],
+])) {
+  test(`test_the_${style}_style_${shown ? "shows" : "does_not_show"}_the_trace`, () => {
+    assert.equal(showsTrace(style), shown);
+  });
+}
 
 // ── what a paint must be handed ────────────────────────────────────────
 
