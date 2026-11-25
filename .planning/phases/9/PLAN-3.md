@@ -2,36 +2,33 @@
 phase: 9
 plan: 3
 requirements: [SPEC-02]
-files:
-  - docs/spec/faceplate.md
+depends_on: [1, 2]
+files: []
 ---
 
-# Phase 9: No trace on the other visualizer effects - Plan 3: The faceplate spec states the trace rule
+# Phase 9: No trace on the other visualizer effects - Plan 3: The owner sees each style's trace parts
 
 ## Goal
 
-The trace is drawn on the spectrum only, and on none of the other visualizer effects. `docs/spec/faceplate.md`, which owns the Spectrum style rule, says so (AC6).
+The trace is drawn whole on the spectrum, its line and fill on Fade, and on none of the other visualizer effects. This plan puts Plan 1's painter in front of the owner's eyes on the rebuilt dev build. That is AC7, and for Aurora it is the only check the browser can make, since node lacks WebGL2 (D-10).
 
 ## Must be true when done
 
-- The Source section's entry in `docs/spec/faceplate.md` states that the trace shows under the Trace style only, under every color suite, and that the grid, the scales and the Range keys show as each style already shows them (AC6). Ridges already hides its dB grid lines and dB scale labels (`hqptuner/static/css/meter.css:50`), so the sentence must not claim they show under every style.
+- At the hand-back URL, with music playing, with the Borealis colors and one other named color suite: under Bars, Ridges, Aurora and Flames no trace line, fill or shadow shows; under Fade the line and the fill show and the shadow does not; under Trace all three show (AC7, success criteria 1 and 2).
+- Under every style the grid, scales and Range keys show as before (Ridges shows no dB grid lines or dB scale labels, before and after), and Fade still shows its own line on its glow (D-03, D-04).
 
 ## Context
 
-- D-11: the rule goes in `docs/spec/faceplate.md` and in the commit message. No user-facing text changes, and there is no `CHANGELOG.md` entry.
-- CONTEXT flagged assumption (Likely): the sentence is the owner's to approve before it lands, as the Phase 7 spec amendment was. The sentence below is a proposal. The owner's approved wording is what lands, character for character.
-- Out of scope: the missing Flames in the style list on the same entry's first line, and every other line of the doc.
+- The first owner check of this phase passed Bars, Ridges, Aurora, Flames and Trace and failed Fade, and did not name the second color suite (`UAT.md` item 7). This check covers all six styles again under two named suites, since Plan 1 changes the painter every style runs through.
+- Flagged assumption, out of phase: under Fade the owner has seen no crisp canvas line, or a very fat one. If the SVG line and fill show and Fade still reads fat, that is recorded with the owner's words and goes to the owner; it does not fail AC7 on its own and is not worked on here.
+- Host rules bind: hqplayerd is live production. The owner plays the music. No agent sends a transport command or any write to hqplayerd, and no reviewer agent is dispatched (repo `CLAUDE.md`).
 
 ## Tasks
 
-### Task 1: Add the trace rule to the Source section's spec
+### Task 1: The owner checks every style under two named color suites on the rebuilt dev build
 
-- **Files:** docs/spec/faceplate.md
-- **Reads:** docs/spec/faceplate.md#Page
-- **Decisions:** D-01, D-03, D-11
-- **Action:** In the Page section's **Source** list item, the one opening "**Source** (Auto, Spectrum, or bypassed)", add one new indented paragraph line. It goes between that item's first line and the "The Range control sits in the spectrum's top-right corner" paragraph, with a blank line on each side, indented four spaces like its sibling paragraphs. The item's first line already runs about 607 characters, and `scripts/gates/check_docs.py` holds every spec line to 700, so the sentence cannot be appended to it. Proposed wording, landing only as the owner approves it: "The trace (its line, the filled area under it and its slower-falling shadow) shows under the Trace style only; under every other style, whatever the color suite, the spectrum draws no trace, and its grid, scales and Range keys show as that style already shows them (Ridges shows no dB grid lines or dB scale labels)." If the owner rewords it, land the owner's text verbatim. Write it with `Edit`, never from the shell, as one soft-wrapped line. Use no em dash and no backticked path.
-- **Verify:** `grep -n "Trace style only" docs/spec/faceplate.md` prints exactly one line, and nothing before the task. `python3 .claude/hooks/md-softwrap.py --check docs/spec/faceplate.md` exits 0. `.venv/bin/python scripts/gates/check_docs.py .` exits 0. `grep -c "—" docs/spec/faceplate.md` prints `0`. The landed line matches the owner-approved wording character for character. Testing scope: a doc edit, so its own gates are the evidence. No code test and no rebuild apply (repo `CLAUDE.md`).
-
-## Notes
-
-- Owner approval of the sentence is due before this plan executes. The plan shares no file with Plans 1 and 2, so it may run beside them.
+- **Files:** none (verification only)
+- **Reads:** .claude/task-check.sh
+- **Decisions:** D-01, D-03, D-04, D-10
+- **Action:** Load the `hand-back` skill and the host skill before quoting any URL or touching host state. Confirm that `hqptuner:dev` serves Plan 1's last commit and is healthy on `:8090`, as Plan 1 Task 2's `task-check.sh` run left it, by comparing the served `/components/faceplate/page/sourcepaint.js` with the working tree file; if they differ, run `bash .claude/task-check.sh`, saying first that the rebuild holds cores for minutes. Take your own `scripts/snap.py` captures of the page Source section under each of the six styles, under Borealis and under one other suite you name, and read each element by element as the `hand-back` skill says. Then hand the owner the URL, name the second suite, and say what to look for: under Trace the line, the fill and the shadow; under Fade the line and the fill without the shadow, beside Fade's own glow; under Bars, Ridges, Aurora and Flames none of the three; the grid, scales and Range keys as each style showed them before. Probe read-only: picking a style or a color suite in the Display popover is a browser preference, not a daemon write. Never click Apply, Apply & Save, Discard or Save as New, since the staging buffer is the owner's (`live-daemon` skill).
+- **Verify:** human-verify: the owner, at the hand-back URL on the rebuilt `hqptuner:dev`, with Borealis and the second suite named in the hand-back, reports: under Bars, Ridges, Aurora and Flames no trace line, fill or shadow; under Fade the line and the fill and no shadow; under Trace all three. The report quotes the owner's words and names both suites. A part seen where the rule withholds it, or missing where the rule shows it, under any style or suite, is a defect report that goes back to planning with the style and suite named, never a pass. Testing scope: the owner's eyes are the evidence, and no automated check stands in for them.

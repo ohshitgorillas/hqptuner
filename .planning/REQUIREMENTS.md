@@ -23,7 +23,7 @@ Committed scope. Each maps to exactly one roadmap phase.
 
 ### Visualizer
 
-- **SPEC-02**: User sees the trace under the Trace spectrum style only, and under none of the other styles (Bars, Ridges, Aurora, Fade, Flames), whatever the color suite.
+- **SPEC-02**: User sees the whole trace under the Trace spectrum style, its line and fill without the falling shadow under Fade, and no trace under the other styles (Bars, Ridges, Aurora, Flames), whatever the color suite.
 
 ### Test debt
 

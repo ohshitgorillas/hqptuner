@@ -6,7 +6,7 @@ Feeds: /cad-plan 9
 
 ## Scope boundary
 
-In: the page Source section's SVG trace (line, filled area and falling shadow) shows under the Trace spectrum style only, and under none of Bars, Ridges, Aurora, Fade and Flames, whatever the color suite; the four cases in `tests/js/store/meter/spectrum-motion.test.js` that read the SVG trace under Ridges and Flames are removed; `docs/spec/faceplate.md` states the rule.
+In: the page Source section's SVG trace (line, filled area and falling shadow) shows whole under the Trace spectrum style only; under Fade the line and the filled area show and the falling shadow does not; under Bars, Ridges, Aurora and Flames none of it shows, whatever the color suite; the four cases in `tests/js/store/meter/spectrum-motion.test.js` that read the SVG trace under Ridges and Flames are removed; `docs/spec/faceplate.md` states the rule.
 
 Out: Fade's own sharp line on the effects canvas; the grid lines, scales and Range keys; the Source drawer's spectrum and spectrogram; the Display popover's labels and captions and any other user-facing text; any `CHANGELOG.md` entry; the meter loop's frame contract (Phase 5 D-09); the missing Flames in the style list at `docs/spec/faceplate.md:91`.
 
@@ -22,8 +22,8 @@ Plan shape: multiple plans (owner: big, planning splits the work into several pl
 ## Decisions
 
 - D-03 (what the trace is): the trace is all three SVG paths drawn through the level gradient: the line (`.strace`), the filled area (`.sarea`) and the slower-falling shadow (`.shold`). The dB and kHz grid lines (`.sgridl`), the scales and the Range keys stay under every style. Evidence: owner confirmation 2026-11-24; `hqptuner/static/components/faceplate/page/SourceMeter.js:134-151,168-177`, `hqptuner/static/css/meter.css:44-50`.
-- D-04 (Fade): Fade's own sharp line, stroked on the effects canvas over its halo, is part of the Fade effect and stays; only the separate SVG trace goes from under Fade. Evidence: owner confirmation 2026-11-24; `hqptuner/static/components/faceplate/page/spectrumfx.js:1-9,317-339`.
-- D-05 (the rule's shape): whether a style shows the trace is one yes or no per style, and it is tested with a hand-written table of the six styles at the lowest lane that observes it. Evidence: owner confirmation 2026-11-24; `hqptuner/static/components/faceplate/page/sourcepaint.js:72-119`, `docs/spec/testing.md` rules 15 and 17.
+- D-04 (Fade, owner ruling at UAT 2026-11-24, replaces the earlier D-04): Fade shows the SVG trace's line (`.strace`) and filled area (`.sarea`), the part that tracks the music, and does not show the falling shadow (`.shold`). Fade's own sharp line, stroked on the effects canvas over its halo, is part of the Fade effect and stays. The earlier D-04 withheld the whole SVG trace under Fade; the owner called that their own mistake. Where D-01, D-08 and D-11 say the trace shows under the Trace style only, read them with this exception. Evidence: owner at the hand-back URL ("Fade does get a trace. the rest pass."), then owner answer 2026-11-24 ("Fade gets the tracking line and fill"); `.planning/phases/9/UAT.md` item 7; `hqptuner/static/components/faceplate/page/sourcepaint.js:74,128-129,320-327` (one yes or no per style withholds line and shadow together), `hqptuner/static/components/faceplate/page/spectrumfx.js:1-9,317-339`.
+- D-05 (the rule's shape, reworded for D-04): which parts of the trace a style shows is stated per style: Trace shows the line, the filled area and the shadow; Fade shows the line and the filled area; Bars, Ridges, Aurora and Flames show none. It is tested with a hand-written table of the six styles at the lowest lane that observes it. The earlier D-05 was one yes or no per style, which cannot say Fade's answer. Evidence: owner confirmation 2026-11-24 and the D-04 ruling; `hqptuner/static/components/faceplate/page/sourcepaint.js:72-129`, `docs/spec/testing.md` rules 15 and 17.
 - D-06 (the SVG stays): the SVG element stays visible under every style; it holds the grid, carries `role="img" aria-label="Spectrum"` and takes the crosshair pointer. Only the three trace paths are withheld. Evidence: `hqptuner/static/components/faceplate/page/SourceMeter.js:168-176`, `hqptuner/static/css/meter.css:41,47-49`.
 - D-07 (the paths stay in the markup): the three path elements stay in the markup under every style, since the element lookup returns `null` when any of them is missing and the whole Source painter, level bars and VU needles included, then stops. Evidence: `hqptuner/static/components/faceplate/page/SourceMeter.js:288-303`.
 - D-08 (switching): after a switch from Trace to another style the next paint shows no trace, and after a switch back the next paint shows it. Evidence: owner confirmation 2026-11-24; `hqptuner/static/components/faceplate/page/sourcepaint.js:256-286`.
@@ -34,13 +34,14 @@ Plan shape: multiple plans (owner: big, planning splits the work into several pl
 
 ## Acceptance criteria
 
-- [ ] AC1: With the spectrum style set to Bars, Ridges, Fade or Flames, a paint of a playing frame leaves the three trace paths (`.strace`, `.sarea`, `.shold`) in the page Source section with no drawing. (ci: check)
-- [ ] AC2: A test states, style by style, that Trace shows the trace and that Bars, Ridges, Aurora, Fade and Flames do not. (ci: check)
+- [ ] AC1: With the spectrum style set to Bars, Ridges or Flames, a paint of a playing frame leaves the three trace paths (`.strace`, `.sarea`, `.shold`) in the page Source section with no drawing. (ci: check)
+- [ ] AC2: A test states, style by style, which parts of the trace show: Trace the line, the filled area and the shadow; Fade the line and the filled area; Bars, Ridges, Aurora and Flames none. (ci: check)
 - [ ] AC3: With the spectrum style set to Trace, a paint of a playing frame draws the line, the filled area and the shadow. (ci: check)
-- [ ] AC4: After a switch from Trace to another style, the next paint leaves no trace; after a switch back, the next paint draws it. (ci: check)
+- [ ] AC4: After a switch from Trace to Bars, Ridges or Flames, the next paint leaves no trace; after a switch back, the next paint draws it. (ci: check)
 - [ ] AC5: `tests/js/store/meter/spectrum-motion.test.js` holds no case that reads the SVG trace under a style other than Trace.
-- [ ] AC6: `docs/spec/faceplate.md` states that the trace shows under the Trace style only.
-- [ ] AC7: At the hand-back URL, under Bars, Ridges, Aurora, Fade and Flames, with the Borealis colors and one other color suite, no trace line, fill or shadow is visible; under Trace all three are visible. (human-verify: needs owner's eyes)
+- [ ] AC6: `docs/spec/faceplate.md` states which parts of the trace show under which style, as D-05 lists them.
+- [ ] AC7: At the hand-back URL, with the Borealis colors and one other color suite: under Bars, Ridges, Aurora and Flames no trace line, fill or shadow is visible; under Fade the line and the fill are visible and the shadow is not; under Trace all three are visible. (human-verify: needs owner's eyes)
+- [ ] AC8: With the spectrum style set to Fade, a paint of a playing frame draws the line and the filled area and leaves the shadow (`.shold`) with no drawing. (ci: check)
 
 ## Flagged assumptions
 
@@ -48,4 +49,5 @@ Plan shape: multiple plans (owner: big, planning splits the work into several pl
 - Removing the four cases under D-02 leaves Ridges and Flames with no stepped-view motion case, and whether a replacement that reads the effect's own canvas is owed is not settled - Unclear; if wrong: Ridges and Flames motion is unpinned after the phase, and the gap goes to the owner as a plan point.
 - The sentence added to `docs/spec/faceplate.md` is the owner's to approve before it lands, as the Phase 7 spec amendment was - Likely; if wrong: the planner writes it.
 - `CANVAS_STYLES` in `sourcepaint.js` is pinned by `sourcepaint-motion.test.js`, so moving or reshaping it for D-05 may touch that suite - Unclear; if wrong: a suite the plan did not name goes red.
+- Under Fade at the hand-back URL the owner sees no crisp line, or only a "ridiculously fat" one (owner, 2026-11-24), though `hqptuner/static/components/faceplate/page/spectrumfx.js:126-128,335-339` strokes a 1.5 px line over a 6 px halo blurred 2 px. Why the canvas line does not read as crisp is not diagnosed and is out of this phase; D-04's SVG line and fill are what give Fade its visible trace - Unclear; if wrong: the SVG line returns and Fade still reads fat, which goes to the owner at AC7.
 - `.planning/ROADMAP.md` still names Borealis as a visualizer effect in the Phase 9 goal and criterion 1 - Confident; if wrong: nothing, D-01 and SPEC-02 govern.
