@@ -230,6 +230,32 @@ const SLIDE = 1e-9;
 
 // A ridge row slides up the plot as the time since it was born passes, a whole row's height by the time the next is
 // born: however short a paint is, and whether or not it brings a new row, it moves the rows by its time.
+//: A canvas pixel at full strength, as an 8-bit canvas holds it, and a quiet stretch long enough for a halo to fade out.
+const FULL_PIXEL = 255;
+const FADE_OUT_MS = 40000;
+//: A paint interval at 120 Hz and one at 4 Hz, ms.
+const FAST_PAINT = 1000 / 120;
+const SLOW_PAINT = 250;
+
+/**
+ * What is left of a full-strength halo pixel on an 8-bit canvas after FADE_OUT_MS of paints `dt` ms apart, each
+ * taking off the share the halo step says is due and the canvas rounding to a whole level.
+ *
+ * @param {number} dt
+ * @returns {number}
+ */
+function leftOnEightBits(dt) {
+  const halo = stepHalo(freshHalo(), dt);
+  let pixel = FULL_PIXEL;
+  for (let t = 0; t < FADE_OUT_MS; t += dt) pixel = Math.round(pixel * (1 - stepHalo(halo, dt).due));
+  return pixel;
+}
+
+test("test_a_halo_on_an_8_bit_canvas_fades_as_far_at_fast_paints_as_at_slow_ones", () => {
+  const [fast, slow] = [leftOnEightBits(FAST_PAINT), leftOnEightBits(SLOW_PAINT)];
+  assert.ok(fast <= slow, `left of ${FULL_PIXEL}: ${fast} at fast paints, ${slow} at slow ones`);
+});
+
 test("test_the_ridge_rows_slide_by_the_time_each_paint_covers_whatever_rows_it_brings", () => {
   const ridges = freshRidges(1);
   let slide = ridges.slide;

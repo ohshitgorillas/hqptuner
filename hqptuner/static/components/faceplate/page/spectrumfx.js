@@ -268,7 +268,7 @@ function haloCanvas(held, w, h) {
 }
 
 /**
- * The halo on its own canvas `g`: its content dimmed by the share stepHalo gives, or cleared where stepHalo marks it
+ * The halo on its own canvas `g`: its content dimmed by the share stepHalo says is due, or cleared where it marks it
  * clear, with the trace laid over it, blurred and wide, in the halo's colors.
  *
  * @param {Frame} f
@@ -283,8 +283,8 @@ function glow(f, g, halo, px) {
   g.save();
   if (halo.clear) g.clearRect(0, 0, w, h);
   g.globalCompositeOperation = "destination-out";
-  g.globalAlpha = halo.dim;
-  if (halo.dim) g.fillRect(0, 0, w, h);
+  g.globalAlpha = halo.due;
+  if (halo.due) g.fillRect(0, 0, w, h);
   g.restore();
   g.save();
   g.strokeStyle = pal.halo;

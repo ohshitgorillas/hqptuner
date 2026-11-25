@@ -31,6 +31,7 @@ const RIDGE_ROWS = 12; // ridge rows kept, newest first
 const RIDGE_EVERY = 6; // steps from one ridge row to the next
 
 const HALO_TAU_MS = 2000; // the halo's glow falls to 1/e of what it was in this long, ms
+const HALO_STEP = 0.1; // least share one paint takes off the canvas; an 8-bit canvas keeps what a smaller one leaves
 
 /**
  * The part step a stepped style carries from one paint to the next.
@@ -348,7 +349,11 @@ export function ridgeRow(state, k) {
  * @typedef {object} HaloState
  * @property {boolean} drawn  whether a halo is on the canvas from an earlier paint
  * @property {boolean} clear  whether this paint draws its halo on a clear canvas, with nothing of an earlier one kept
- * @property {number} dim     share of the earlier halo's strength this paint takes away, 0 to 1; 0 where `clear`
+ * @property {number} dim     share of the earlier halo's strength the time since the last paint takes away, 0 to 1; 0
+ *                            where `clear`
+ * @property {number} owed    share of the halo's strength earlier paints took away and left on the canvas, 0 to 1
+ * @property {number} due     share of its strength this paint takes off the canvas: all that is owed once that is at
+ *                            least HALO_STEP, else 0
  */
 
 /**
@@ -357,12 +362,13 @@ export function ridgeRow(state, k) {
  * @returns {HaloState}
  */
 export function freshHalo() {
-  return { drawn: false, clear: true, dim: 0 };
+  return { drawn: false, clear: true, dim: 0, owed: 0, due: 0 };
 }
 
 /**
  * The halo for a paint `dt` ms after the last: with a halo already drawn, the share of its strength to take away
  * so that a spot dimmed paint by paint falls by e every HALO_TAU_MS, whatever the paint rate; with none, a clear canvas.
+ * Shares under HALO_STEP are owed from paint to paint and taken off the canvas together once they reach it.
  * Either way the paint draws a halo, so the next one dims it.
  *
  * @param {HaloState} state  written in place
@@ -372,6 +378,9 @@ export function freshHalo() {
 export function stepHalo(state, dt) {
   state.clear = !state.drawn;
   state.dim = state.drawn ? 1 - Math.exp(-dt / HALO_TAU_MS) : 0;
+  const owed = 1 - (1 - state.owed) * (1 - state.dim);
+  state.due = owed >= HALO_STEP ? owed : 0;
+  state.owed = owed - state.due;
   state.drawn = true;
   return state;
 }
