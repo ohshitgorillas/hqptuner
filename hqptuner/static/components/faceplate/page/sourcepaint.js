@@ -1,8 +1,9 @@
 // The Source section's per-paint painter: the level bars, the VU needles, the trace and the effects canvases, painted
-// from each meter-loop scene. Each section has one painter, on the section's elements and canvas painters; it holds
-// the stepped state between paints and resets it at a restart or when the number of channels changes. Every moving
-// part steps through the model on the `dt` the paint carries. Only the picked style's canvas painter is painted; one
-// the pick has just left, and every unpicked one at a restart, gets a single empty paint that clears it.
+// from each meter-loop scene. The trace is drawn under the Trace style only; under every other style its three paths
+// are left empty. Each section has one painter, on the section's elements and canvas painters; it holds the stepped
+// state between paints and resets it at a restart or when the number of channels changes. Every moving part steps
+// through the model on the `dt` the paint carries. Only the picked style's canvas painter is painted; one the pick has
+// just left, and every unpicked one at a restart, gets a single empty paint that clears it.
 
 import { fraction, pickBins, spanShare, traceColumns } from "../../../model/gauges/meter/meter.js";
 import { hexAt, rampOf } from "../../../model/gauges/meter/spectrumfx.js";
@@ -249,7 +250,8 @@ function pathOf(cols, range, joined) {
 }
 
 /**
- * Write the trace's line, shadow and area in `els`; with no columns, empty paths.
+ * Write the trace's line, shadow and area in `els`; with no columns, empty paths. The painter hands it columns under the
+ * Trace style only.
  *
  * @param {SourceElements} els
  * @param {Float32Array} line  dBFS per column
@@ -321,7 +323,8 @@ export function sourcePainter(els) {
       const shadow = has ? traceColumns(kept.spectrum.ghost, COLS, kept.shadow, share) : NO_COLUMNS;
       paintBars(els, kept.levels, rampFor(kept, look.suite, accentInForce()));
       vu.paint(kept.vu);
-      paintTrace(els, line, shadow, look.range);
+      const shown = showsTrace(look.picked);
+      paintTrace(els, shown ? line : NO_COLUMNS, shown ? shadow : NO_COLUMNS, look.range);
       paintCanvases(kept, els, line, look);
     },
   };

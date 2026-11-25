@@ -445,6 +445,40 @@ for (const [style, shown] of /** @type {const} */ ([
   });
 }
 
+//: The three paths that make up the trace, by their element's name in the section.
+const TRACE_PATHS = /** @type {const} */ (["trace", "area", "shadow"]);
+
+for (const picked of ["bars", "ridges", "fade", "fire"]) {
+  for (const part of TRACE_PATHS) {
+    test(`test_under_${picked}_a_playing_paint_leaves_the_${part}_empty`, () => {
+      const root = section(2);
+      paint(root, level(MID_DB, true), STEP_MS, { picked });
+      assert.deepEqual(pointsOf(root.els[part]), []);
+    });
+  }
+}
+
+for (const part of TRACE_PATHS) {
+  test(`test_under_trace_a_playing_paint_draws_the_${part}`, () => {
+    const root = section(2);
+    paint(root, level(MID_DB, true), STEP_MS);
+    assert.ok(pointsOf(root.els[part]).length > 0);
+  });
+
+  test(`test_a_switch_from_trace_to_bars_leaves_the_${part}_empty_on_the_next_paint`, () => {
+    const root = steady(MID_DB, STEP_MS);
+    paint(root, level(MID_DB), STEP_MS, { picked: BARS });
+    assert.deepEqual(pointsOf(root.els[part]), []);
+  });
+
+  test(`test_a_switch_back_to_trace_draws_the_${part}_on_the_next_paint`, () => {
+    const root = steady(MID_DB, STEP_MS);
+    paint(root, level(MID_DB), STEP_MS, { picked: BARS });
+    paint(root, level(MID_DB), STEP_MS);
+    assert.ok(pointsOf(root.els[part]).length > 0);
+  });
+}
+
 // ── what a paint must be handed ────────────────────────────────────────
 
 test("test_a_paint_told_no_time_is_an_error", () => {
