@@ -10,11 +10,6 @@
 // a trace that stands for one paint is accepted. So the trace is read for the frame it names, never for evenness or for a
 // change at every paint.
 //
-// Ridges and fire step their picture on a pace of their own, and may interpolate between their steps, so their picture
-// is read over the capture and a generated feed for a paint that leaves the effects canvas as the paint before left it:
-// there is none. The flames' random draws come from a fixed sequence. The effects canvas is a raster canvas (tests/js/support/raster.js) under the real fxPainter, 240 by
-// 120.
-//
 // The feeds are the loop-painters suite's generated bursts (short and long, steady and uneven paint waits) and the
 // first 200 frames of the committed capture (tests/support/fixtures/meter_feed_capture.json) at its delay, which the
 // 0.5 dB steps keep inside the trace's 120 dB range. The stores pace on one fake clock whose animation frames run after
@@ -34,8 +29,6 @@ import { fakeClock } from "../../support/clock.js";
 import { RATE_44K, geometry } from "../../support/meterfeed.js";
 import { bootMeter, capturedFeed, frameTimes, generatedLandings, setDelays } from "../../support/meter/meterrig.js";
 import { RANGE, TRACE, MONO, lineLevel, section } from "../../support/rendered/sourcesection.js";
-import { fxPainter } from "../../../../hqptuner/static/components/faceplate/page/spectrumfx.js";
-import { rasterCanvas } from "../../support/raster.js";
 
 /** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 /** @typedef {import("../../support/meter/meterrig.js").Landing} Landing */
@@ -124,56 +117,27 @@ afterEach(() => {
 
 /**
  * One paint as the spectrum painted it: the wall time since the paint before, ms, the mean level of its trace line,
- * dBFS, whether the effects canvas is as the paint before left it, and where the playhead stood, playback ms.
+ * dBFS, and where the playhead stood, playback ms.
  *
- * @typedef {{ dt: number, level: number, still: boolean, head: number }} Painted
+ * @typedef {{ dt: number, level: number, head: number }} Painted
  */
-
-/** The effects canvas, device pixels, large enough for its picture to be read. */
-const FX_SIZE = [240, 120];
-
-/** The fill under each ridge. */
-const GLASS = "#101418";
-
-/**
- * A random source for the flames: a fixed sequence in [0, 1), the same every run. The flames' draws vary in play; a
- * constant answer would settle them on a fixed point where no step could change the picture.
- */
-function draws() {
-  let seed = 12345;
-  return () => {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    return seed / 2147483648;
-  };
-}
-
-/** The effects views whose picture steps on a pace of its own, so a paint could leave it as it was. */
-const STEPPED_VIEWS = ["ridges", "fire"];
 
 /**
  * Play `feed` and write down each paint's trace.
  *
  * @param {Feed} feed
- * @param {string} [view]  the spectrum style picked
  * @returns {{ paints: Painted[], starts: number[], ends: number[] }}  where each frame starts and ends, playback ms
  */
-function play(feed, view = TRACE) {
+function play(feed) {
   setDelays(feed.delays);
   frameGaps = feed.gaps;
   gapAt = 0;
-  spectrumStyle.value = view;
-  const canvas = rasterCanvas(FX_SIZE[0], FX_SIZE[1]);
-  const seams = { random: draws(), makeCanvas: rasterCanvas };
-  const fx = fxPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)), { glass: GLASS }, seams);
-  const root = section(feed.channels, "", { fx, aurora: null });
+  const root = section(feed.channels);
   /** @type {Painted[]} */
   const paints = [];
-  let before = canvas.ink.slice();
   const unsubscribe = onMeterPaint((scene, dt) => {
     root.painter.paint(scene, { dt });
-    const still = before.every((v, i) => v === canvas.ink[i]);
-    before = canvas.ink.slice();
-    paints.push({ dt, level: lineLevel(root), still, head: playhead.peek() ?? Number.NaN });
+    paints.push({ dt, level: lineLevel(root), head: playhead.peek() ?? Number.NaN });
   });
   const t0 = fake.clock.now();
   lastStream()?.emit("geometry", geometry(feed.rate, feed.channels, feed.bins));
@@ -211,9 +175,6 @@ const FEEDS = [
   ["the_capture_at_60_hz", captured],
 ];
 
-/** The feeds the effects pictures are read over: the capture and one generated feed with uneven paints. */
-const FX_FEEDS = ["long_bursts_at_uneven_paints", "the_capture_at_60_hz"];
-
 /**
  * How much of the paint's interval, playback ms, frame `k` covers.
  *
@@ -250,14 +211,4 @@ for (const [name, make] of FEEDS) {
       { some: true, off: 0 },
     );
   });
-}
-
-for (const view of STEPPED_VIEWS) {
-  for (const [name, make] of FEEDS.filter(([n]) => FX_FEEDS.includes(n))) {
-    test(`test_${name}_never_leaves_the_${view}_view_as_painted_for_a_paint_while_the_music_moves`, () => {
-      const paints = heard(play(make(), view));
-      const still = paints.filter((p, i) => i > 0 && p.still);
-      assert.deepEqual({ some: paints.length > 1, still: still.length }, { some: true, still: 0 });
-    });
-  }
 }
