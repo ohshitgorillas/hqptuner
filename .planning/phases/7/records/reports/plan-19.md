@@ -1,17 +1,23 @@
-PLAN CHECKPOINT: human-verify
+PLAN COMPLETE
 
 Plan: .planning/phases/7/PLAN-19.md
 
-Tasks: 1 of 2
+Tasks: 2 of 2
 
 | Task | Commit | Note |
 |---|---|---|
 | 1 - Every gate and suite stands where the phase leaves it | none (nothing to commit) | threshold unchanged at 0.18; all four Verify items met (first dispatch, record in plan-19.1.md) |
-| 2 - The owner sees the reshaped surfaces on the rebuilt dev build | none | build rebuilt and serving, own captures read; CHECKPOINT human-verify: the owner's look at items 8, 9, 10 is outstanding |
+| 2 - The owner sees the reshaped surfaces on the rebuilt dev build | none (task has no files) | build rebuilt and serving, own captures read; owner accepted items 8, 9 and 10 as improved (answer below) |
 
 ## Task 2 evidence
 
-Owner's ruling on the rebuild, verbatim: "okay, commit past them so I can see and tell me what I'm looking for." Read by the coordinator as: rebuild `hqptuner:dev` past the red `make check`, through task-check steps 2 and 3. `task-check.sh` not edited, no test edited, nothing exempted, 12 phase 8 playhead tables left red.
+Owner's decision on the rebuild, verbatim: "okay, commit past them so I can see and tell me what I'm looking for." Read by the coordinator as: rebuild `hqptuner:dev` past the red `make check`, through task-check steps 2 and 3. `task-check.sh` not edited, no test edited, nothing exempted, 12 phase 8 playhead tables left red.
+
+Owner's answer on items 8, 9 and 10 (2026-11-25), asked whether they look and move as they did before phase 7, verbatim: "no, but that is not the correct goalpost, because they have all improved."
+
+Owner's decision on that answer: plan 19 closes items 8, 9 and 10 as accepted as improved. Task 2's Verify was amended on that decision: the owner accepts each surface; "as before the phase" is no longer the goalpost. Under the amended Verify, task 2 is met. UAT.md not edited (that is /cad-verify's).
+
+Dev build the owner looked at is current: `hqptuner:dev` rebuilt from the working tree at 2026-11-25T11:58:05-08:00, `status=0`, `:8090` answers 200, no file under `hqptuner/` changed since. Not rebuilt again, no new captures taken.
 
 Rebuild: steps 2 and 3 of `.claude/task-check.sh` replayed by `/tmp/plan19-rebuild.sh` (same trigger file, same result-file nonce match, same `:8090` poll). Result: `status=0`, `health=200`. HEAD at rebuild 81efbfd7. Hand-back URL http://10.0.0.238:8090 (local http://127.0.0.1:8090).
 
@@ -30,9 +36,9 @@ Not reachable on this idle live daemon: the volume panel (its trigger is disable
 - On every page load the console logs `<circle> attribute cx: Expected length, "-Infinity"`, `<path> attribute d: Expected number, "M28 NaN L29.9 NaN ..."` and `<text> attribute y: Expected length, "NaN"`. Located to the Loudness drawer's response plot and range bar (`class="trace"`, `circle.hdl`, text "0% applied") by a setAttribute trap. Identical on the 5aa4aa41 build and in files phase 7 never touched (`git diff 5aa4aa41 HEAD` lists none under `drawers/loudness/`).
 - The Import EQ popover (`pop pimp`) shows the paragraph behind it through its box (see `pop2-pipelines-pl-import-now.png`); the panel is not opaque. Identical on the before build.
 
-## Blocking question for the owner
+## Skipped steps
 
-None beyond the human-verify itself: the owner reports for items 8, 9 and 10 whether the surface looks and moves as it did before the phase. A surface the owner says differs is a defect report and goes back to planning, never a pass.
+The end-of-plan full-suite run was skipped on this continuation by dispatch order (do not rerun `make check`, `make jscpd`, `make test-e2e`). Task 1's gate and suite results stand as recorded in plan-19.1.md; `make check` is red only on the 12 phase 8 playhead tables (UAT item 13), which the phase 8 plans rewrite.
 
 Deviations: none
 
@@ -41,5 +47,6 @@ Open items:
 - Gate-conduct slip, first dispatch: the first `make check` run was piped into `tail -40` (repo rule: a gate is never piped). `scripts/gate.sh` still kept the whole log; every conclusion was read from it.
 - `make test-e2e` needs `hqpcreds` sourced (`HQPTUNER_CHROMIUM`); it runs about 644 s, over the 600 s tool watchdog, so it was run detached.
 - Verify item (2) wording "fails at 0.01 below": at 0.17 the python run exits 1 as required.
-- The rebuild went past the red `make check` step on the owner's ruling above; `make check` is still red on the 12 phase 8 playhead tables (UAT item 13).
+- The rebuild went past the red `make check` step on the owner's decision above; `make check` is still red on the 12 phase 8 playhead tables (UAT item 13).
 - Console NaN/Infinity SVG attributes in the Loudness drawer and the non-opaque Import EQ panel, both pre-existing (see Observations); not touched here.
+- Owner's answer for items 8, 9, 10 was "no" to "as before the phase" (they differ, improved); owner accepted all three as improved. /cad-verify owns the UAT.md record.

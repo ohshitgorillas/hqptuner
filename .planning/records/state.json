@@ -2,9 +2,9 @@
   "layout": 1,
   "cycleOpen": true,
   "cursor": {
-    "phase": 9,
-    "status": "phase complete",
-    "next": "/cad-context 10",
+    "phase": 7,
+    "status": "executed",
+    "next": "/cad-verify 7",
     "updated": "2026-11-25"
   },
   "phases": [
@@ -231,7 +231,7 @@
         },
         {
           "file": "PLAN-19.md",
-          "finished": false
+          "finished": true
         }
       ]
     },
@@ -270,13 +270,6 @@
           "finished": true
         }
       ]
-    },
-    {
-      "n": 10,
-      "name": "Packaged builds open in the browser",
-      "description": "\"Open HQPTuner\" in a packaged build opens the app in the browser",
-      "status": "unplanned",
-      "plans": []
     }
   ],
   "requirements": [
