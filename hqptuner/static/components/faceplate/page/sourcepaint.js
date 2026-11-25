@@ -1,6 +1,6 @@
 // The Source section's per-paint painter: the level bars, the VU needles, the trace and the effects canvases, painted
-// from each meter-loop scene. The trace is drawn under the Trace style only; under every other style its three paths
-// are left empty. Each section has one painter, on the section's elements and canvas painters; it holds the stepped
+// from each meter-loop scene. Each style shows its own parts of the trace: Trace the line, the area and the shadow,
+// Fade the line and the area; under every other style the three paths are left empty. Each section has one painter, on the section's elements and canvas painters; it holds the stepped
 // state between paints and resets it at a restart or when the number of channels changes. Every moving part steps
 // through the model on the `dt` the paint carries. Only the picked style's canvas painter is painted; one the pick has
 // just left, and every unpicked one at a restart, gets a single empty paint that clears it.
@@ -22,6 +22,7 @@ export const SH = 400;
 
 /** @typedef {import("../../../store/meter/loop.js").MeterScene} MeterScene */
 /** @typedef {import("../../../model/gauges/meter/spectrumfx.js").Ramp} Ramp */
+/** @typedef {{ line: Float32Array, area: Float32Array, shadow: Float32Array }} TraceColumns  dBFS per column of each trace part; the area's are its top edge's */
 
 /**
  * The Source section's elements, found once when it mounts, and its canvas painters.
@@ -71,7 +72,6 @@ export const SH = 400;
 
 const COLS = 256; // trace columns across the viewBox
 const CANVAS_STYLES = new Set(["bars", "ridges", "fade", "fire"]);
-const TRACE_STYLES = new Set(["trace"]);
 const NO_COLUMNS = new Float32Array(0);
 const INK = "--lv-ink";
 const FX = "fx";
@@ -118,15 +118,6 @@ function restartAll(kept, channels) {
 function selectedOf(picked) {
   if (picked === AURORA) return AURORA;
   return CANVAS_STYLES.has(picked) ? FX : "";
-}
-
-/**
- * Whether the spectrum style `picked` shows the trace: the Trace style does, no other does.
- *
- * @param {string} picked
- */
-export function showsTrace(picked) {
-  return TRACE_STYLES.has(picked);
 }
 
 const WHOLE = { line: true, area: true, shadow: true };
@@ -266,19 +257,17 @@ function pathOf(cols, range, joined) {
 }
 
 /**
- * Write the trace's line, shadow and area in `els`; with no columns, empty paths. The painter hands it columns under the
- * Trace style only.
+ * Write the trace's line, area and shadow in `els`, each from its own columns; with no columns, an empty path. The
+ * painter hands each part columns where the picked style shows that part.
  *
  * @param {SourceElements} els
- * @param {Float32Array} line  dBFS per column
- * @param {Float32Array} shadow  dBFS per column
+ * @param {TraceColumns} cols
  * @param {number} range
  */
-function paintTrace(els, line, shadow, range) {
-  const top = pathOf(line, range, true);
-  els.area.setAttribute("d", line.length ? `M0,${SH}${top}L${SW},${SH}Z` : "");
-  els.shadow.setAttribute("d", pathOf(shadow, range, false));
-  els.trace.setAttribute("d", line.length ? `M${top.slice(1)}` : "");
+function paintTrace(els, cols, range) {
+  els.area.setAttribute("d", cols.area.length ? `M0,${SH}${pathOf(cols.area, range, true)}L${SW},${SH}Z` : "");
+  els.shadow.setAttribute("d", pathOf(cols.shadow, range, false));
+  els.trace.setAttribute("d", cols.line.length ? `M${pathOf(cols.line, range, true).slice(1)}` : "");
 }
 
 /**
@@ -321,6 +310,8 @@ function paintCanvases(kept, els, cols, look) {
 export function sourcePainter(els) {
   const kept = freshKept();
   const vu = needlePainter(els.needles);
+  /** @type {TraceColumns} */
+  const shown = { line: NO_COLUMNS, area: NO_COLUMNS, shadow: NO_COLUMNS };
   return {
     /**
      * Paint one meter-loop scene into the section and onto the picked style's canvas.
@@ -339,8 +330,11 @@ export function sourcePainter(els) {
       const shadow = has ? traceColumns(kept.spectrum.ghost, COLS, kept.shadow, share) : NO_COLUMNS;
       paintBars(els, kept.levels, rampFor(kept, look.suite, accentInForce()));
       vu.paint(kept.vu);
-      const shown = showsTrace(look.picked);
-      paintTrace(els, shown ? line : NO_COLUMNS, shown ? shadow : NO_COLUMNS, look.range);
+      const parts = tracePartsOf(look.picked);
+      shown.line = parts.line ? line : NO_COLUMNS;
+      shown.area = parts.area ? line : NO_COLUMNS;
+      shown.shadow = parts.shadow ? shadow : NO_COLUMNS;
+      paintTrace(els, shown, look.range);
       paintCanvases(kept, els, line, look);
     },
   };

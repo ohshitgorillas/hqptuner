@@ -18,7 +18,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { SH, SW, showsTrace, tracePartsOf } from "../../../../hqptuner/static/components/faceplate/page/sourcepaint.js";
+import { SH, SW, tracePartsOf } from "../../../../hqptuner/static/components/faceplate/page/sourcepaint.js";
 import { scaleShare } from "../../../../hqptuner/static/model/gauges/meter/vu.js";
 import {
   meterFloor,
@@ -431,20 +431,6 @@ test("test_the_area_reaches_the_plot_foot_across_its_full_width", () => {
 
 // ── which styles show the trace ────────────────────────────────────────
 
-//: Each spectrum style as the store holds it, and whether it shows the trace.
-for (const [style, shown] of /** @type {const} */ ([
-  ["trace", true],
-  ["bars", false],
-  ["ridges", false],
-  ["aurora", false],
-  ["fade", false],
-  ["fire", false],
-])) {
-  test(`test_the_${style}_style_${shown ? "shows" : "does_not_show"}_the_trace`, () => {
-    assert.equal(showsTrace(style), shown);
-  });
-}
-
 //: Each spectrum style as the store holds it, and which of the trace's three parts it shows: the line, the filled area
 //: and the falling shadow.
 for (const [style, line, area, shadow] of /** @type {const} */ ([
@@ -469,14 +455,28 @@ for (const [style, line, area, shadow] of /** @type {const} */ ([
 //: The three paths that make up the trace, by their element's name in the section.
 const TRACE_PATHS = /** @type {const} */ (["trace", "area", "shadow"]);
 
-for (const picked of ["bars", "ridges", "fade", "fire"]) {
-  for (const part of TRACE_PATHS) {
+//: Each style that withholds some of the trace, with the paths it leaves empty.
+for (const [picked, empty] of /** @type {const} */ ([
+  ["bars", TRACE_PATHS],
+  ["ridges", TRACE_PATHS],
+  ["fade", ["shadow"]],
+  ["fire", TRACE_PATHS],
+])) {
+  for (const part of empty) {
     test(`test_under_${picked}_a_playing_paint_leaves_the_${part}_empty`, () => {
       const root = section(2);
       paint(root, level(MID_DB, true), STEP_MS, { picked });
       assert.deepEqual(pointsOf(root.els[part]), []);
     });
   }
+}
+
+for (const part of /** @type {const} */ (["trace", "area"])) {
+  test(`test_under_fade_a_playing_paint_draws_the_${part}`, () => {
+    const root = section(2);
+    paint(root, level(MID_DB, true), STEP_MS, { picked: "fade" });
+    assert.ok(pointsOf(root.els[part]).length > 0);
+  });
 }
 
 for (const part of TRACE_PATHS) {
