@@ -4,7 +4,7 @@ version = 1
 [allowance]
 "hqptuner/fields/register.py" = { lines = 425 }
 "hqptuner/lanes/http/restore.py" = { lines = 401 }
-"hqptuner/static/components/faceplate/page/spectrumfx.js" = { lines = 408, reason = "owner ruling 28 Oct: lib/dom.js import; no split" }
+"hqptuner/static/components/faceplate/page/spectrumfx.js" = { lines = 412, reason = "owner ruling 25 Nov: Fade halo dimming; allow 412" }
 "scripts/fuzz/fuzz.py" = { lines = 433 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }

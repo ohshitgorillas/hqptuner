@@ -108,6 +108,7 @@ const RIDGE_LINE = 1.5; // a ridge's stroke width, canvas pixels
 const TRACE_LINE = 1.5; // the fade trace's stroke width, CSS pixels, as the SVG trace's
 const HALO_LINE = 6; // the halo's stroke width before its blur, CSS pixels
 const HALO_BLUR = 2; // the halo's blur radius, CSS pixels
+const HALO_SHARE = 0.3; // the halo's strength on the plot, share of what its own canvas holds
 const MASK = "#000"; // the opaque fill the halo is dimmed through
 
 /**
@@ -298,7 +299,8 @@ function glow(f, g, halo, px) {
 /**
  * Fade: the halo, on a canvas of its own and stepped by stepHalo, under the live trace stroked crisp on top. The crisp
  * trace is stroked on the effects canvas only, so the halo holds only blurred strokes, and no paint reads a pixel back.
- * Trace and halo are colored by level alike, the halo at its starting strength in each color.
+ * Trace and halo are colored by level alike, the halo at its starting strength in each color and laid on the plot at
+ * HALO_SHARE of that, so the trace stands out against it.
  *
  * @param {Frame} f
  */
@@ -312,7 +314,9 @@ function fade(f) {
   ctx.clearRect(0, 0, w, h);
   if (g) {
     glow(f, g, halo, px);
+    ctx.globalAlpha = HALO_SHARE;
     ctx.drawImage(g.canvas, 0, 0);
+    ctx.globalAlpha = 1;
   }
   pal.line ??= vertical(ctx, h, 0, suiteLineStops(pal.suite, pal.accent));
   ctx.strokeStyle = pal.line;
