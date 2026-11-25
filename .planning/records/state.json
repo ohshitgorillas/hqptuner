@@ -3,8 +3,8 @@
   "cycleOpen": true,
   "cursor": {
     "phase": 9,
-    "status": "planned",
-    "next": "/cad-execute 9",
+    "status": "executed",
+    "next": "/cad-verify 9",
     "updated": "2026-11-25"
   },
   "phases": [
