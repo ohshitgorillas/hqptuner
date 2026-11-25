@@ -23,7 +23,7 @@ Committed scope. Each maps to exactly one roadmap phase.
 
 ### Visualizer
 
-- **SPEC-02**: User sees no trace on the visualizer effects other than the spectrum, such as Borealis.
+- **SPEC-02**: User sees the trace under the Trace spectrum style only, and under none of the other styles (Bars, Ridges, Aurora, Fade, Flames), whatever the color suite.
 
 ### Test debt
 
